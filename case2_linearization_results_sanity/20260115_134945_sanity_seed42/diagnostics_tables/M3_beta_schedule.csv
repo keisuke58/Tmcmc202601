@@ -1,0 +1,4 @@
+model,chain,stage,beta
+M3,1,0,0.0
+M3,1,1,0.05
+M3,1,2,0.25

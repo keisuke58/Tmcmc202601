@@ -1,0 +1,36 @@
+{
+  "model": "M1",
+  "theta_base_policy": "prior_mean_full_vector",
+  "rom_error_MAP_vs_FOM": 0.0,
+  "rom_error_MEAN_vs_FOM": 0.0,
+  "fit_MAP": {
+    "n_obs": 20,
+    "n_species": 2,
+    "rmse_per_species": [
+      0.37691301847703784,
+      0.36172383713285816
+    ],
+    "mae_per_species": [
+      0.362315163892236,
+      0.32401177437687284
+    ],
+    "rmse_total": 0.36939650637735494,
+    "mae_total": 0.3431634691345544,
+    "max_abs": 0.49146331310296076
+  },
+  "fit_MEAN": {
+    "n_obs": 20,
+    "n_species": 2,
+    "rmse_per_species": [
+      0.3769165370802012,
+      0.36185047956234695
+    ],
+    "mae_per_species": [
+      0.36232029865951765,
+      0.3241863982049006
+    ],
+    "rmse_total": 0.3694603128104771,
+    "mae_total": 0.3432533484322091,
+    "max_abs": 0.49152705870394814
+  }
+}
