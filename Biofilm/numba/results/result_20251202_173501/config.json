@@ -1,0 +1,38 @@
+{
+  "timestamp": "20251202_173501",
+  "config": {
+    "M1": "{'dt': 1e-05, 'maxtimestep': 2500, 'c_const': 100.0, 'alpha_const': 100.0}",
+    "M2": "{'dt': 1e-05, 'maxtimestep': 5000, 'c_const': 100.0, 'alpha_const': 10.0}",
+    "M3": "{'dt': 0.0001, 'maxtimestep': 750, 'c_const': 25.0, 'alpha_const': 0.0}",
+    "N0_M1": 100,
+    "N0_M2": 100,
+    "N0_M3": 100,
+    "stages_M1": 20,
+    "stages_M2": 20,
+    "stages_M3": 20,
+    "target_ess_ratio": 0.5,
+    "theta_active_indices_M1": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "theta_active_indices_M2": [
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "theta_active_indices_M3": [
+      10,
+      11,
+      12,
+      13
+    ],
+    "cov_rel": 0.005,
+    "use_parallel": true,
+    "use_analytical": true
+  }
+}

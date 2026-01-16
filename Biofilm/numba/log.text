@@ -1,0 +1,42 @@
+✓ Numba JIT acceleration: ENABLED
+========================================================================
+  Biofilm Case II: TSM + TMCMC + Hierarchical Bayesian Updating
+  Complete Version with Numba & Paper-Level Figures
+========================================================================
+Start: 2025-12-02 07:43:45
+Mode : FULL (Table 3)
+Numba: ENABLED
+Save : ON (timestamped folder)
+Plots: ON
+========================================================================
+
+[Step 0] Generating synthetic data...
+  ✓ Data shapes: M1=(2501, 2), M2=(5001, 2), M3=(751, 4)
+
+=== Stage 1: M1 (species 1 & 2) ===
+  [TMCMC] Stage 1: β=0.0000, ESS=100.0/100
+Traceback (most recent call last):
+  File "/home/nishioka/IKM_Hiwi/Biofilm/numba/biofilm_complete_final.py", line 1310, in <module>
+    main()
+  File "/home/nishioka/IKM_Hiwi/Biofilm/numba/biofilm_complete_final.py", line 1273, in main
+    results = hierarchical_case2(tsm_M1, tsm_M2, tsm_M3, data_M1, data_M2, data_M3,
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nishioka/IKM_Hiwi/Biofilm/numba/biofilm_complete_final.py", line 661, in hierarchical_case2
+    res_M1 = tmcmc(logL_M1, log_prior_M1, init_M1, n_stages=config["stages_M1"],
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nishioka/IKM_Hiwi/Biofilm/numba/biofilm_complete_final.py", line 589, in tmcmc
+    lp_old, ll_old = log_prior(th_old), log_likelihood(th_old)
+                                        ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nishioka/IKM_Hiwi/Biofilm/numba/biofilm_complete_final.py", line 643, in logL_M1
+    tsm_res = tsm_M1.solve_tsm(theta_full)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nishioka/IKM_Hiwi/Biofilm/numba/biofilm_complete_final.py", line 479, in solve_tsm
+    dG_dict = self._dG_dtheta_numeric(g_new, g_prev, tt, dt, theta)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nishioka/IKM_Hiwi/Biofilm/numba/biofilm_complete_final.py", line 449, in _dG_dtheta_numeric
+    A_p, b_p = self.solver.theta_to_matrices(th_plus)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nishioka/IKM_Hiwi/Biofilm/numba/biofilm_complete_final.py", line 284, in theta_to_matrices
+    A = np.array([
+        ^^^^^^^^^^
+KeyboardInterrupt

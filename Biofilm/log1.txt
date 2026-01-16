@@ -1,0 +1,73 @@
+nohup: ignoring input
+/home/nishioka/IKM_Hiwi/Biofilm/biofilm1130_re1.py:174: SyntaxWarning: invalid escape sequence '\o'
+  plt.ylabel("Living Biomass $\overline{\Phi}(t)$")
+/home/nishioka/IKM_Hiwi/Biofilm/biofilm1130_re1.py:298: SyntaxWarning: invalid escape sequence '\o'
+  plt.ylabel("Living Biomass $\overline{\Phi}(t)$")
+=== Case II: Parallel Optimization (Full Figures) ===
+
+[Step 0] Generating Data...
+
+[Step 1] Estimating M1 (Parallel)...
+differential_evolution step 1: f(x)= 0.0772451566381147
+differential_evolution step 2: f(x)= 0.07542916673615625
+differential_evolution step 3: f(x)= 0.0719169629989062
+differential_evolution step 4: f(x)= 0.011920257588671785
+differential_evolution step 5: f(x)= 0.011920257588671785
+differential_evolution step 6: f(x)= 0.002215361647376706
+differential_evolution step 7: f(x)= 0.002215361647376706
+differential_evolution step 8: f(x)= 0.002215361647376706
+differential_evolution step 9: f(x)= 0.002215361647376706
+differential_evolution step 10: f(x)= 0.0018158327373559379
+Polishing solution with 'L-BFGS-B'
+Saved: fig9_M1_fit.png
+
+[Step 2] Estimating M2 (Parallel)...
+differential_evolution step 1: f(x)= 0.003021098136598531
+differential_evolution step 2: f(x)= 0.0014264888871870544
+differential_evolution step 3: f(x)= 0.0014264888871870544
+differential_evolution step 4: f(x)= 0.0014264888871870544
+differential_evolution step 5: f(x)= 0.0005987635576016218
+differential_evolution step 6: f(x)= 0.0005987635576016218
+differential_evolution step 7: f(x)= 0.0005987635576016218
+differential_evolution step 8: f(x)= 0.0005527499002536603
+differential_evolution step 9: f(x)= 0.00036903449108048505
+differential_evolution step 10: f(x)= 0.0003233639903165855
+Polishing solution with 'L-BFGS-B'
+Saved: fig11_M2_fit.png
+
+[Step 3] Estimating M3 (Parallel)...
+differential_evolution step 1: f(x)= 2.670781619424149e-05
+differential_evolution step 2: f(x)= 2.670781619424149e-05
+differential_evolution step 3: f(x)= 2.670781619424149e-05
+differential_evolution step 4: f(x)= 2.326193874648064e-05
+differential_evolution step 5: f(x)= 2.326193874648064e-05
+differential_evolution step 6: f(x)= 1.2928327260073831e-05
+differential_evolution step 7: f(x)= 6.1093367557549195e-06
+differential_evolution step 8: f(x)= 6.1093367557549195e-06
+differential_evolution step 9: f(x)= 6.1093367557549195e-06
+differential_evolution step 10: f(x)= 6.1093367557549195e-06
+Polishing solution with 'L-BFGS-B'
+Saved: fig13_M3_fit.png
+
+=== ESTIMATION RESULT ===
+
+=== FINAL ESTIMATED PARAMETERS (Sorted) ===
+   Parameter  True  Estimated   Error
+0        a11   0.8     1.2807  0.4807
+1        a12   2.0     1.5255 -0.4745
+2        a13   2.0     2.1747  0.1747
+3        a14   1.0     0.7294 -0.2706
+4        a22   1.0     1.4792  0.4792
+5        a23   2.0     1.8254 -0.1746
+6        a24   1.0     1.2308  0.2308
+7        a33   1.5     1.4979 -0.0021
+8        a34   1.0     1.0020  0.0020
+9        a44   2.0     2.0014  0.0014
+10        b1   0.1     0.1131  0.0131
+11        b2   0.2     0.1894 -0.0106
+12        b3   0.3     0.2654 -0.0346
+13        b4   0.4     0.7126  0.3126
+Saved: fig14_parameters_comparison.png
+
+Running Validation (M3val)...
+Saved: fig15_validation.png

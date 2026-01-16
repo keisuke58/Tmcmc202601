@@ -1,0 +1,19 @@
+{
+  "timestamp": "20251202_093910",
+  "config": {
+    "M1": "{'dt': 1e-05, 'maxtimestep': 2500, 'c_const': 100.0, 'alpha_const': 100.0}",
+    "M2": "{'dt': 1e-05, 'maxtimestep': 5000, 'c_const': 100.0, 'alpha_const': 10.0}",
+    "M3": "{'dt': 0.0001, 'maxtimestep': 750, 'c_const': 25.0, 'alpha_const': 0.0}",
+    "N0_M1": "100",
+    "N0_M2": "100",
+    "N0_M3": "100",
+    "stages_M1": "8",
+    "stages_M2": "8",
+    "stages_M3": "8",
+    "target_ess_ratio": "0.8",
+    "theta_active_indices_M1": "None",
+    "theta_active_indices_M2": "None",
+    "theta_active_indices_M3": "None",
+    "cov_rel": "0.005"
+  }
+}

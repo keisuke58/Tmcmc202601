@@ -1,0 +1,64 @@
+{
+  "run_id": "20260115_134945_sanity_seed42",
+  "mode": "sanity",
+  "end_time": "2026-01-15 13:52:09",
+  "timing": {
+    "time_M1_s": 34.57057499885559,
+    "time_M2_s": 67.64504766464233,
+    "time_M3_s": 8.941479206085205,
+    "total_time_min": 1.852618364493052
+  },
+  "convergence": {
+    "M1": {
+      "converged_chains": 0,
+      "n_chains": 1
+    },
+    "M2": {
+      "converged_chains": 0,
+      "n_chains": 1
+    },
+    "M3": {
+      "converged_chains": 0,
+      "n_chains": 1
+    }
+  },
+  "errors": {
+    "total_map_error": 3.6591617848069147,
+    "total_mean_error": 3.6593478679111575,
+    "map_errors_tmcmc": {
+      "M1": 2.4380366204641013,
+      "M2": 2.4355525914409446,
+      "M3": 1.2302544366888553
+    }
+  },
+  "cost": {
+    "rom_evaluations": {
+      "M1": 20,
+      "M2": 20,
+      "M3": 20
+    },
+    "fom_evaluations": {
+      "M1": 1,
+      "M2": 1,
+      "M3": 1
+    },
+    "total_evaluations": {
+      "M1": 21,
+      "M2": 21,
+      "M3": 21
+    }
+  },
+  "artifacts": {
+    "config_json": "config.json",
+    "metrics_json": "metrics.json",
+    "results_npz": "results_MAP_linearization.npz",
+    "figures_dir": "figures",
+    "figures_manifest": "figures/FIGURES_MANIFEST.json",
+    "diagnostics_tables_dir": "diagnostics_tables",
+    "fit_metrics": {
+      "M1": "fit_metrics_M1.json",
+      "M2": "fit_metrics_M2.json",
+      "M3": "fit_metrics_M3.json"
+    }
+  }
+}
