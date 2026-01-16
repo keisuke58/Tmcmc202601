@@ -1,0 +1,60 @@
+# Cursor indexing ignore (gitignore syntax)
+# Keep code/indexing fast by excluding heavy binaries and build artifacts.
+
+# VCS
+.git/
+
+# Python caches / test caches
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# ML artifacts / large binaries
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.tflite
+*.npy
+*.npz
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+
+# Experiment trackers / run outputs
+wandb/
+mlruns/
+lightning_logs/
+runs/
+outputs/
+checkpoints/
+logs/
+
+# Common image/pdf binaries (indexing usually not useful)
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+
+# LaTeX intermediates
+*.aux
+*.fdb_latexmk
+*.fls
+*.nav
+*.out
+*.snm
+*.synctex.gz
+*.toc
+*.xdv
+*.log
+

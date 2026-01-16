@@ -1,83 +1,95 @@
-# ===== Abaqus =====
-*.odb
-*.odb_f
-*.lck
-*.com
-*.msg
-*.dat
-*.sta
-*.prt
-*.sim
-*.stt
-*.mdl
-*.res
-*.abq
-*.pac
-*.sel
-*.023
-*.jnl
-abaqus.rpy*
-abaqus_acis.log
-
-# ===== Large generated data =====
-*.odb.gz
-*.tar.gz
-
-# ===== Python =====
-__pycache__/
-*.pyc
-*.pyo
-.ipynb_checkpoints/
-
-# ===== Job markers =====
-*.flag
-
-# ===== OS =====
+# =========================
+# Common OS / editor files
+# =========================
 .DS_Store
 Thumbs.db
+Desktop.ini
 
-# ===== Logs =====
-*.log
-!docs/**/*.log
+.vscode/
+.idea/
 
-# ===== Backup directory (synced to Google Drive) =====
-_backup/
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyd
+.Python
 
-# ===== DVC =====
-.dvc/cache/
-.dvc/tmp/
+# Virtual environments
+.venv/
+venv/
+env/
 
-# ===== MLflow =====
+# Packaging / build
+build/
+dist/
+*.egg-info/
+
+# Type checkers / linters
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# =========================
+# ML / DL / GNN artifacts
+# =========================
+# Model weights / checkpoints
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.tflite
+
+# Arrays / datasets / serialized objects
+*.npy
+*.npz
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+
+# Experiment trackers
+wandb/
 mlruns/
+lightning_logs/
+tensorboard/
+**/events.out.tfevents*
 
-# ===== Large data files (>1MB, use DVC or Google Drive) =====
-deeponet/data/*.npz
-deeponet/checkpoints_*/*.eqx
-FEM/_growth_job_runs*/*.csv
-FEM/_jax_rd_datasets/*.npy
-FEM/_neohookean_comparison/**/*.inp
-FEM/_abaqus_1kpa_jobs/**/*.inp
-FEM/_abaqus_1kpa_jobs/**/nodes_3d.csv
-FEM/_3model_comparison/**/*.inp
-FEM/test_output.inp
-gnn/data/*.npz
-gnn/data/checkpoints/*.pt
+# Common run/output folders (keep code, ignore generated outputs)
+runs/
+outputs/
+checkpoints/
+logs/
 
-# ===== Large images (corner plots etc) =====
-**/corner_plot_*_Corner.png
+# =========================
+# LaTeX (ignore intermediates, keep sources/PDFs)
+# =========================
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.nav
+*.out
+*.snm
+*.synctex.gz
+*.toc
+*.xdv
+*.log
 
-# ===== PDFs in docs (downloaded papers) =====
-docs/soleimani_papers/*.pdf
+# =========================
+# Large misc / temp
+# =========================
+*.tmp
+*.swp
+*.swo
 
-# ===== Presentations =====
-docs/*.pptx
-
-# ===== Misc large files =====
-tmcmc/program2602/Data Sheet 1.pdf
-
-# ===== Quantum artifacts =====
-quantum_weights.json
-tmcmc/program2602/quantum_weights.json
-quantum_*.png
-tmcmc/program2602/quantum_*.png
-data_5species/_runs/
