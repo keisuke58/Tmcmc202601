@@ -69,6 +69,32 @@ checkpoints/
 logs/
 
 # =========================
+# TMCMC project specific
+# =========================
+# Experiment results (large, regenerable)
+tmcmc/_runs/
+tmcmc/case2_*_results/
+tmcmc/case2_*_results*/
+tmcmc/*_results/
+tmcmc/*_results*/
+
+# Generated figures / extracted content
+tmcmc/_paper_figs_8_15/
+tmcmc/_pdf_text/
+tmcmc/*.pdf
+tmcmc/*.png
+tmcmc/*.jpg
+tmcmc/*.jpeg
+
+# Generated CSV/JSON from experiments (keep code, ignore data)
+tmcmc/*.csv
+tmcmc/*.json
+# But keep config files and small metadata
+!tmcmc/config.py
+!tmcmc/*_config.json
+!tmcmc/*_metadata.json
+
+# =========================
 # LaTeX (ignore intermediates, keep sources/PDFs)
 # =========================
 *.aux
