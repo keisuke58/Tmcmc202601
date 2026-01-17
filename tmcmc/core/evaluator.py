@@ -1,0 +1,487 @@
+"""
+Log-likelihood evaluator using TSM-ROM with linearization management.
+
+Extracted from case2_tmcmc_linearization.py for better modularity.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+
+from utils import TimingStats, timed, LikelihoodHealthCounter
+from debug import DebugLogger
+from visualization.helpers import compute_phibar
+from config import DebugConfig, DebugLevel
+
+logger = logging.getLogger(__name__)
+
+# Import solver and TSM classes (these are external dependencies)
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from improved1207_paper_jit import BiofilmNewtonSolver, HAS_NUMBA
+from demo_analytical_tsm_with_linearization_jit import BiofilmTSM_Analytical
+
+
+def log_likelihood_sparse(
+    mu: np.ndarray,
+    sig: np.ndarray,
+    data: np.ndarray,
+    sigma_obs: float,
+    rho: float = 0.0,
+    health: Optional[Dict[str, int]] = None,
+) -> float:
+    """
+    Compute log-likelihood for sparse observations.
+    
+    Supports:
+    - Diagonal covariance (rho=0.0)
+    - Equicorrelated covariance (rho != 0.0) where R_ij = rho (i!=j) and 1 (i=j)
+      Cov_t = D_t * R * D_t, where D_t = diag(sqrt(var_total))
+      
+    Parameters
+    ----------
+    mu : np.ndarray
+        Predicted mean at observation times: shape (n_obs, n_species)
+    sig : np.ndarray
+        Predicted variance at observation times: shape (n_obs, n_species)
+    data : np.ndarray
+        Observed data: shape (n_obs, n_species)
+    sigma_obs : float
+        Observation noise standard deviation
+    rho : float
+        Observation correlation coefficient (default: 0.0)
+    health : Dict[str, int], optional
+        Health counter dictionary for tracking issues
+        
+    Returns
+    -------
+    float
+        Log-likelihood value
+    """
+    n_obs, n_species = data.shape
+    logL = 0.0
+    
+    # Pre-compute R inverse and determinant if rho is used
+    use_correlation = (abs(rho) > 1e-9) and (n_species > 1)
+    
+    if use_correlation:
+        # Equicorrelated matrix R:
+        # Det(R) = (1 + (p-1)rho) * (1-rho)^(p-1)
+        # R^{-1} = (a I + b J)
+        # a = ... (standard formula for equicorrelated inverse)
+        # But for small n_species (e.g. 2 or 4), direct inversion is fast and safe.
+        R = np.eye(n_species) + rho * (np.ones((n_species, n_species)) - np.eye(n_species))
+        try:
+            # Cholesky is faster/stable for positive definite R
+            L_R = np.linalg.cholesky(R)
+            # log|R| = 2 * sum(log(diag(L_R)))
+            log_det_R = 2.0 * np.sum(np.log(np.diag(L_R)))
+            # Solve R x = y -> x = R^-1 y is not needed explicitly if we use solve
+        except np.linalg.LinAlgError:
+            # Fallback if rho is invalid (not PD)
+            if health is not None:
+                health["rho_error"] = 1
+            return -1e20
+
+    for i in range(n_obs):
+        # 1. Variance vector and total covariance diagonal
+        var_total_vec = np.zeros(n_species)
+        for j in range(n_species):
+            var_raw = sig[i, j] + sigma_obs**2
+            
+            # Health checks
+            if health is not None:
+                if not np.isfinite(var_raw):
+                    health["n_var_raw_nonfinite"] = int(health.get("n_var_raw_nonfinite", 0)) + 1
+                elif var_raw < 0.0:
+                    health["n_var_raw_negative"] = int(health.get("n_var_raw_negative", 0)) + 1
+                if (not np.isfinite(var_raw)) or (var_raw <= 1e-20):
+                    health["n_var_total_clipped"] = int(health.get("n_var_total_clipped", 0)) + 1
+
+            if not np.isfinite(var_raw) or var_raw <= 1e-20:
+                var_total_vec[j] = 1e-20
+            else:
+                var_total_vec[j] = float(var_raw)
+        
+        residual = data[i, :] - mu[i, :]
+
+        if not use_correlation:
+            # Diagonal case (Original)
+            for j in range(n_species):
+                v = var_total_vec[j]
+                logL -= 0.5 * np.log(2 * np.pi * v)
+                logL -= 0.5 * (residual[j]**2) / v
+        else:
+            # Correlated case
+            # Sigma = D R D
+            # log|Sigma| = log|D|^2 + log|R| = sum(log(v_j)) + log|R|
+            # z = D^-1 residual
+            # Q = z^T R^-1 z
+            
+            # std_devs = sqrt(var)
+            std_vec = np.sqrt(var_total_vec)
+            
+            # log|Sigma|
+            # sum(log(var)) = 2 * sum(log(std))
+            log_det_Sigma = np.sum(np.log(var_total_vec)) + log_det_R
+            
+            # z = residual / std
+            z = residual / std_vec
+            
+            # Q = z^T R^-1 z
+            # R y = z => y = R^-1 z.  Q = z^T y.
+            # Solve L_R L_R^T y = z
+            # Forward: L_R w = z
+            # Backward: L_R^T y = w
+            try:
+                w = np.linalg.solve(L_R, z)
+                quad_form = np.dot(w, w) # w^T w = z^T (L_R^-T L_R^-1) z = z^T R^-1 z
+            except Exception:
+                 if health is not None:
+                    health["solve_error"] = 1
+                 return -1e20
+
+            logL -= 0.5 * (n_species * np.log(2 * np.pi) + log_det_Sigma + quad_form)
+
+    return logL
+
+
+class LogLikelihoodEvaluator:
+    """
+    Log-likelihood evaluator using TSM-ROM with linearization management.
+    
+    KEY FEATURE: Supports update_linearization_point() for 2-phase MCMC
+    """
+    
+    def __init__(
+        self,
+        solver_kwargs: Dict[str, Any],
+        active_species: List[int],
+        active_indices: List[int],
+        theta_base: np.ndarray,
+        data: np.ndarray,
+        idx_sparse: np.ndarray,
+        sigma_obs: float,
+        cov_rel: float,
+        rho: float = 0.0,
+        theta_linearization: Optional[np.ndarray] = None,
+        use_analytical: bool = True,
+        paper_mode: bool = False,
+        debug_logger: Optional[DebugLogger] = None,
+    ):
+        """
+        Initialize likelihood evaluator with linearization support.
+        
+        Parameters
+        ----------
+        theta_linearization : ndarray (14,), optional
+            Initial linearization point for TSM.
+            If None, uses theta_base as linearization point.
+        use_analytical : bool
+            If True, use analytical derivatives (faster).
+        paper_mode : bool, default=False
+            If True and use_analytical=True, use paper_analytical_derivatives
+            (exact match with improved1207_paper_jit.py, verified with complex-step).
+            If False, use complex-step differentiation (slower but more robust for debugging).
+        debug_logger : DebugLogger, optional
+            Debug logger for controlling error output (ERROR/OFF mode: silent).
+        """
+        self.active_species = list(active_species)
+        self.active_indices = list(active_indices)
+        self.theta_base = theta_base.copy()
+        self.data = data
+        self.idx_sparse = idx_sparse
+        self.sigma_obs = sigma_obs
+        self.cov_rel = cov_rel
+        self.rho = rho
+        self.n_species = len(active_species)
+        self.solver_kwargs = solver_kwargs.copy()
+        self.debug_logger = debug_logger or DebugLogger(DebugConfig(level=DebugLevel.OFF))
+        
+        # Tracking
+        self.call_count = 0  # Number of ROM (TSM) evaluations
+        self.fom_call_count = 0  # Number of FOM evaluations (for ROM error computation)
+        self.timing = TimingStats()  # Wall-time breakdown for metrics.json
+        self.health = LikelihoodHealthCounter()  # Likelihood/TSM health counters
+        self.theta_history = []
+        self.logL_history = []
+        
+        # Create solver
+        self.solver = BiofilmNewtonSolver(
+            **solver_kwargs,
+            active_species=self.active_species,
+            use_numba=HAS_NUMBA,
+        )
+        
+        # Use BiofilmTSM_Analytical with linearization management
+        if theta_linearization is None:
+            theta_linearization = theta_base.copy()
+        
+        self.tsm = BiofilmTSM_Analytical(
+            self.solver,
+            active_theta_indices=self.active_indices,
+            cov_rel=self.cov_rel,
+            use_complex_step=True,
+            use_analytical=use_analytical,
+            theta_linearization=theta_linearization,
+            paper_mode=paper_mode,
+        )
+        
+        self._theta_linearization = theta_linearization.copy()
+        self._linearization_enabled = False  # Start with linearization disabled (non-linear exploration)
+        logger.info("TSM initialized (linearization disabled initially for exploration)")
+    
+    def update_linearization_point(self, theta_new_full: np.ndarray):
+        """
+        Update TSM linearization point.
+        
+        CRITICAL for 2-phase MCMC accuracy!
+        
+        Parameters
+        ----------
+        theta_new_full : ndarray (14,)
+            New linearization point (typically MAP from Phase 1)
+        """
+        self.tsm.update_linearization_point(theta_new_full)
+        self._theta_linearization = theta_new_full.copy()
+        
+        # Reset tracking for new phase
+        self.theta_history = []
+        self.logL_history = []
+        self.call_count = 0
+    
+    def enable_linearization(self, enable: bool = True):
+        """
+        Enable or disable linearization dynamically.
+        
+        This allows switching between full TSM (non-linear) and linearized TSM
+        during MCMC execution. Typically:
+        - Initial exploration (small β): linearization disabled (full TSM)
+        - Later stages (large β): linearization enabled (fast, accurate near MAP)
+        
+        Parameters
+        ----------
+        enable : bool
+            If True, enable linearization. If False, use full TSM.
+        """
+        self.tsm.enable_linearization(enable)
+        self._linearization_enabled = enable
+    
+    def get_linearization_point(self) -> np.ndarray:
+        """Get current linearization point."""
+        return self._theta_linearization.copy()
+    
+    def compute_ROM_error(self, theta_full: np.ndarray) -> float:
+        """
+        Compute ROM error based on observable φ̄ (living bacteria volume fraction).
+        
+        Paper-ready definition:
+            ε_ROM = || φ̄_ROM(t_obs) − φ̄_FOM(t_obs) ||₂ / || φ̄_FOM(t_obs) ||₂
+        
+        where φ̄_i = φ_i * ψ_i (observable quantity used in likelihood).
+        
+        This is the error in the observable space, which directly relates to
+        the likelihood approximation quality.
+        
+        Parameters
+        ----------
+        theta_full : ndarray (14,)
+            Full parameter vector
+            
+        Returns
+        -------
+        rel_error : float
+            Relative ROM error in observable space (φ̄)
+        """
+        try:
+            with timed(self.timing, "rom_error.compute"):
+                # ROM solution
+                with timed(self.timing, "tsm.solve_tsm"):
+                    t_arr_rom, x0_rom, sig2_rom = self.tsm.solve_tsm(theta_full)
+                
+                # FOM solution
+                self.fom_call_count += 1  # Track FOM evaluations
+                with timed(self.timing, "fom.run_deterministic"):
+                    t_arr_fom, x0_fom = self.solver.run_deterministic(theta_full)
+            
+            # Compute φ̄ (observable) at observation times for comparison
+            # φ̄_i = φ_i * ψ_i (living bacteria volume fraction)
+            phibar_rom = compute_phibar(x0_rom, self.active_species)
+            phibar_fom = compute_phibar(x0_fom, self.active_species)
+            
+            # Extract values at observation indices (sparse observations)
+            phibar_rom_obs = phibar_rom[self.idx_sparse]
+            phibar_fom_obs = phibar_fom[self.idx_sparse]
+            
+            # Relative error: || φ̄_ROM(t_obs) − φ̄_FOM(t_obs) ||₂ / || φ̄_FOM(t_obs) ||₂
+            error_norm = np.linalg.norm(phibar_rom_obs - phibar_fom_obs)
+            fom_norm = np.linalg.norm(phibar_fom_obs)
+
+            # CRITICAL SAFETY:
+            # If ||φ̄_FOM|| is (near) zero, the usual *relative* error becomes ill-posed.
+            # Returning 0.0 here is dangerous: it can incorrectly signal "perfect ROM"
+            # and enable/stop linearization updates.
+            #
+            # Policy:
+            # - If both ROM and FOM are essentially zero at observation points → error 0.0 (they match).
+            # - Otherwise → return +inf (treat as unreliable / catastrophic), and log diagnostics.
+            eps = 1e-10
+            if (not np.isfinite(fom_norm)) or (not np.isfinite(error_norm)):
+                return np.inf
+
+            if fom_norm < eps:
+                if error_norm < eps:
+                    return 0.0
+                # Diagnostics (keep it cheap; no heavy formatting in tight loops)
+                if hasattr(self, "debug_logger") and self.debug_logger:
+                    if self.debug_logger.config.level in (DebugLevel.MINIMAL, DebugLevel.VERBOSE):
+                        try:
+                            self.debug_logger.log_warning(
+                                "ROM error is ill-posed because ||φ̄_FOM(obs)|| is near-zero "
+                                f"(||φ̄_FOM||={fom_norm:.3e}, ||Δ||={error_norm:.3e}). "
+                                "Returning +inf to avoid false '0.0' ROM error."
+                            )
+                        except Exception:
+                            pass
+                else:
+                    logger.warning(
+                        "ROM error ill-posed: ||φ̄_FOM(obs)|| near-zero (||φ̄_FOM||=%.3e, ||Δ||=%.3e). Returning +inf.",
+                        float(fom_norm),
+                        float(error_norm),
+                    )
+                return np.inf
+
+            rel_error = error_norm / fom_norm
+            return float(rel_error)
+        except Exception as e:
+            # ERROR/OFF mode: silent
+            # MINIMAL/VERBOSE: log warning
+            if hasattr(self, "debug_logger") and self.debug_logger:
+                if self.debug_logger.config.level in (DebugLevel.MINIMAL, DebugLevel.VERBOSE):
+                    self.debug_logger.log_warning(f"ROM error computation failed: {e}")
+            else:
+                logger.warning("ROM error computation failed: %s", e)
+            return np.inf  # Return large error if computation fails
+    
+    def __call__(self, theta_sub: np.ndarray) -> float:
+        """Evaluate log-likelihood for given parameter subset."""
+        self.call_count += 1
+        self.health.n_calls += 1
+        
+        # Construct full parameter vector
+        full_theta = self.theta_base.copy()
+        for i, idx in enumerate(self.active_indices):
+            full_theta[idx] = theta_sub[i]
+        
+        # Solve TSM
+        try:
+            with timed(self.timing, "tsm.solve_tsm"):
+                t_arr, x0, sig2 = self.tsm.solve_tsm(full_theta)
+        except Exception as e:
+            self.health.n_tsm_fail += 1
+            # ERROR/OFF mode: silent
+            # MINIMAL/VERBOSE: log warning
+            if hasattr(self, "debug_logger") and self.debug_logger:
+                if self.debug_logger.config.level in (DebugLevel.MINIMAL, DebugLevel.VERBOSE):
+                    self.debug_logger.log_warning(f"TSM failed: {e}")
+            else:
+                logger.warning("TSM failed: %s", e)
+            return -1e20
+
+        # Basic sanity: solver outputs must be finite (counts for later triage)
+        n_bad = 0
+        try:
+            n_bad += int(np.size(t_arr) - np.isfinite(t_arr).sum())
+            n_bad += int(np.size(x0) - np.isfinite(x0).sum())
+            n_bad += int(np.size(sig2) - np.isfinite(sig2).sum())
+        except Exception:
+            n_bad += 1
+        if n_bad > 0:
+            self.health.n_output_nonfinite += int(n_bad)
+            return -1e20
+        
+        # Compute predicted mean and variance at observation times
+        mu = np.zeros((len(self.idx_sparse), self.n_species))
+        sig = np.zeros((len(self.idx_sparse), self.n_species))
+        
+        # State vector: [phi_0..phi_{N-1}, phi0, psi_0..psi_{N-1}, gamma]
+        # For N total species, psi_offset = N + 1
+        n_state = x0.shape[1]
+        n_total_species = (n_state - 2) // 2
+        psi_offset = n_total_species + 1
+        
+        for i, sp in enumerate(self.active_species):
+            # CRITICAL FIX: Check bounds explicitly instead of silent clipping
+            # Silent clipping can hide bugs (e.g., idx_sparse calculation errors)
+            if np.any(self.idx_sparse < 0) or np.any(self.idx_sparse >= sig2.shape[0]):
+                invalid_min = np.min(self.idx_sparse[self.idx_sparse < 0]) if np.any(self.idx_sparse < 0) else None
+                invalid_max = np.max(self.idx_sparse[self.idx_sparse >= sig2.shape[0]]) if np.any(self.idx_sparse >= sig2.shape[0]) else None
+                raise IndexError(
+                    f"Invalid idx_sparse: min={invalid_min}, max={invalid_max}, "
+                    f"valid range=[0, {sig2.shape[0]-1}]. "
+                    f"idx_sparse shape={self.idx_sparse.shape}, sig2 shape={sig2.shape}"
+                )
+            idx = self.idx_sparse
+
+            phi = x0[idx, sp]
+            psi = x0[idx, psi_offset + sp]
+            sig2_phi = sig2[idx, sp]
+            sig2_psi = sig2[idx, psi_offset + sp]
+
+            mu[:, i] = phi * psi
+            # Var(phi*psi) = phi^2 Var(psi) + psi^2 Var(phi) + 2 phi psi Cov(phi,psi)
+            var_phibar = phi**2 * sig2_psi + psi**2 * sig2_phi
+
+            # Cov(phi,psi) can be computed from sensitivities x1:
+            # Cov(x_a, x_b) = Σ_k (∂x_a/∂θ_k)(∂x_b/∂θ_k) Var(θ_k), assuming independent θ_k.
+            x1 = getattr(self.tsm, "_last_x1", None)
+            var_act = getattr(self.tsm, "_last_var_act", None)
+            if x1 is not None and var_act is not None:
+                try:
+                    x1_phi = x1[idx, sp, :]  # (n_obs, n_active)
+                    x1_psi = x1[idx, psi_offset + sp, :]  # (n_obs, n_active)
+                    cov_phi_psi = np.sum(x1_phi * x1_psi * var_act[None, :], axis=1)
+                    var_phibar = var_phibar + 2.0 * phi * psi * cov_phi_psi
+                except Exception:
+                    # Fall back to diagonal approximation if shapes mismatch
+                    pass
+
+            sig[:, i] = var_phibar
+        
+        # Sanity: likelihood inputs must be finite
+        n_bad2 = int(np.size(mu) - np.isfinite(mu).sum()) + int(np.size(sig) - np.isfinite(sig).sum())
+        if n_bad2 > 0:
+            self.health.n_output_nonfinite += int(n_bad2)
+            return -1e20
+
+        # Evaluate log-likelihood + increment per-entry variance health counters
+        var_health: Dict[str, int] = {}
+        logL = log_likelihood_sparse(mu, sig, self.data, self.sigma_obs, rho=self.rho, health=var_health)
+        self.health.n_var_raw_negative += int(var_health.get("n_var_raw_negative", 0))
+        self.health.n_var_raw_nonfinite += int(var_health.get("n_var_raw_nonfinite", 0))
+        self.health.n_var_total_clipped += int(var_health.get("n_var_total_clipped", 0))
+        
+        # Track evaluation
+        self.theta_history.append(theta_sub.copy())
+        self.logL_history.append(logL)
+        
+        return logL
+
+    def get_health(self) -> Dict[str, int]:
+        """Get health counters as dictionary."""
+        return self.health.to_dict()
+    
+    def get_MAP(self) -> Tuple[np.ndarray, float]:
+        """Get MAP estimate from evaluation history."""
+        if len(self.logL_history) == 0:
+            raise ValueError("No evaluations yet")
+        
+        idx_max = np.argmax(self.logL_history)
+        theta_MAP = self.theta_history[idx_max]
+        logL_MAP = self.logL_history[idx_max]
+        
+        return theta_MAP, logL_MAP
