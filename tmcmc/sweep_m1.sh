@@ -20,16 +20,17 @@ RUNS_ROOT="${RUNS_ROOT:-"${ROOT_DIR}/tmcmc/_runs"}"
 MODE="${MODE:-debug}"
 DEBUG_LEVEL="${DEBUG_LEVEL:-MINIMAL}"
 MODELS="${MODELS:-M1}"
-N_STAGES="${N_STAGES:-20}"
+N_STAGES="${N_STAGES:-30}"  # Updated: 20 → 30 for better convergence
 
 # Grids (space-separated lists)
 SIGMA_LIST="${SIGMA_LIST:-0.01 0.015 0.02}"
 COVREL_LIST="${COVREL_LIST:-0.005 0.01 0.02}"
-NP_LIST="${NP_LIST:-300 500 1000}"
+NP_LIST="${NP_LIST:-2000 3000 5000}"  # Updated: 300,500,1000 → 2000,3000,5000 for better ESS
 
 # Parallelism
 # - Keep this modest on shared servers. Typical: 2-4.
-MAX_JOBS="${MAX_JOBS:-2}"
+# - This system has 12 cores, 62GB RAM, so 4-8 is safe.
+MAX_JOBS="${MAX_JOBS:-8}"
 
 # Prefix folder (under runs root) to store sweep outputs
 SWEEP_PREFIX="${SWEEP_PREFIX:-sweep_m1_$(date +%Y%m%d_%H%M%S)}"

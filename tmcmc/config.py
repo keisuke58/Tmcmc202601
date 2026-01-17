@@ -38,7 +38,7 @@ class TMCMCDefaults:
     max_linearization_updates: int = 5
 
     # Beta step control
-    max_delta_beta: float = 0.2
+    max_delta_beta: float = 0.05  # Reduced from 0.2 for better stability and convergence
 
     # Mutation proposal scaling
     mutation_scale_factor: float = 2.0
@@ -63,10 +63,24 @@ class ProposalDefaults:
     covariance_nugget_scale: float = 1e-6
 
 
+@dataclass(frozen=True)
+class LinearizationDefaults:
+    """Linearization update stabilization constants."""
+    # Cap a single θ0 update step to avoid large jumps that can freeze mutation/acceptance.
+    max_theta0_step_norm: float = 0.75
+    # Allow multiple small sub-updates in a single update event (bounded by max_linearization_updates).
+    max_linearization_subupdates_per_event: int = 3
+
+
 TMCMC_DEFAULTS = TMCMCDefaults()
 ROM_ERROR_DEFAULTS = ROMErrorDefaults()
 CONVERGENCE_DEFAULTS = ConvergenceDefaults()
 PROPOSAL_DEFAULTS = ProposalDefaults()
+LINEARIZATION_DEFAULTS = LinearizationDefaults()
+
+# Convenience constants for backward compatibility
+MAX_THETA0_STEP_NORM = LINEARIZATION_DEFAULTS.max_theta0_step_norm
+MAX_LINEARIZATION_SUBUPDATES_PER_EVENT = LINEARIZATION_DEFAULTS.max_linearization_subupdates_per_event
 
 
 # -----------------------------------------------------------------------------

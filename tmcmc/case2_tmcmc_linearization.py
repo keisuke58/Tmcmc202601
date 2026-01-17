@@ -59,6 +59,9 @@ from config import (
     CONVERGENCE_DEFAULTS,
     DebugConfig,
     DebugLevel,
+    LINEARIZATION_DEFAULTS,
+    MAX_LINEARIZATION_SUBUPDATES_PER_EVENT,
+    MAX_THETA0_STEP_NORM,
     MODEL_CONFIGS,
     PRIOR_BOUNDS_DEFAULT,
     PROPOSAL_DEFAULTS,
@@ -67,103 +70,86 @@ from config import (
     setup_logging,
 )
 
+# Import utilities from refactored modules
+from utils import (
+    code_crc32,
+    save_npy,
+    save_likelihood_meta,
+    save_json,
+    write_csv,
+    to_jsonable,
+    TimingStats,
+    timed,
+    LikelihoodHealthCounter,
+    validate_tmcmc_inputs,
+)
+
+# Import debug utilities from refactored modules
+from debug import (
+    DebugLogger,
+    SLACK_ENABLED,
+    notify_slack,
+    SlackNotifier,
+    _slack_notifier,
+)
+
+# Import visualization utilities from refactored modules
+from visualization import (
+    PlotManager,
+    compute_phibar,
+    compute_fit_metrics,
+    export_tmcmc_diagnostics_tables,
+)
+
+# Import core MCMC and evaluator utilities from refactored modules
+from core import (
+    LogLikelihoodEvaluator,
+    log_likelihood_sparse,
+    TMCMCResult,
+    run_TMCMC,
+    run_multi_chain_TMCMC,
+    run_adaptive_MCMC,
+    run_two_phase_MCMC_with_linearization,
+    reflect_into_bounds,
+    choose_subset_size,
+    should_do_fom_check,
+)
+
+# Import main function and related utilities from refactored modules
+from main import (
+    main,
+    parse_args,
+    select_sparse_data_indices,
+    generate_synthetic_data,
+    _self_check_tsm_once,
+    _default_output_root_for_mode,
+    _stable_hash_int,
+    MCMCConfig,
+    ExperimentConfig,
+    compute_MAP_with_uncertainty,
+)
+
+# NOTE: The original definitions of the above functions/classes are preserved below
+# for reference and backward compatibility. They are now imported from the core modules above.
+
+# Backward compatibility aliases (using underscore prefix for internal use)
+_code_crc32 = code_crc32
+_save_npy = save_npy
+_save_likelihood_meta = save_likelihood_meta
+_to_jsonable = to_jsonable
+_validate_tmcmc_inputs = validate_tmcmc_inputs
+
 logger = logging.getLogger(__name__)
 
 # ==============================================================================
 # RUN ARTIFACT HELPERS (reproducibility)
 # ==============================================================================
-
-def _code_crc32(path: Path) -> str:
-    """Stable fingerprint of a file (hex crc32)."""
-    try:
-        b = path.read_bytes()
-        return f"{(zlib.crc32(b) & 0xFFFFFFFF):08x}"
-    except Exception:
-        return "unknown"
+# NOTE: These functions have been moved to utils.io module.
+# Imported above for backward compatibility.
 
 
-def _save_npy(path: Path, arr: np.ndarray) -> None:
-    """Save numpy array with parent mkdir."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    np.save(path, np.asarray(arr))
-
-
-def _save_likelihood_meta(
-    run_dir: Path,
-    *,
-    run_id: str,
-    model: str,
-    sigma_obs: float,
-    cov_rel: float,
-    n_data: int,
-    active_species: List[int],
-    active_indices: List[int],
-    rho: float = 0.0,
-) -> None:
-    """
-    Persist a minimal, machine-readable description of the likelihood definition
-    used for this run so results can be audited/recomputed later.
-    """
-    meta = {
-        "run_id": run_id,
-        "model": model,
-        "observable": "phibar = phi * psi",
-        "likelihood": {
-            "family": "Gaussian",
-            "var_total": "sig + sigma_obs^2 (clipped at 1e-20)",
-            "logL": "sum_{i,j} [-0.5*log(2*pi*var_total_ij) - 0.5*(data_ij-mu_ij)^2/var_total_ij]",
-        },
-        "sigma_obs": float(sigma_obs),
-        "cov_rel": float(cov_rel),
-        "rho": float(rho),
-        "n_data": int(n_data),
-        "active_species": list(map(int, active_species)),
-        "active_indices": list(map(int, active_indices)),
-        "script": {
-            "path": str(Path(__file__).resolve()),
-            "crc32": _code_crc32(Path(__file__).resolve()),
-        },
-        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    }
-    save_json(run_dir / f"likelihood_meta_{model}.json", meta)
-
-
-# ★ Slack notification support
-try:
-    # Try to import from relative path (stranger/d.py)
-    stranger_path = Path(__file__).parent.parent / "stranger"
-    if stranger_path.exists():
-        sys.path.insert(0, str(stranger_path))
-        from d import notify_slack, SlackNotifier  # type: ignore
-        # Enabled only when credentials are provided via environment variables.
-        # - Webhook: SLACK_WEBHOOK_URL
-        # - Bot: SLACK_BOT_TOKEN (+ SLACK_CHANNEL, depending on stranger/d.py)
-        SLACK_ENABLED = bool(os.getenv("SLACK_WEBHOOK_URL") or os.getenv("SLACK_BOT_TOKEN"))
-        # Initialize global SlackNotifier for thread support
-        # Falls back to webhook if SLACK_BOT_TOKEN/SLACK_CHANNEL not set
-        _slack_notifier = SlackNotifier(raise_on_error=False)
-    else:
-        # Fallback: define a no-op function if path doesn't exist
-        def notify_slack(message: str, **kwargs) -> bool:  # type: ignore
-            return False
-        class SlackNotifier:  # type: ignore
-            def start_thread(self, title: str) -> None:
-                return None
-            def add_to_thread(self, thread_ts: None, message: str) -> bool:
-                return False
-        _slack_notifier = SlackNotifier()
-        SLACK_ENABLED = False
-except (ImportError, ModuleNotFoundError):
-    # Fallback: define a no-op function if import fails
-    def notify_slack(message: str, **kwargs) -> bool:  # type: ignore
-        return False
-    class SlackNotifier:  # type: ignore
-        def start_thread(self, title: str) -> None:
-            return None
-        def add_to_thread(self, thread_ts: None, message: str) -> bool:
-            return False
-    _slack_notifier = SlackNotifier()
-    SLACK_ENABLED = False
+# NOTE: Slack notification support has been moved to debug.logger module.
+# Imported above for backward compatibility.
 
 # ==============================================================================
 # CONSTANTS
@@ -185,11 +171,11 @@ ROM_ERROR_FALLBACK = ROM_ERROR_DEFAULTS.fallback
 BETA_CONVERGENCE_THRESHOLD = CONVERGENCE_DEFAULTS.beta_convergence_threshold
 THETA_CONVERGENCE_THRESHOLD = CONVERGENCE_DEFAULTS.theta_convergence_threshold
 
-# Linearization update stabilization
-# - Cap a single θ0 update step to avoid large jumps that can freeze mutation/acceptance.
-# - Allow multiple small sub-updates in a single update event (bounded by MAX_LINEARIZATION_UPDATES).
-MAX_THETA0_STEP_NORM = 0.75
-MAX_LINEARIZATION_SUBUPDATES_PER_EVENT = 3
+# Linearization update stabilization (imported from config.py)
+# NOTE: These constants are now defined in config.py as LINEARIZATION_DEFAULTS.
+# Imported above for backward compatibility.
+# Re-export for backward compatibility (already imported from config above)
+# MAX_THETA0_STEP_NORM and MAX_LINEARIZATION_SUBUPDATES_PER_EVENT are available from config import
 
 OPTIMAL_SCALE_FACTOR = PROPOSAL_DEFAULTS.optimal_scale_factor
 COVARIANCE_NUGGET_BASE = PROPOSAL_DEFAULTS.covariance_nugget_base
@@ -201,323 +187,8 @@ MUTATION_SCALE_FACTOR = TMCMC_DEFAULTS.mutation_scale_factor
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
-
-
-class DebugLogger:
-    """
-    Debug logger with hook-based control.
-    
-    ★ Design principles:
-    - No performance impact when debug is OFF
-    - Configurable via DebugConfig
-    - Hook-based for flexibility
-    - ERROR mode: Silent error detection (no print, raise exceptions)
-    """
-    
-    def __init__(self, config: DebugConfig, slack_thread_ts: Optional[str] = None):
-        self.config = config
-        self.hooks: Dict[str, List[Callable]] = {}
-        self.slack_thread_ts = slack_thread_ts  # ★ Thread timestamp for Slack notifications
-        self._log = logging.getLogger(__name__ + ".debug")
-        self._events_jsonl_path: Optional[Path] = None
-        import warnings
-        self.warnings = warnings
-
-    def set_events_jsonl(self, path: Optional[Path]) -> None:
-        """
-        Persist debug events as JSON Lines (one JSON object per line).
-
-        This is intentionally separate from stdout/stderr so logs remain human-readable,
-        while structured data becomes easy to aggregate.
-        """
-        self._events_jsonl_path = path
-
-    @staticmethod
-    def _json_safe(obj: Any):
-        # Best-effort conversion for numpy/scalars/arrays
-        try:
-            if isinstance(obj, np.ndarray):
-                return obj.tolist()
-            if isinstance(obj, (np.floating, np.integer)):
-                return obj.item()
-        except Exception:
-            pass
-        return obj
-    
-    def set_slack_thread(self, thread_ts: Optional[str]):
-        """Set Slack thread timestamp for organized notifications."""
-        self.slack_thread_ts = thread_ts
-    
-    def register_hook(self, event: str, callback: Callable):
-        """Register a callback for a specific debug event."""
-        if event not in self.hooks:
-            self.hooks[event] = []
-        self.hooks[event].append(callback)
-    
-    def _emit(self, event: str, *args, **kwargs):
-        """Emit debug event to registered hooks."""
-        if event in self.hooks:
-            for callback in self.hooks[event]:
-                callback(*args, **kwargs)
-
-        # Optional: write structured events to events.jsonl (append mode).
-        if self._events_jsonl_path is not None:
-            try:
-                payload = {
-                    "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "event": event,
-                    **{k: self._json_safe(v) for k, v in kwargs.items()},
-                }
-                self._events_jsonl_path.parent.mkdir(parents=True, exist_ok=True)
-                with self._events_jsonl_path.open("a", encoding="utf-8") as f:
-                    f.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
-            except Exception:
-                # Never let event serialization break the run.
-                pass
-    
-    def log_beta_progress(self, stage: int, beta: float, delta_beta: float):
-        """Log β schedule progression."""
-        if self.config.show_beta_progress:
-            self._emit("beta_progress", stage=stage, beta=beta, delta_beta=delta_beta)
-            msg = f"      [TMCMC] Stage {stage}: β={beta:.4f} (+{delta_beta:.4f})"
-            self._log.info("%s", msg)
-            # ★ Slack notification: 削除（詳細すぎるため、重要な情報のみ送信）
-    
-    def log_linearization_update(
-        self, 
-        stage: int, 
-        beta: float, 
-        update_num: int,
-        theta0_old: Optional[np.ndarray],
-        theta0_new: np.ndarray,
-        delta_norm: float,
-    ):
-        """Log linearization point update."""
-        if self.config.show_linearization_updates:
-            self._emit(
-                "linearization_update",
-                stage=stage,
-                beta=beta,
-                update_num=update_num,
-                theta0_old=theta0_old,
-                theta0_new=theta0_new,
-                delta_norm=delta_norm,
-            )
-            self._log.info(
-                "      [TMCMC] Updated linearization point (stage %s, β=%.4f, update #%s)",
-                stage,
-                beta,
-                update_num,
-            )
-            self._log.info("      [TMCMC] ||Δθ₀|| = %.6f", delta_norm)
-            # ★ Slack notification: 削除（詳細すぎるため、重要な情報のみ送信）
-    
-    def log_rom_error(self, stage: int, rom_error: float, threshold: float):
-        """Log ROM error."""
-        if self.config.show_rom_errors:
-            self._emit("rom_error", stage=stage, rom_error=rom_error, threshold=threshold)
-            self._log.info("      [TMCMC] ROM error: %.6f (threshold: %s)", rom_error, threshold)
-            # ★ Slack notification: 削除（詳細すぎるため、重要な情報のみ送信）
-    
-    def log_acceptance_rate(self, stage: int, acc_rate: float, n_accepted: int, n_total: int):
-        """Log acceptance rate."""
-        if self.config.show_acceptance_rates:
-            self._emit("acceptance_rate", stage=stage, acc_rate=acc_rate, n_accepted=n_accepted, n_total=n_total)
-            self._log.info(
-                "      [TMCMC] Stage %s: Acc=%.2f (%s/%s proposals)",
-                stage,
-                acc_rate,
-                n_accepted,
-                n_total,
-            )
-            # ★ Slack notification: Acceptance rate (only if low, to avoid spam)
-            if SLACK_ENABLED and acc_rate < 0.1:
-                acc_msg = f"⚠️ Low acceptance rate: {acc_rate:.2f} ({n_accepted}/{n_total}), Stage: {stage}"
-                if self.slack_thread_ts:
-                    _slack_notifier.add_to_thread(self.slack_thread_ts, acc_msg)
-                else:
-                    notify_slack(f"⚠️ [TMCMC] {acc_msg}", raise_on_error=False)
-    
-    def log_evaluation_counts(self, n_rom: int, n_fom: int):
-        """Log evaluation counts."""
-        if self.config.show_evaluation_counts:
-            self._emit("evaluation_counts", n_rom=n_rom, n_fom=n_fom)
-            self._log.info("      [TMCMC] Evaluations: ROM=%s, FOM=%s", n_rom, n_fom)
-    
-    def log_observation_based_update(self, subset_size: int, n_particles: int):
-        """Log observation-based update start."""
-        if self.config.show_linearization_updates:
-            self._log.info(
-                "      [TMCMC] Computing ROM errors for %s/%s particles (observation-based update)...",
-                subset_size,
-                n_particles,
-            )
-    
-    def log_warning(self, message: str):
-        """Log warning (only in MINIMAL/VERBOSE, silent in OFF/ERROR)."""
-        # ★ ERROR mode: silent (no print, only raise exceptions)
-        # ★ OFF mode: completely silent
-        if self.config.level in (DebugLevel.MINIMAL, DebugLevel.VERBOSE):
-            self._log.warning("      [TMCMC] %s", message)
-            # ★ Slack notification: All warnings (add to thread if available)
-            if SLACK_ENABLED:
-                if self.slack_thread_ts:
-                    _slack_notifier.add_to_thread(self.slack_thread_ts, f"⚠️ {message}")
-                else:
-                    notify_slack(f"⚠️ [TMCMC] {message}", raise_on_error=False)
-    
-    def log_info(self, message: str, force: bool = False):
-        """Log info message (only if debug enabled or forced)."""
-        # ERROR mode: no output (silent)
-        if force or (self.config.level != DebugLevel.OFF and self.config.level != DebugLevel.ERROR):
-            self._log.info("      [TMCMC] %s", message)
-            # ★ Slack notification: 削除（詳細すぎるため、重要な情報のみ送信）
-    
-    # ★ ERROR-CHECK MODE methods (silent, raise exceptions)
-    
-    def check_numerical_errors(self, logL: np.ndarray, theta: np.ndarray, context: str = ""):
-        """Check for numerical errors (NaN/Inf)."""
-        if not self.config.check_numerical_errors:
-            return
-        
-        # Check logL
-        if not np.all(np.isfinite(logL)):
-            n_invalid = np.sum(~np.isfinite(logL))
-            raise RuntimeError(
-                f"Non-finite log-likelihood detected: {n_invalid}/{len(logL)} values "
-                f"are NaN/Inf. Context: {context}"
-            )
-        
-        # Check theta
-        if not np.all(np.isfinite(theta)):
-            n_invalid = np.sum(~np.isfinite(theta))
-            raise RuntimeError(
-                f"Non-finite parameters detected: {n_invalid}/{theta.size} values "
-                f"are NaN/Inf. Context: {context}"
-            )
-        
-        # Check if logL is stuck at -inf
-        if np.all(logL == -np.inf):
-            raise RuntimeError(
-                f"All log-likelihood values are -inf. Model may be broken. Context: {context}"
-            )
-    
-    def check_rom_error_explosion(self, rom_error: float, context: str = "", acc_rate: Optional[float] = None):
-        """Check if ROM error exceeds hard limit."""
-        if not self.config.check_rom_error_explosion:
-            return
-        
-        # ★ FIX: If acceptance rate is extremely low, ROM error check is unreliable
-        # When acc_rate ≈ 0, particles are not moving, so ROM error may be artificially high
-        # Skip error check in this case and just warn
-        if acc_rate is not None and acc_rate < 0.01:
-            if self.config.level in (DebugLevel.MINIMAL, DebugLevel.VERBOSE):
-                import warnings
-                warnings.warn(
-                    f"ROM error check skipped: acc_rate={acc_rate:.4f} < 0.01. "
-                    f"ROM error={rom_error:.3e} may be unreliable. Context: {context}",
-                    RuntimeWarning,
-                    stacklevel=2
-                )
-            return
-        
-        if rom_error > self.config.rom_error_hard_limit:
-            # ★ FIX: Make it a warning instead of error to allow continuation
-            # ROM error explosion often happens when acceptance rate is very low
-            if self.config.level == DebugLevel.ERROR:
-                # ERROR mode: still raise, but with more context
-                raise RuntimeError(
-                    f"ROM error exploded: {rom_error:.3e} > {self.config.rom_error_hard_limit:.3e}. "
-                    f"Model is likely broken. Context: {context}. "
-                    f"Consider checking acceptance rate (may be too low)."
-                )
-            else:
-                # Other modes: warn but continue
-                import warnings
-                warnings.warn(
-                    f"ROM error very high: {rom_error:.3e} > {self.config.rom_error_hard_limit:.3e}. "
-                    f"Context: {context}. Continuing anyway...",
-                    RuntimeWarning,
-                    stacklevel=2
-                )
-    
-    def check_tmcmc_structure(self, weights: np.ndarray, ess: float, context: str = ""):
-        """Check TMCMC structure errors (zero weights, ESS=0, etc.)."""
-        if not self.config.check_tmcmc_structure:
-            return
-        
-        # Check if all weights are zero
-        if np.all(weights == 0):
-            raise RuntimeError(
-                f"All TMCMC weights collapsed to zero. Resampling impossible. Context: {context}"
-            )
-        
-        # Check ESS
-        if ess <= 0:
-            raise RuntimeError(
-                f"ESS is zero or negative: {ess:.3e}. TMCMC cannot proceed. Context: {context}"
-            )
-    
-    def check_acceptance_rate(self, acc_rate: float, context: str = ""):
-        """Check if acceptance rate is extremely low."""
-        if not self.config.check_acceptance_rate:
-            return
-        
-        if acc_rate < self.config.min_acceptance_rate:
-            # ★ ERROR mode: raise exception (silent error detection)
-            # Other modes: warn
-            if self.config.level == DebugLevel.ERROR:
-                raise RuntimeError(
-                    f"Acceptance rate too low: {acc_rate:.4f} < {self.config.min_acceptance_rate:.4f}. "
-                    f"TMCMC may be stuck. Context: {context}"
-                )
-            else:
-                import warnings
-                warnings.warn(
-                    f"Acceptance rate extremely low: {acc_rate:.4f} < {self.config.min_acceptance_rate:.4f}. "
-                    f"TMCMC may be stuck. Context: {context}",
-                    RuntimeWarning,
-                    stacklevel=2
-                )
-    
-    def check_covariance_matrix(self, cov: np.ndarray, context: str = ""):
-        """Check if covariance matrix is valid (positive definite)."""
-        if not self.config.check_numerical_errors:
-            return
-        
-        # Check for NaN/Inf
-        if not np.all(np.isfinite(cov)):
-            raise RuntimeError(
-                f"Covariance matrix contains NaN/Inf. Context: {context}"
-            )
-        
-        # Check positive definiteness (eigenvalues > 0)
-        # ★ Use eigvalsh for symmetric matrices (more stable) and tolerance for floating error
-        try:
-            eigenvals = np.linalg.eigvalsh(cov)  # More stable for symmetric matrices
-            # ★ Tolerance for floating point errors (especially important for FAST_SANITY with small n_particles)
-            if np.min(eigenvals) <= -1e-12:
-                min_eigenval = np.min(eigenvals)
-                raise RuntimeError(
-                    f"Covariance matrix is not positive definite. "
-                    f"Minimum eigenvalue: {min_eigenval:.3e}. Context: {context}"
-                )
-        except np.linalg.LinAlgError as e:
-            raise RuntimeError(
-                f"Failed to compute covariance matrix eigenvalues: {e}. Context: {context}"
-            )
-    
-    def check_beta_progression(self, beta: float, delta_beta: float, stage: int, context: str = ""):
-        """Check if β is progressing (not stuck)."""
-        if not self.config.check_tmcmc_structure:
-            return
-        
-        # Check if beta is valid
-        if not np.isfinite(beta) or not np.isfinite(delta_beta):
-            raise RuntimeError(
-                f"Beta progression contains NaN/Inf: β={beta:.4f}, Δβ={delta_beta:.4f}. "
-                f"Stage: {stage}. Context: {context}"
-            )
+# NOTE: DebugLogger has been moved to debug.logger module.
+# Imported above for backward compatibility.
 
 
 @dataclass
@@ -697,123 +368,12 @@ def select_sparse_data_indices(n_total: int, n_obs: int) -> np.ndarray:
     return indices
 
 
-def log_likelihood_sparse(
-    mu: np.ndarray,
-    sig: np.ndarray,
-    data: np.ndarray,
-    sigma_obs: float,
-    rho: float = 0.0,
-    health: Optional[Dict[str, int]] = None,
-) -> float:
-    """
-    Compute log-likelihood for sparse observations.
-    
-    Supports:
-    - Diagonal covariance (rho=0.0)
-    - Equicorrelated covariance (rho != 0.0) where R_ij = rho (i!=j) and 1 (i=j)
-      Cov_t = D_t * R * D_t, where D_t = diag(sqrt(var_total))
-    """
-    n_obs, n_species = data.shape
-    logL = 0.0
-    
-    # Pre-compute R inverse and determinant if rho is used
-    use_correlation = (abs(rho) > 1e-9) and (n_species > 1)
-    
-    if use_correlation:
-        # Equicorrelated matrix R:
-        # Det(R) = (1 + (p-1)rho) * (1-rho)^(p-1)
-        # R^{-1} = (a I + b J)
-        # a = ... (standard formula for equicorrelated inverse)
-        # But for small n_species (e.g. 2 or 4), direct inversion is fast and safe.
-        R = np.eye(n_species) + rho * (np.ones((n_species, n_species)) - np.eye(n_species))
-        try:
-            # Cholesky is faster/stable for positive definite R
-            L_R = np.linalg.cholesky(R)
-            # log|R| = 2 * sum(log(diag(L_R)))
-            log_det_R = 2.0 * np.sum(np.log(np.diag(L_R)))
-            # Solve R x = y -> x = R^-1 y is not needed explicitly if we use solve
-        except np.linalg.LinAlgError:
-            # Fallback if rho is invalid (not PD)
-            if health is not None:
-                health["rho_error"] = 1
-            return -1e20
-
-    for i in range(n_obs):
-        # 1. Variance vector and total covariance diagonal
-        var_total_vec = np.zeros(n_species)
-        for j in range(n_species):
-            var_raw = sig[i, j] + sigma_obs**2
-            
-            # Health checks
-            if health is not None:
-                if not np.isfinite(var_raw):
-                    health["n_var_raw_nonfinite"] = int(health.get("n_var_raw_nonfinite", 0)) + 1
-                elif var_raw < 0.0:
-                    health["n_var_raw_negative"] = int(health.get("n_var_raw_negative", 0)) + 1
-                if (not np.isfinite(var_raw)) or (var_raw <= 1e-20):
-                    health["n_var_total_clipped"] = int(health.get("n_var_total_clipped", 0)) + 1
-
-            if not np.isfinite(var_raw) or var_raw <= 1e-20:
-                var_total_vec[j] = 1e-20
-            else:
-                var_total_vec[j] = float(var_raw)
-        
-        residual = data[i, :] - mu[i, :]
-
-        if not use_correlation:
-            # Diagonal case (Original)
-            for j in range(n_species):
-                v = var_total_vec[j]
-                logL -= 0.5 * np.log(2 * np.pi * v)
-                logL -= 0.5 * (residual[j]**2) / v
-        else:
-            # Correlated case
-            # Sigma = D R D
-            # log|Sigma| = log|D|^2 + log|R| = sum(log(v_j)) + log|R|
-            # z = D^-1 residual
-            # Q = z^T R^-1 z
-            
-            # std_devs = sqrt(var)
-            std_vec = np.sqrt(var_total_vec)
-            
-            # log|Sigma|
-            # sum(log(var)) = 2 * sum(log(std))
-            log_det_Sigma = np.sum(np.log(var_total_vec)) + log_det_R
-            
-            # z = residual / std
-            z = residual / std_vec
-            
-            # Q = z^T R^-1 z
-            # R y = z => y = R^-1 z.  Q = z^T y.
-            # Solve L_R L_R^T y = z
-            # Forward: L_R w = z
-            # Backward: L_R^T y = w
-            try:
-                w = np.linalg.solve(L_R, z)
-                quad_form = np.dot(w, w) # w^T w = z^T (L_R^-T L_R^-1) z = z^T R^-1 z
-            except Exception:
-                 if health is not None:
-                    health["solve_error"] = 1
-                 return -1e20
-
-            logL -= 0.5 * (n_species * np.log(2 * np.pi) + log_det_Sigma + quad_form)
-
-    return logL
+# NOTE: log_likelihood_sparse has been moved to core.evaluator module.
+# Imported above for backward compatibility.
 
 
-def compute_phibar(x0: np.ndarray, active_species: List[int]) -> np.ndarray:
-    n_t = x0.shape[0]
-    n_sp = len(active_species)
-    phibar = np.zeros((n_t, n_sp))
-
-    n_state = x0.shape[1]
-    n_total_species = (n_state - 2) // 2
-    psi_offset = n_total_species + 1
-
-    for i, sp in enumerate(active_species):
-        phibar[:, i] = x0[:, sp] * x0[:, psi_offset + sp]
-
-    return phibar
+# NOTE: compute_phibar has been moved to visualization.helpers module.
+# Imported above for backward compatibility.
 
 
 def _self_check_tsm_once(
@@ -897,41 +457,8 @@ def compute_MAP_with_uncertainty(
     }
 
 
-def _to_jsonable(obj: Any) -> Any:
-    """Best-effort conversion of numpy-heavy objects into JSON-serializable types."""
-    if obj is None:
-        return None
-    if isinstance(obj, (str, int, float, bool)):
-        return obj
-    if isinstance(obj, Path):
-        return str(obj)
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, (list, tuple)):
-        return [_to_jsonable(x) for x in obj]
-    if isinstance(obj, dict):
-        return {str(k): _to_jsonable(v) for k, v in obj.items()}
-    # numpy scalar
-    if isinstance(obj, (np.integer, np.floating, np.bool_)):
-        return obj.item()
-    return str(obj)
-
-
-def save_json(path: Path, payload: Dict[str, Any]) -> None:
-    """Save JSON with numpy-safe conversion."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(_to_jsonable(payload), f, indent=2, ensure_ascii=False)
-
-
-def write_csv(path: Path, header: List[str], rows: List[List[Any]]) -> None:
-    """Write a small CSV file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        for r in rows:
-            w.writerow(r)
+# NOTE: _to_jsonable, save_json, write_csv have been moved to utils.io module.
+# Imported above for backward compatibility.
 
 
 @dataclass
@@ -1008,1036 +535,29 @@ def timed(stats: Optional[TimingStats], name: str):
         stats.add(name, time.perf_counter() - t0)
 
 
-def compute_fit_metrics(
-    t_arr: np.ndarray,
-    x0: np.ndarray,
-    active_species: List[int],
-    data: np.ndarray,
-    idx_sparse: np.ndarray,
-) -> Dict[str, Any]:
-    """
-    Compute simple misfit metrics between model observable φ̄ and observed data.
-
-    Notes
-    -----
-    - data is expected to be φ̄ at sparse observation times: shape (n_obs, n_species)
-    - model observable uses φ̄_i = φ_i * ψ_i, consistent with likelihood definition
-    """
-    phibar = compute_phibar(x0, active_species)
-    pred = phibar[idx_sparse]
-    resid = pred - data
-    rmse_per = np.sqrt(np.mean(resid**2, axis=0))
-    mae_per = np.mean(np.abs(resid), axis=0)
-    return {
-        "n_obs": int(data.shape[0]),
-        "n_species": int(data.shape[1]),
-        "rmse_per_species": rmse_per,
-        "mae_per_species": mae_per,
-        "rmse_total": float(np.sqrt(np.mean(resid**2))),
-        "mae_total": float(np.mean(np.abs(resid))),
-        "max_abs": float(np.max(np.abs(resid))),
-    }
-
-
-def export_tmcmc_diagnostics_tables(
-    output_dir: Path,
-    model_tag: str,
-    diag: Dict[str, Any],
-) -> None:
-    """Export TMCMC diagnostics (β/acc/ROM/θ0) into simple CSV tables."""
-    tables_dir = output_dir / "diagnostics_tables"
-    tables_dir.mkdir(parents=True, exist_ok=True)
-
-    # β schedules
-    beta_rows: List[List[Any]] = []
-    for chain_id, sched in enumerate(diag.get("beta_schedules", []), start=1):
-        for stage, beta in enumerate(sched):
-            beta_rows.append([model_tag, chain_id, stage, float(beta)])
-    if beta_rows:
-        write_csv(tables_dir / f"{model_tag}_beta_schedule.csv", ["model", "chain", "stage", "beta"], beta_rows)
-
-    # acceptance rate histories
-    acc_rows: List[List[Any]] = []
-    for chain_id, hist in enumerate(diag.get("acc_rate_histories", []), start=1):
-        for stage, acc in enumerate(hist):
-            acc_rows.append([model_tag, chain_id, stage, float(acc)])
-    if acc_rows:
-        write_csv(tables_dir / f"{model_tag}_acceptance_rate.csv", ["model", "chain", "stage", "accept_rate"], acc_rows)
-
-    # Stage summary (per chain, per stage)
-    stage_rows: List[List[Any]] = []
-    for chain_id, hist in enumerate(diag.get("stage_summaries", []), start=1):
-        if not isinstance(hist, list):
-            continue
-        for row in hist:
-            if not isinstance(row, dict):
-                continue
-            stage_rows.append(
-                [
-                    model_tag,
-                    chain_id,
-                    int(row.get("stage", -1)),
-                    float(row.get("beta", float("nan"))),
-                    float(row.get("beta_next", float("nan"))),
-                    float(row.get("delta_beta", float("nan"))),
-                    float(row.get("ess", float("nan"))),
-                    float(row.get("ess_target", float("nan"))),
-                    float(row.get("acc_rate", float("nan"))),
-                    float(row.get("logL_min", float("nan"))),
-                    float(row.get("logL_max", float("nan"))),
-                    int(row.get("linearization_enabled", 0)),
-                    float(row.get("rom_error_pre", float("nan"))) if row.get("rom_error_pre") is not None else float("nan"),
-                    float(row.get("rom_error_post", float("nan"))) if row.get("rom_error_post") is not None else float("nan"),
-                    float(row.get("delta_theta0", float("nan"))) if row.get("delta_theta0") is not None else float("nan"),
-                ]
-            )
-    if stage_rows:
-        write_csv(
-            tables_dir / f"{model_tag}_stage_summary.csv",
-            [
-                "model",
-                "chain",
-                "stage",
-                "beta",
-                "beta_next",
-                "delta_beta",
-                "ess",
-                "ess_target",
-                "accept_rate",
-                "logL_min",
-                "logL_max",
-                "linearization_enabled",
-                "rom_error_pre",
-                "rom_error_post",
-                "delta_theta0",
-            ],
-            stage_rows,
-        )
-
-    # ROM error histories (at linearization update events)
-    rom_rows: List[List[Any]] = []
-    # Prefer post-update ROM error if available; keep pre-update as an extra column for debugging.
-    # Backward compatibility: diag["rom_error_histories"] is treated as post-update values.
-    rom_post_histories = diag.get("rom_error_histories", [])
-    rom_pre_histories = diag.get("rom_error_pre_histories", None)
-    for chain_id, post_hist in enumerate(rom_post_histories, start=1):
-        pre_hist = None
-        if isinstance(rom_pre_histories, list) and (chain_id - 1) < len(rom_pre_histories):
-            pre_hist = rom_pre_histories[chain_id - 1]
-        for upd, post_err in enumerate(post_hist):
-            pre_err = None
-            if isinstance(pre_hist, (list, tuple)) and upd < len(pre_hist):
-                pre_err = pre_hist[upd]
-            rom_rows.append(
-                [
-                    model_tag,
-                    chain_id,
-                    upd,
-                    float(post_err) if post_err is not None else float("nan"),
-                    float(pre_err) if pre_err is not None else float("nan"),
-                ]
-            )
-    if rom_rows:
-        write_csv(
-            tables_dir / f"{model_tag}_rom_error.csv",
-            ["model", "chain", "update", "rom_error", "rom_error_pre"],
-            rom_rows,
-        )
-
-    # θ0 history + step norm
-    theta0_rows: List[List[Any]] = []
-    for chain_id, hist in enumerate(diag.get("theta0_history", []), start=1):
-        for upd, theta0 in enumerate(hist):
-            theta0 = np.asarray(theta0, dtype=float).reshape(-1)
-            step_norm = None
-            if upd > 0:
-                prev = np.asarray(hist[upd - 1], dtype=float).reshape(-1)
-                step_norm = float(np.linalg.norm(theta0 - prev))
-            theta0_rows.append([model_tag, chain_id, upd, step_norm, *theta0.tolist()])
-    if theta0_rows:
-        header = ["model", "chain", "update", "step_norm"] + [f"theta0_{i}" for i in range(len(theta0_rows[0]) - 4)]
-        write_csv(tables_dir / f"{model_tag}_theta0_history.csv", header, theta0_rows)
+# NOTE: compute_fit_metrics and export_tmcmc_diagnostics_tables have been moved to
+# visualization.helpers module. Imported above for backward compatibility.
 
 
 # ==============================================================================
 # VISUALIZATION
 # ==============================================================================
-
-
-class PlotManager:
-    """Manages plot generation and file tracking."""
-    
-    def __init__(self, output_dir: str):
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.generated_figs: List[Path] = []
-        self.figure_counter = 0  # ★ Figure index for paper-style naming
-    
-    def save_figure(self, filename: str, dpi: int = 150, use_paper_naming: bool = False):
-        """
-        Save figure with optional paper-style naming (Fig##_filename).
-        
-        Parameters
-        ----------
-        filename : str
-            Base filename (e.g., "TMCMC_beta_schedule_M1.png")
-        dpi : int
-            Resolution
-        use_paper_naming : bool
-            If True, prepend "Fig##_" to filename (e.g., "Fig07_TMCMC_beta_schedule_M1.png")
-        """
-        if use_paper_naming:
-            self.figure_counter += 1
-            fig_num = f"{self.figure_counter:02d}"
-            filename = f"Fig{fig_num}_{filename}"
-        
-        path = self.output_dir / filename
-        plt.savefig(path, dpi=dpi, bbox_inches="tight")
-        plt.close()
-        self.generated_figs.append(path)
-        logger.info("Saved figure: %s", path.name)
-    
-    def plot_TSM_simulation(
-        self,
-        t_arr: np.ndarray,
-        x0: np.ndarray,
-        active_species: List[int],
-        name: str,
-        data: Optional[np.ndarray] = None,
-        idx_sparse: Optional[np.ndarray] = None,
-    ):
-        phibar = compute_phibar(x0, active_species)
-        
-        plt.figure(figsize=(10, 6))
-        for i, sp in enumerate(active_species):
-            plt.plot(t_arr, phibar[:, i], label=f"φ̄{sp+1} (model)", linewidth=2)
-        
-        if data is not None and idx_sparse is not None:
-            t_obs = t_arr[idx_sparse]
-            for i, sp in enumerate(active_species):
-                plt.scatter(
-                    t_obs, data[:, i], s=40, edgecolor="k",
-                    label=f"Data φ̄{sp+1}", alpha=0.8, zorder=10,
-                )
-        
-        plt.xlabel("Time", fontsize=12)
-        plt.ylabel("φ̄ = φ * ψ", fontsize=12)
-        plt.title(f"TSM Simulation (φ̄) - {name}", fontsize=14)
-        plt.grid(True, alpha=0.3)
-        plt.legend(fontsize=10)
-        plt.tight_layout()
-        
-        suffix = "_with_data" if data is not None else ""
-        self.save_figure(f"TSM_simulation_{name}{suffix}.png")
-
-    def plot_posterior_predictive_band(
-        self,
-        t_arr: np.ndarray,
-        phibar_samples: np.ndarray,
-        active_species: List[int],
-        name: str,
-        data: Optional[np.ndarray] = None,
-        idx_sparse: Optional[np.ndarray] = None,
-        *,
-        filename: Optional[str] = None,
-        use_paper_naming: bool = False,
-    ) -> None:
-        """
-        Plot posterior predictive band for φ̄ = φ * ψ.
-
-        Parameters
-        ----------
-        phibar_samples : ndarray, shape (n_draws, n_time, n_species)
-            φ̄ trajectories for multiple posterior draws.
-        """
-        if phibar_samples.ndim != 3:
-            raise ValueError(f"phibar_samples must be 3D, got shape {phibar_samples.shape}")
-
-        q05 = np.nanpercentile(phibar_samples, 5, axis=0)
-        q50 = np.nanpercentile(phibar_samples, 50, axis=0)
-        q95 = np.nanpercentile(phibar_samples, 95, axis=0)
-
-        plt.figure(figsize=(10, 6))
-        for i, sp in enumerate(active_species):
-            plt.fill_between(t_arr, q05[:, i], q95[:, i], alpha=0.25, label=f"φ̄{sp+1} 5–95%")
-            plt.plot(t_arr, q50[:, i], linewidth=2, label=f"φ̄{sp+1} median")
-
-        if data is not None and idx_sparse is not None:
-            t_obs = t_arr[idx_sparse]
-            for i, sp in enumerate(active_species):
-                plt.scatter(
-                    t_obs, data[:, i], s=40, edgecolor="k",
-                    label=f"Data φ̄{sp+1}", alpha=0.85, zorder=10,
-                )
-
-        plt.xlabel("Time", fontsize=12)
-        plt.ylabel("φ̄ = φ * ψ", fontsize=12)
-        plt.title(f"Posterior Predictive Band (φ̄) - {name}", fontsize=14)
-        plt.grid(True, alpha=0.3)
-        plt.legend(fontsize=9, ncol=2)
-        plt.tight_layout()
-        out_name = filename or f"posterior_predictive_{name}.png"
-        self.save_figure(out_name, use_paper_naming=use_paper_naming)
-    
-    def plot_posterior(
-        self,
-        samples: np.ndarray,
-        theta_true: np.ndarray,
-        param_names: List[str],
-        name_tag: str,
-        MAP: np.ndarray,
-        mean: np.ndarray,
-    ):
-        n_params = samples.shape[1]
-        cols = min(3, n_params)
-        rows = (n_params + cols - 1) // cols
-        
-        fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 3 * rows))
-        if rows == 1 and cols == 1:
-            axes = np.array([[axes]])
-        elif rows == 1:
-            axes = axes.reshape(1, -1)
-        elif cols == 1:
-            axes = axes.reshape(-1, 1)
-        
-        for i in range(rows * cols):
-            r, c = divmod(i, cols)
-            ax = axes[r, c]
-            
-            if i >= n_params:
-                ax.axis("off")
-                continue
-            
-            ax.hist(samples[:, i], bins=40, alpha=0.7, density=True, color="steelblue")
-            ax.axvline(theta_true[i], color="red", linestyle="--", linewidth=2, label="True")
-            ax.axvline(MAP[i], color="green", linestyle="-", linewidth=2, label="MAP")
-            ax.axvline(mean[i], color="orange", linestyle=":", linewidth=2, label="Mean")
-            ax.set_xlabel(param_names[i], fontsize=11)
-            ax.set_ylabel("Density", fontsize=11)
-            ax.grid(True, alpha=0.3)
-            ax.legend(fontsize=9)
-        
-        fig.suptitle(f"Posterior Distributions ({name_tag})", fontsize=14)
-        fig.tight_layout()
-        self.save_figure(f"posterior_{name_tag}.png")
-    
-    def plot_parameter_comparison(
-        self,
-        theta_true: np.ndarray,
-        theta_map: np.ndarray,
-        theta_mean: np.ndarray,
-        param_names: List[str],
-    ):
-        idx = np.arange(len(param_names))
-        width = 0.25
-        
-        plt.figure(figsize=(14, 6))
-        plt.bar(idx - width, theta_true, width, label="True", alpha=0.8)
-        plt.bar(idx, theta_map, width, label="MAP", alpha=0.8)
-        plt.bar(idx + width, theta_mean, width, label="Mean", alpha=0.8)
-        
-        plt.xticks(idx, param_names, rotation=45, ha="right")
-        plt.ylabel("Parameter Value", fontsize=12)
-        plt.title("All Parameters: True vs MAP vs Mean", fontsize=14)
-        plt.legend(fontsize=11)
-        plt.grid(True, alpha=0.3, axis="y")
-        plt.tight_layout()
-        
-        self.save_figure("posterior_all_parameters.png")
-
-    def plot_paper_fig14_mean_vs_true_with_std(
-        self,
-        theta_true: np.ndarray,
-        posterior_mean: np.ndarray,
-        posterior_std: np.ndarray,
-        param_names: List[str],
-    ) -> None:
-        """
-        Paper Fig.14 style:
-        - Compare identified posterior mean vs true values
-        - Error bars = posterior standard deviation
-        """
-        idx = np.arange(len(param_names))
-        width = 0.38
-
-        plt.figure(figsize=(16, 6))
-        plt.bar(idx - width / 2, theta_true, width, label="True", alpha=0.85, color="gray")
-        plt.bar(
-            idx + width / 2,
-            posterior_mean,
-            width,
-            yerr=posterior_std,
-            capsize=3,
-            label="Posterior mean ± std",
-            alpha=0.85,
-            color="steelblue",
-        )
-
-        plt.xticks(idx, param_names, rotation=45, ha="right")
-        plt.ylabel("Parameter value", fontsize=12)
-        plt.title("Paper Fig.14: Identified parameter means vs true values (± posterior std)", fontsize=14)
-        plt.legend(fontsize=11)
-        plt.grid(True, alpha=0.3, axis="y")
-        plt.tight_layout()
-
-        self.save_figure("PaperFig14_parameter_mean_vs_true.png")
-    
-    def plot_linearization_improvement(
-        self,
-        MAP_phase1: np.ndarray,
-        MAP_phase2: np.ndarray,
-        theta_true_subset: np.ndarray,
-        param_names: List[str],
-    ):
-        """Plot the improvement from linearization update."""
-        n_params = len(param_names)
-        idx = np.arange(n_params)
-        
-        error_p1 = np.abs(MAP_phase1 - theta_true_subset)
-        error_p2 = np.abs(MAP_phase2 - theta_true_subset)
-        
-        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-        
-        # Bar chart of errors
-        width = 0.35
-        axes[0].bar(idx - width/2, error_p1, width, label="Phase 1 (before update)", alpha=0.8, color="coral")
-        axes[0].bar(idx + width/2, error_p2, width, label="Phase 2 (after update)", alpha=0.8, color="seagreen")
-        axes[0].set_xticks(idx)
-        axes[0].set_xticklabels(param_names)
-        axes[0].set_ylabel("|MAP - True|", fontsize=12)
-        axes[0].set_title("MAP Error by Parameter", fontsize=14)
-        axes[0].legend(fontsize=11)
-        axes[0].grid(True, alpha=0.3, axis="y")
-        
-        # Summary improvement
-        total_error_p1 = np.linalg.norm(MAP_phase1 - theta_true_subset)
-        total_error_p2 = np.linalg.norm(MAP_phase2 - theta_true_subset)
-        improvement = (total_error_p1 - total_error_p2) / total_error_p1 * 100 if total_error_p1 > 0 else 0
-        
-        axes[1].bar(["Phase 1", "Phase 2"], [total_error_p1, total_error_p2], 
-                    color=["coral", "seagreen"], alpha=0.8)
-        axes[1].set_ylabel("||MAP - True||", fontsize=12)
-        axes[1].set_title(f"Total MAP Error\n(Improvement: {improvement:.1f}%)", fontsize=14)
-        axes[1].grid(True, alpha=0.3, axis="y")
-        
-        plt.tight_layout()
-        self.save_figure("linearization_improvement_M3.png")
-    
-    def save_manifest(self, filename: str = "FIGURES_MANIFEST.json"):
-        """Save manifest of all generated figures."""
-        manifest = {
-            "output_dir": str(self.output_dir),
-            "n_figures": len(self.generated_figs),
-            "figures": [p.name for p in self.generated_figs],
-            "generated_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        }
-        path = self.output_dir / filename
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(manifest, f, indent=2, ensure_ascii=False)
-        logger.info("Saved manifest: %s (%s figures)", path.name, len(self.generated_figs))
-    
-    def plot_beta_schedule(self, beta_schedules: List[List[float]], name: str):
-        """Plot TMCMC beta schedule (tempering progression)."""
-        plt.figure(figsize=(10, 5))
-        for c, beta in enumerate(beta_schedules):
-            stages = range(len(beta))
-            plt.plot(stages, beta, marker="o", markersize=4, label=f"Chain {c+1}", linewidth=1.5, alpha=0.7)
-        
-        plt.axhline(1.0, color="red", linestyle="--", linewidth=1, label="β=1.0 (target)", alpha=0.5)
-        plt.xlabel("Stage", fontsize=12)
-        plt.ylabel(r"$\beta$ (tempering parameter)", fontsize=12)
-        plt.title(f"TMCMC Beta Schedule: {name}", fontsize=14)
-        plt.grid(True, alpha=0.3)
-        plt.legend(fontsize=10)
-        plt.tight_layout()
-        self.save_figure(f"TMCMC_beta_schedule_{name}.png", use_paper_naming=True)
-    
-    def plot_linearization_history(
-        self,
-        theta0_histories: List[List[np.ndarray]],
-        name: str,
-        active_indices: Optional[List[int]] = None,
-    ):
-        """Plot linearization point update history."""
-        if not theta0_histories or all(h is None or len(h) == 0 for h in theta0_histories):
-            logger.warning("No linearization history for %s", name)
-            return
-        
-        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-        
-        # Plot 1: Update step norm ||θ₀^{k+1} - θ₀^k||
-        for chain_idx, theta0_history in enumerate(theta0_histories):
-            if theta0_history is None or len(theta0_history) < 2:
-                continue
-            
-            step_norms = []
-            for k in range(1, len(theta0_history)):
-                if active_indices is not None:
-                    # Only active parameters
-                    theta0_k = np.array([theta0_history[k][i] for i in active_indices])
-                    theta0_km1 = np.array([theta0_history[k-1][i] for i in active_indices])
-                else:
-                    theta0_k = theta0_history[k]
-                    theta0_km1 = theta0_history[k-1]
-                
-                step_norm = np.linalg.norm(theta0_k - theta0_km1)
-                step_norms.append(step_norm)
-            
-            if step_norms:
-                update_indices = range(1, len(step_norms) + 1)
-                axes[0].plot(update_indices, step_norms, marker="o", label=f"Chain {chain_idx+1}", linewidth=1.5)
-        
-        axes[0].axhline(1e-3, color="red", linestyle="--", linewidth=1, label="Threshold (1e-3)", alpha=0.5)
-        axes[0].set_xlabel("Update #", fontsize=12)
-        axes[0].set_ylabel(r"$||\theta_0^{k+1} - \theta_0^k||$", fontsize=12)
-        axes[0].set_title(f"Linearization Point Update Step Norm: {name}", fontsize=14)
-        axes[0].set_yscale("log")
-        axes[0].grid(True, alpha=0.3)
-        axes[0].legend(fontsize=10)
-        
-        # Plot 2: Total number of updates per chain
-        n_updates = [len(h) if h is not None else 0 for h in theta0_histories]
-        chain_labels = [f"Chain {i+1}" for i in range(len(n_updates))]
-        axes[1].bar(chain_labels, n_updates, alpha=0.7, color="steelblue")
-        axes[1].set_ylabel("Number of Updates", fontsize=12)
-        axes[1].set_title(f"Total Linearization Updates: {name}", fontsize=14)
-        axes[1].grid(True, alpha=0.3, axis="y")
-        
-        plt.tight_layout()
-        self.save_figure(f"TMCMC_linearization_history_{name}.png", use_paper_naming=True)
-    
-    def plot_rom_error_history(
-        self,
-        rom_error_history: List[float],
-        name: str,
-        threshold: float = 0.01,
-    ):
-        """Plot ROM error history during linearization updates."""
-        if not rom_error_history or len(rom_error_history) == 0:
-            logger.warning("No ROM error history for %s", name)
-            return
-        
-        plt.figure(figsize=(10, 5))
-        update_indices = range(1, len(rom_error_history) + 1)
-        plt.plot(update_indices, rom_error_history, marker="o", linewidth=2, markersize=6, label="ROM error")
-        plt.axhline(threshold, color="red", linestyle="--", linewidth=2, label=f"Threshold ({threshold})", alpha=0.7)
-        plt.xlabel("Linearization Update #", fontsize=12)
-        plt.ylabel(r"$\varepsilon_{ROM}$ (relative error)", fontsize=12)
-        plt.title(f"ROM Error History: {name}\n" + r"$\varepsilon_{ROM} = ||\bar{\phi}_{ROM}(t_{obs}) - \bar{\phi}_{FOM}(t_{obs})||_2 / ||\bar{\phi}_{FOM}(t_{obs})||_2$", fontsize=14)
-        plt.yscale("log")
-        plt.grid(True, alpha=0.3)
-        plt.legend(fontsize=11)
-        plt.tight_layout()
-        self.save_figure(f"TMCMC_rom_error_history_{name}.png", use_paper_naming=True)
-    
-    def plot_map_error_comparison(
-        self,
-        map_errors_tmcmc: Dict[str, float],
-        map_errors_2phase: Optional[Dict[str, float]] = None,
-        name: str = "All_Models",
-    ):
-        """Plot MAP error comparison (TMCMC vs 2-phase MCMC)."""
-        models = list(map_errors_tmcmc.keys())
-        errors_tmcmc = [map_errors_tmcmc[m] for m in models]
-        
-        plt.figure(figsize=(10, 6))
-        x = np.arange(len(models))
-        width = 0.35
-        
-        bars1 = plt.bar(x - width/2, errors_tmcmc, width, label="TMCMC", alpha=0.8, color="steelblue")
-        
-        if map_errors_2phase is not None:
-            errors_2phase = [map_errors_2phase.get(m, 0) for m in models]
-            bars2 = plt.bar(x + width/2, errors_2phase, width, label="2-phase MCMC", alpha=0.8, color="coral")
-        
-        plt.xlabel("Model", fontsize=12)
-        plt.ylabel(r"$||MAP - \theta_{true}||$", fontsize=12)
-        plt.title("MAP Error Comparison: TMCMC vs 2-phase MCMC", fontsize=14)
-        plt.xticks(x, models, fontsize=11)
-        plt.yscale("log")
-        plt.legend(fontsize=11)
-        plt.grid(True, alpha=0.3, axis="y")
-        plt.tight_layout()
-        self.save_figure(f"MAP_error_comparison_{name}.png", use_paper_naming=True)
-    
-    def plot_cost_accuracy_comparison(
-        self,
-        cost_tmcmc: Dict[str, float],  # e.g., {"M1": 1000, "M2": 1500, "M3": 2000} (FOM evaluations)
-        map_errors_tmcmc: Dict[str, float],
-        cost_2phase: Optional[Dict[str, float]] = None,
-        map_errors_2phase: Optional[Dict[str, float]] = None,
-        cost_unit: str = "FOM evaluations",
-        name: str = "All_Models",
-    ):
-        """
-        Plot cost-accuracy tradeoff (TMCMC vs 2-phase MCMC).
-        
-        ★ 論文で最も刺さる図: "TMCMC achieves the same accuracy with 5× fewer FOM evaluations"
-        
-        Parameters
-        ----------
-        cost_tmcmc : Dict[str, float]
-            Cost (FOM evaluations, wall time, etc.) for TMCMC per model
-        map_errors_tmcmc : Dict[str, float]
-            MAP errors for TMCMC per model
-        cost_2phase : Optional[Dict[str, float]]
-            Cost for 2-phase MCMC per model (if available)
-        map_errors_2phase : Optional[Dict[str, float]]
-            MAP errors for 2-phase MCMC per model (if available)
-        cost_unit : str
-            Unit label for cost axis (e.g., "FOM evaluations", "Wall time (s)")
-        name : str
-            Figure name tag
-        """
-        models = list(map_errors_tmcmc.keys())
-        costs_tmcmc = [cost_tmcmc.get(m, 0) for m in models]
-        errors_tmcmc = [map_errors_tmcmc[m] for m in models]
-        
-        plt.figure(figsize=(10, 6))
-        
-        # Plot TMCMC
-        plt.scatter(costs_tmcmc, errors_tmcmc, s=150, marker="o", label="TMCMC", 
-                   color="steelblue", alpha=0.8, zorder=5, edgecolors="black", linewidth=1.5)
-        for i, m in enumerate(models):
-            plt.annotate(m, (costs_tmcmc[i], errors_tmcmc[i]), 
-                        xytext=(5, 5), textcoords="offset points", fontsize=10)
-        
-        # Plot 2-phase MCMC if available
-        if cost_2phase is not None and map_errors_2phase is not None:
-            costs_2phase = [cost_2phase.get(m, 0) for m in models]
-            errors_2phase = [map_errors_2phase.get(m, 0) for m in models]
-            plt.scatter(costs_2phase, errors_2phase, s=150, marker="s", label="2-phase MCMC",
-                       color="coral", alpha=0.8, zorder=5, edgecolors="black", linewidth=1.5)
-            for i, m in enumerate(models):
-                plt.annotate(m, (costs_2phase[i], errors_2phase[i]),
-                            xytext=(5, 5), textcoords="offset points", fontsize=10)
-        
-        plt.xlabel(f"Computational Cost ({cost_unit})", fontsize=12)
-        plt.ylabel(r"$||MAP - \theta_{true}||$", fontsize=12)
-        plt.title("Cost-Accuracy Tradeoff: TMCMC vs 2-phase MCMC", fontsize=14)
-        plt.yscale("log")
-        plt.xscale("log")
-        plt.legend(fontsize=11)
-        plt.grid(True, alpha=0.3, which="both")
-        plt.tight_layout()
-        self.save_figure(f"Cost_accuracy_comparison_{name}.png", use_paper_naming=True)
-    
-    def plot_rom_subset_tradeoff(
-        self,
-        subset_sizes: List[int],
-        map_errors: List[float],
-        rom_errors: Optional[List[float]] = None,
-        name: str = "M3",
-    ):
-        """
-        Plot cost-accuracy tradeoff for ROM error subset size.
-        
-        ★ Reviewerが大好きな "cost–accuracy tradeoff" 図
-        ★ 結果: subset_size=20で十分安定
-        
-        Parameters
-        ----------
-        subset_sizes : List[int]
-            Subset sizes tested (e.g., [5, 10, 20, 50, 100])
-        map_errors : List[float]
-            MAP errors for each subset size
-        rom_errors : Optional[List[float]]
-            ROM errors for each subset size (if available)
-        name : str
-            Model name tag
-        """
-        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-        
-        # Plot 1: MAP error vs subset size
-        axes[0].plot(subset_sizes, map_errors, marker="o", linewidth=2, markersize=8, 
-                    color="steelblue", label="MAP error")
-        axes[0].axvline(20, color="red", linestyle="--", linewidth=1.5, 
-                       label="Selected (20)", alpha=0.7)
-        axes[0].set_xlabel("Subset Size (number of particles)", fontsize=12)
-        axes[0].set_ylabel(r"$||MAP - \theta_{true}||$", fontsize=12)
-        axes[0].set_title(f"MAP Error vs Subset Size: {name}", fontsize=14)
-        axes[0].set_yscale("log")
-        axes[0].grid(True, alpha=0.3)
-        axes[0].legend(fontsize=11)
-        
-        # Plot 2: ROM error vs subset size (if available)
-        if rom_errors is not None:
-            axes[1].plot(subset_sizes, rom_errors, marker="s", linewidth=2, markersize=8,
-                        color="coral", label="ROM error")
-            axes[1].axvline(20, color="red", linestyle="--", linewidth=1.5,
-                           label="Selected (20)", alpha=0.7)
-            axes[1].axhline(0.01, color="gray", linestyle=":", linewidth=1,
-                           label="Threshold (0.01)", alpha=0.5)
-            axes[1].set_xlabel("Subset Size (number of particles)", fontsize=12)
-            axes[1].set_ylabel(r"$\varepsilon_{ROM}$ (relative error)", fontsize=12)
-            axes[1].set_title(f"ROM Error vs Subset Size: {name}", fontsize=14)
-            axes[1].set_yscale("log")
-            axes[1].grid(True, alpha=0.3)
-            axes[1].legend(fontsize=11)
-        else:
-            axes[1].axis("off")
-            axes[1].text(0.5, 0.5, "ROM error data not available", 
-                        ha="center", va="center", fontsize=12, transform=axes[1].transAxes)
-        
-        plt.suptitle(f"Cost-Accuracy Tradeoff: ROM Subset Size Selection ({name})", fontsize=16)
-        plt.tight_layout()
-        self.save_figure(f"ROM_subset_tradeoff_{name}.png", use_paper_naming=True)
+# NOTE: PlotManager has been moved to visualization.plot_manager module.
+# Imported above for backward compatibility.
 
 
 # ==============================================================================
 # LIKELIHOOD EVALUATOR WITH LINEARIZATION SUPPORT
 # ==============================================================================
-
-
-class LogLikelihoodEvaluator:
-    """
-    Log-likelihood evaluator using TSM-ROM with linearization management.
-    
-    ★ KEY FEATURE: Supports update_linearization_point() for 2-phase MCMC
-    """
-    
-    def __init__(
-        self,
-        solver_kwargs: Dict[str, Any],
-        active_species: List[int],
-        active_indices: List[int],
-        theta_base: np.ndarray,
-        data: np.ndarray,
-        idx_sparse: np.ndarray,
-        sigma_obs: float,
-        cov_rel: float,
-        rho: float = 0.0,
-        theta_linearization: Optional[np.ndarray] = None,
-        use_analytical: bool = True,
-        paper_mode: bool = False,  # ★ Use paper_analytical_derivatives (production-ready)
-        debug_logger: Optional[DebugLogger] = None,  # ★ For silent error handling in ERROR/OFF mode
-    ):
-        """
-        Initialize likelihood evaluator with linearization support.
-        
-        Parameters
-        ----------
-        theta_linearization : ndarray (14,), optional
-            Initial linearization point for TSM.
-            If None, uses theta_base as linearization point.
-        use_analytical : bool
-            If True, use analytical derivatives (faster).
-        paper_mode : bool, default=True
-            If True and use_analytical=True, use paper_analytical_derivatives
-            (exact match with improved1207_paper_jit.py, verified with complex-step).
-            If False, use complex-step differentiation (slower but more robust for debugging).
-        debug_logger : DebugLogger, optional
-            Debug logger for controlling error output (ERROR/OFF mode: silent).
-        """
-        self.active_species = list(active_species)
-        self.active_indices = list(active_indices)
-        self.theta_base = theta_base.copy()
-        self.data = data
-        self.idx_sparse = idx_sparse
-        self.sigma_obs = sigma_obs
-        self.cov_rel = cov_rel
-        self.rho = rho
-        self.n_species = len(active_species)
-        self.solver_kwargs = solver_kwargs.copy()  # ★ PRIORITY A: solver_kwargs を保存（診断用）
-        # ★ 推奨改善: デフォルト無音ロガーを持たせる（将来どこから呼ばれても安全）
-        self.debug_logger = debug_logger or DebugLogger(DebugConfig(level=DebugLevel.OFF))
-        
-        # Tracking
-        self.call_count = 0  # Number of ROM (TSM) evaluations
-        self.fom_call_count = 0  # Number of FOM evaluations (for ROM error computation)
-        self.timing = TimingStats()  # Wall-time breakdown for metrics.json
-        self.health = LikelihoodHealthCounter()  # Likelihood/TSM health counters
-        self.theta_history = []
-        self.logL_history = []
-        
-        # Create solver
-        self.solver = BiofilmNewtonSolver(
-            **solver_kwargs,
-            active_species=self.active_species,
-            use_numba=HAS_NUMBA,
-        )
-        
-        # ★ Use BiofilmTSM_Analytical with linearization management
-        if theta_linearization is None:
-            theta_linearization = theta_base.copy()
-        
-        self.tsm = BiofilmTSM_Analytical(
-            self.solver,
-            active_theta_indices=self.active_indices,
-            cov_rel=self.cov_rel,
-            use_complex_step=True,
-            use_analytical=use_analytical,
-            theta_linearization=theta_linearization,
-            paper_mode=paper_mode,  # ★ Use paper_analytical_derivatives (production-ready)
-        )
-        
-        self._theta_linearization = theta_linearization.copy()
-        self._linearization_enabled = False  # ★ Start with linearization disabled (non-linear exploration)
-        logger.info("TSM initialized (linearization disabled initially for exploration)")
-    
-    def update_linearization_point(self, theta_new_full: np.ndarray):
-        """
-        Update TSM linearization point.
-        
-        ★ CRITICAL for 2-phase MCMC accuracy!
-        
-        Parameters
-        ----------
-        theta_new_full : ndarray (14,)
-            New linearization point (typically MAP from Phase 1)
-        """
-        self.tsm.update_linearization_point(theta_new_full)
-        self._theta_linearization = theta_new_full.copy()
-        
-        # Reset tracking for new phase
-        self.theta_history = []
-        self.logL_history = []
-        self.call_count = 0
-    
-    def enable_linearization(self, enable: bool = True):
-        """
-        Enable or disable linearization dynamically.
-        
-        This allows switching between full TSM (non-linear) and linearized TSM
-        during MCMC execution. Typically:
-        - Initial exploration (small β): linearization disabled (full TSM)
-        - Later stages (large β): linearization enabled (fast, accurate near MAP)
-        
-        Parameters
-        ----------
-        enable : bool
-            If True, enable linearization. If False, use full TSM.
-        """
-        self.tsm.enable_linearization(enable)
-        self._linearization_enabled = enable
-    
-    def get_linearization_point(self) -> np.ndarray:
-        """Get current linearization point."""
-        return self._theta_linearization.copy()
-    
-    def compute_ROM_error(self, theta_full: np.ndarray) -> float:
-        """
-        Compute ROM error based on observable φ̄ (living bacteria volume fraction).
-        
-        ★ Paper-ready definition:
-            ε_ROM = || φ̄_ROM(t_obs) − φ̄_FOM(t_obs) ||₂ / || φ̄_FOM(t_obs) ||₂
-        
-        where φ̄_i = φ_i * ψ_i (observable quantity used in likelihood).
-        
-        This is the error in the observable space, which directly relates to
-        the likelihood approximation quality.
-        
-        ⚠️ Computational cost note:
-        This function evaluates both ROM and FOM solutions, which is computationally
-        expensive. In practice, ROM error is evaluated only at linearization update
-        intervals (every N stages), not at every stage, to balance accuracy and cost.
-        For production runs, consider downsampling observation indices or using
-        adaptive error estimation.
-        
-        Parameters
-        ----------
-        theta_full : ndarray (14,)
-            Full parameter vector
-            
-        Returns
-        -------
-        rel_error : float
-            Relative ROM error in observable space (φ̄)
-        """
-        try:
-            with timed(self.timing, "rom_error.compute"):
-                # ROM solution
-                with timed(self.timing, "tsm.solve_tsm"):
-                    t_arr_rom, x0_rom, sig2_rom = self.tsm.solve_tsm(theta_full)
-                
-                # FOM solution
-                self.fom_call_count += 1  # ★ Track FOM evaluations
-                with timed(self.timing, "fom.run_deterministic"):
-                    t_arr_fom, x0_fom = self.solver.run_deterministic(theta_full)
-            
-            # Compute φ̄ (observable) at observation times for comparison
-            # φ̄_i = φ_i * ψ_i (living bacteria volume fraction)
-            phibar_rom = compute_phibar(x0_rom, self.active_species)
-            phibar_fom = compute_phibar(x0_fom, self.active_species)
-            
-            # Extract values at observation indices (sparse observations)
-            phibar_rom_obs = phibar_rom[self.idx_sparse]
-            phibar_fom_obs = phibar_fom[self.idx_sparse]
-            
-            # Relative error: || φ̄_ROM(t_obs) − φ̄_FOM(t_obs) ||₂ / || φ̄_FOM(t_obs) ||₂
-            error_norm = np.linalg.norm(phibar_rom_obs - phibar_fom_obs)
-            fom_norm = np.linalg.norm(phibar_fom_obs)
-
-            # ------------------------------------------------------------------
-            # CRITICAL SAFETY:
-            # If ||φ̄_FOM|| is (near) zero, the usual *relative* error becomes ill-posed.
-            # Returning 0.0 here is dangerous: it can incorrectly signal "perfect ROM"
-            # and enable/stop linearization updates.
-            #
-            # Policy:
-            # - If both ROM and FOM are essentially zero at observation points → error 0.0 (they match).
-            # - Otherwise → return +inf (treat as unreliable / catastrophic), and log diagnostics.
-            # ------------------------------------------------------------------
-            eps = 1e-10
-            if (not np.isfinite(fom_norm)) or (not np.isfinite(error_norm)):
-                return np.inf
-
-            if fom_norm < eps:
-                if error_norm < eps:
-                    return 0.0
-                # Diagnostics (keep it cheap; no heavy formatting in tight loops)
-                if hasattr(self, "debug_logger") and self.debug_logger:
-                    if self.debug_logger.config.level in (DebugLevel.MINIMAL, DebugLevel.VERBOSE):
-                        try:
-                            self.debug_logger.log_warning(
-                                "ROM error is ill-posed because ||φ̄_FOM(obs)|| is near-zero "
-                                f"(||φ̄_FOM||={fom_norm:.3e}, ||Δ||={error_norm:.3e}). "
-                                "Returning +inf to avoid false '0.0' ROM error."
-                            )
-                        except Exception:
-                            pass
-                else:
-                    logger.warning(
-                        "ROM error ill-posed: ||φ̄_FOM(obs)|| near-zero (||φ̄_FOM||=%.3e, ||Δ||=%.3e). Returning +inf.",
-                        float(fom_norm),
-                        float(error_norm),
-                    )
-                return np.inf
-
-            rel_error = error_norm / fom_norm
-            return float(rel_error)
-        except Exception as e:
-            # ★ ERROR/OFF mode: silent
-            # MINIMAL/VERBOSE: log warning
-            if hasattr(self, "debug_logger") and self.debug_logger:
-                if self.debug_logger.config.level in (DebugLevel.MINIMAL, DebugLevel.VERBOSE):
-                    self.debug_logger.log_warning(f"ROM error computation failed: {e}")
-            else:
-                logger.warning("ROM error computation failed: %s", e)
-            return np.inf  # Return large error if computation fails
-    
-    def __call__(self, theta_sub: np.ndarray) -> float:
-        """Evaluate log-likelihood for given parameter subset."""
-        self.call_count += 1
-        self.health.n_calls += 1
-        
-        # Construct full parameter vector
-        full_theta = self.theta_base.copy()
-        for i, idx in enumerate(self.active_indices):
-            full_theta[idx] = theta_sub[i]
-        
-        # Solve TSM
-        try:
-            with timed(self.timing, "tsm.solve_tsm"):
-                t_arr, x0, sig2 = self.tsm.solve_tsm(full_theta)
-        except Exception as e:
-            self.health.n_tsm_fail += 1
-            # ★ ERROR/OFF mode: silent
-            # MINIMAL/VERBOSE: log warning
-            if hasattr(self, "debug_logger") and self.debug_logger:
-                if self.debug_logger.config.level in (DebugLevel.MINIMAL, DebugLevel.VERBOSE):
-                    self.debug_logger.log_warning(f"TSM failed: {e}")
-            else:
-                logger.warning("TSM failed: %s", e)
-            return -1e20
-
-        # Basic sanity: solver outputs must be finite (counts for later triage)
-        n_bad = 0
-        try:
-            n_bad += int(np.size(t_arr) - np.isfinite(t_arr).sum())
-            n_bad += int(np.size(x0) - np.isfinite(x0).sum())
-            n_bad += int(np.size(sig2) - np.isfinite(sig2).sum())
-        except Exception:
-            n_bad += 1
-        if n_bad > 0:
-            self.health.n_output_nonfinite += int(n_bad)
-            return -1e20
-        
-        # Compute predicted mean and variance at observation times
-        mu = np.zeros((len(self.idx_sparse), self.n_species))
-        sig = np.zeros((len(self.idx_sparse), self.n_species))
-        
-        # State vector: [phi_0..phi_{N-1}, phi0, psi_0..psi_{N-1}, gamma]
-        # For N total species, psi_offset = N + 1
-        n_state = x0.shape[1]
-        n_total_species = (n_state - 2) // 2
-        psi_offset = n_total_species + 1
-        
-        for i, sp in enumerate(self.active_species):
-            # ★ CRITICAL FIX: Check bounds explicitly instead of silent clipping
-            # Silent clipping can hide bugs (e.g., idx_sparse calculation errors)
-            if np.any(self.idx_sparse < 0) or np.any(self.idx_sparse >= sig2.shape[0]):
-                invalid_min = np.min(self.idx_sparse[self.idx_sparse < 0]) if np.any(self.idx_sparse < 0) else None
-                invalid_max = np.max(self.idx_sparse[self.idx_sparse >= sig2.shape[0]]) if np.any(self.idx_sparse >= sig2.shape[0]) else None
-                raise IndexError(
-                    f"Invalid idx_sparse: min={invalid_min}, max={invalid_max}, "
-                    f"valid range=[0, {sig2.shape[0]-1}]. "
-                    f"idx_sparse shape={self.idx_sparse.shape}, sig2 shape={sig2.shape}"
-                )
-            idx = self.idx_sparse
-
-            phi = x0[idx, sp]
-            psi = x0[idx, psi_offset + sp]
-            sig2_phi = sig2[idx, sp]
-            sig2_psi = sig2[idx, psi_offset + sp]
-
-            mu[:, i] = phi * psi
-            # Var(phi*psi) = phi^2 Var(psi) + psi^2 Var(phi) + 2 phi psi Cov(phi,psi)
-            var_phibar = phi**2 * sig2_psi + psi**2 * sig2_phi
-
-            # Cov(phi,psi) can be computed from sensitivities x1:
-            # Cov(x_a, x_b) = Σ_k (∂x_a/∂θ_k)(∂x_b/∂θ_k) Var(θ_k), assuming independent θ_k.
-            x1 = getattr(self.tsm, "_last_x1", None)
-            var_act = getattr(self.tsm, "_last_var_act", None)
-            if x1 is not None and var_act is not None:
-                try:
-                    x1_phi = x1[idx, sp, :]  # (n_obs, n_active)
-                    x1_psi = x1[idx, psi_offset + sp, :]  # (n_obs, n_active)
-                    cov_phi_psi = np.sum(x1_phi * x1_psi * var_act[None, :], axis=1)
-                    var_phibar = var_phibar + 2.0 * phi * psi * cov_phi_psi
-                except Exception:
-                    # Fall back to diagonal approximation if shapes mismatch
-                    pass
-
-            sig[:, i] = var_phibar
-        
-        # Sanity: likelihood inputs must be finite
-        n_bad2 = int(np.size(mu) - np.isfinite(mu).sum()) + int(np.size(sig) - np.isfinite(sig).sum())
-        if n_bad2 > 0:
-            self.health.n_output_nonfinite += int(n_bad2)
-            return -1e20
-
-        # Evaluate log-likelihood + increment per-entry variance health counters
-        var_health: Dict[str, int] = {}
-        logL = log_likelihood_sparse(mu, sig, self.data, self.sigma_obs, rho=self.rho, health=var_health)
-        self.health.n_var_raw_negative += int(var_health.get("n_var_raw_negative", 0))
-        self.health.n_var_raw_nonfinite += int(var_health.get("n_var_raw_nonfinite", 0))
-        self.health.n_var_total_clipped += int(var_health.get("n_var_total_clipped", 0))
-        
-        # Track evaluation
-        self.theta_history.append(theta_sub.copy())
-        self.logL_history.append(logL)
-        
-        return logL
-
-    def get_health(self) -> Dict[str, int]:
-        return self.health.to_dict()
-    
-    def get_MAP(self) -> Tuple[np.ndarray, float]:
-        """Get MAP estimate from evaluation history."""
-        if len(self.logL_history) == 0:
-            raise ValueError("No evaluations yet")
-        
-        idx_max = np.argmax(self.logL_history)
-        theta_MAP = self.theta_history[idx_max]
-        logL_MAP = self.logL_history[idx_max]
-        
-        return theta_MAP, logL_MAP
+# NOTE: LogLikelihoodEvaluator has been moved to core.evaluator module.
+# Imported above for backward compatibility.
 
 
 # ==============================================================================
 # ADAPTIVE MCMC
 # ==============================================================================
+# NOTE: run_adaptive_MCMC has been moved to core.mcmc module.
+# Imported above for backward compatibility.
 
 
 def run_adaptive_MCMC(
@@ -2270,47 +790,8 @@ def should_do_fom_check(
     return True
 
 
-def _validate_tmcmc_inputs(
-    log_likelihood: callable,
-    prior_bounds: List[Tuple[float, float]],
-    n_particles: int,
-    n_stages: int,
-    target_ess_ratio: float,
-    evaluator: Optional[Any],
-    theta_base_full: Optional[np.ndarray],
-    active_indices: Optional[List[int]],
-) -> None:
-    """Validate inputs for run_TMCMC."""
-    if not callable(log_likelihood):
-        raise TypeError("log_likelihood must be callable")
-    
-    if not isinstance(prior_bounds, list) or len(prior_bounds) == 0:
-        raise ValueError("prior_bounds must be a non-empty list")
-    
-    for i, (low, high) in enumerate(prior_bounds):
-        if not isinstance(low, (int, float)) or not isinstance(high, (int, float)):
-            raise TypeError(f"prior_bounds[{i}] must be numeric tuple")
-        if low >= high:
-            raise ValueError(f"prior_bounds[{i}]: lower bound must be < upper bound")
-    
-    if n_particles <= 0:
-        raise ValueError(f"n_particles must be > 0, got {n_particles}")
-    
-    if n_stages <= 0:
-        raise ValueError(f"n_stages must be > 0, got {n_stages}")
-    
-    if not (0 < target_ess_ratio <= 1):
-        raise ValueError(f"target_ess_ratio must be in (0, 1], got {target_ess_ratio}")
-    
-    if evaluator is not None:
-        if theta_base_full is None:
-            raise ValueError("theta_base_full must be provided when evaluator is provided")
-        if active_indices is None:
-            raise ValueError("active_indices must be provided when evaluator is provided")
-        if not isinstance(theta_base_full, np.ndarray):
-            raise TypeError("theta_base_full must be numpy array")
-        if not isinstance(active_indices, list):
-            raise TypeError("active_indices must be list")
+# NOTE: _validate_tmcmc_inputs has been moved to utils.validation module.
+# Imported above for backward compatibility.
 
 
 def run_TMCMC(
@@ -3999,6 +2480,8 @@ def generate_synthetic_data(
 # ==============================================================================
 # MAIN
 # ==============================================================================
+# NOTE: main() function has been moved to main.case2_main module.
+# Imported above for backward compatibility.
 
 def main():
     start_time_global = time.time()
@@ -4414,6 +2897,7 @@ def main():
             n_data=exp_config.n_data,
             active_species=MODEL_CONFIGS["M2"]["active_species"],
             active_indices=MODEL_CONFIGS["M2"]["active_indices"],
+            script_path=Path(__file__),
         )
     if "M3" in requested_models:
         data_M3, idx_M3, t_M3, x0_M3, sig2_M3 = generate_synthetic_data(
@@ -4432,6 +2916,7 @@ def main():
             n_data=exp_config.n_data,
             active_species=MODEL_CONFIGS["M3"]["active_species"],
             active_indices=MODEL_CONFIGS["M3"]["active_indices"],
+            script_path=Path(__file__),
         )
     
     # ★ PRIORITY A: データ差分の証拠を出力（M1/M2同一挙動の切り分け）
@@ -5560,20 +4045,24 @@ def main():
     logger.info("%s", "=" * 80)
 
 
+# NOTE: main() function and CLI entry point have been moved to main.case2_main module.
+# Imported above for backward compatibility.
 if __name__ == "__main__":
-    # ★ 致命的②: import時のprintをmain配下に移動
+    # Import and call main from the refactored module
+    from main.case2_main import main as main_func
+    # Setup logging and patch solver (same as before)
     setup_logging("INFO")
     logger.info("Modules imported with TSM Linearization support")
     logger.info("Numba: %s", "enabled" if HAS_NUMBA else "disabled")
     
-    # ★ 致命的②: patch_biofilm_solver() を必要時のみ実行（verbose=Falseで無音）
+    # Patch biofilm solver (verbose=False for silent execution)
     patch_biofilm_solver(verbose=False)
     
-    # ★ Error handling with Slack notification
+    # Error handling with Slack notification
     try:
-        main()
+        main_func()
     except Exception as e:
-        # ★ Slack notification: Error occurred
+        # Slack notification: Error occurred
         if SLACK_ENABLED:
             import traceback
             error_msg = f"❌ TMCMC Process Failed\n   Error: {str(e)}\n   Type: {type(e).__name__}"

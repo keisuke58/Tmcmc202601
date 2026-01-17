@@ -1,0 +1,3 @@
+model,chain,stage,accept_rate
+M1,1,0,1.0
+M1,1,1,0.8
