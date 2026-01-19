@@ -1,0 +1,12 @@
+{
+  "output_dir": "tmcmc/_runs/20260117_093239_paper_seed42/figures",
+  "n_figures": 5,
+  "figures": [
+    "TSM_simulation_M1_with_data.png",
+    "TSM_simulation_M1_MAP_fit_with_data.png",
+    "TSM_simulation_M1_MEAN_fit_with_data.png",
+    "posterior_M1.png",
+    "PaperFig09_posterior_predictive_M1.png"
+  ],
+  "generated_at": "2026-01-19 00:54:02"
+}
