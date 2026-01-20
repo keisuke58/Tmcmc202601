@@ -20,12 +20,16 @@ RUNS_ROOT="${RUNS_ROOT:-"${ROOT_DIR}/tmcmc/_runs"}"
 MODE="${MODE:-debug}"
 DEBUG_LEVEL="${DEBUG_LEVEL:-MINIMAL}"
 MODELS="${MODELS:-M1}"
-N_STAGES="${N_STAGES:-30}"  # Updated: 20 → 30 for better convergence
+N_STAGES="${N_STAGES:-50}"  # Increased for better convergence with high particle counts
 
 # Grids (space-separated lists)
-SIGMA_LIST="${SIGMA_LIST:-0.01 0.015 0.02}"
-COVREL_LIST="${COVREL_LIST:-0.005 0.01 0.02}"
-NP_LIST="${NP_LIST:-2000 3000 5000}"  # Updated: 300,500,1000 → 2000,3000,5000 for better ESS
+# ★ Optimized based on previous sweep analysis:
+#    - cov_rel=0.02 was found to be optimal (7-36x better than 0.005)
+#    - sigma_obs=0.01 showed best results
+#    - Exploring cov_rel around 0.02 including 0.04 to find true optimum
+SIGMA_LIST="${SIGMA_LIST:-0.01}"  # Fixed to optimal value
+COVREL_LIST="${COVREL_LIST:-0.015 0.02 0.025 0.03 0.04}"  # Explore around optimal value (0.02), including 0.04
+NP_LIST="${NP_LIST:-5000 10000 20000}"  # Increased for better ESS and convergence
 
 # Parallelism
 # - Keep this modest on shared servers. Typical: 2-4.

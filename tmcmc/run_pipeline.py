@@ -111,8 +111,11 @@ def main() -> int:
     # Persist pipeline logs under the run directory.
     setup_logging("INFO", log_path=run_dir / "pipeline.log")
 
-    case2 = Path("tmcmc") / "case2_tmcmc_linearization.py"
-    report = Path("tmcmc") / "make_report.py"
+    # Determine script directory (where run_pipeline.py is located)
+    script_dir = Path(__file__).parent.resolve()
+    # case2_tmcmc_linearization.py is in the same directory as run_pipeline.py
+    case2 = script_dir / "case2_tmcmc_linearization.py"
+    report = script_dir / "make_report.py"
 
     cmd = [
         sys.executable,
