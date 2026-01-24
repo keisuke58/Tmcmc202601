@@ -1,0 +1,195 @@
+# IKM_Hiwi プロジェクト - コーディングルール
+
+## 基本方針
+
+### 1. コードスタイル
+- **Python バージョン**: Python 3.9+
+- **インデント**: スペース4つ（タブ禁止）
+- **行の長さ**: 最大100文字（科学計算の長い式は例外可）
+- **命名規則**:
+  - 関数・変数: `snake_case`
+  - クラス: `PascalCase`
+  - 定数: `UPPER_SNAKE_CASE`
+  - プライベート: `_leading_underscore`
+
+### 2. インポート順序
+```python
+# 1. 標準ライブラリ
+import logging
+from pathlib import Path
+from typing import Optional, Tuple
+
+# 2. サードパーティ
+import numpy as np
+import matplotlib.pyplot as plt
+from numba import njit
+
+# 3. ローカルモジュール
+from src.config import get_config
+from src.tsm import TSM
+```
+
+### 3. ドキュメント（Docstrings）
+**必須**: すべての公開関数・クラスにNumPyスタイルのdocstringを記述
+
+```python
+def solve_tsm(self, theta: np.ndarray) -> TSMResult:
+    """
+    Solve Time-Separated Mechanics problem.
+
+    Computes mean trajectory and variance propagation via 1st-order Taylor
+    expansion of the PDE solution with respect to parameter uncertainty.
+
+    Parameters
+    ----------
+    theta : np.ndarray, shape (14,)
+        Parameter vector: [a11, a12, a22, b1, b2, a33, a34, a44, b3, b4,
+                           a13, a14, a23, a24]
+
+    Returns
+    -------
+    TSMResult
+        Contains:
+        - t_array: Time points
+        - mu: Mean trajectory (deterministic solution)
+        - sigma2: Variance at each time/state
+
+    Raises
+    ------
+    RuntimeError
+        If Newton solver encounters NaN values
+
+    Notes
+    -----
+    Uses analytical sensitivity computation when Numba is available,
+    falls back to numerical differentiation otherwise.
+    """
+```
+
+### 4. エラーハンドリング
+- **禁止**: 裸の `except:` ブロック
+- **推奨**: 具体的な例外をキャッチ
+```python
+# ❌ 悪い例
+try:
+    result = solver.run(theta)
+except:
+    return -1e20
+
+# ✅ 良い例
+try:
+    result = solver.run(theta)
+except (RuntimeError, np.linalg.LinAlgError) as e:
+    logger.warning(f"Solver failed for theta={theta}: {e}")
+    return -1e20
+```
+
+### 5. ロギング
+- **禁止**: `print()` ステートメント（デバッグ時のみ可）
+- **推奨**: `logging` モジュールを使用
+```python
+import logging
+logger = logging.getLogger(__name__)
+
+logger.info("Starting TMCMC simulation")
+logger.warning("Low ESS detected")
+logger.error("Convergence failed")
+```
+
+### 6. 型ヒント
+- **推奨**: 関数の引数・戻り値に型ヒントを追加
+```python
+from typing import Tuple, Optional
+import numpy.typing as npt
+
+def compute_ess(
+    log_weights: npt.NDArray[np.float64],
+    delta_beta: float
+) -> float:
+    """Compute effective sample size."""
+    ...
+```
+
+### 7. Numba最適化
+- **パフォーマンスクリティカルな関数**: `@njit(cache=True, fastmath=True)` を使用
+- **注意**: Numba関数内ではPythonオブジェクトを使用不可
+```python
+from numba import njit
+
+@njit(cache=True, fastmath=True)
+def compute_Q_vector_numba(phi, psi, c_val, alpha_val, Eta_vec):
+    """Numba-accelerated Q-vector computation."""
+    # Pure numerical operations only
+    ...
+```
+
+### 8. NumPy使用規則
+- **配列作成**: `np.array()` より `np.asarray()` を優先（既存配列の再利用）
+- **メモリ効率**: 大きな配列は必要に応じて `np.float32` を検討
+- **数値安定性**: `exp()` の前に最大値を引く（オーバーフロー防止）
+```python
+# ✅ 数値安定性を考慮
+logL_eff = logL * logL_scale
+x = delta_beta * (logL_eff - np.max(logL_eff))
+w_unnorm = np.exp(x)
+```
+
+### 9. 設定管理
+- **集中管理**: `config.py` に設定を集約
+- **デバッグモード**: `debug=True/False` で切り替え可能に
+- **マジックナンバー禁止**: 定数は設定ファイルに定義
+
+### 10. テスト
+- **テストファイル**: `tests/` ディレクトリに配置
+- **命名**: `test_*.py` または `*_test.py`
+- **カバレッジ**: 重要な関数は最低限のテストを記述
+
+### 11. ファイル構造
+```
+module_name/
+├── __init__.py          # モジュール初期化
+├── core.py              # コア機能
+├── utils.py             # ユーティリティ
+└── tests/               # テスト
+    └── test_core.py
+```
+
+### 12. Git管理
+- **コミットメッセージ**: プレフィックスを使用
+  - `feat:` 新機能
+  - `fix:` バグ修正
+  - `docs:` ドキュメント
+  - `refactor:` リファクタリング
+  - `test:` テスト追加
+  - `chore:` その他
+
+### 13. 科学計算のベストプラクティス
+- **検証**: 解析解と数値解を比較するテストを追加
+- **収束判定**: イテレーション回数と許容誤差を設定可能に
+- **診断情報**: 収束状況、ESS、エラーなどを記録
+
+### 14. コメント
+- **日本語可**: 科学計算の複雑な部分は日本語コメントも可
+- **英語推奨**: 公開APIやドキュメントは英語
+- **TODO/FIXME**: 明確にマーク
+
+### 15. パフォーマンス
+- **プロファイリング**: ボトルネックを特定してから最適化
+- **並列化**: TMCMCの尤度評価などは並列化を検討
+- **キャッシュ**: 繰り返し計算はキャッシュを活用
+
+## 禁止事項
+
+1. ❌ 裸の `except:` ブロック
+2. ❌ デバッグ用の `print()` を本番コードに残す
+3. ❌ マジックナンバー（定数として定義）
+4. ❌ 未使用のインポート
+5. ❌ 500行を超える単一ファイル（分割を検討）
+6. ❌ 循環依存
+
+## 推奨ツール
+
+- **フォーマッター**: `black` (line-length=100)
+- **リンター**: `flake8` または `ruff`
+- **型チェック**: `mypy` (numba/scipyは除外)
+- **テスト**: `pytest`
