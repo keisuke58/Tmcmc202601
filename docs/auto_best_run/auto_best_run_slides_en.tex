@@ -1,0 +1,46 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{Madrid}
+\setbeamertemplate{navigation symbols}{}
+
+\usepackage{graphicx}
+
+\title{Auto-picked Best TMCMC Run}
+\subtitle{English summary}
+\author{auto\_pick\_best\_run.py}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Best run}
+\begin{itemize}
+  \item run\_id: \texttt{m1\_check\_np100\_ns15}
+  \item mode: \texttt{debug}, seed: \texttt{42}
+  \item sigma\_obs: \texttt{0.01}, cov\_rel: \texttt{0.005}
+  \item n\_particles / n\_stages / n\_mutation\_steps: \texttt{100 / 15 / 3}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Key metrics (M1)}
+\begin{itemize}
+  \item RMSE\_MAP: \texttt{0.06312}
+  \item $\beta_{\mathrm{final}}$: \texttt{1.0} (posterior reached)
+  \item ROM\_err\_final: \texttt{0.0}
+  \item accept\_mean: \texttt{0.6833}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Figures (paths)}
+\begin{itemize}\itemsep0.2em\relax
+  \item \texttt{../tmcmc/\_runs/m1\_check\_np100\_ns15/figures/posterior\_M1.png}
+  \item \texttt{../tmcmc/\_runs/m1\_check\_np100\_ns15/figures/TSM\_simulation\_M1\_MAP\_fit\_with\_data.png}
+  \item \texttt{../tmcmc/\_runs/m1\_check\_np100\_ns15/figures/TSM\_simulation\_M1\_MEAN\_fit\_with\_data.png}
+  \item \texttt{../tmcmc/\_runs/m1\_check\_np100\_ns15/figures/TSM\_simulation\_M1\_with\_data.png}
+\end{itemize}
+\end{frame}
+
+\end{document}
+

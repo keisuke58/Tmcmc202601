@@ -1,0 +1,191 @@
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+実装アーキテクチャ／実行フロー／性能・精度の勘所
+IKM_Hiwi / tmcmc
+January 16, 2026
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+1 / 15
+
+
+この資料のゴール
+入口case2_tmcmc_linearization.py から辿れる実行系を俯瞰
+どこが重いか（性能）／何が推定を支配するか（精度）を一枚で説明
+監査可能な再現性ログ（config/likelihood_meta/diagnostics）を示す
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+2 / 15
+
+
+実行系の全体像（外枠）
+最短の説明
+run_pipeline.py がrun_dir を作り，case2_tmcmc_linearization.py を実行し
+た後にmake_report.py でREPORT.md を生成する．
+進捗ログ: subprocess.log / pipeline.log
+監査ログ: config.json, likelihood_meta_*.json
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+3 / 15
+
+
+主要モジュール（実行に効く）
+入口/制御: case2_tmcmc_linearization.py
+設定: config.py
+TSM（線形化/JIT）: demo_analytical_tsm_with_linearization_jit.py
+物理モデル（Newton+ 時間積分）: improved1207_paper_jit.py
+解析微分（paper mode）: paper_analytical_derivatives.py
+診断/レポート: mcmc_diagnostics.py, make_report.py
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+4 / 15
+
+
+モジュール相関（図）
+case2
+TMCMC 制御
+(β/ESS/変異)
+Evaluator
+尤度評価
+(TSM 呼び出し)
+TSM
+線形化ON/OFF
+θ0 更新
+Newton solver
+時間積分+ Newton
+Analytical
+∂G/∂θ
+(paper 一致)
+Report
+csv/png/md
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+5 / 15
+
+
+TMCMC（β tempering）の要点
+prior（β=0）→posterior（β=1）へ段階的遷移
+ステージごとに∆β をESS 目標に合わせて調整（上下限あり）
+重み更新→ESS→リサンプル→mutation（MCMC）で混合を維持
+重要チェック
+β=1 に到達していること（ログに“beta reached 1.0” が出るか）
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+6 / 15
+
+
+TSM-ROM（線形化管理）の要点
+線形化近似
+x(θ) ≈x(θ0) + ∂x
+∂θ
+
+θ0(θ −θ0)
+探索初期（小β）: 線形化OFF で非線形性を取り込む
+後半（大β）: 線形化ON で高速化（MAP 近傍で精度良）
+update_linearization_point(theta0) でキャッシュ無効化＋再計算
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+7 / 15
+
+
+物理モデル（Newton + 時間積分）
+run_deterministic: 時間方向に進めて各ステップをNewton で解く
+compute_Q_vector, compute_Jacobian_matrix: 残差とヤコビアン
+alpha_schedule: switch_time/switch_step/switch_frac をサポート
+（M3_val）
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+8 / 15
+
+
+解析微分（paper mode）
+paper_analytical_derivatives.py: ∂G/∂θ をpaper-consistent に実装
+complex-step 参照で検証できる（verify 関数あり）
+complex-step を成立させる前提: θ →(A, b) が複素dtype を保持
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+9 / 15
+
+
+再現性（監査ログ）
+config.json: seed / mode / TMCMC 設定/ モデル設定
+likelihood_meta_*.json: 尤度定義（var_total 等の内訳）
+diagnostics_tables/*.csv: β, 受理率, ROM error, θ0 履歴
+REPORT.md: しきい値によるPASS/WARN/FAIL を自動整理
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+10 / 15
+
+
+性能（どこが支配的か）
+最大: BiofilmTSM_Analytical.solve_tsm()
+最大: BiofilmNewtonSolver.run_deterministic()（内部でQ/J + Newton）
+大: 感度x(1) 生成（線形化が効かない時期に重い）
+中: TMCMC 枠（β 更新/リサンプル/mutation）
+小: 可視化・I/O（条件次第で増える）
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+11 / 15
+
+
+精度（何が推定を支配するか）
+最大: 尤度定義（σobs，Var(¯ϕ ¯ψ) とCov の扱い）
+大: TSM 妥当性（ROM error，線形化点管理，解析微分）
+大: 線形化ON のタイミングと更新規則（早すぎると壊れる／遅いと遅い）
+中: 数値安定化（dt, Newton 許容, クリップ/ペナルティ）
+中: TMCMC 設定（粒子数/ステージ/mutation steps）
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+12 / 15
+
+
+図のネタ（そのまま発表に使える）
+β スケジュール（チェーン別）＋“beta reached 1.0” の確認
+ROM error の更新イベント系列（pre/post）
+θ0 更新のステップノルム（∥∆θ0∥）
+Posterior（M1/M2/M3/M3_val）とMAP/MEAN fit
+Cost–Accuracy tradeoff（FOM 評価回数or wall-time vs MAP error）
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+13 / 15
+
+
+まとめ
+外枠はrun_pipeline →case2 →make_report
+中核コストはsolve_tsm とNewton 時間積分
+β=1 到達と尤度定義の明文化が監査・再現性の肝
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+14 / 15
+
+
+参考文献
+L. Fritsch，H. Geisler，J. Grashorn，F. Klempt，M. Soleimani，M. Broggi，P. Junker，M. Beer．Bayesian
+updating of bacterial microfilms under hybrid uncertainties with a novel surrogate model．
+tmcmc/Bayesian updating of bacterial microfilms under hybrid uncertainties
+with a novel surrogate model - Kopie.pdf．
+F. Klempt，H. Geisler，M. Soleimani，P. Junker．A continuum multi-species biofilm model with a novel
+interaction scheme．arXiv:2509.01274v1，2025．tmcmc/biofilm_simulation.pdf．
+P. Junker，D. Balzani．An extended Hamilton principle as unifying theory for coupled problems and
+dissipative microstructure evolution．Continuum Mechanics and Thermodynamics，2021．DOI:
+10.1007/s00161-021-01017-z．tmcmc/hamiltonian.pdf．
+N. Heine et al．Influence of species composition and cultivation condition on peri-implant biofilm dysbiosis
+in vitro．Front. Oral Health，2025．DOI: 10.3389/froh.2025.1649419．tmcmc/Influence of
+species composition and cultivation condition on peri-implant biofilm
+dysbiosis in vitro.pdf．
+IKM_Hiwi / tmcmc
+TMCMC×TSM-ROM（線形化管理+ 解析微分/JIT）
+January 16, 2026
+15 / 15

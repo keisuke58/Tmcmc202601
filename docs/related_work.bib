@@ -1,0 +1,397 @@
+% Related Work Bibliography for TMCMC × TSM-ROM Project
+% Generated: 2025
+
+% ============================================================================
+% TMCMC (Transitional Markov Chain Monte Carlo) - Core and Extensions
+% ============================================================================
+
+@article{ChingChen2007TMCMC,
+  author = {Ching, Jianye and Chen, Yi-Chu},
+  title = {Transitional {Markov} Chain {Monte} {Carlo} Method for {Bayesian} Model Updating, Model Class Selection, and Model Averaging},
+  journal = {Journal of Engineering Mechanics},
+  volume = {133},
+  number = {7},
+  pages = {816--832},
+  year = {2007},
+  doi = {10.1061/(ASCE)0733-9399(2007)133:7(816)},
+  note = {Original TMCMC method}
+}
+
+@article{BetzPapaioannouStraub2016TMCMC,
+  author = {Betz, Wolfgang and Papaioannou, Iason and Straub, Daniel},
+  title = {Transitional {Markov} Chain {Monte} {Carlo}: Observations and Improvements},
+  journal = {Journal of Engineering Mechanics},
+  volume = {142},
+  number = {5},
+  pages = {04016016},
+  year = {2016},
+  doi = {10.1061/(ASCE)EM.1943-7889.0001066},
+  note = {Improvements to TMCMC algorithm}
+}
+
+@article{AngelikopoulosPapadimitriouKoumoutsakos2015XTMCMC,
+  author = {Angelikopoulos, Panagiotis and Papadimitriou, Costas and Koumoutsakos, Petros},
+  title = {X-{T}MCMC: Adaptive Kriging for {Bayesian} Inverse Problems},
+  journal = {Computer Methods in Applied Mechanics and Engineering},
+  volume = {289},
+  pages = {409--428},
+  year = {2015},
+  doi = {10.1016/j.cma.2015.02.011},
+  note = {TMCMC with kriging surrogate models}
+}
+
+@article{LuKhalilCatanach2021GeneralizedTMCMC,
+  author = {Lu, Daniel and Khalil, Mohammad and Catanach, Thomas and others},
+  title = {Generalized {Transitional} {Markov} Chain {Monte} {Carlo} for {Bayesian} Inverse Problems},
+  journal = {arXiv preprint arXiv:2112.02180},
+  year = {2021},
+  note = {Generalized TMCMC addressing tempering schedule inefficiencies}
+}
+
+@article{WuAngelikopoulosPapadimitriouKoumoutsakos2017BASIS,
+  author = {Wu, Sifan and Angelikopoulos, Panagiotis and Papadimitriou, Costas and Koumoutsakos, Petros},
+  title = {{BASIS}: {Bayesian} Annealed Sequential Importance Sampling},
+  journal = {Journal of Computational Physics},
+  volume = {335},
+  pages = {289--299},
+  year = {2017},
+  doi = {10.1016/j.jcp.2017.01.010},
+  note = {Unbiased version of TMCMC}
+}
+
+@article{MaPengfeiZhangYi2025CTMCMC,
+  author = {Ma, Pengfei and Zhang, Yi and Cai, Enjian and Luo, Min and Guo, Xinglin},
+  title = {Copula-based {Transitional} {Markov} Chain {Monte} {Carlo} for {Bayesian} Model Updating},
+  journal = {Reliability Engineering \& System Safety},
+  volume = {265},
+  pages = {110772},
+  year = {2025},
+  doi = {10.1016/j.ress.2025.110772},
+  note = {Copula-based TMCMC for complex distributions}
+}
+
+% ============================================================================
+% TSM-ROM (Time-Separated Stochastic Mechanics) - Core Methods
+% ============================================================================
+
+@article{GeislerJunker2023TSM,
+  author = {Geisler, Hendrik and Junker, Philipp},
+  title = {Time-separated stochastic mechanics for the simulation of viscoelastic structures with local random material fluctuations},
+  journal = {Computer Methods in Applied Mechanics and Engineering},
+  volume = {407},
+  pages = {115916},
+  year = {2023},
+  doi = {10.1016/j.cma.2023.115916},
+  note = {Original TSM method for viscoelastic structures}
+}
+
+@article{GeislerErdoganNagelJunker2025TSM,
+  author = {Geisler, Hendrik and Erdogan, Can and Nagel, Jonas and Junker, Philipp},
+  title = {A new paradigm for the efficient inclusion of stochasticity in engineering simulations: {Time-separated} stochastic mechanics},
+  journal = {Computational Mechanics},
+  volume = {75},
+  number = {1},
+  pages = {211--235},
+  year = {2025},
+  doi = {10.1007/s00466-024-02500-5},
+  note = {Comprehensive TSM framework}
+}
+
+% ============================================================================
+% Hybrid Uncertainty Quantification (Epistemic + Aleatory)
+% ============================================================================
+
+@article{BeckKatafygiotis1998BMU,
+  author = {Beck, James L. and Katafygiotis, Lambros S.},
+  title = {Updating Models and Their Uncertainties. {I}: {Bayesian} Statistical Framework},
+  journal = {Journal of Engineering Mechanics},
+  volume = {124},
+  number = {4},
+  pages = {455--461},
+  year = {1998},
+  doi = {10.1061/(ASCE)0733-9399(1998)124:4(455)},
+  note = {Foundational Bayesian model updating framework}
+}
+
+@article{KennedyOHagan2001Calibration,
+  author = {Kennedy, Marc C. and O'Hagan, Anthony},
+  title = {Bayesian Calibration of Computer Models},
+  journal = {Journal of the Royal Statistical Society: Series B},
+  volume = {63},
+  number = {3},
+  pages = {425--464},
+  year = {2001},
+  doi = {10.1111/1467-9868.00294},
+  note = {Hybrid uncertainty via model discrepancy}
+}
+
+@article{Fritsch2025BayesianMicrofilms,
+  author = {Fritsch, Lukas and Geisler, Hendrik and Grashorn, Jan and Klempt, Felix and Soleimani, Meisam and Broggi, Matteo and Junker, Philipp and Beer, Michael},
+  title = {Bayesian updating of bacterial microfilms under hybrid uncertainties with a novel surrogate model},
+  year = {2025},
+  note = {Local PDF: \texttt{tmcmc/Bayesian updating of bacterial microfilms under hybrid uncertainties with a novel surrogate model - Kopie.pdf}}
+}
+
+% ============================================================================
+% Reduced-Order Models for Uncertainty Quantification
+% ============================================================================
+
+@article{BennerGugercinWillcox2015ROM,
+  author = {Benner, Peter and Gugercin, Serkan and Willcox, Karen},
+  title = {A Survey of Projection-Based Model Reduction Methods for Parametric Dynamical Systems},
+  journal = {SIAM Review},
+  volume = {57},
+  number = {4},
+  pages = {483--531},
+  year = {2015},
+  doi = {10.1137/130932715},
+  note = {Survey of ROM methods}
+}
+
+@article{PeherstorferWillcoxGunzburger2018ROMUQ,
+  author = {Peherstorfer, Benjamin and Willcox, Karen and Gunzburger, Max},
+  title = {Survey of Multifidelity Methods for Uncertainty Quantification, Propagation, and Optimization},
+  journal = {SIAM Review},
+  volume = {60},
+  number = {3},
+  pages = {550--591},
+  year = {2018},
+  doi = {10.1137/16M1082469},
+  note = {Multifidelity methods for UQ}
+}
+
+@article{XiuKarniadakis2002PolynomialChaos,
+  author = {Xiu, Dongbin and Karniadakis, George Em},
+  title = {The {Wiener}--{Askey} Polynomial Chaos for Stochastic Differential Equations},
+  journal = {SIAM Journal on Scientific Computing},
+  volume = {24},
+  number = {2},
+  pages = {619--644},
+  year = {2002},
+  doi = {10.1137/S1064827501387826},
+  note = {Polynomial chaos expansion for UQ}
+}
+
+% ============================================================================
+% Bayesian Inference and MCMC Methods
+% ============================================================================
+
+@article{MetropolisRosenbluthRosenbluthTellerTeller1953,
+  author = {Metropolis, Nicholas and Rosenbluth, Arianna W. and Rosenbluth, Marshall N. and Teller, Augusta H. and Teller, Edward},
+  title = {Equation of State Calculations by Fast Computing Machines},
+  journal = {The Journal of Chemical Physics},
+  volume = {21},
+  number = {6},
+  pages = {1087--1092},
+  year = {1953},
+  doi = {10.1063/1.1699114},
+  note = {Original Metropolis algorithm}
+}
+
+@article{Hastings1970MCMC,
+  author = {Hastings, W. K.},
+  title = {Monte {Carlo} Sampling Methods Using {Markov} Chains and Their Applications},
+  journal = {Biometrika},
+  volume = {57},
+  number = {1},
+  pages = {97--109},
+  year = {1970},
+  doi = {10.1093/biomet/57.1.97},
+  note = {Metropolis-Hastings algorithm}
+}
+
+@article{DelMoralDoucetJasra2006SMC,
+  author = {Del Moral, Pierre and Doucet, Arnaud and Jasra, Ajay},
+  title = {Sequential {Monte} {Carlo} Samplers},
+  journal = {Journal of the Royal Statistical Society: Series B},
+  volume = {68},
+  number = {3},
+  pages = {411--436},
+  year = {2006},
+  doi = {10.1111/j.1467-9868.2006.00553.x},
+  note = {Sequential Monte Carlo methods}
+}
+
+% ============================================================================
+% Surrogate Models and Emulators
+% ============================================================================
+
+@article{RasmussenWilliams2006GPR,
+  author = {Rasmussen, Carl Edward and Williams, Christopher K. I.},
+  title = {Gaussian Processes for Machine Learning},
+  publisher = {MIT Press},
+  year = {2006},
+  isbn = {026218253X},
+  note = {Gaussian process regression for surrogate modeling}
+}
+
+@article{ContiO'Hagan2009BayesianEmulation,
+  author = {Conti, Stefano and O'Hagan, Anthony},
+  title = {Bayesian Emulation of Complex Multi-Output and Dynamic Computer Models},
+  journal = {Journal of Statistical Planning and Inference},
+  volume = {140},
+  number = {3},
+  pages = {640--651},
+  year = {2010},
+  doi = {10.1016/j.jspi.2009.08.006},
+  note = {Bayesian emulation methods}
+}
+
+% ============================================================================
+% Biofilm Modeling and Applications
+% ============================================================================
+
+@article{Klempt2025ContinuumBiofilm,
+  author = {Klempt, Felix and Geisler, Hendrik and Soleimani, Meisam and Junker, Philipp},
+  title = {A continuum multi-species biofilm model with a novel interaction scheme},
+  journal = {arXiv preprint arXiv:2509.01274},
+  year = {2025},
+  note = {Local PDF: \texttt{tmcmc/biofilm\_simulation.pdf}}
+}
+
+@article{JunkerBalzani2021ExtendedHamilton,
+  author = {Junker, Philipp and Balzani, Daniel},
+  title = {An extended {Hamilton} principle as unifying theory for coupled problems and dissipative microstructure evolution},
+  journal = {Continuum Mechanics and Thermodynamics},
+  volume = {33},
+  number = {4},
+  pages = {1931--1956},
+  year = {2021},
+  doi = {10.1007/s00161-021-01017-z},
+  note = {Local PDF: \texttt{tmcmc/hamiltonian.pdf}}
+}
+
+@article{Heine2025PeriImplant,
+  author = {Heine, N. and Bittroff, K. and Szafrański, S. P. and others},
+  title = {Influence of species composition and cultivation condition on peri-implant biofilm dysbiosis in vitro},
+  journal = {Frontiers in Oral Health},
+  volume = {6},
+  pages = {1649419},
+  year = {2025},
+  doi = {10.3389/froh.2025.1649419},
+  note = {Local PDF: \texttt{tmcmc/Influence of species composition and cultivation condition on peri-implant biofilm dysbiosis in vitro.pdf}}
+}
+
+% ============================================================================
+% Adaptive Surrogate Models and Active Learning (2020-2025)
+% ============================================================================
+
+@article{Villani2024AdaptiveGP,
+  author = {Villani, Matteo and others},
+  title = {Adaptive {Gaussian} Process Regression for {Bayesian} Inverse Problems},
+  journal = {arXiv preprint arXiv:2404.19459},
+  year = {2024},
+  note = {Adaptive GP surrogate with active learning based on KL divergence}
+}
+
+@article{Xu2024AdaptiveGPMultimodal,
+  author = {Xu, Wenjia and others},
+  title = {Adaptive {Gaussian} Process for Multi-modal {Bayesian} Inverse Problems},
+  journal = {arXiv preprint arXiv:2409.15307},
+  year = {2024},
+  note = {GP surrogates for multimodal posteriors with ensemble methods}
+}
+
+@article{Meles2025SequentialSurrogateRefinement,
+  author = {Meles, Giovanni A. and others},
+  title = {Bayesian Full Waveform Inversion with Sequential Surrogate Model Refinement},
+  journal = {arXiv preprint arXiv:2505.03246},
+  year = {2025},
+  note = {Sequential refinement of surrogate models with posterior-guided training}
+}
+
+@article{Scheurer2025UASABI,
+  author = {Scheurer, Maximilian and others},
+  title = {Uncertainty-Aware Surrogate-based Amortized {Bayesian} Inference ({UA-SABI})},
+  journal = {arXiv preprint arXiv:2505.08683},
+  year = {2025},
+  note = {Amortized inference with explicit surrogate uncertainty modeling}
+}
+
+% ============================================================================
+% Adaptive Tempering Schedules and ESS-based Methods (2020-2025)
+% ============================================================================
+
+@article{ZhaoPillai2024PolicyGradientPT,
+  author = {Zhao, Tianyu and Pillai, Natesh S.},
+  title = {Policy Gradients for Optimal Parallel Tempering {MCMC}},
+  journal = {arXiv preprint arXiv:2409.01574},
+  year = {2024},
+  note = {Policy gradient optimization of temperature ladder using ACT/ESS}
+}
+
+@article{PenaJenkins2025Reddemcee,
+  author = {Peña, Jorge and Jenkins, David},
+  title = {reddemcee: Adaptive Parallel Tempering Ensemble Sampler},
+  journal = {arXiv preprint arXiv:2509.24870},
+  year = {2025},
+  note = {Multi-objective adaptive tempering with ESS-based metrics}
+}
+
+@article{LiWangDouRosenthal2024TemperatureSpacing,
+  author = {Li, Yuxuan and Wang, Yixin and Dou, Zeyu and Rosenthal, Jeffrey S.},
+  title = {Temperature Spacing via Swap Acceptance $\approx$ 0.234},
+  journal = {arXiv preprint arXiv:2408.06894},
+  year = {2024},
+  note = {Analysis of optimal swap acceptance rates for parallel tempering}
+}
+
+@article{WangChiDinner2025NormalizingFlowsESS,
+  author = {Wang, Yihang and Chi, Chen and Dinner, Aaron R.},
+  title = {Normalizing Flows + Annealing with {ESS}-based Adaptive Schedule},
+  journal = {arXiv preprint arXiv:2505.03652},
+  year = {2025},
+  note = {ESS-based adaptive annealing schedule for normalizing flows}
+}
+
+% ============================================================================
+% Adaptive Linearization Point Updates in ROMs (2020-2025)
+% ============================================================================
+
+@article{AdaptiveROM2020InSitu,
+  author = {Farhat, Charbel and others},
+  title = {In-situ Adaptive Reduction of Nonlinear Multiscale Structural Dynamics},
+  journal = {arXiv preprint arXiv:2004.00153},
+  year = {2020},
+  note = {Library of local ROBs with online updates}
+}
+
+@article{AdaptiveROM2024DWR,
+  author = {others},
+  title = {Adaptive Space-Time Model Order Reduction with Dual-Weighted Residual ({MORe DWR})},
+  journal = {Archive of Applied Mechanics},
+  year = {2024},
+  doi = {10.1186/s40323-024-00262-6},
+  note = {Incremental POD with DWR error estimators}
+}
+
+@article{AdaptiveROM2025GoalOriented,
+  author = {others},
+  title = {Goal-oriented Adaptive Sampling for Projection-based {ROM}s},
+  journal = {Computers \& Structures},
+  year = {2025},
+  note = {Adaptive sampling for new linearization points based on error}
+}
+
+@article{AdaptiveROM2025Interpolated,
+  author = {others},
+  title = {Interpolated Adaptive Linear {ROM} for Deformation Dynamics},
+  journal = {arXiv preprint arXiv:2509.25392},
+  year = {2025},
+  note = {Dynamic linearization mapping via Grassmann interpolation}
+}
+
+% ============================================================================
+% Biofilm Modeling with Bayesian Inference (2020-2025)
+% ============================================================================
+
+@article{Biofilm2023Viscoelastic,
+  author = {others},
+  title = {Viscoelastic Properties of {Pseudomonas aeruginosa} Biofilms: {Bayesian} Estimation},
+  journal = {Biophysical Reports},
+  volume = {3},
+  pages = {100130},
+  year = {2023},
+  doi = {10.1016/j.bpr.2023.100130},
+  note = {Bayesian estimation of rheological parameters}
+}

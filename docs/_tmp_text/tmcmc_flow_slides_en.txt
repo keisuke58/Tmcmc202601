@@ -1,0 +1,182 @@
+TMCMC×TSM-ROM
+Linearization management + analytical derivatives/JIT: program ﬂow and key takeaways
+IKM Hiwi / tmcmc
+January 16, 2026
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+1 / 14
+
+
+Goals
+Provide a map from entry point case2 tmcmc linearization.py to execution-critical
+modules
+Explain what dominates runtime and what dominates inference accuracy
+Highlight audit artifacts for reproducibility (config.json, likelihood meta, diagnostics
+CSVs)
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+2 / 14
+
+
+End-to-end pipeline
+One-liner
+run pipeline.py creates a run directory, executes the experiment runner, then builds
+REPORT.md.
+Progress logs: subprocess.log / pipeline.log
+Audit artifacts: config.json, likelihood meta *.json
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+3 / 14
+
+
+Key modules
+Entry / control: case2 tmcmc linearization.py
+Conﬁg: config.py
+TSM (linearization + analytical/JIT):
+demo analytical tsm with linearization jit.py
+Physical solver: improved1207 paper jit.py
+Paper-mode derivatives: paper analytical derivatives.py
+Diagnostics/report: mcmc diagnostics.py, make report.py
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+4 / 14
+
+
+Module map
+case2
+TMCMC control
+(β/ESS/mutation)
+Evaluator
+log-likelihood
+(calls TSM)
+TSM
+linearization on/oﬀ
+update θ0
+Newton solver
+time stepping + Newton
+Analytical
+∂G/∂θ
+(paper-consistent)
+Report
+csv/png/md
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+5 / 14
+
+
+TMCMC essentials
+Tempering from prior (β = 0) to posterior (β = 1)
+Choose ∆β per stage based on target ESS (with min/max caps)
+Weight update →ESS →resample →mutation (MCMC) for mixing
+Critical check
+Conﬁrm β reaches 1.0 (log message like “β reached 1.0”).
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+6 / 14
+
+
+TSM-ROM essentials (linearization management)
+Local linearization
+x(θ) ≈x(θ0) + ∂x
+∂θ
+
+θ0
+(θ −θ0)
+Early stages: linearization OFF (robust exploration)
+Later stages: linearization ON (fast and accurate near MAP)
+Update point: update linearization point(θ0) invalidates caches and recomputes
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+7 / 14
+
+
+Physical solver
+run deterministic: time integration with Newton solve per step
+compute Q vector, compute Jacobian matrix: residual and Jacobian
+Time-dependent antibiotics via alpha schedule (switch time/step/frac)
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+8 / 14
+
+
+Accuracy drivers
+Largest: likelihood deﬁnition (σobs, variance model; Cov inclusion in Var)
+Large: ROM validity (ROM error, linearization update rules, analytical derivatives)
+Medium: numerical stabilization (dt, Newton tolerances, clipping/penalties)
+Medium: TMCMC settings (particles, stages, mutation steps)
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+9 / 14
+
+
+Performance drivers
+Largest: BiofilmTSM Analytical.solve tsm()
+Largest: BiofilmNewtonSolver.run deterministic() (Q/J + Newton)
+Large: sensitivity x(1) generation (esp. before linearization kicks in)
+Medium: TMCMC mechanics (resample/mutation/β update)
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+10 / 14
+
+
+Reproducibility (audit artifacts)
+config.json: seeds and full conﬁguration
+likelihood meta *.json: explicit likelihood deﬁnition
+diagnostics tables/*.csv: β, acceptance, ROM error, θ0 history
+REPORT.md: PASS/WARN/FAIL summary
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+11 / 14
+
+
+Figure ideas
+β schedule (per chain)
+ROM error at linearization updates (pre/post)
+∥∆θ0∥history
+Posterior plots and MAP/MEAN ﬁts
+Cost–accuracy tradeoﬀ
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+12 / 14
+
+
+Summary
+Pipeline: run pipeline →case2 →make report
+Runtime dominated by solve tsm and Newton time stepping
+Audit essentials: β = 1 reached and explicit likelihood deﬁnition
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+13 / 14
+
+
+References
+Fritsch, L., Geisler, H., Grashorn, J., Klempt, F., Soleimani, M., Broggi, M., Junker, P., Beer, M. Bayesian
+updating of bacterial microﬁlms under hybrid uncertainties with a novel surrogate model. tmcmc/Bayesian
+updating of bacterial microfilms under hybrid uncertainties with a novel surrogate
+model - Kopie.pdf.
+Klempt, F., Geisler, H., Soleimani, M., Junker, P. A continuum multi-species bioﬁlm model with a novel
+interaction scheme. arXiv:2509.01274v1 (2025). tmcmc/biofilm simulation.pdf.
+Junker, P., Balzani, D. An extended Hamilton principle as unifying theory for coupled problems and
+dissipative microstructure evolution. Continuum Mechanics and Thermodynamics (2021). DOI:
+10.1007/s00161-021-01017-z. tmcmc/hamiltonian.pdf.
+Heine, N. et al. Inﬂuence of species composition and cultivation condition on peri-implant bioﬁlm dysbiosis
+in vitro. Frontiers in Oral Health (2025). DOI: 10.3389/froh.2025.1649419. tmcmc/Influence of
+species composition and cultivation condition on peri-implant biofilm dysbiosis in
+vitro.pdf.
+IKM Hiwi / tmcmc
+TMCMC×TSM-ROM
+January 16, 2026
+14 / 14

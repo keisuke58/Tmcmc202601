@@ -1,0 +1,231 @@
+TMCMC×TSM-ROM (linearization management + analytical
+derivatives/JIT)
+Implementation Notes
+Project: IKM Hiwi / tmcmc
+January 16, 2026
+1
+Purpose
+This document summarizes the program ﬂow, module boundaries, and the key drivers of
+reproducibility, performance, and inference accuracy for the Case II runner whose entry
+point is tmcmc/case2 tmcmc linearization.py.
+2
+Key modules (execution-critical dependency set)
+Minimal set of modules that matter for actual runs (import-traceable):
+• Entry / experiment control: tmcmc/case2 tmcmc linearization.py
+• Conﬁguration: tmcmc/config.py
+• Physical model + base TSM: tmcmc/improved1207 paper jit.py
+• TSM (linearization point mgmt + analytical derivatives/JIT): tmcmc/demo analytical tsm with lineari
+• Analytical derivatives (paper mode): tmcmc/paper analytical derivatives.py
+• Diagnostics: tmcmc/mcmc diagnostics.py
+• θ →(A, b) patch (complex-step readiness): tmcmc/bugfix theta to matrices.py
+• Post-run reporting: tmcmc/make report.py, pipeline wrapper: tmcmc/run pipeline.py
+2.1
+Module map (concept)
+1
+
+
+run pipeline.py
+subprocess runner
+(create run dir & persist logs)
+case2 tmcmc linearization.py
+TMCMC control
+(β/resample/mutation)
+LogLikelihoodEvaluator
+(call TSM & toggle linearization)
+BioﬁlmTSM Analytical
+(linearization mgmt + analytical/JIT)
+BioﬁlmNewtonSolver
+(time stepping + Newton)
+paper analytical der
+(∂G/∂θ paper-consistent)
+make report.py
+(aggregate conﬁg/metrics/
+mcmc diagnostics
+(ESS, R-hat, etc.)
+Dominant cost: solve tsm / run deterministic / x(1) (sensitivities)
+3
+End-to-end ﬂow
+3.1
+Pipeline wrapper
+run pipeline.py creates a run dir and then runs:
+1. case2 tmcmc linearization.py (the experiment)
+2. make report.py (generate REPORT.md from run dir)
+Combined stdout/stderr are tee’d into subprocess.log under run dir.
+3.2
+TMCMC loop (high level)
+Conceptual stage loop (implemented in run TMCMC):
+1. Initialize particles from prior
+2. For stages s = 0, 1, . . . :
+• Update βs →βs+1 based on target ESS ratio (with min/max ∆β)
+• Evaluate likelihood for each particle (calls TSM)
+• Update weights →normalize →compute ESS →resample
+• Mutation (MCMC steps) to restore diversity
+• Enable linearization (later stages) and update linearization point θ0 at intervals
+3. Critical: ensure β reaches 1.0 (look for “β reached 1.0” in logs)
+2
+
+
+3.3
+TSM (linearization management + analytical/JIT)
+BiofilmTSM Analytical.solve tsm() supports:
+• Linearization OFF (early exploration): full non-linear TSM evaluation
+• Linearization ON (later stages): speed up via x(θ) ≈x(θ0) + ∂x
+∂θ
+
+θ0(θ −θ0)
+• Linearization point update: update linearization point(θnew) invalidates caches and
+recomputes x(0)(θ0) and x(1)
+3.4
+Physical solver (Newton + time stepping)
+BiofilmNewtonSolver.run deterministic() integrates the deterministic trajectory; each step
+solves a Newton system based on residual Q and Jacobian J. Time-dependent antibiotics are
+supported via alpha schedule (e.g., M3 val).
+4
+Mathematical validation (Hamilton principle →strong form
+→implemented residual)
+We added an explicit math-level validation for the physical model implementation in tmcmc/improved1207 pape
+The goal is not to prove the full continuum theory, but to show the following: the paper’s
+strong form equations (bioﬁlm simulation, eqs. (16)–(18)) reduced to a material
+point and discretized by implicit Euler are exactly the same as the residual Q
+solved by the code.
+4.1
+Paper deﬁnitions (model skeleton)
+Let φi be volume fractions, ψi be fractions of living cells, and ¯φi = φiψi be living biomass. The
+holonomic volume constraint is
+f(φ) =
+n
+X
+l=0
+φl −1 = 0,
+enforced via a Lagrange multiplier γ. The free energy density and dissipation potential (paper
+eqs. (10),(14)) are:
+Ψ(φ, ψ) = −1
+2c∗¯φTA ¯φ + 1
+2α∗ψTB ψ,
+(1)
+∆s( ˙¯φ, ˙φ) = 1
+2
+˙¯φTη ˙¯φ + 1
+2
+˙φTη ˙φ.
+(2)
+4.2
+Strong form (16)–(18) and mapping to residual Q
+From the Hamilton principle evaluation, the paper gives (for each species i):
+0 = −c∗ψi(A¯φ)i + ηi( ˙φiψ2
+i + ¯φi ˙ψi + ˙φi) + γ,
+(3)
+0 = −c∗φi(A¯φ)i + α∗biψi + ηi( ˙ψiφ2
+i + ¯φi ˙φi),
+(4)
+0 =
+n
+X
+l=0
+φl −1.
+(5)
+The implementation uses a material-point model and implicit Euler time discretization ( ˙x ≈
+(xn+1 −xn)/∆t), and solves Q(gn+1) = 0 at each step via Newton. Key one-to-one correspon-
+dences are:
+• Interaction term (A¯φ)i: Interaction = A @ (phi * psi)
+3
+
+
+• Constraint: Q[9] = sum(phi) + phi0 - 1
+• γ must not appear in the ψ equations because the constraint depends only on φ (a
+mathematical requirement)
+Additionally, the code includes a barrier/penalty term (coeﬃcient Kp) to enforce 0 <
+φ, φ0, ψ < 1 as discussed in the paper.
+4.3
+Automated regression checks
+To keep this math-level agreement from regressing, we added pytest checks:
+• With barrier disabled (Kp = 0), the discretized strong form matches the implemented
+residual Q
+• The ψ equations are independent of γ
+Tests live in tmcmc/test hamilton model consistency.py; the detailed note is tmcmc/HAMILTON VALIDATION.
+5
+Accuracy drivers
+The likelihood deﬁnition is the top driver (e.g., σobs, variance model). In particular, includ-
+ing/excluding Cov(¯φ, ¯ψ) in Var(¯φ ¯ψ) can change inference materially. Keep it audit-able in
+likelihood meta *.json.
+Note on paper condition mismatch
+Runs with --sigma-obs 0.02 will generally not match
+paper ﬁgures that often use 0.01 (not a bug; it changes quantitative ﬁt).
+6
+Reproducibility (audit artifacts)
+Minimum artifacts to keep under run dir:
+• config.json: run conﬁguration, seeds, TMCMC/model params
+• likelihood meta *.json: explicit likelihood deﬁnition
+• diagnostics tables/*.csv: β schedule, acceptance, ROM error, θ0 history
+• subprocess.log / pipeline.log: progress + “β reached 1.0”
+7
+Performance drivers
+Rule of thumb:
+total time ≈(#likelihood evaluations) × (cost per TSM evaluation)
+Dominant components:
+• Largest: BiofilmTSM Analytical.solve tsm()
+• Largest: BiofilmNewtonSolver.run deterministic() + compute Q vector() + compute Jacobian mat
+• Large: sensitivity generation x(1) (especially when linearization is oﬀ)
+• Medium: TMCMC mechanics (mutation/resample/β update)
+• Small: plotting and I/O (can grow depending on settings)
+4
+
+
+8
+Critical checks
+• β = 1 reached: otherwise you did not reach the posterior
+• NaN/Inf: ensure no NaN/Inf in solve tsm / Newton
+• Complex-step readiness: theta to matrices preserves complex dtype
+• Analytical derivative validation: verify against complex-step reference
+9
+Figure ideas (ready-to-use)
+1. TMCMC β schedule (per chain)
+2. ROM error at linearization update events (pre/post)
+3. ∥∆θ0∥history (stability of updates)
+4. Cost–accuracy tradeoﬀ(FOM evals or wall-time vs MAP error)
+5. Posterior plots (M1/M2/M3/M3 val) aligned to paper ﬁgures
+10
+Appendix: one-sentence summary
+TMCMC stabilizes the transition from prior to posterior while periodically updating the TSM-
+ROM linearization point, reducing expensive FOM evaluations without sacriﬁcing estimation
+accuracy near the MAP.
+11
+References
+References
+[1] Fritsch, L., Geisler, H., Grashorn, J., Klempt, F., Soleimani, M., Broggi, M., Junker, P.,
+Beer, M. Bayesian updating of bacterial microﬁlms under hybrid uncertainties with a novel
+surrogate model. (Local PDF: tmcmc/Bayesian updating of bacterial microfilms
+under hybrid uncertainties with a novel surrogate model - Kopie.pdf).
+[2] Klempt, F., Geisler, H., Soleimani, M., Junker, P. A continuum multi-species bioﬁlm
+model with a novel interaction scheme. arXiv:2509.01274v1, 2025-09-01. (Local PDF:
+tmcmc/biofilm simulation.pdf).
+[3] Junker, P., Balzani, D. An extended Hamilton principle as unifying theory for coupled
+problems and dissipative microstructure evolution. Continuum Mechanics and Thermo-
+dynamics, 33(4), 1931–1956 (2021). DOI: 10.1007/s00161-021-01017-z. (Local PDF:
+tmcmc/hamiltonian.pdf).
+[4] Heine, N., Bittroﬀ, K., Szafra´nski, S. P., Duitscher, M., Behrens, W., Vollmer, C.,
+Mikolai, C., Kommerein, N., Debener, N., Frings, K., Heisterkamp, A., Scheper,
+T., Torres-Mapa, M. L., Bahnemann, J., Stiesch, M., Doll-Nikutta, K. Inﬂuence of
+species composition and cultivation condition on peri-implant bioﬁlm dysbiosis in vitro.
+Frontiers in Oral Health, 6:1649419 (2025). DOI: 10.3389/froh.2025.1649419. (Lo-
+cal PDF: tmcmc/Influence of species composition and cultivation condition on
+peri-implant biofilm dysbiosis in vitro.pdf).
+5
+
+
+[5] Ching, J., Chen, Y.-C. Transitional Markov Chain Monte Carlo Method for Bayesian Model
+Updating, Model Class Selection, and Model Averaging. Journal of Engineering Mechanics,
+133(7), 816–832 (2007). DOI: 10.1061/(ASCE)0733-9399(2007)133:7(816).
+[6] Betz, W., Papaioannou, I., Straub, D. Transitional Markov Chain Monte Carlo: Observa-
+tions and Improvements. Journal of Engineering Mechanics, 142(5), 04016016 (2016). DOI:
+10.1061/(ASCE)EM.1943-7889.0001066.
+[7] Geisler, H., Junker, P. Time-separated stochastic mechanics for the simulation of viscoelastic
+structures with local random material ﬂuctuations. Computer Methods in Applied Mechan-
+ics and Engineering, 407, 115916 (2023). DOI: 10.1016/j.cma.2023.115916.
+[8] Geisler, H., Erdogan, C., Nagel, J., Junker, P. A new paradigm for the eﬃcient inclusion
+of stochasticity in engineering simulations: Time-separated stochastic mechanics. Compu-
+tational Mechanics, 75(1), 211–235 (2025). DOI: 10.1007/s00466-024-02500-5.
+[9] Beck, J. L., Katafygiotis, L. S. Updating Models and Their Uncertainties. I: Bayesian
+Statistical Framework. Journal of Engineering Mechanics, 124(4), 455–461 (1998). DOI:
+10.1061/(ASCE)0733-9399(1998)124:4(455).
+6

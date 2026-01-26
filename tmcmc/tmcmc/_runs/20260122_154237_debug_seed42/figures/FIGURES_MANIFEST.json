@@ -1,0 +1,12 @@
+{
+  "output_dir": "tmcmc\\_runs\\20260122_154237_debug_seed42\\figures",
+  "n_figures": 5,
+  "figures": [
+    "TSM_simulation_M1_with_data.png",
+    "TSM_simulation_M1_MAP_fit_with_data.png",
+    "TSM_simulation_M1_MEAN_fit_with_data.png",
+    "posterior_M1.png",
+    "pairplot_posterior_M1.png"
+  ],
+  "generated_at": "2026-01-24 07:18:41"
+}

@@ -1,0 +1,290 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\IfFontExistsTF{Noto Sans CJK JP}{\setmainfont{Noto Sans CJK JP}}{}
+\IfFontExistsTF{Noto Sans CJK JP}{\setsansfont{Noto Sans CJK JP}}{}
+\setCJKmainfont{Noto Sans CJK JP}
+\setCJKsansfont{Noto Sans CJK JP}
+\setCJKmonofont{Noto Sans CJK JP}
+% Some minimal xeCJK setups fail to bind the CJK monospaced family; define explicitly.
+\setCJKfamilyfont{CJKtt}{Noto Sans CJK JP}
+\renewcommand{\CJKttdefault}{CJKtt}
+% Monospace: use modern, stylish monospace font (Source Code Pro preferred).
+\IfFontExistsTF{Source Code Pro}{
+  \setmonofont{Source Code Pro}[
+    Scale=0.95,
+    BoldFont=Source Code Pro Semibold
+  ]
+}{
+  \IfFontExistsTF{DejaVu Sans Mono}{
+    \setmonofont{DejaVu Sans Mono}
+  }{}
+}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit}
+
+% --- Optional: best-run figures (auto-picked) ---
+\IfFileExists{best_run_id.tex}{\input{best_run_id.tex}}{\def\BestRunId{\detokenize{m1_check_np100_ns15}}}
+\newcommand{\BestRunFig}[1]{../tmcmc/_runs/\BestRunId/figures/#1}
+\newcommand{\BestRunAsset}[1]{../tmcmc/_runs/\BestRunId/report_assets/#1}
+
+\title{TMCMC$\times$TSM-ROM（線形化管理 + 解析微分/JIT）}
+\subtitle{実装アーキテクチャ／実行フロー／性能・精度の勘所}
+\author{Keisuke Nishioka\\IKM\_Hiwi / tmcmc}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{この資料のゴール}
+\begin{itemize}
+  \item 入口 \texttt{case2\_tmcmc\_linearization.py} から辿れる実行系を俯瞰
+  \item どこが重いか（性能）／何が推定を支配するか（精度）を一枚で説明
+  \item 監査可能な再現性ログ（config/likelihood\_meta/diagnostics）を示す
+\end{itemize}
+\end{frame}
+
+\begin{frame}{要点（論文化／発表向け）}
+\begin{itemize}
+  \item \textbf{手法}: TMCMC（ESS-tempering）+ TSM-ROM（線形化点$\theta_0$更新）
+  \item \textbf{狙い}: 初期は線形化OFFで頑健に探索，後半は線形化ON＋$\theta_0$更新でMAP近傍を高速・高精度に
+  \item \textbf{監査}: $\beta$=1到達，尤度定義の明文化（\texttt{likelihood\_meta}），診断CSVの保存
+\end{itemize}
+\end{frame}
+
+\begin{frame}{実行系の全体像（外枠）}
+\begin{block}{最短の説明}
+\texttt{run\_pipeline.py} が run\_dir を作り，
+\texttt{case2\_tmcmc\_linearization.py} を実行した後に \texttt{make\_report.py} で \texttt{REPORT.md} を生成する．
+\end{block}
+\begin{itemize}
+  \item 進捗ログ: \texttt{subprocess.log / pipeline.log}
+  \item 監査ログ: \texttt{config.json}, \texttt{likelihood\_meta\_*.json}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{主要モジュール（実行に効く）}
+\begin{itemize}
+  \item 入口/制御: \texttt{case2\_tmcmc\_linearization.py}
+  \item 設定: \texttt{config.py}
+  \item TSM（線形化/JIT）: \texttt{demo\_analytical\_tsm\_with\_linearization\_jit.py}
+  \item 物理モデル（Newton+時間積分）: \texttt{improved1207\_paper\_jit.py}
+  \item 解析微分（paper mode）: \texttt{paper\_analytical\_derivatives.py}
+  \item 診断/レポート: \texttt{mcmc\_diagnostics.py}, \texttt{make\_report.py}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{モジュール相関（図）}
+\centering
+\begin{tikzpicture}[
+  node/.style={draw,rounded corners,align=left,inner sep=5pt,font=\small},
+  arrow/.style={-Latex,thick},
+  scale=0.95, every node/.style={transform shape}
+]
+  \node[node] (case2) {\textbf{case2}\\TMCMC制御\\($\beta$/ESS/変異)};
+  \node[node,below=7mm of case2] (eval) {\textbf{Evaluator}\\尤度評価\\(TSM呼び出し)};
+  \node[node,below=7mm of eval] (tsm) {\textbf{TSM}\\線形化ON/OFF\\$\theta_0$更新};
+  \node[node,below=7mm of tsm] (solver) {\textbf{Newton solver}\\時間積分 + Newton};
+  \node[node,right=15mm of tsm] (deriv) {\textbf{Analytical}\\$\partial G/\partial\theta$\\(paper一致)};
+  \node[node,right=15mm of case2] (report) {\textbf{Report}\\csv/png/md};
+
+  \draw[arrow] (case2) -- (eval);
+  \draw[arrow] (eval) -- (tsm);
+  \draw[arrow] (tsm) -- (solver);
+  \draw[arrow] (tsm) -- (deriv);
+  \draw[arrow] (case2) -- (report);
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{TMCMC（$\beta$ tempering）の要点}
+\begin{itemize}
+  \item prior（$\beta$=0）→ posterior（$\beta$=1）へ段階的遷移
+  \item ステージごとに \(\Delta\beta\) を ESS 目標に合わせて調整（上下限あり）
+  \item 重み更新→ESS→リサンプル→mutation（MCMC）で混合を維持
+\end{itemize}
+\begin{alertblock}{重要チェック}
+\textbf{$\beta$=1 に到達していること}（ログに ``beta reached 1.0'' が出るか）
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{TSM-ROM（線形化管理）の要点}
+\begin{block}{線形化近似}
+\begin{equation}
+x(\theta) \approx x(\theta_0) + \frac{\partial x}{\partial\theta}\Big|_{\theta_0}(\theta-\theta_0)
+\end{equation}
+\end{block}
+\begin{itemize}
+  \item 探索初期（小$\beta$）: 線形化OFFで非線形性を取り込む
+  \item 後半（大$\beta$）: 線形化ONで高速化（MAP近傍で精度良）
+  \item \texttt{update\_linearization\_point(theta0)} でキャッシュ無効化＋再計算
+\end{itemize}
+\end{frame}
+
+\begin{frame}{いつ線形化するか（概念）}
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  arrow/.style={-Latex,thick},
+  box/.style={draw,rounded corners,align=center,inner sep=6pt},
+]
+  \node[box] (early) {探索初期\\small $\beta$\\\textbf{線形化OFF}\\頑健に探索};
+  \node[box,right=18mm of early] (late) {後半\\large $\beta$\\\textbf{線形化ON}\\MAP近傍で高速};
+  \node[box,below=8mm of late] (upd) {$\theta_0$更新イベント\\(キャッシュ無効化, $x^{(0)},x^{(1)}$再計算)};
+  \draw[arrow] (early) -- node[above]{閾値を満たしたら有効化} (late);
+  \draw[arrow] (late) -- (upd);
+\end{tikzpicture}
+\vspace{2mm}
+\begin{itemize}
+  \item ROM error と $\|\Delta\theta_0\|$ で更新の健全性を監視する．
+\end{itemize}
+\end{frame}
+
+\begin{frame}{物理モデル（Newton + 時間積分）}
+\begin{itemize}
+  \item \texttt{run\_deterministic}: 時間方向に進めて各ステップを Newton で解く
+  \item \texttt{compute\_Q\_vector}, \texttt{compute\_Jacobian\_matrix}: 残差とヤコビアン
+  \item \texttt{alpha\_schedule}: \texttt{switch\_time/switch\_step/switch\_frac} をサポート（M3\_val）
+\end{itemize}
+\end{frame}
+
+\begin{frame}{解析微分（paper mode）}
+\begin{itemize}
+  \item \texttt{paper\_analytical\_derivatives.py}: \(\partial G/\partial\theta\) を paper-consistent に実装
+  \item complex-step 参照で検証できる（verify 関数あり）
+  \item complex-step を成立させる前提: \(\theta\to(A,b)\) が複素dtypeを保持
+\end{itemize}
+\end{frame}
+
+\begin{frame}{再現性（監査ログ）}
+\begin{itemize}
+  \item \texttt{config.json}: seed / mode / TMCMC設定 / モデル設定
+  \item \texttt{likelihood\_meta\_*.json}: 尤度定義（var\_total 等の内訳）
+  \item \texttt{diagnostics\_tables/*.csv}: $\beta$, 受理率, ROM error, $\theta_0$履歴
+  \item \texttt{REPORT.md}: しきい値による PASS/WARN/FAIL を自動整理
+\end{itemize}
+\vspace{3mm}
+\small
+\textbf{1コマンドパイプライン:}
+\begin{quote}\small
+\texttt{python tmcmc/run\_pipeline.py --mode paper --seed 123 --run-id paper\_M1\_seed123\_fixed --models M1 --lock-paper-conditions --use-paper-analytical}
+\end{quote}
+\textbf{論文条件固定:} \texttt{sigma\_obs=0.01}, \texttt{cov\_rel=0.005}
+\end{frame}
+
+\begin{frame}{性能（どこが支配的か）}
+\begin{itemize}
+  \item \textbf{最大}: \texttt{BiofilmTSM\_Analytical.solve\_tsm()}
+  \item \textbf{最大}: \texttt{BiofilmNewtonSolver.run\_deterministic()}（内部で Q/J + Newton）
+  \item \textbf{大}: 感度 \(x^{(1)}\) 生成（線形化が効かない時期に重い）
+  \item \textbf{中}: TMCMC枠（$\beta$更新/リサンプル/mutation）
+  \item \textbf{小}: 可視化・I/O（条件次第で増える）
+\end{itemize}
+\end{frame}
+
+\begin{frame}{精度（何が推定を支配するか）}
+\begin{itemize}
+  \item \textbf{最大}: 尤度定義（\(\sigma_{\mathrm{obs}}\)，Var(\(\bar\phi\bar\psi\)) と Cov の扱い）
+  \item \textbf{大}: TSM妥当性（ROM error，線形化点管理，解析微分）
+  \item \textbf{大}: 線形化ONのタイミングと更新規則（早すぎると壊れる／遅いと遅い）
+  \item \textbf{中}: 数値安定化（dt, Newton許容, クリップ/ペナルティ）
+  \item \textbf{中}: TMCMC設定（粒子数/ステージ/mutation steps）
+\end{itemize}
+\end{frame}
+
+\begin{frame}{図のネタ（そのまま発表に使える）}
+\begin{itemize}
+  \item $\beta$スケジュール（チェーン別）＋ ``beta reached 1.0'' の確認
+  \item ROM error の更新イベント系列（pre/post）
+  \item $\theta_0$更新のステップノルム（$\|\Delta\theta_0\|$）
+  \item Posterior（M1/M2/M3/M3\_val）と MAP/MEAN fit
+  \item Cost--Accuracy tradeoff（FOM評価回数 or wall-time vs MAP error）
+\end{itemize}
+\end{frame}
+
+\begin{frame}{実例（auto-picked best run）}
+\small Best run id: \texttt{\BestRunId}（存在する場合のみ埋め込み）
+\vspace{2mm}
+\begin{columns}[T,onlytextwidth]
+  \column{0.5\textwidth}
+  \IfFileExists{\BestRunFig{posterior_M1.png}}{
+    \includegraphics[width=\linewidth]{\BestRunFig{posterior_M1.png}}
+  }{\fbox{\parbox{\linewidth}{Missing: \texttt{posterior\_M1.png}}}}
+  \column{0.5\textwidth}
+  \IfFileExists{\BestRunFig{TSM_simulation_M1_MAP_fit_with_data.png}}{
+    \includegraphics[width=\linewidth]{\BestRunFig{TSM_simulation_M1_MAP_fit_with_data.png}}
+  }{\fbox{\parbox{\linewidth}{Missing: \texttt{MAP\_fit\_with\_data.png}}}}
+\end{columns}
+\end{frame}
+
+\begin{frame}{診断例（ROM妥当性）}
+\begin{columns}[T,onlytextwidth]
+  \column{0.5\textwidth}
+  \IfFileExists{\BestRunAsset{M1_rom_error.png}}{
+    \includegraphics[width=\linewidth]{\BestRunAsset{M1_rom_error.png}}
+  }{\fbox{\parbox{\linewidth}{Missing: \texttt{M1\_rom\_error.png}}}}
+  \column{0.5\textwidth}
+  \IfFileExists{\BestRunAsset{M1_theta0_step_norm.png}}{
+    \includegraphics[width=\linewidth]{\BestRunAsset{M1_theta0_step_norm.png}}
+  }{\fbox{\parbox{\linewidth}{Missing: \texttt{M1\_theta0\_step\_norm.png}}}}
+\end{columns}
+\end{frame}
+
+\begin{frame}{まとめ}
+\begin{itemize}
+  \item 外枠は \texttt{run\_pipeline} → \texttt{case2} → \texttt{make\_report}
+  \item 中核コストは \texttt{solve\_tsm} と Newton 時間積分
+  \item \textbf{$\beta$=1 到達}と\textbf{尤度定義の明文化}が監査・再現性の肝
+\end{itemize}
+\end{frame}
+
+\begin{frame}{PASSチェック（結果を主張する前に）}
+\begin{alertblock}{最低限の合格条件}
+\begin{itemize}
+  \item 全チェーンで $\beta$=1 到達（posterior 到達）
+  \item \texttt{likelihood\_meta\_*.json} を保存（分散モデルが明示）
+  \item solverログに NaN/Inf なし，診断CSVが出力されている
+  \item ROM error と $\|\Delta\theta_0\|$ が安定（更新が破綻していない）
+\end{itemize}
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{参考文献}
+\footnotesize
+\begin{thebibliography}{99}
+\bibitem{Fritsch2025BayesianMicrofilms}
+L. Fritsch，H. Geisler，J. Grashorn，F. Klempt，M. Soleimani，M. Broggi，P. Junker，M. Beer．
+\textit{Bayesian updating of bacterial microfilms under hybrid uncertainties with a novel surrogate model}．
+\texttt{tmcmc/Bayesian updating of bacterial microfilms under hybrid uncertainties with a novel surrogate model - Kopie.pdf}．
+
+\bibitem{Klempt2025ContinuumBiofilm}
+F. Klempt，H. Geisler，M. Soleimani，P. Junker．
+\textit{A continuum multi-species biofilm model with a novel interaction scheme}．arXiv:2509.01274v1，2025．
+\texttt{tmcmc/biofilm\_simulation.pdf}．
+
+\bibitem{JunkerBalzani2021ExtendedHamilton}
+P. Junker，D. Balzani．
+\textit{An extended Hamilton principle as unifying theory for coupled problems and dissipative microstructure evolution}．
+Continuum Mechanics and Thermodynamics，2021．DOI: \texttt{10.1007/s00161-021-01017-z}．
+\texttt{tmcmc/hamiltonian.pdf}．
+
+\bibitem{Heine2025PeriImplant}
+N. Heine et al．
+\textit{Influence of species composition and cultivation condition on peri-implant biofilm dysbiosis in vitro}．
+Front. Oral Health，2025．DOI: \texttt{10.3389/froh.2025.1649419}．
+\texttt{tmcmc/Influence of species composition and cultivation condition on peri-implant biofilm dysbiosis in vitro.pdf}．
+\end{thebibliography}
+\end{frame}
+
+\end{document}
+

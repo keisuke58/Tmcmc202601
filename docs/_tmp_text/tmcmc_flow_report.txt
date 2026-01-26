@@ -1,0 +1,279 @@
+TMCMC×TSM-ROM 実装ドキュメント
+線形化管理+ 解析微分/JIT
+Project: IKM_Hiwi / tmcmc
+January 16, 2026
+1
+目的
+この文書が説明すること: 本資料は，tmcmc/case2_tmcmc_linearization.py を入口
+とするTMCMC（Transitional MCMC）とTSM-ROM（Taylor Series Method reduced-order
+model）を組み合わせた実験コードのプログラムフローと主要モジュール境界，および再現
+性（監査ログ）と性能・精度の支配要因を整理する．
+2
+主要モジュール
+狙い: 実行に効く依存関係（入口から辿れるimport 根拠あり）の最小セットを列挙する．入
+口から辿れる主要モジュール（import 根拠あり）の最小セット:
+• 入口/ 実験制御: tmcmc/case2_tmcmc_linearization.py
+• 設定: tmcmc/config.py
+• 物理モデル+ TSM（基礎）: tmcmc/improved1207_paper_jit.py
+• TSM（線形化点管理+ 解析微分/JIT）: tmcmc/demo_analytical_tsm_with_linearization_jit
+• 解析微分（paper mode）: tmcmc/paper_analytical_derivatives.py
+• 診断: tmcmc/mcmc_diagnostics.py
+• θ →(A, b) 変換パッチ: tmcmc/bugfix_theta_to_matrices.py
+• レポート生成（ラン後）: tmcmc/make_report.py，実行ラッパ: tmcmc/run_pipeline.py
+2.1
+モジュール相関
+概念図:
+1
+
+
+run_pipeline.py
+subprocess runner
+(run_dir 作成& log 保持)
+case2_tmcmc_linearization.py
+TMCMC 実験制御
+(β 更新/再サンプル/変異)
+LogLikelihoodEvaluator
+(TSM 呼び出し& 線形化ON/OFF)
+BiofilmTSM_Analytical
+(linearization 管理+ 解析微分/JIT)
+BiofilmNewtonSolver
+(時間積分+ Newton 反復)
+paper_analytical_deri
+(∂G/∂θ: paper 一致)
+make_report.py
+(config/metrics/csv/png 集
+mcmc_diagnostics.p
+(ESS, R-hat など)
+性能支配: solve_tsm / run_deterministic / x1(感度)
+3
+実行フロー
+狙い: ラン全体の呼び出し順と，責務の境界（どこで何が決まるか）を把握する．
+3.1
+run_pipeline
+外枠: run_pipeline.py はrun_dir を作成し，以下を順に呼ぶ:
+1. case2_tmcmc_linearization.py（実験本体）
+2. make_report.py（run_dir からREPORT.md を生成）
+stdout/stderr はsubprocess.log にtee され，run_dir 直下に永続化される．
+3.2
+case2
+TMCMC 本体: 概念的なステージループ（実装は関数run_TMCMC へ集約）:
+1. 初期粒子（prior）生成
+2. ステージs = 0, 1, . . . :
+• βs →βs+1 をESS 目標（target_ess_ratio）に基づき更新（∆β に上下限）
+• 各粒子で尤度評価（TSM 呼び出し）
+• 重み更新→正規化→ESS 算出→リサンプル
+• 変異（mutation: MCMC ステップ）で多様性回復
+• 条件が満たされれば線形化を有効化（後述）し，一定間隔で線形化点θ0 を更新
+3. 重要: β が1.0 に到達していること（ログ``beta reached 1.0'' 等で確認）
+2
+
+
+3.3
+TSM
+線形化管理+ 解析微分/JIT: demo_analytical_tsm_with_linearization_jit.py
+のBiofilmTSM_Analytical.solve_tsm() は以下のモードを持つ:
+• 線形化OFF（探索初期）: フルTSM（非線形）で評価
+• 線形化ON（β が十分大きい段階）: x(θ) ≈x(θ0) + ∂x
+∂θ
+
+θ0(θ −θ0) を用いて高速化
+• 線形化点更新: update_linearization_point(theta_new) でキャッシュ無効化し，
+x(0)(θ0) と感度x(1) を再計算
+3.4
+物理モデル
+Newton 反復+ 時間積分: improved1207_paper_jit.py のBiofilmNewtonSolver.run_determin
+が決定論的軌道の中核．内部では残差Q とヤコビアンJ を組み，Newton で各ステップを解
+く．抗生物質スケジュール（alpha_schedule）によりswitch_frac 等が解釈される（例:
+M3_val）．
+4
+数学的整合性チェック
+狙い: Hamilton 原理→強形式→実装残差，の対応を式レベルで確認する．本実装の物理モデ
+ル（tmcmc/improved1207_paper_jit.py）がbiofilm_simulation.pdf のHamilton
+原理に基づく導出と整合しているかを，式レベルで確認した．ポイントは「連続モデルの厳
+密証明」ではなく，論文の強形式(16)–(18) を材料点+ implicit Euler に落とした離散系
+が，コードの残差Q と一致することの確認である．
+4.1
+論文の定義
+モデルの骨格: 内部変数を体積分率ϕi と生存率ψi とし，生菌量を¯ϕi = ϕiψi と置く．体積制
+約（holonomic constraint）は
+f(ϕ) =
+n
+X
+l=0
+ϕl −1 = 0
+で，ラグランジュ乗数γ により課される．自由エネルギー密度と散逸は（論文の(10),(14)）
+Ψ(ϕ, ψ) = −1
+2c∗¯ϕTA ¯ϕ + 1
+2α∗ψTB ψ,
+∆s( ˙¯ϕ, ˙ϕ) = 1
+2
+˙¯ϕTη ˙¯ϕ + 1
+2
+˙ϕTη ˙ϕ
+（η は対角，A は相互作用行列，B は抗生物質感受性の対角行列）として与えられる．
+4.2
+強形式(16)–(18) と，実装残差Q の対応
+論文ではHamilton 原理の評価により，各種i について（強形式）
+0 = −c∗ψi(A¯ϕ)i + ηi( ˙ϕiψ2
+i + ¯ϕi ˙ψi + ˙ϕi) + γ,
+0 = −c∗ϕi(A¯ϕ)i + α∗biψi + ηi( ˙ψiϕ2
+i + ¯ϕi ˙ϕi),
+0 =
+n
+X
+l=0
+ϕl −1.
+3
+
+
+実装は材料点モデルとして時間離散化（implicit Euler: ˙x ≈(xn+1 −xn)/∆t）し，各ステップ
+でNewton 法によりQ(gn+1) = 0 を解く．具体的には，
+• 相互作用項: (A¯ϕ)i はInteraction = A @ (phi * psi)
+• 制約: P ϕ + ϕ0 −1 = 0 はQ[9] = sum(phi) + phi0 - 1
+• γ の入り方: 制約がϕ のみに依存するため，ψ 方程式にはγ が入らない（これは数学的
+に必須）
+が成立する．また実装は0 < ϕ, ϕ0, ψ < 1 を保つためにbarrier 項（ペナルティ係数Kp）を
+付加している（論文でも言及）．
+4.3
+自動検査
+回帰テスト: 上の「式と実装の一致」を崩さないため，以下をpytest で自動チェックしてい
+る：
+• barrier を無効化（Kp = 0）したとき，論文強形式(16)–(18) の離散化と実装の残差Q が
+一致
+• ψ 方程式がγ に依存しない（制約の形から必須）
+テストはtmcmc/test_hamilton_model_consistency.py にあり，詳細ノートはtmcmc/HAMILTON_VA
+にまとめた．
+5
+尤度・不確かさモデル
+狙い: 推定精度に効く尤度定義（ノイズ・分散モデル）を監査可能にする．精度寄与が最大な
+のは尤度定義（観測ノイズσobs，分散モデル）である．特にVar(¯ϕ ¯ψ) にCov(¯ϕ, ¯ψ) を入れ
+る/入れないは推定結果を大きく変えるため，run ごとのlikelihood_meta_*.json（また
+は同等ログ）で定義を明文化して監査可能にする．
+注意
+論文条件との差: 実行コマンドの--sigma-obs が0.02 などの場合，論文で多い0.01
+と定量一致は崩れる（バグではない）．
+6
+再現性
+狙い: 監査・再実行に必要なログ/成果物をrun_dir に揃える．run_dir に最低限残すべきも
+の:
+• config.json: 実行条件・seed・TMCMC 設定・モデル設定
+• likelihood_meta_*.json: 尤度の定義（例: var_total の内訳）
+• diagnostics_tables/*.csv: β スケジュール，受理率，ROM error，θ0 更新履歴
+• subprocess.log / pipeline.log: 進捗と「beta reached 1.0」等の重要メッセージ
+確認
+4
+
+
+7
+性能の支配要因
+狙い: どこがボトルネックか（時間が支配される箇所）を明確にする．経験則として，総計算
+時間は
+TMCMC の尤度評価回数× 1 回のTSM 評価コスト
+で決まり，以下が支配的:
+• 最大: BiofilmTSM_Analytical.solve_tsm()
+• 最大: BiofilmNewtonSolver.run_deterministic() + compute_Q_vector() +
+compute_Jacobian_matrix()
+• 大: 感度x(1) 生成（線形化が効かないステージで特に重い）
+• 中: TMCMC 本体（mutation/resample/β 更新）
+• 中～小: ROM error チェック用の追加FOM（設定次第）
+• 小: 可視化・I/O
+8
+重要チェック
+狙い: 「走ったけどposterior ではない」等の致命的状況を早期に検知する．
+• β=1 到達: 本番設定で必ずログ確認（到達していないとposterior ではない）
+• NaN/Inf 検出: solve_tsm / Newton でNaN が出ないこと
+• Complex-step 整合: theta_to_matrices が複素dtype を保持（bugfix_theta_to_matrices.py）
+• 解析微分検証: paper_analytical_derivatives.verify_against_complex_step
+で誤差が十分小さい
+9
+図のアイデア
+狙い: 論文化・発表に直結する図をすぐ作れるように候補を列挙する．
+1. TMCMC のβ スケジュール（チェーンごと）
+2. ROM error の更新イベント系列（pre/post）
+3. θ0 更新のステップノルム（安定に更新できているか）
+4. Cost–Accuracy tradeoff（FOM 評価回数or wall-time vs MAP error）
+5. 代表モデル（M1/M2/M3/M3_val）のposterior（論文Fig 対応）
+10
+付録: 文章テンプレ
+狙い: 論文/報告書に貼れる文章を最小限の手直しで再利用できる形にしておく．
+5
+
+
+一文サマリ
+本研究はTMCMC によりprior からposterior への遷移を安定化し，TSM-ROM
+の線形化点を段階的に更新することで，高価なFOM 評価を削減しつつ推定精度を維持する．
+11
+参考文献
+References
+[1] Lukas Fritsch，Hendrik Geisler，Jan Grashorn，Felix Klempt，Meisam Soleimani，Mat-
+teo
+Broggi，Philipp
+Junker，Michael
+Beer．Bayesian
+updating
+of
+bacterial
+micro-
+films
+under
+hybrid
+uncertainties
+with
+a
+novel
+surrogate
+model．
+（ローカル
+PDF:
+tmcmc/Bayesian updating of bacterial microfilms under hybrid
+uncertainties with a novel surrogate model - Kopie.pdf）．
+[2] Felix Klempt，Hendrik Geisler，Meisam Soleimani，Philipp Junker．A continuum multi-
+species biofilm model with a novel interaction scheme．arXiv:2509.01274v1，2025-09-01．
+（ロ
+ーカルPDF: tmcmc/biofilm_simulation.pdf）．
+[3] Philipp Junker，Daniel Balzani．An extended Hamilton principle as unifying theory for
+coupled problems and dissipative microstructure evolution．Continuum Mechanics and Ther-
+modynamics，33(4)，1931–1956，2021．DOI: 10.1007/s00161-021-01017-z．（ロー
+カルPDF: tmcmc/hamiltonian.pdf）．
+[4] Nils Heine，Kristina Bittroff，Szymon P. Szafrański，Maya Duitscher，Wiebke Behrens，
+Clarissa Vollmer，Carina Mikolai，Nadine Kommerein，Nicolas Debener，Katharina
+Frings，Alexander
+Heisterkamp，Thomas
+Scheper，Maria
+L.
+Torres-Mapa，Janina
+Bahnemann，Meike
+Stiesch，Katharina
+Doll-Nikutta．Influence
+of
+species
+composi-
+tion
+and
+cultivation
+condition
+on
+peri-implant
+biofilm
+dysbiosis
+in
+vitro．Fron-
+tiers in Oral Health，6:1649419，2025．DOI: 10.3389/froh.2025.1649419．（ロ
+ーカルPDF: tmcmc/Influence of species composition and cultivation
+condition on peri-implant biofilm dysbiosis in vitro.pdf）．
+[5] Ching，J．，Chen，Y.-C．Transitional Markov Chain Monte Carlo Method for Bayesian Model
+Updating，Model Class Selection，and Model Averaging．Journal of Engineering Mechanics，
+133(7)，816–832，2007．DOI: 10.1061/(ASCE)0733-9399(2007)133:7(816)．
+[6] Betz，W．，Papaioannou，I．，Straub，D．Transitional Markov Chain Monte Carlo: Ob-
+servations and Improvements．Journal of Engineering Mechanics，142(5)，04016016，2016．
+DOI: 10.1061/(ASCE)EM.1943-7889.0001066．
+[7] Geisler，H．，Junker，P．Time-separated stochastic mechanics for the simulation of vis-
+coelastic structures with local random material fluctuations．Computer Methods in Applied
+Mechanics and Engineering，407，115916，2023．DOI: 10.1016/j.cma.2023.115916．
+[8] Geisler，H．，Erdogan，C．，Nagel，J．，Junker，P．A new paradigm for the eﬀicient
+inclusion of stochasticity in engineering simulations: Time-separated stochastic mechanics．
+Computational Mechanics，75(1)，211–235，2025．DOI: 10.1007/s00466-024-02500-5．
+[9] Beck，J．L．，Katafygiotis，L．S．Updating Models and Their Uncertainties．I: Bayesian
+Statistical Framework．Journal of Engineering Mechanics，124(4)，455–461，1998．DOI:
+10.1061/(ASCE)0733-9399(1998)124:4(455)．
+6

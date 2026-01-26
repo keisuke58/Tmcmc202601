@@ -1,0 +1,23 @@
+{
+  "run_dir": "/home/nishioka/IKM_Hiwi/tmcmc/_runs/m1_check_np100_ns15",
+  "run_id": "m1_check_np100_ns15",
+  "score": 0.06312180094413726,
+  "reasons": [],
+  "models": [
+    {
+      "model": "M1",
+      "rmse_total_map": 0.06312180094413726,
+      "mae_total_map": 0.04997196500096364,
+      "beta_final_min_across_chains": 1.0,
+      "rom_error_final_max_across_chains": 0.0,
+      "accept_rate_mean_min_across_chains": 0.6833333333333333
+    }
+  ],
+  "sigma_obs": 0.01,
+  "cov_rel": 0.005,
+  "n_particles": 100,
+  "n_stages": 15,
+  "n_mutation_steps": 3,
+  "mode": "debug",
+  "seed": 42.0
+}
