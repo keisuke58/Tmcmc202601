@@ -1,0 +1,25 @@
+\begin{thebibliography}{1}
+
+\bibitem{ChingChen2007TMCMC}
+Jianye Ching and Yi-Chu Chen.
+\newblock Transitional {Markov} chain {Monte} {Carlo} method for {Bayesian}
+  model updating, model class selection, and model averaging.
+\newblock {\em Journal of Engineering Mechanics}, 133(7):816--832, 2007.
+\newblock Original TMCMC method.
+
+\bibitem{GeislerErdoganNagelJunker2025TSM}
+Hendrik Geisler, Can Erdogan, Jonas Nagel, and Philipp Junker.
+\newblock A new paradigm for the efficient inclusion of stochasticity in
+  engineering simulations: {Time-separated} stochastic mechanics.
+\newblock {\em Computational Mechanics}, 75(1):211--235, 2025.
+\newblock Comprehensive TSM framework.
+
+\bibitem{Heine2025PeriImplant}
+N.~Heine, K.~Bittroff, S.~P. Szafrański, et~al.
+\newblock Influence of species composition and cultivation condition on
+  peri-implant biofilm dysbiosis in vitro.
+\newblock {\em Frontiers in Oral Health}, 6:1649419, 2025.
+\newblock Local PDF: \texttt{tmcmc/Influence of species composition and
+  cultivation condition on peri-implant biofilm dysbiosis in vitro.pdf}.
+
+\end{thebibliography}

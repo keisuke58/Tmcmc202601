@@ -1,0 +1,496 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=2.2cm}
+\usepackage{listings}
+
+% Japanese support with XeLaTeX - Unified Mincho style
+\usepackage{fontspec}
+
+% Main text: Noto Serif (elegant, academic)
+\setmainfont{Noto Serif CJK JP}[
+    UprightFont = *-Regular,
+    BoldFont = *-Bold,
+    Scale = 1.0
+]
+
+% Sans-serif (for code comments only)
+\setsansfont{Noto Sans CJK JP}[
+    UprightFont = *-Regular,
+    BoldFont = *-Bold,
+    Scale = 0.95
+]
+
+% Monospace for code
+\setmonofont{Noto Sans Mono CJK JP}[Scale=0.80]
+
+% Colors
+\definecolor{accent}{RGB}{0,102,153}
+\definecolor{lightaccent}{RGB}{230,242,250}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\scriptsize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+% Better line breaking for Japanese
+\XeTeXlinebreaklocale "ja"
+\XeTeXlinebreakskip=0pt plus 1pt minus 0.1pt
+\sloppy
+
+\usepackage[hidelinks,pdfencoding=auto]{hyperref}
+
+\title{
+    \vspace{-1cm}
+    {\Huge\bfseries Nishioka法}\\[0.5cm]
+    {\Large 5菌種バイオフィルムモデルのための}\\[0.2cm]
+    {\Large 生物学的制約によるパラメータ削減手法}\\[1cm]
+    \rule{\textwidth}{0.8pt}
+}
+\author{
+    {\large TMCMCパラメータ推定プロジェクト}\\[0.3cm]
+    {\normalsize IKM Hiwi Research Group}
+}
+\date{{2026年2月}}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+本文書は、5菌種バイオフィルム相互作用モデルのベイズ推定のための
+パラメータ削減手法である「Nishioka法」について記述する。
+実験的に決定された相互作用ネットワークからの生物学的知見を組み込むことで、
+本手法はパラメータ空間を20個から15個の自由パラメータに削減し、
+推定効率と生物学的解釈性を向上させる。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%==============================================================================
+\section{はじめに}
+%==============================================================================
+
+5菌種バイオフィルムモデル\cite{Heine2025PeriImplant}は、
+相互作用行列$\mathbf{A}$と減衰ベクトル$\mathbf{b}$を通じて
+細菌集団の動態を記述する。
+推定はTMCMC\cite{ChingChen2007TMCMC}と
+TSMソルバー\cite{GeislerErdoganNagelJunker2025TSM}を組み合わせて実行される。
+標準的なアプローチでは全20パラメータを自由に推定するが、
+以下の問題が生じうる：
+
+\begin{itemize}
+    \item 限られた実験データによる識別可能性の低下
+    \item 生物学的に妥当でないパラメータ推定値
+    \item 不必要なパラメータ空間の探索による計算効率の低下
+\end{itemize}
+
+Nishioka法は、菌種間相互作用が存在しないという実験的証拠に基づいて
+特定の相互作用パラメータをゼロに固定することで、これらの問題に対処する。
+
+%==============================================================================
+\section{生物学的根拠}
+%==============================================================================
+
+\subsection{モデルに含まれる菌種}
+
+本モデルは口腔バイオフィルムに一般的に見られる5つの細菌種を含む：
+
+\begin{table}[h]
+\centering
+\begin{tabular}{clll}
+\toprule
+\rowcolor{accent!20}
+\textbf{ID} & \textbf{菌種} & \textbf{略称} & \textbf{役割} \\
+\midrule
+\cellcolor{blue!10} 0 & \textit{Streptococcus oralis} & S.o & 初期定着菌 \\
+\cellcolor{green!10} 1 & \textit{Actinomyces naeslundii} & A.n & 初期定着菌 \\
+\cellcolor{yellow!10} 2 & \textit{Veillonella} spp. & Vei & 代謝ブリッジ \\
+\cellcolor{purple!10} 3 & \textit{Fusobacterium nucleatum} & F.n & ブリッジ微生物 \\
+\cellcolor{red!10} 4 & \textit{Porphyromonas gingivalis} & P.g & 後期定着菌（病原菌） \\
+\bottomrule
+\end{tabular}
+\caption{5菌種バイオフィルムモデルに含まれる菌種}
+\label{tab:species}
+\end{table}
+
+\subsection{相互作用ネットワーク（Figure 4C）}
+
+実験観察\cite{Heine2025PeriImplant}に基づき、以下の相互作用ネットワークが確立された：
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+    node distance=2.5cm,
+    species/.style={circle, draw, minimum size=1.2cm, font=\small},
+    edge/.style={<->, thick, >=Stealth},
+    noedge/.style={dashed, gray, thick}
+]
+    \node[species, fill=blue!20] (so) at (0, 3) {S.o};
+    \node[species, fill=green!20] (an) at (-2.5, 1) {A.n};
+    \node[species, fill=yellow!20] (vei) at (0, 1) {Vei};
+    \node[species, fill=purple!20] (fn) at (2.5, 1) {F.n};
+    \node[species, fill=red!20] (pg) at (0, -1.5) {P.g};
+
+    \draw[edge, blue] (so) -- (an) node[midway, left, font=\scriptsize] {共凝集};
+    \draw[edge, blue] (so) -- (vei) node[midway, right, font=\scriptsize] {乳酸};
+    \draw[edge, blue] (so) -- (fn) node[midway, right, font=\scriptsize] {ギ酸};
+    \draw[edge, blue] (vei) -- (pg) node[midway, left, font=\scriptsize] {pH};
+    \draw[edge, blue] (fn) -- (pg) node[midway, right, font=\scriptsize] {ペプチド};
+
+    \draw[noedge] (an) -- (vei);
+    \draw[noedge] (an) -- (fn);
+    \draw[noedge] (vei) -- (fn);
+    \draw[noedge] (so) to[bend left=30] (pg);
+    \draw[noedge] (an) to[bend right=30] (pg);
+\end{tikzpicture}
+\caption{Figure 4Cから導出された菌種相互作用ネットワーク。
+青い実線は活性相互作用、灰色の破線は不在相互作用を示す。}
+\label{fig:network}
+\end{figure}
+
+\subsection{活性相互作用}
+
+以下の菌種ペアは直接的な生物学的相互作用を持つ：
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{菌種ペア} & \textbf{メカニズム} & \textbf{タイプ} \\
+\midrule
+S.o $\leftrightarrow$ A.n & 共凝集 & 双方向 \\
+S.o $\leftrightarrow$ Vei & 乳酸産生/消費 & 双方向 \\
+S.o $\leftrightarrow$ F.n & ギ酸/酢酸共生 & 双方向 \\
+Vei $\leftrightarrow$ P.g & pH上昇支援 & 正のみ \\
+F.n $\leftrightarrow$ P.g & 共凝集、ペプチド供給 & 双方向 \\
+\bottomrule
+\end{tabular}
+\caption{生物学的メカニズムを持つ活性菌種相互作用}
+\label{tab:active}
+\end{table}
+
+\subsection{不在相互作用（ロック対象）}
+
+以下の菌種ペアは実験的証拠に基づき直接相互作用を持たない：
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{cclll}
+\toprule
+\textbf{Index} & \textbf{パラメータ} & \textbf{菌種ペア} & \textbf{行列} & \textbf{理由} \\
+\midrule
+6 & $a_{34}$ & Vei$\leftrightarrow$F.n & $A[2,3]$ & 代謝経路なし \\
+12 & $a_{23}$ & A.n$\leftrightarrow$Vei & $A[1,2]$ & 代謝リンクなし \\
+13 & $a_{24}$ & A.n$\leftrightarrow$F.n & $A[1,3]$ & 相互作用なし \\
+16 & $a_{15}$ & S.o$\leftrightarrow$P.g & $A[0,4]$ & 相互作用なし \\
+17 & $a_{25}$ & A.n$\leftrightarrow$P.g & $A[1,4]$ & 相互作用なし \\
+\bottomrule
+\end{tabular}
+\caption{Nishioka法でゼロに固定される不在相互作用}
+\label{tab:locked}
+\end{table}
+
+%==============================================================================
+\section{数学的定式化}
+%==============================================================================
+
+\subsection{支配方程式}
+
+5菌種バイオフィルムモデルは、細菌体積分率$\phi_i$と生存率$\psi_i$の動態を
+連立常微分方程式系で記述する。菌種$i$の相互作用項は：
+\begin{equation}
+I_i = \sum_{j=0}^{4} A_{ij} \phi_j \psi_j
+\end{equation}
+ここで$A_{ij}$は菌種$j$が菌種$i$に与える影響、$\phi_j \psi_j$は生菌体積分率である。
+
+\subsection{対称行列の仮定}
+
+\textbf{重要な仮定}：相互作用行列$\mathbf{A}$は対称である：
+\begin{equation}
+A_{ij} = A_{ji} \quad \forall i, j \in \{0, 1, 2, 3, 4\}
+\end{equation}
+
+これにより非対角相互作用パラメータ数が20から10に削減される。
+例えば、S.o（菌種0）とVei（菌種2）間の乳酸ハンドオーバー相互作用は
+単一パラメータで表される：
+\begin{equation}
+A_{02} = A_{20} = \theta_{10} \quad \text{（コード内では} a_{13} \text{として格納）}
+\end{equation}
+
+\subsection{パラメータベクトルの定義}
+
+全20パラメータベクトル$\boldsymbol{\theta}$は5ブロックに整理される：
+
+\begin{align}
+\boldsymbol{\theta} &= \underbrace{(a_{11}, a_{12}, a_{22}, b_1, b_2)}_{\text{M1: 菌種1--2}}
+\oplus \underbrace{(a_{33}, a_{34}, a_{44}, b_3, b_4)}_{\text{M2: 菌種3--4}} \notag \\
+&\quad \oplus \underbrace{(a_{13}, a_{14}, a_{23}, a_{24})}_{\text{M3: クロス項}}
+\oplus \underbrace{(a_{55}, b_5)}_{\text{M4: 菌種5}}
+\oplus \underbrace{(a_{15}, a_{25}, a_{35}, a_{45})}_{\text{M5: 菌種5クロス}}
+\end{align}
+
+\subsection{完全パラメータマッピング}
+
+表~\ref{tab:theta_mapping}は、パラメータインデックスと行列要素の対応を示す。
+
+\begin{table}[h]
+\centering
+\scriptsize
+\begin{tabular}{cclllc}
+\toprule
+\textbf{Idx} & \textbf{名前} & \textbf{行列} & \textbf{菌種ペア} & \textbf{役割} & \textbf{状態} \\
+\midrule
+0 & $a_{11}$ & $A[0,0]$ & S.o自己 & 自己調節 & 自由 \\
+1 & $a_{12}$ & $A[0,1]$ & S.o$\leftrightarrow$A.n & 共凝集 & 自由 \\
+2 & $a_{22}$ & $A[1,1]$ & A.n自己 & 自己調節 & 自由 \\
+3 & $b_1$ & $b[0]$ & S.o & 減衰率 & 自由 \\
+4 & $b_2$ & $b[1]$ & A.n & 減衰率 & 自由 \\
+\midrule
+5 & $a_{33}$ & $A[2,2]$ & Vei自己 & 自己調節 & 自由 \\
+\rowcolor{red!15}
+6 & $a_{34}$ & $A[2,3]$ & Vei$\leftrightarrow$F.n & なし & \textbf{ロック} \\
+7 & $a_{44}$ & $A[3,3]$ & F.n自己 & 自己調節 & 自由 \\
+8 & $b_3$ & $b[2]$ & Vei & 減衰率 & 自由 \\
+9 & $b_4$ & $b[3]$ & F.n & 減衰率 & 自由 \\
+\midrule
+10 & $a_{13}$ & $A[0,2]$ & S.o$\leftrightarrow$Vei & \textbf{乳酸} & 自由 \\
+11 & $a_{14}$ & $A[0,3]$ & S.o$\leftrightarrow$F.n & ギ酸 & 自由 \\
+\rowcolor{red!15}
+12 & $a_{23}$ & $A[1,2]$ & A.n$\leftrightarrow$Vei & なし & \textbf{ロック} \\
+\rowcolor{red!15}
+13 & $a_{24}$ & $A[1,3]$ & A.n$\leftrightarrow$F.n & なし & \textbf{ロック} \\
+\midrule
+14 & $a_{55}$ & $A[4,4]$ & P.g自己 & 自己調節 & 自由 \\
+15 & $b_5$ & $b[4]$ & P.g & 減衰率 & 自由 \\
+\midrule
+\rowcolor{red!15}
+16 & $a_{15}$ & $A[0,4]$ & S.o$\leftrightarrow$P.g & なし & \textbf{ロック} \\
+\rowcolor{red!15}
+17 & $a_{25}$ & $A[1,4]$ & A.n$\leftrightarrow$P.g & なし & \textbf{ロック} \\
+18 & $a_{35}$ & $A[2,4]$ & Vei$\leftrightarrow$P.g & \textbf{pH} & 自由$^*$ \\
+19 & $a_{45}$ & $A[3,4]$ & F.n$\leftrightarrow$P.g & 共凝集 & 自由 \\
+\bottomrule
+\end{tabular}
+\caption{パラメータマッピング。赤い行はロック対象。$^*$条件により境界が異なる。}
+\label{tab:theta_mapping}
+\end{table}
+
+\subsection{ロックパラメータインデックス}
+
+Nishioka法では以下のインデックスをゼロに固定する：
+\begin{equation}
+\mathcal{L} = \{6, 12, 13, 16, 17\}, \quad \theta_k = 0 \text{ for } k \in \mathcal{L}
+\end{equation}
+
+\subsection{事前分布の境界}
+\label{sec:prior_bounds}
+
+基本事前分布（Commensal/Dysbiotic Static条件）：
+\begin{equation}
+\theta_k \sim \begin{cases}
+\text{Uniform}(0, 0) & k \in \mathcal{L} \text{ （ロック）} \\
+\text{Uniform}(0, 1) & k = 18 \text{ （Vei→P.g）} \\
+\text{Uniform}(-1, 1) & \text{その他}
+\end{cases}
+\end{equation}
+
+\textbf{Dysbiotic HOBIC}（サージ再現）では：$\theta_{18} \sim \text{Uniform}(-3, -1)$
+
+\subsection{有効パラメータ空間}
+
+自由パラメータの有効数：$n_{\text{free}} = 20 - 5 = 15$
+
+%==============================================================================
+\section{実験条件とパラメータ推定}
+\label{sec:conditions}
+%==============================================================================
+
+パラメータ推定戦略は4つの実験条件に適応する。
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llccc}
+\toprule
+\textbf{条件} & \textbf{培養} & \textbf{ロック数} & \textbf{推定数} & \textbf{制約} \\
+\midrule
+Commensal & Static & 9 & 11 & ゼロ相互作用 \\
+Dysbiotic & Static & 5 & 15 & 病原菌推定 \\
+Commensal & HOBIC & 8 & 12 & ゼロ相互作用 \\
+Dysbiotic & HOBIC & 0 & 20 & \textbf{全解除} \\
+\bottomrule
+\end{tabular}
+\caption{各実験条件のパラメータ推定数}
+\label{tab:conditions}
+\end{table}
+
+\subsection{詳細なロックロジック}
+
+\begin{enumerate}
+    \item \textbf{Commensal Static}：安定したコメンサル状態を再現。
+    標準ロック（5個）に加え、後期定着菌の増殖率と相互作用を
+    ゼロに固定（$N_{locked}=9$）。
+
+    \item \textbf{Dysbiotic Static}：病原菌リッチ状態への移行。
+    構造的ロックのみ維持（$N_{locked}=5$）。
+
+    \item \textbf{Commensal HOBIC}：HOBICフロー環境に適応。
+    病原菌相互作用はロック（$N_{locked}=8$）。
+
+    \item \textbf{Dysbiotic HOBIC}（サージモデル）：
+    \textbf{全ロック解除}（$N_{locked}=0$）。サージ現象の再現に必要。
+\end{enumerate}
+
+%==============================================================================
+\section{実装}
+%==============================================================================
+
+\subsection{コアモジュール}
+
+\begin{lstlisting}[language=Python]
+LOCKED_INDICES = [6, 12, 13, 16, 17]
+
+def get_nishioka_bounds():
+    bounds = [(-1.0, 1.0)] * 20
+    for idx in LOCKED_INDICES:
+        bounds[idx] = (0.0, 0.0)
+    bounds[18] = (0.0, 1.0)  # Vei -> P.g
+    return bounds, LOCKED_INDICES
+\end{lstlisting}
+
+\subsection{推定スクリプト}
+
+\begin{lstlisting}[language=Python]
+from core.nishioka_model import get_nishioka_bounds
+
+nishioka_bounds, LOCKED_INDICES = get_nishioka_bounds()
+for idx in LOCKED_INDICES:
+    theta_base[idx] = 0.0
+active_indices = [i for i in range(20) if i not in LOCKED_INDICES]
+\end{lstlisting}
+
+%==============================================================================
+\section{比較：標準手法 vs Nishioka法}
+%==============================================================================
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{項目} & \textbf{標準} & \textbf{Nishioka法} \\
+\midrule
+自由パラメータ & 20 & 15 \\
+ロックパラメータ & 0 & 5 \\
+生物学的制約 & なし & Fig 4Cネットワーク \\
+計算コスト & 高い & 低い \\
+識別可能性 & 問題あり得る & 改善 \\
+\bottomrule
+\end{tabular}
+\caption{標準手法とNishioka法の比較}
+\label{tab:comparison}
+\end{table}
+
+%==============================================================================
+\section{利点と限界}
+%==============================================================================
+
+\subsection{利点}
+
+\begin{enumerate}
+    \item パラメータ空間の削減によりMCMCサンプリング効率が向上
+    \item 推定値が既知の相互作用ネットワークを尊重
+    \item 限られたデータからの識別可能性が向上
+    \item パラメータ固定が暗黙の正則化として機能
+\end{enumerate}
+
+\subsection{限界}
+
+\begin{enumerate}
+    \item 相互作用ネットワークの正確な事前知識が必要
+    \item 予期しない相互作用を発見できない
+    \item Figure 4Cが不完全な場合、バイアスが生じる可能性
+\end{enumerate}
+
+%==============================================================================
+\section{使用方法}
+%==============================================================================
+
+\begin{lstlisting}[language=Bash]
+nohup python main/estimate_reduced_nishioka.py \
+    --condition Commensal --cultivation Static \
+    --n-particles 2000 --n-stages 30 --n-chains 2 \
+    --output-dir _runs/nishioka_v1 > nishioka.log 2>&1 &
+\end{lstlisting}
+
+\subsection{出力ファイル}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{ファイル} & \textbf{説明} \\
+\midrule
+\texttt{config.json} & 実行設定 \\
+\texttt{posterior\_samples.csv} & 事後サンプル \\
+\texttt{theta\_MAP.json} & MAP推定 \\
+\texttt{theta\_MEAN.json} & 事後平均推定 \\
+\texttt{fit\_metrics.json} & RMSE、MAE \\
+\bottomrule
+\end{tabular}
+\caption{出力ファイル一覧}
+\label{tab:output}
+\end{table}
+
+%==============================================================================
+\section{結論}
+%==============================================================================
+
+Nishioka法は、複雑なバイオフィルムモデルにおけるパラメータ推定に対して
+生物学的に根拠のあるアプローチを提供する。
+実験的相互作用データを活用してパラメータ空間を制約することで、
+計算複雑性の削減と生物学的解釈性の向上を同時に達成する。
+
+%==============================================================================
+\bibliographystyle{plain}
+\bibliography{related_work}
+%==============================================================================
+
+\vfill
+\noindent\rule{\textwidth}{0.4pt}
+\small{最終更新：2026年2月5日}
+
+\end{document}
