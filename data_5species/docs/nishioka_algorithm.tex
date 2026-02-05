@@ -355,6 +355,36 @@ The number of estimated parameters ($N_{est}$) differs across conditions, calcul
     We treat this as a \textbf{Core Network Discovery} phase: initially exploring the full 20-parameter space to identify the minimal set of interactions required to drive the surge, rather than assuming a reduced structure a priori.
 \end{enumerate}
 
+\subsection{4-Stage Sequential Estimation}
+
+Parameter estimation is performed sequentially in 4 stages. This configuration has been optimized considering parameter correlations (coupling) and search space dimensionality.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{clcl}
+\toprule
+\textbf{Stage} & \textbf{Target} & \textbf{\# Params} & \textbf{Parameters} \\
+\midrule
+1 & M1 (Species 1--2) & 5 & $a_{11}, a_{12}, a_{22}, b_1, b_2$ \\
+2 & M2 (Species 3--4) & 5 & $a_{33}, a_{34}, a_{44}, b_3, b_4$ \\
+3 & M3+M4 & 6 & $a_{13}, a_{14}, a_{23}, a_{24}, a_{55}, b_5$ \\
+4 & M5 (P.g cross) & 4 & $a_{15}, a_{25}, a_{35}, a_{45}$ \\
+\bottomrule
+\end{tabular}
+\caption{4-Stage Sequential Estimation Configuration}
+\label{tab:stages}
+\end{table}
+
+\textbf{Validation of Configuration:}
+\begin{itemize}
+    \item \textbf{Risk of finer granularity}: Further subdivision would result in too few data points per stage relative to parameters, increasing overfitting risk.
+
+    \item \textbf{Risk of coarser configuration}: Reducing the number of stages would cause convergence difficulties due to strong inter-parameter correlations.
+
+    \item \textbf{Advantage of current configuration}: Division based on biologically meaningful groups (early colonizers, bridge organisms, late colonizers) ensures stable estimation at each stage.
+\end{itemize}
+
 %==============================================================================
 \section{Implementation}
 %==============================================================================
