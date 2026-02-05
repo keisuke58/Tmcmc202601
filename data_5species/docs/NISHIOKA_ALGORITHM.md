@@ -147,6 +147,23 @@ n_free = 20 - |L| = 20 - 5 = 15 parameters
 | 3. Commensal | HOBIC | 8 | 12 | Zero pathogen interactions |
 | 4. **Dysbiotic** | **HOBIC** | **0** | **20** | **Unlock all (Surge)** |
 
+### 4-Stage Sequential Estimation
+
+Parameter estimation is performed sequentially in 4 stages. This configuration has been **validated** considering parameter correlations (coupling) and search space dimensionality.
+
+| Stage | Target | # Params | Parameters |
+|-------|--------|----------|------------|
+| 1 | M1 (Species 1-2) | 5 | a₁₁, a₁₂, a₂₂, b₁, b₂ |
+| 2 | M2 (Species 3-4) | 5 | a₃₃, a₃₄, a₄₄, b₃, b₄ |
+| 3 | M3+M4 | 6 | a₁₃, a₁₄, a₂₃, a₂₄, a₅₅, b₅ |
+| 4 | M5 (P.g cross) | 4 | a₁₅, a₂₅, a₃₅, a₄₅ |
+
+**Validation of Configuration:**
+
+1. **Risk of finer granularity**: Further subdivision → overfitting risk (too few data points per stage)
+2. **Risk of coarser configuration**: Fewer stages → convergence failure (strong parameter correlations)
+3. **Advantage of current configuration**: Division based on biologically meaningful groups (early colonizers, bridge organisms, late colonizers) ensures stable estimation
+
 ## Implementation
 
 ### Key Code (`core/nishioka_model.py`)
