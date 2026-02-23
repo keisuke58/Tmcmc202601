@@ -134,6 +134,15 @@ Run directories: `_runs/Commensal_Static_20260208_002100`, `_runs/Commensal_HOBI
 
 ## FEM: Stress Analysis Pipeline
 
+### Tooth Geometry — Open-Full-Jaw Dataset
+
+Patient-specific lower-jaw (mandible) STL meshes are taken from the **Open-Full-Jaw** open-access dataset [Gholamalizadeh et al. 2022]:
+
+- 17 patient-specific models derived from CBCT scans (mandible + maxilla + teeth + PDL)
+- Volumetric meshes generated with **fTetWild**; PDL gap thickness ≈ 0.2 mm
+- This project uses teeth from **Patient 1** (lower jaw): `P1_Tooth_23`, `P1_Tooth_30`, `P1_Tooth_31`
+- Source: `FEM/external_tooth_models/Open-Full-Jaw-main/`
+
 ### Dysbiotic Index → Stiffness Mapping
 
 ```
@@ -231,6 +240,11 @@ python biofilm_conformal_tet.py \
 ---
 
 ## Key References
+
+### Tooth Geometry & Jaw FEM
+- **Gholamalizadeh et al. (2022)**: *Open-Full-Jaw: An open-access dataset and pipeline for finite element models of human jaw*, Comput Methods Programs Biomed 224:107009. [DOI](https://doi.org/10.1016/j.cmpb.2022.107009) — source of patient-specific mandible/tooth STL meshes used in this project
+- **McCormack et al. (2017)**: *Inclusion of periodontal ligament fibres in mandibular finite element models leads to an increase in alveolar bone strains*, PLOS ONE — PDL fibre modelling effect on mandibular strain
+- **Gröning et al. (2011)**: *The effects of the periodontal ligament on mandibular stiffness*, J Biomech — PDL contribution to jaw mechanical behaviour
 
 ### Biofilm Mechanics & FEM
 - **Klempt, Soleimani, Wriggers, Junker (2024)**: *A Hamilton principle-based model for diffusion-driven biofilm growth*, Biomech Model Mechanobiol 23:2091–2113. [DOI](https://doi.org/10.1007/s10237-024-01883-x)
