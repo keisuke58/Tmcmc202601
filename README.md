@@ -24,6 +24,15 @@ This project addresses two coupled questions:
 
 ### Pipeline
 
+Periodontal disease is driven by **dysbiosis** — a community-level shift from a health-associated (commensal) microbiome to a disease-associated one dominated by the keystone pathogen *Porphyromonas gingivalis* (Pg). This shift is enabled by **bridge organisms**: *Veillonella dispar* (Vd) facilitates Pg via lactate cross-feeding and pH modulation, and *Fusobacterium nucleatum* (Fn) provides structural coaggregation scaffolding. Quantifying these ecological interactions is essential to understanding how dysbiosis develops.
+
+This project addresses two coupled questions:
+
+1. **Ecology**: How do species interaction strengths (*a*ᵢⱼ) differ between commensal and dysbiotic oral communities, and across cultivation methods (Static vs. HOBIC)?
+2. **Mechanics**: How does the inferred community composition alter the effective stiffness and stress distribution in periodontal tissue?
+
+### Pipeline
+
 ```mermaid
 flowchart TD
     A["🦷 In vitro longitudinal data\n4 conditions × 5 species × 5 time points\nHeine et al. 2025"]
@@ -32,6 +41,28 @@ flowchart TD
     C --> D["Stage 2 — 3D composition fields\nφᵢ(x) → Dysbiotic Index DI(x)\nE(DI) power-law stiffness mapping"]
     D --> E["🦷 Abaqus 3D FEM Stress Analysis\n→ S_Mises · U_max\nsubstrate / EPS"]
     C --> F["JAX-FEM nutrient transport\n−D_c Δc + g φ₀ c/(k+c) = 0\nKlempt 2024 benchmark"]
+```
+ In vitro longitudinal data (4 conditions × 5 species × 5 time points)
+           │   Commensal/Dysbiotic × Static/HOBIC  [Heine et al. 2025]
+           ▼
+ ┌─────────────────────────────────────┐
+ │  Stage 1 — TMCMC Bayesian Inference │
+ │                                     │
+ │  Hamilton ODE  (5-species, 20 θ)    │
+ │  p(θ|data) via sequential tempering │
+ │  → θ_MAP, θ_MEAN, posterior samples │
+ └────────────────┬────────────────────┘
+                  │  posterior samples per condition
+                  ▼
+ ┌─────────────────────────────────────┐
+ │  Stage 2 — 3D FEM Stress Analysis   │
+ │                                     │
+ │  φᵢ(x) composition fields           │
+ │  → Dysbiotic Index  DI(x)           │
+ │  → E(DI) power-law mapping          │
+ │  → Abaqus 3D FEM                    │
+ │  → S_Mises, U  (substrate / EPS)    │
+ └─────────────────────────────────────┘
 ```
 
 ### Four Experimental Conditions
