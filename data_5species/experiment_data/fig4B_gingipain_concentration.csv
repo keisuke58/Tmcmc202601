@@ -1,0 +1,7 @@
+day,dysbiotic_mean,dysbiotic_error,commensal_mean,commensal_error,significant
+0,0.0,0.0,0.0,0.0,
+3,0.3,0.2,0.0,0.0,
+6,0.8,0.3,0.0,0.0,
+10,1.2,0.5,0.0,0.0,
+15,3.2,1.8,0.0,0.0,*
+21,5.5,3.2,0.0,0.0,*

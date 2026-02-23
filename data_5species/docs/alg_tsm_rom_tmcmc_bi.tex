@@ -1,0 +1,259 @@
+\documentclass[a4paper]{article}
+
+\usepackage[margin=2cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{CJKutf8}
+\providecommand{\CJFamily}{min}
+
+\begin{document}
+
+\begin{CJK}{UTF8}{\CJFamily}
+
+\begin{algorithm}[t]
+\caption{TSM-ROM-Based Transitional MCMC for 5-Species Biofilm Model}
+\label{alg:tsm_rom_tmcmc_bi_en}
+\begin{algorithmic}
+\STATE \textbf{Inputs:}
+\STATE \quad Experimental data $y$ at observation times $\{t_i\}_{i=1}^{N_t}$ for 5 species
+\STATE \quad Prior distribution $p(\theta)$ on 20-dimensional parameter vector $\theta$
+\STATE \quad Observation noise variance $\sigma_{\mathrm{obs}}^2$
+\STATE \quad TSM-ROM likelihood evaluator $\mathcal{L}_{\mathrm{TSM}}(\theta) = \log p(y \mid \theta)$
+\STATE \quad Number of particles $N$, number of stages $S$, number of chains $C$
+\STATE \quad Target ESS ratio $\rho_{\mathrm{ESS}}$, mutation settings (proposal covariance, steps per stage)
+\vspace{0.5em}
+\STATE \textbf{Initialization:}
+\FOR{$c = 1, \dots, C$}
+    \FOR{$i = 1, \dots, N$}
+        \STATE Draw initial particle $\theta_{i}^{(0,c)} \sim p(\theta)$
+        \STATE Compute log-likelihood $\ell_{i}^{(0,c)} \leftarrow \mathcal{L}_{\mathrm{TSM}}\!\left(\theta_{i}^{(0,c)}\right)$
+    \ENDFOR
+\ENDFOR
+\STATE Set initial inverse temperature $\beta_0 \leftarrow 0$
+\vspace{0.5em}
+\STATE \textbf{For stages $s = 1, \dots, S$:}
+\STATE Determine next inverse temperature $\beta_s > \beta_{s-1}$ by solving for
+\[
+  \mathrm{ESS}(\beta_s) = \frac{\left( \sum_{i,c} w_{i}^{(s,c)} \right)^2}{\sum_{i,c} (w_{i}^{(s,c)})^2}
+  \approx \rho_{\mathrm{ESS}} \, C N,
+\]
+where $w_{i}^{(s,c)} \propto \exp\!\left((\beta_s - \beta_{s-1}) \, \ell_{i}^{(s-1,c)} \right)$.
+\FOR{$c = 1, \dots, C$}
+    \STATE \textbf{(1) Re-weighting:}
+    \FOR{$i = 1, \dots, N$}
+        \STATE Compute incremental weight
+        \[
+            \tilde{w}_{i}^{(s,c)} \leftarrow 
+            \exp\!\left((\beta_s - \beta_{s-1}) \, \ell_{i}^{(s-1,c)}\right)
+        \]
+    \ENDFOR
+    \STATE Normalize weights $w_{i}^{(s,c)} \leftarrow \tilde{w}_{i}^{(s,c)} / \sum_{j} \tilde{w}_{j}^{(s,c)}$
+    \vspace{0.25em}
+    \STATE \textbf{(2) Resampling:}
+    \STATE Resample $\{\theta_{i}^{(s-1,c)}\}_{i=1}^{N}$ according to $\{w_{i}^{(s,c)}\}$ to obtain
+    equally weighted particles $\{\theta_{i}^{(s,c)}\}_{i=1}^{N}$
+    \STATE Set $\ell_{i}^{(s,c)} \leftarrow \ell_{k}^{(s-1,c)}$ for the corresponding resampled index $k$
+    \vspace{0.25em}
+    \STATE \textbf{(3) Mutation (MCMC moves at fixed $\beta_s$):}
+    \FOR{$i = 1, \dots, N$}
+        \FOR{mutation step $m = 1, \dots, M_s$}
+            \STATE Propose $\theta^\star \sim q_s(\cdot \mid \theta_{i}^{(s,c)})$ (e.g., Gaussian random walk)
+            \STATE Evaluate TSM-ROM log-likelihood
+            \[
+                \ell^\star \leftarrow \mathcal{L}_{\mathrm{TSM}}\!\left(\theta^\star\right)
+            \]
+            \STATE Compute Metropolis--Hastings acceptance probability
+            \[
+                \alpha = \min\left\{1,
+                \exp\!\Big(
+                    \beta_s (\ell^\star - \ell_{i}^{(s,c)}) 
+                    + \log p(\theta^\star) - \log p(\theta_{i}^{(s,c)})
+                \Big)
+                \right\}
+            \]
+            \STATE With probability $\alpha$, set
+            $\theta_{i}^{(s,c)} \leftarrow \theta^\star,\ 
+             \ell_{i}^{(s,c)} \leftarrow \ell^\star$
+        \ENDFOR
+    \ENDFOR
+    \vspace{0.25em}
+    \STATE Optionally update TSM linearization point and ROM settings
+    based on ROM error and current $\beta_s$
+\ENDFOR
+\vspace{0.5em}
+\STATE \textbf{Outputs:}
+\STATE Collection of posterior samples $\{\theta_{i}^{(S,c)}\}_{i=1,\dots,N}^{c=1,\dots,C}$ approximating $p(\theta \mid y)$
+\STATE Posterior summaries (MAP, mean, credible intervals) and diagnostics (ESS, $\hat{R}$, ROM error)
+\end{algorithmic}
+\end{algorithm}
+
+\clearpage
+
+\begin{algorithm}[t]
+\caption{5-Species Biofilm Forward Simulation}
+\label{alg:biofilm_forward_en}
+\begin{algorithmic}
+\STATE \textbf{Inputs:}
+\STATE \quad Parameter vector $\theta$ for the 5-species biofilm model
+\STATE \quad Initial state $x(0) \in \mathbb{R}^5_{\ge 0}$ (biofilm volumes of 5 species)
+\STATE \quad Final time $T$, time step $\Delta t$, observation times $\{t_i\}_{i=1}^{N_t}$
+\STATE \quad Experimental condition flags (Static/HOBIC, Commensal/Dysbiotic, etc.)
+\vspace{0.5em}
+\STATE \textbf{Step 1: Set up time grid and storage}
+\STATE Construct time grid $t_k = k\,\Delta t$ for $k = 0, \dots, K$ where $K = \lfloor T / \Delta t \rfloor$
+\STATE Initialize state $x^{(0)} \leftarrow x(0)$
+\STATE Initialize arrays to store $x^{(k)}$ and derived quantities (total biofilm volume, species of interest)
+\vspace{0.5em}
+\STATE \textbf{Step 2: Time stepping}
+\FOR{$k = 0, \dots, K-1$}
+    \STATE Evaluate model right-hand side $f\!\left(x^{(k)}, \theta, t_k\right)$
+    \STATE Update state by a time integration scheme (e.g. implicit Euler in implementation)
+    \[
+        x^{(k+1)} \leftarrow x^{(k)} + \Delta t \, f\!\left(x^{(k+1)}, \theta, t_{k+1}\right)
+    \]
+    \STATE Enforce physical constraints (e.g. clip negative components of $x^{(k+1)}$ to $0$)
+    \STATE Store $x^{(k+1)}$ and, if needed, total biofilm volume $\sum_{i=1}^5 x^{(k+1)}_i$
+\ENDFOR
+\vspace{0.5em}
+\STATE \textbf{Step 3: Extract outputs at observation times}
+\FOR{$i = 1, \dots, N_t$}
+    \STATE Locate time index $k_i$ such that $t_{k_i}$ is closest to $t_i$
+    \STATE Define simulated observation $y^{\mathrm{sim}}(t_i)$ from $x^{(k_i)}$
+    (e.g. selected species or total volume)
+\ENDFOR
+\vspace{0.5em}
+\STATE \textbf{Outputs:}
+\STATE Time series $\{x^{(k)}\}_{k=0}^{K}$ for all 5 species
+\STATE Simulated observations $\{y^{\mathrm{sim}}(t_i)\}_{i=1}^{N_t}$ for comparison with data
+\end{algorithmic}
+\end{algorithm}
+
+\clearpage
+
+\begin{algorithm}[t]
+\caption{5種バイオフィルムモデルの前向きシミュレーション}
+\label{alg:biofilm_forward_jp}
+\begin{algorithmic}
+\STATE \textbf{入力:}
+\STATE \quad 5種バイオフィルムモデルのパラメータベクトル $\theta$
+\STATE \quad 初期状態 $x(0) \in \mathbb{R}^5_{\ge 0}$（5種それぞれの初期バイオフィルム量）
+\STATE \quad 終了時刻 $T$, 時間刻み $\Delta t$, 観測時刻列 $\{t_i\}_{i=1}^{N_t}$
+\STATE \quad 実験条件フラグ（Static/HOBIC, Commensal/Dysbiotic など）
+\vspace{0.5em}
+\STATE \textbf{ステップ1: 時間グリッドと記録用配列の準備}
+\STATE 時間グリッド $t_k = k\,\Delta t$ （$k = 0, \dots, K$, $K = \lfloor T / \Delta t \rfloor$）を構成する
+\STATE 状態を $x^{(0)} \leftarrow x(0)$ に初期化する
+\STATE 各時刻の $x^{(k)}$ および全体ボリューム $\sum_{i=1}^5 x^{(k)}_i$ などを保存する配列を用意する
+\vspace{0.5em}
+\STATE \textbf{ステップ2: 時間発展}
+\FOR{$k = 0, \dots, K-1$}
+    \STATE モデル右辺 $f\!\left(x^{(k)}, \theta, t_k\right)$ を計算する
+    \STATE 実装では陰的オイラー法などの時間積分スキームにより次の状態を更新する:
+    \[
+        x^{(k+1)} \leftarrow x^{(k)} + \Delta t \, f\!\left(x^{(k+1)}, \theta, t_{k+1}\right)
+    \]
+    \STATE 負の値を $0$ にクリップするなど物理的制約を適用する
+    \STATE $x^{(k+1)}$ と必要であれば全体バイオフィルム量 $\sum_{i=1}^5 x^{(k+1)}_i$ を記録する
+\ENDFOR
+\vspace{0.5em}
+\STATE \textbf{ステップ3: 観測時刻での出力の抽出}
+\FOR{$i = 1, \dots, N_t$}
+    \STATE 観測時刻 $t_i$ に最も近い時間インデックス $k_i$ を求める
+    \STATE 種ごとの値や総量からシミュレーション結果 $y^{\mathrm{sim}}(t_i)$ を定義する
+\ENDFOR
+\vspace{0.5em}
+\STATE \textbf{出力:}
+\STATE 5種それぞれの時系列 $\{x^{(k)}\}_{k=0}^{K}$
+\STATE 観測時刻におけるシミュレーション値 $\{y^{\mathrm{sim}}(t_i)\}_{i=1}^{N_t}$
+\end{algorithmic}
+\end{algorithm}
+
+\clearpage
+
+\begin{algorithm}[t]
+\caption{5種バイオフィルムモデルに対する TSM-ROM 付き Transitional MCMC}
+\label{alg:tsm_rom_tmcmc_bi_jp}
+\begin{algorithmic}
+\STATE \textbf{入力:}
+\STATE \quad 観測データ $y$ （観測時刻 $\{t_i\}_{i=1}^{N_t}$ における5種の計測値）
+\STATE \quad 20次元パラメータベクトル $\theta$ に対する事前分布 $p(\theta)$
+\STATE \quad 観測ノイズ分散 $\sigma_{\mathrm{obs}}^2$
+\STATE \quad TSM-ROM 尤度評価器 $\mathcal{L}_{\mathrm{TSM}}(\theta) = \log p(y \mid \theta)$
+\STATE \quad 粒子数 $N$, ステージ数 $S$, チェーン数 $C$
+\STATE \quad 目標 ESS 比 $\rho_{\mathrm{ESS}}$, 突然変異ステップ数や提案共分散などの設定
+\vspace{0.5em}
+\STATE \textbf{初期化:}
+\FOR{$c = 1, \dots, C$}
+    \FOR{$i = 1, \dots, N$}
+        \STATE 粒子を事前分布からサンプリング: $\theta_{i}^{(0,c)} \sim p(\theta)$
+        \STATE TSM-ROM により対数尤度を計算: $\ell_{i}^{(0,c)} \leftarrow \mathcal{L}_{\mathrm{TSM}}\!\left(\theta_{i}^{(0,c)}\right)$
+    \ENDFOR
+\ENDFOR
+\STATE 逆温度の初期値を $\beta_0 \leftarrow 0$ とする
+\vspace{0.5em}
+\STATE \textbf{ステージ $s = 1, \dots, S$ に対して:}
+\STATE 次の逆温度 $\beta_s > \beta_{s-1}$ を選ぶ．
+\STATE その際，増分 $\Delta\beta_s = \beta_s - \beta_{s-1}$ を調整し，
+\[
+  \mathrm{ESS}(\beta_s) = \frac{\left( \sum_{i,c} w_{i}^{(s,c)} \right)^2}{\sum_{i,c} (w_{i}^{(s,c)})^2}
+  \approx \rho_{\mathrm{ESS}} \, C N
+\]
+を満たすようにする．ここで $w_{i}^{(s,c)} \propto \exp\!\left(\Delta\beta_s \, \ell_{i}^{(s-1,c)} \right)$ である．
+\FOR{$c = 1, \dots, C$}
+    \STATE \textbf{(1) 重み付け:}
+    \FOR{$i = 1, \dots, N$}
+        \STATE 増分重みを計算:
+        \[
+            \tilde{w}_{i}^{(s,c)} \leftarrow 
+            \exp\!\left((\beta_s - \beta_{s-1}) \, \ell_{i}^{(s-1,c)}\right)
+        \]
+    \ENDFOR
+    \STATE 正規化して重みを得る:
+    $w_{i}^{(s,c)} \leftarrow \tilde{w}_{i}^{(s,c)} / \sum_{j} \tilde{w}_{j}^{(s,c)}$
+    \vspace{0.25em}
+    \STATE \textbf{(2) リサンプリング:}
+    \STATE 重み $w_{i}^{(s,c)}$ に従って $\{\theta_{i}^{(s-1,c)}\}_{i=1}^{N}$ をリサンプリングし，
+    一様重みの新しい粒子集合 $\{\theta_{i}^{(s,c)}\}_{i=1}^{N}$ を得る
+    \STATE 対応するインデックス $k$ に対して $\ell_{i}^{(s,c)} \leftarrow \ell_{k}^{(s-1,c)}$ とする
+    \vspace{0.25em}
+    \STATE \textbf{(3) 突然変異（固定 $\beta_s$ での MCMC ステップ）:}
+    \FOR{$i = 1, \dots, N$}
+        \FOR{mutation step $m = 1, \dots, M_s$}
+            \STATE 提案分布（例: ガウスランダムウォーク）から
+            $\theta^\star \sim q_s(\cdot \mid \theta_{i}^{(s,c)})$ を生成
+            \STATE TSM-ROM 尤度を評価:
+            \[
+                \ell^\star \leftarrow \mathcal{L}_{\mathrm{TSM}}\!\left(\theta^\star\right)
+            \]
+            \STATE メトロポリス--ヘイスティングの受理確率を計算:
+            \[
+                \alpha = \min\left\{1,
+                \exp\!\Big(
+                    \beta_s (\ell^\star - \ell_{i}^{(s,c)}) 
+                    + \log p(\theta^\star) - \log p(\theta_{i}^{(s,c)})
+                \Big)
+                \right\}
+            \]
+            \STATE 確率 $\alpha$ で提案を受理し，
+            受理された場合は $\theta_{i}^{(s,c)} \leftarrow \theta^\star,\ 
+             \ell_{i}^{(s,c)} \leftarrow \ell^\star$ と更新
+        \ENDFOR
+    \ENDFOR
+    \vspace{0.25em}
+    \STATE ROM 誤差および現在の $\beta_s$ に基づき，
+    必要に応じて TSM の線形化中心や設定を更新する
+\ENDFOR
+\vspace{0.5em}
+\STATE \textbf{出力:}
+\STATE 事後分布 $p(\theta \mid y)$ を近似するサンプル集合
+$\{\theta_{i}^{(S,c)}\}_{i=1,\dots,N}^{c=1,\dots,C}$
+\STATE MAP・事後平均・信用区間などの要約統計と，
+\STATE ESS，$\hat{R}$，ROM 誤差などの診断指標
+\end{algorithmic}
+\end{algorithm}
+
+\end{CJK}
+
+\end{document}

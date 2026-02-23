@@ -1,0 +1,388 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+% \usepackage[T1]{fontenc}  % Disabled - missing cm-super fonts
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+% \usepackage{graphicx}  % Disabled - missing epstopdf-base.sty
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\title{5-Species Biofilm TMCMC Parameter Estimation\\
+\large Technical Documentation}
+\author{Biofilm Modeling Project}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+%==============================================================================
+\section{Introduction}
+%==============================================================================
+
+This document describes the implementation of Transitional Markov Chain Monte Carlo (TMCMC) for parameter estimation in a 5-species biofilm model. The goal is to estimate 20 model parameters from experimental biofilm composition data.
+
+\subsection{Problem Statement}
+
+Given experimental observations of species volume fractions $\bar{\phi}_i(t)$ at discrete timepoints, estimate the parameter vector $\boldsymbol{\theta} \in \mathbb{R}^{20}$ that best explains the data under a Bayesian framework.
+
+%==============================================================================
+\section{Mathematical Model}
+%==============================================================================
+
+\subsection{State Variables}
+
+The model tracks the following state variables for each species $i \in \{0,1,2,3,4\}$:
+\begin{itemize}
+    \item $\phi_i$: Volume fraction of species $i$
+    \item $\psi_i$: Viability (fraction of living cells)
+    \item $\gamma$: Interface parameter
+\end{itemize}
+
+The observable quantity is:
+\begin{equation}
+    \bar{\phi}_i = \phi_i \cdot \psi_i
+\end{equation}
+representing the living bacteria volume fraction.
+
+\subsection{Parameter Vector}
+
+The 20-dimensional parameter vector is structured as:
+\begin{equation}
+    \boldsymbol{\theta} = \begin{pmatrix}
+        a_{11}, a_{12}, a_{22}, b_1, b_2 & \text{(M1: Species 0-1)} \\
+        a_{33}, a_{34}, a_{44}, b_3, b_4 & \text{(M2: Species 2-3)} \\
+        a_{13}, a_{14}, a_{23}, a_{24} & \text{(M3: Cross-terms)} \\
+        a_{55}, b_5 & \text{(M4: Species 4 self)} \\
+        a_{15}, a_{25}, a_{35}, a_{45} & \text{(M5: Species 4 cross)}
+    \end{pmatrix}
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $a_{ij}$: Interaction coefficient between species $i$ and $j$ (symmetric: $a_{ij} = a_{ji}$)
+    \item $b_i$: Decay/death rate for species $i$
+\end{itemize}
+
+\subsection{Interaction Matrix}
+
+The interaction matrix $\mathbf{A} \in \mathbb{R}^{5 \times 5}$ is:
+\begin{equation}
+    \mathbf{A} = \begin{pmatrix}
+        a_{11} & a_{12} & a_{13} & a_{14} & a_{15} \\
+        a_{12} & a_{22} & a_{23} & a_{24} & a_{25} \\
+        a_{13} & a_{23} & a_{33} & a_{34} & a_{35} \\
+        a_{14} & a_{24} & a_{34} & a_{44} & a_{45} \\
+        a_{15} & a_{25} & a_{35} & a_{45} & a_{55}
+    \end{pmatrix}
+\end{equation}
+
+%==============================================================================
+\section{TMCMC Algorithm}
+%==============================================================================
+
+\subsection{Overview}
+
+TMCMC constructs a sequence of intermediate distributions:
+\begin{equation}
+    p_j(\boldsymbol{\theta}) \propto p(\mathbf{y}|\boldsymbol{\theta})^{\beta_j} \cdot p(\boldsymbol{\theta})
+\end{equation}
+where $0 = \beta_0 < \beta_1 < \cdots < \beta_m = 1$ is the tempering schedule.
+
+\subsection{Algorithm Steps}
+
+\begin{enumerate}
+    \item \textbf{Initialize}: Sample $N$ particles from prior $p(\boldsymbol{\theta})$
+    \item \textbf{For each stage} $j = 1, \ldots, m$:
+    \begin{enumerate}
+        \item Compute importance weights: $w_k \propto p(\mathbf{y}|\boldsymbol{\theta}_k)^{\beta_j - \beta_{j-1}}$
+        \item Resample particles according to weights
+        \item Apply MCMC moves to diversify particles
+        \item Adapt proposal covariance from current particles
+    \end{enumerate}
+    \item \textbf{Output}: Final particles approximate posterior $p(\boldsymbol{\theta}|\mathbf{y})$
+\end{enumerate}
+
+\subsection{Adaptive $\beta$ Selection}
+
+The tempering parameter $\beta_j$ is chosen to maintain effective sample size:
+\begin{equation}
+    \text{ESS}(\beta) = \frac{\left(\sum_k w_k\right)^2}{\sum_k w_k^2} \approx \frac{N}{2}
+\end{equation}
+
+%==============================================================================
+\section{Likelihood Function}
+%==============================================================================
+
+\subsection{Observation Model}
+
+Given model predictions $\bar{\phi}_i^{\text{model}}(t_k)$ at observation times $t_k$, the likelihood is:
+\begin{equation}
+    p(\mathbf{y}|\boldsymbol{\theta}) = \prod_{k=1}^{K} \prod_{i=1}^{5} \mathcal{N}\left(y_{ik} \,\Big|\, \bar{\phi}_i^{\text{model}}(t_k; \boldsymbol{\theta}), \sigma^2\right)
+\end{equation}
+
+where $\sigma$ is the observation noise standard deviation.
+
+\subsection{Log-Likelihood}
+
+\begin{equation}
+    \log p(\mathbf{y}|\boldsymbol{\theta}) = -\frac{1}{2\sigma^2} \sum_{k=1}^{K} \sum_{i=1}^{5} \left(y_{ik} - \bar{\phi}_i^{\text{model}}(t_k; \boldsymbol{\theta})\right)^2 + \text{const}
+\end{equation}
+
+%==============================================================================
+\section{Experimental Data}
+%==============================================================================
+
+\subsection{Data Sources}
+
+\begin{table}[h]
+\centering
+\caption{Available experimental conditions}
+\begin{tabular}{llll}
+\toprule
+Condition & Cultivation & Timepoints (days) & Species \\
+\midrule
+Commensal & Static & 1, 3, 6, 10, 15, 21 & 5 \\
+Commensal & HOBIC & 1, 3, 6, 10, 15, 21 & 5 \\
+Dysbiotic & Static & 1, 3, 6, 10, 15, 21 & 5 \\
+Dysbiotic & HOBIC & 1, 3, 6, 10, 15, 21 & 5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Commensal Static Data Pattern}
+
+\begin{table}[h]
+\centering
+\caption{Species fractions for Commensal Static condition (\%)}
+\begin{tabular}{lccccc}
+\toprule
+Day & S. oralis & A. naeslundii & V. dispar & F. nucleatum & P. gingivalis \\
+\midrule
+3  & 70.7 & 8.1  & 20.2 & 0.5 & 0.5 \\
+6  & 74.3 & 5.0  & 19.8 & 0.5 & 0.5 \\
+10 & 66.0 & 9.4  & 23.6 & 0.5 & 0.5 \\
+15 & 36.5 & 24.0 & 38.5 & 0.5 & 0.5 \\
+21 & 34.7 & 34.7 & 29.7 & 0.5 & 0.5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Key Observations}
+
+\begin{itemize}
+    \item \textbf{S. oralis}: Shows non-monotonic behavior (plateau Day 3-6, then decline)
+    \item \textbf{A. naeslundii}: Initial dip (Day 3-6), then strong growth
+    \item \textbf{V. dispar}: Gradual increase then slight decline
+    \item \textbf{F. nucleatum \& P. gingivalis}: Remain at low levels ($\sim$0.5\%)
+\end{itemize}
+
+%==============================================================================
+\section{Implementation}
+%==============================================================================
+
+\subsection{Software Structure}
+
+\begin{lstlisting}[language=bash,caption=Project structure]
+data_5species/
+├── main/
+│   ├── estimate_commensal_static.py  # Main estimation script
+│   ├── generate_all_figures.py       # Post-processing
+│   └── compare_runs.py               # Run comparison
+├── core/                             # TMCMC implementation
+├── visualization/                    # Plotting utilities
+├── experiment_data/                  # Data files
+└── _runs/                           # Output directories
+\end{lstlisting}
+
+\subsection{Running Estimation}
+
+\begin{lstlisting}[language=bash,caption=Basic estimation command]
+python main/estimate_commensal_static.py \
+    --condition Commensal \
+    --cultivation Static \
+    --n-particles 1000 \
+    --n-stages 50 \
+    --n-chains 2 \
+    --use-exp-init \
+    --start-from-day 3 \
+    --normalize-data
+\end{lstlisting}
+
+\subsection{Key Parameters}
+
+\begin{table}[h]
+\centering
+\caption{Important command-line arguments}
+\begin{tabular}{lll}
+\toprule
+Argument & Default & Description \\
+\midrule
+\texttt{--n-particles} & 500 & Number of TMCMC particles \\
+\texttt{--n-stages} & 30 & Maximum stages \\
+\texttt{--n-chains} & 2 & Parallel chains \\
+\texttt{--prior-decay-max} & None & Upper bound for $b_i$ \\
+\texttt{--use-exp-init} & False & Use experimental initial conditions \\
+\texttt{--normalize-data} & False & Normalize to fractions \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\section{Results and Analysis}
+%==============================================================================
+
+\subsection{Fit Metrics}
+
+For each run, the following metrics are computed:
+
+\begin{equation}
+    \text{RMSE} = \sqrt{\frac{1}{NK} \sum_{k=1}^{K} \sum_{i=1}^{N} \left(y_{ik} - \hat{y}_{ik}\right)^2}
+\end{equation}
+
+\begin{equation}
+    \text{MAE} = \frac{1}{NK} \sum_{k=1}^{K} \sum_{i=1}^{N} \left|y_{ik} - \hat{y}_{ik}\right|
+\end{equation}
+
+\subsection{Baseline Results (500 particles, 30 stages)}
+
+\begin{table}[h]
+\centering
+\caption{Fit metrics for Commensal Static baseline run}
+\begin{tabular}{lcc}
+\toprule
+Metric & MAP Estimate & Mean Estimate \\
+\midrule
+Total RMSE & 0.0614 & 0.1051 \\
+Total MAE & 0.0431 & 0.0705 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Per-Species RMSE}
+
+\begin{table}[h]
+\centering
+\caption{Per-species RMSE (MAP estimate)}
+\begin{tabular}{lc}
+\toprule
+Species & RMSE \\
+\midrule
+S. oralis (Species 1) & 0.1105 \\
+A. naeslundii (Species 2) & 0.0462 \\
+V. dispar (Species 3) & 0.0591 \\
+F. nucleatum (Species 4) & 0.0128 \\
+P. gingivalis (Species 5) & 0.0294 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\section{Model Improvements}
+%==============================================================================
+
+\subsection{Tighter Decay Priors}
+
+To address over-prediction of species decline, decay parameters can be constrained:
+
+\begin{equation}
+    b_i \sim \text{Uniform}(0, 1) \quad \text{instead of} \quad b_i \sim \text{Uniform}(0, 3)
+\end{equation}
+
+Command:
+\begin{lstlisting}[language=bash]
+python main/estimate_commensal_static.py \
+    --prior-decay-max 1.0 \
+    [other options...]
+\end{lstlisting}
+
+\subsection{Increased Sampling}
+
+For better posterior approximation:
+\begin{itemize}
+    \item Increase particles: 500 $\rightarrow$ 1000
+    \item Increase stages: 30 $\rightarrow$ 50
+\end{itemize}
+
+%==============================================================================
+\section{Run Scripts}
+%==============================================================================
+
+\subsection{Available Scripts}
+
+\begin{table}[h]
+\centering
+\caption{Ready-to-run shell scripts}
+\begin{tabular}{ll}
+\toprule
+Script & Purpose \\
+\midrule
+\texttt{run\_improved\_estimation.sh} & 1000 particles, 50 stages \\
+\texttt{run\_tight\_decay\_estimation.sh} & Decay bounds [0, 1] \\
+\texttt{run\_hobic\_estimation.sh} & HOBIC cultivation \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Usage}
+
+\begin{lstlisting}[language=bash,caption=Running in background]
+cd /path/to/data_5species
+nohup bash run_improved_estimation.sh > improved.log 2>&1 &
+
+# Monitor progress
+tail -f improved.log
+\end{lstlisting}
+
+%==============================================================================
+\section{Conclusion}
+%==============================================================================
+
+This implementation provides a flexible framework for Bayesian parameter estimation in the 5-species biofilm model. Key features include:
+
+\begin{itemize}
+    \item Multi-chain TMCMC with adaptive tempering
+    \item Comprehensive visualization pipeline
+    \item Run comparison utilities
+    \item Configurable prior bounds for model refinement
+\end{itemize}
+
+Future work may include:
+\begin{itemize}
+    \item Time-varying parameters
+    \item Model selection criteria (BIC, DIC)
+    \item Observation correlation modeling
+\end{itemize}
+
+\end{document}

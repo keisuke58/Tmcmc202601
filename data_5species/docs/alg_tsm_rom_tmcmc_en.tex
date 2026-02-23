@@ -1,0 +1,87 @@
+\documentclass[a4paper]{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\begin{document}
+
+\begin{algorithm}
+\caption{TSM-ROM-Based Transitional MCMC for 5-Species Biofilm Model}
+\label{alg:tsm_rom_tmcmc}
+\begin{algorithmic}[1]
+\STATE \textbf{Inputs:}
+\STATE \quad Experimental data $y$ at observation times $\{t_i\}_{i=1}^{N_t}$ for 5 species
+\STATE \quad Prior distribution $p(\theta)$ on 20-dimensional parameter vector $\theta$
+\STATE \quad Observation noise variance $\sigma_{\mathrm{obs}}^2$
+\STATE \quad TSM-ROM likelihood evaluator $\mathcal{L}_{\mathrm{TSM}}(\theta) = \log p(y \mid \theta)$
+\STATE \quad Number of particles $N$, number of stages $S$, number of chains $C$
+\STATE \quad Target ESS ratio $\rho_{\mathrm{ESS}}$, mutation settings (proposal covariance, steps per stage)
+\vspace{0.5em}
+\STATE \textbf{Initialization:}
+\FOR{$c = 1, \dots, C$}
+    \FOR{$i = 1, \dots, N$}
+        \STATE Draw initial particle $\theta_{i}^{(0,c)} \sim p(\theta)$
+        \STATE Compute log-likelihood $\ell_{i}^{(0,c)} \leftarrow \mathcal{L}_{\mathrm{TSM}}\!\left(\theta_{i}^{(0,c)}\right)$
+    \ENDFOR
+\ENDFOR
+\STATE Set initial inverse temperature $\beta_0 \leftarrow 0$
+\vspace{0.5em}
+\STATE \textbf{For stages $s = 1, \dots, S$:}
+\STATE Determine next inverse temperature $\beta_s > \beta_{s-1}$ by solving for
+\[
+  \mathrm{ESS}(\beta_s) = \frac{\left( \sum_{i,c} w_{i}^{(s,c)} \right)^2}{\sum_{i,c} (w_{i}^{(s,c)})^2}
+  \approx \rho_{\mathrm{ESS}} \, C N,
+\]
+where $w_{i}^{(s,c)} \propto \exp\!\left((\beta_s - \beta_{s-1}) \, \ell_{i}^{(s-1,c)} \right)$.
+\FOR{$c = 1, \dots, C$}
+    \STATE \textbf{(1) Re-weighting:}
+    \FOR{$i = 1, \dots, N$}
+        \STATE Compute incremental weight
+        \[
+            \tilde{w}_{i}^{(s,c)} \leftarrow 
+            \exp\!\left((\beta_s - \beta_{s-1}) \, \ell_{i}^{(s-1,c)}\right)
+        \]
+    \ENDFOR
+    \STATE Normalize weights $w_{i}^{(s,c)} \leftarrow \tilde{w}_{i}^{(s,c)} / \sum_{j} \tilde{w}_{j}^{(s,c)}$
+    \vspace{0.25em}
+    \STATE \textbf{(2) Resampling:}
+    \STATE Resample $\{\theta_{i}^{(s-1,c)}\}_{i=1}^{N}$ according to $\{w_{i}^{(s,c)}\}$ to obtain
+    equally weighted particles $\{\theta_{i}^{(s,c)}\}_{i=1}^{N}$
+    \STATE Set $\ell_{i}^{(s,c)} \leftarrow \ell_{k}^{(s-1,c)}$ for the corresponding resampled index $k$
+    \vspace{0.25em}
+    \STATE \textbf{(3) Mutation (MCMC moves at fixed $\beta_s$):}
+    \FOR{$i = 1, \dots, N$}
+        \FOR{mutation step $m = 1, \dots, M_s$}
+            \STATE Propose $\theta^\star \sim q_s(\cdot \mid \theta_{i}^{(s,c)})$ (e.g., Gaussian random walk)
+            \STATE Evaluate TSM-ROM log-likelihood
+            \[
+                \ell^\star \leftarrow \mathcal{L}_{\mathrm{TSM}}\!\left(\theta^\star\right)
+            \]
+            \STATE Compute Metropolis--Hastings acceptance probability
+            \[
+                \alpha = \min\left\{1,
+                \exp\!\Big(
+                    \beta_s (\ell^\star - \ell_{i}^{(s,c)}) 
+                    + \log p(\theta^\star) - \log p(\theta_{i}^{(s,c)})
+                \Big)
+                \right\}
+            \]
+            \STATE With probability $\alpha$, set
+            $\theta_{i}^{(s,c)} \leftarrow \theta^\star,\ 
+             \ell_{i}^{(s,c)} \leftarrow \ell^\star$
+        \ENDFOR
+    \ENDFOR
+    \vspace{0.25em}
+    \STATE Optionally update TSM linearization point and ROM settings
+    based on ROM error and current $\beta_s$
+\ENDFOR
+\vspace{0.5em}
+\STATE \textbf{Outputs:}
+\STATE Collection of posterior samples $\{\theta_{i}^{(S,c)}\}_{i=1,\dots,N}^{c=1,\dots,C}$ approximating $p(\theta \mid y)$
+\STATE Posterior summaries (MAP, mean, credible intervals) and diagnostics (ESS, $\hat{R}$, ROM error)
+\end{algorithmic}
+\end{algorithm}
+
+\end{document}

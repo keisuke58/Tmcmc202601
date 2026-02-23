@@ -1,0 +1,3 @@
+font.family : Times New Roman
+mathtext.fontset : stix
+axes.unicode_minus : False

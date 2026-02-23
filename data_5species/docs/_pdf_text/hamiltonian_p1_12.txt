@@ -1,0 +1,1001 @@
+
+
+===== PAGE 1 =====
+Continuum Mech. Thermodyn. (2021) 33:1931–1956
+https://doi.org/10.1007/s00161-021-01017-z
+ORIGINAL ARTICLE
+Philipp Junker · Daniel Balzani
+An extended Hamilton principle as unifying theory for
+coupled problems and dissipative microstructure evolution
+Received: 9 September 2020 / Accepted: 23 April 2021 / Published online: 7 June 2021
+© The Author(s) 2021
+Abstract An established strategy for material modeling is provided by energy-based principles such that
+evolution equations in terms of ordinary differential equations can be derived. However, there exist a variety
+of material models that also need to take into account non-local effects to capture microstructure evolution. In
+this case, the evolution of microstructure is described by a partial differential equation. In this contribution,
+we present how Hamilton’s principle provides a physically sound strategy for the derivation of transient
+ﬁeld equations for all state variables. Therefore, we begin with a demonstration how Hamilton’s principle
+generalizes the principle of stationary action for rigid bodies. Furthermore, we show that the basic idea behind
+Hamilton’s principle is not restricted to isothermal mechanical processes. In contrast, we propose an extended
+Hamilton principle which is applicable to coupled problems and dissipative microstructure evolution. As
+example, we demonstrate how the ﬁeld equations for all state variables for thermo-mechanically coupled
+problems, i.e., displacements, temperature, and internal variables, result from the stationarity of the extended
+Hamilton functional. The relation to other principles, as the principle of virtual work and Onsager’s principle,
+is given. Finally, exemplary material models demonstrate how to use the extended Hamilton principle for
+thermo-mechanically coupled elastic, gradient-enhanced, rate-dependent, and rate-independent materials.
+Keywords Coupled processes · Multi-physics · V ariational modeling· Local and non-local effects
+1 Introduction
+Physical bodies are described by a varying number of state variables. For instance, two state variables are
+necessary in a thermo-mechanical sense: displacements u and temperature θ. Other problems could be chemo-
+mechanical ones with the displacements and the concentration of substances, electro-mechanical ones with the
+displacements and the electric ﬁeld, or combinations of the latter. Particularly for solids, these state variables,
+however, do not carry enough information to reﬂect the total state. The important inﬂuence of microstructure
+and its time-dependent conﬁguration is not accounted for, i.e., for thermo-mechanically coupled problems, by
+the primary state variables u and θ. To overcome this deﬁciency, additional variables for the “inner state” were
+introduced between 1820 and 1850 by Carnot, Joule, and Clausius [ 9,12,28]. More details on the history are
+g i v e ni n[27]. These variables are nowadays referred to as internal variables which might be denoted, arbitrarily,
+Communicated by Marcus Aßmus, Victor A. Eremeyev and Andreas Öchsner.
+P . Junker
+Leibniz University Hannover, Institute of Continuum Mechanics, Hannover, Germany
+D. Balzani ( B)
+Chair of Continuum Mechanics, Ruhr University Bochum, Bochum, Germany
+E-mail: daniel.balzani@rub.de
+
+===== PAGE 2 =====
+1932 P . Junker, D. Balzani
+by the vector α. Then, the set {u,θ, α} completely describes the physical state of thermo-mechanically cou-
+pled problems and dissipative microstructure evolution. Appropriate choices for α mimic the experimentally
+observed material conﬁguration. However, a sophisticated challenge of modern mechanics is the develop-
+ment of mathematical equations that describe how the microstructural state, given in terms of α,e v o l v e s .
+Consequently, these equations are referred to as evolution equations and form the material model. Herein, a
+material-speciﬁc choice ofα deﬁnes answers to questions as is it a plastic strain, a volume fraction, a hardening
+or damage variable, or others.
+Along with the choice which set of internal variables shall be used in the material model, the identiﬁcation
+of constraints from experimentally observed material behavior is a crucial step during the derivation of a
+related mathematical description of the material behavior. Then, the consideration of the constraints in terms
+of mathematical formulas often turns out to be a non-trivial issue. It is thus convenient to derive material
+models from a potential which might comprise several beneﬁts: ensurance of thermodynamic consistency
+and simpliﬁed consideration of constraints by using appropriate Lagrange parameters. One potential-based
+principle of material modeling is the principle of maximum dissipation. Here, the dissipation, being a function
+of the thermodynamic driving forces p, is maximized to derive the evolution equations. The assumption
+that (microstructural) processes maximize the dissipation is physically sound and, consequently, material
+models that are derived by using this approach agree to the fundamental laws of physics. A similar potential-
+based principle is given by the so-called principle of the minimum of the dissipation potential. In contrast
+to the principle of maximum dissipation, the potential is here a function of the thermodynamic ﬂux ˙α such
+that minimizing the dissipation potential directly results in the evolution equations. A subsequent Legendre
+transformation of the associated dissipation function allows to identify the related yield function /Phi1if rate-
+independent processes are modeled.
+It is obvious that a model for a speciﬁc material should be able to describe the related processes with
+sufﬁcient accuracy and, of course, must not contradict fundamental physical observations and their related
+laws. These requirements still provide a huge variety to construct a speciﬁc material model. For instance, the
+relation
+˙α ∝ p (1)
+is often used for rate-dependent processes. This proportionality between the thermodynamic driving force p,
+which can be derived from the free energy density /Psi1by
+p := − ∂/Psi1
+∂α , (2)
+and the thermodynamic ﬂux ˙α routes back to Onsager and is consequently known as Onsager’s principle. In
+case of rate-independent processes, materials are modeled by deﬁning a suitable yield function /Phi1,a n dt h e
+evolution of the internal variable is assumed to be obtained from a thermodynamic extremal principle, e.g.,
+principle of maximum dissipation or principle of the minimum of the dissipation potential, yielding
+˙α ∝ ∂/Phi1
+∂p (3)
+This procedure has proven to be beneﬁcial when quasi-static processes evolve. Whereas for appropriate choices
+for /Phi1and using Onsager’s principle, it can be shown that such material models are thermodynamically sound
+by construction, the veriﬁcation of the latter is usually a part of the derivation of a material model if other
+modeling techniques are employed. Here, the Coleman–Noll procedure is used for the identiﬁcation of the
+driving forces and thermodynamic consistency is proved by checking the dissipation inequality
+p · ˙α ≥ 0 . (4)
+However, a drawback of these potential-based approaches is that they are not suitable for the derivation of ﬁeld
+equations for the internal variable. To be more precise, the inclusion of gradient terms is not possible since the
+principle of maximum dissipation and the principle of the minimum of the dissipation potential are both deﬁned
+locally for a material point. A solution to this drawback is given by Hamilton’s principle: it is formulated as
+variational problem for the entire physical body. Thus, ﬁeld equations, i.e., partial differential equations in
+time and space, can be derived from related stationarity conditions. Hamilton’s principle is strongly related to
+the principle of stationary action and comprises the principle of virtual work and the principle of the minimum
+of the dissipation potential, which all turn out to be special cases of Hamilton’s principle.
+
+===== PAGE 3 =====
+An extended Hamilton principle as unifying theory 1933
+In this contribution, we aim at highlighting the relation of Hamilton’s principle to the fundamental laws
+of thermodynamics and other extremal principles of continuum mechanics. We begin with a short overview
+on the history of material modeling and give a brief introduction to thermodynamics. Later, we recall the
+principle of stationary action and demonstrate its relation to the 1
+st law of thermodynamics. This serves as
+basis to present how a generalization of the principle of stationary action, which is originally restricted to rigid
+particles, can be used to describe non-conservative deformable solids. Particularly, we show that an extended
+Hamilton principle thus might be used for the derivation of material models including ﬁeld equations for all
+state variables in thermo-mechanically coupled problems given by {u,θ, α}. Finally, we show basic examples
+of thermo-mechanically coupled material models based on the extended Hamilton principle.
+2 Brief outline of the history of material modeling
+Material modeling comprises the usage of internal variables and strategies to derive governing equations for
+describing their evolution. A prominent modeling strategy is the application of variational methods which were
+invented far earlier than the concept of internal variables, see [27]. The idea of some quantity that is maximized
+or minimized by physical processes roots back to Aristotle or even before, cf. [ 5]. It is strongly related to the
+principle of stationary action which was embedded into a rigorous mathematical concept in the late 1700s by
+Leibniz, Euler, Maupertuis, Lagrange, and others, see [ 50]. The invention of variational calculus allowed to
+solve the problem of brachistochrone as well as light refraction, the motion of a conservative oscillator, and
+many more. A related approach is the well-known principle of Castigliano and Menabrea [ 11,40]. A historical
+review is presented in [ 8]. Hamilton generalized the principle of stationary action in [ 25,26]. More details
+on Hamilton’s principle are given by Bedford [ 4] and Bailey [ 2] who presents a clear distinction of different
+energy-based extremal principles.
+The usage of internal variables in current sense routes back to the concept of “variables of inner state”
+as pioneered by Carnot [ 9], Joule [ 28], and Clausius [ 12]. Afterwards, the concept was put in a sound ther-
+modynamic framework by Helmholtz [ 56], Thomson [ 54], Maxwell [ 39], Gibbs [ 20], and Duhem [ 17]( s e e
+[27]a n d[ 38] for a detailed historical presentation). In 1931, Onsager used the thermodynamic approach of
+thermodynamic ﬂuxes ˙α and thermodynamic forces p. Starting from the (reduced) Clausius–Duhem inequality
+p · ˙α ≥ 0 , (5)
+he postulated a proportionality which served as fundamental ansatz for material modeling since it fulﬁlls
+thermodynamic consistency a priori [ 46,47]. Roughly at the same time, the concept of thermodynamic ﬂuxes
+and forces was conveyed to continuum mechanics by Bridgman [7] and Eckart [18]. A time-dependent evolution
+was investigated in the general work by Ziegler [ 57]. The thermodynamics of irreversible processes was put
+in the 1960s into a more rigorous mathematical framework by Truesdell [ 55] and Coleman and Noll [ 13–15]
+who established so-called rational thermodynamics. A further elaboration by Rice [
+51] and Lubliner [ 33]
+founded in the 1970s the concept of internal variables in its current form. The concept of maximum dissipation
+as fundamental strategy for the derivation of evolution equations was given by Lubliner in 1984 [ 34]a n d
+Simo in 1988 [ 52]. A concept for complex microstructures was proposed by Ortiz and Repetto in their work
+on non-convex energy minimization [ 48] which built upon the mathematical basis of Ball and James [ 3].
+An alternative for the principle of maximum dissipation was introduced by the principle of the minimum
+of the dissipation potential, published in various forms, e.g., by Martin, Maier, Halphen, Maugin and Hackl
+[21,24,35–37]. A comparison between the two approaches was given in [ 22]. Strategies to couple the local
+material behavior to non-local ﬁelds can be given by the introduction of penalty terms, see, e.g., [ 16], or by
+postulating evolution equations that are added as constraints to the functional by using Lagrange parameters,
+see, e.g., the works by Hackl and Fischer [19,23]. It is also worth mentioning that instead of a time-continuous
+presentation, time-incremental variational methods for material modeling have been established. Examples are
+given in a more numerical setting by Simo [ 53]. A more analytical setting is discussed by Mielke for the case
+of ﬁnite elasto-plasticity in [ 43] based on dissipation distances and by Miehe who generalized this approach
+to gradient-extended standard dissipative materials [ 42]. More details are also provided in the textbook by
+Mielke in 2015 [ 44].
+
+===== PAGE 4 =====
+1934 P . Junker, D. Balzani
+3 Thermodynamic basis
+In this section, we recapitulate shortly the fundamentals of thermodynamics to deﬁne our notation and set the
+basis for the description of the generalization of Hamilton’s principle. Here, we restrict ourselves to thermo-
+mechanically coupled processes.
+3.1 The ﬁrst law of thermodynamics
+The ﬁrst law of thermodynamics postulates the balance of energy which states that the rate of the total energy
+of the body equals the power due to mechanical and thermal loads. This can be recast in the equation
+˙E + ˙K = Pmech + Ptherm (6)
+where the internal energy is given by E and the kinetic energy by K; the mechanical power is given by Pmech
+and the thermal power by Ptherm, cf. [1]. The same axiom is given, equivalently, after integrating (6) over time
+by
+E + K = W + Q + cint (7)
+with the mechanical work W, the thermal work Q, and some integration constant cint. The internal energy
+of the full body E consists of the total free energy
+∫
+ω /Psi1dv and the heat
+∫
+ω hin dv, i.e., energy contributions
+which are neither related to external work nor mass transport. The heat is thus the amount of energy stored
+in the thermal movement of the atoms and measured by h
+in = ρθ¯s with the absolute temperature θ and the
+mass-speciﬁc entropy ¯s = s/ρ. The entropy can accordingly be interpreted as temperature-speciﬁc energy
+which, according to the 2nd law of thermodynamics, indicates the part of the internal energy that is not directly
+accessible by mechanical processes. The internal energy is then given by
+E =
+∫
+ω
+ρ ¯/Psi1dv +
+∫
+ω
+ρθ¯s dv =
+∫
+/Omega1
+ρ ¯/Psi1J dV +
+∫
+/Omega1
+ρθ¯sJ dV. (8)
+Here, ¯/Psi1denotes the mass-speciﬁc free energy density and ρ the mass density. The material domain in the
+current conﬁguration is termed as ω, whereas the material domain in the reference conﬁguration is indicated
+by /Omega1. The transformation of the volume element in the current conﬁguration to its equivalence in the reference
+conﬁguration is performed by d v = J dV with J := det F and the deformation gradient F := I + ∂u/∂X
+with the identity tensor of second order I,s e e[1]. The spatial coordinate in the current conﬁguration is denoted
+as x and in the reference conﬁguration as x(t = 0) = x(0) =: X. The free energy can be expressed by
+∫
+ω
+/Psi1dv = E −
+∫
+ω
+θs dv, (9)
+while the kinetic energy is given by
+K =
+∫
+ω
+1
+2ρ||˙u||2 dv (10)
+with the velocity ˙u. External forces can be divided into surface and body forces, indicated by the traction
+vector t⋆ at the boundary of the body ∂ω and the mass-speciﬁc body force ¯b
+⋆
+. Then, the mechanical work W
+is given by
+W =
+∫
+∂ω
+t⋆ · u da +
+∫
+ω
+ρ ¯b
+⋆
+· u dv, (11)
+whereas the mechanical power reads
+Pmech =
+∫
+∂ω
+t⋆ · ˙u da +
+∫
+ω
+ρ ¯b
+⋆
+· ˙u dv =
+∫
+ω
+σ : D dv +
+∫
+ω
+ρ D
+Dt ||˙u||2 dv, (12)
+see [ 1]. Here, σ denotes the Cauchy stress; the stretch rate tensor D := (L + LT )/2 is the symmetric part
+of the spatial velocity gradient L := ∂v/∂x. It is worth mentioning that we use pure Neumann boundary
+
+===== PAGE 5 =====
+An extended Hamilton principle as unifying theory 1935
+conditions, i.e., ∂ω = /Gamma1σ and /Gamma1u =∅ where /Gamma1σ denotes the boundary with prescribed tractions and /Gamma1u
+denotes the boundary with prescribed displacements. However, the complete derivation which follows holds
+true when also Dirichlet boundary conditions are used. We skip the straightforward inclusion of Dirichlet
+boundary conditions here for a more convenient presentation. The material time derivative is deﬁned as
+D
+Dt := ∂
+∂t + v · ∂
+∂x . (13)
+Thermal power is transferred into the system by the heat ﬂux vector q and generated within the system by the
+external heat source ρ¯h. Let us deﬁne that the rate of the total energy of the body is increased when the heat
+ﬂux vector is pointing into the body. Then, the thermal power is given by
+Ptherm =−
+∫
+∂ω
+q · n da +
+∫
+ω
+ρ ¯h dv =−
+∫
+ω
+∇x · q dv +
+∫
+ω
+ρ ¯h dv
+=−
+∫
+/Omega1
+∇X · q(0) dV +
+∫
+/Omega1
+ρ(0) ¯h dV (14)
+where∇x·• ≡ div•indicates the divergence in the current conﬁguration. The superscript•(0) refers to quantities
+evaluated in the reference conﬁguration and ρ(0) = J ρ. The divergence in the reference conﬁguration is
+indicated by ∇X ·•≡ DIV•. Thus, the amount of thermal exchange of the body with its surrounding Q is
+given by time integration of Ptherm which yields
+Q =−
+∫
+/Omega1
+∫
+∇X · q(0) dt dV +
+∫
+/Omega1
+∫
+ρ(0) ¯h dt dV . (15)
+Inserting the deﬁnitions for the internal energy E, the kinetic energy K, for the mechanical power Pmech and
+the thermal power Ptherm into the balance of energy ( 6), we obtain the local form in the current conﬁguration
+ρ ˙¯/Psi1+ ρ ˙(θs) = σ : D −∇ x · q + ρ ¯h (16)
+and in the reference conﬁguration
+ρ(0) ˙¯/Psi1+ ρ(0) ˙(θs) = P : ˙F −∇ X · q(0) + ρ(0) ¯h , (17)
+see [1], which have to hold for arbitrary processes. Here, the 1 st Piola–Kirchhoff stress tensor has been used
+which is related to the Cauchy stress tensor by P = σ · cof F with the cofactor tensor cof F := J F− T
+which transforms vectorial area elements from the reference conﬁguration, termed as d a(0), to the current
+conﬁguration, termed as da,v i ada = cof F · da(0). Analogously, the heat ﬂux vectors in reference and current
+conﬁguration are related by q(0) = q · cof F. It is worth mentioning that ( 16)a n d(17) give the energy balance
+for thermo-mechanically coupled problems. In case of other coupled problems, i.e., for chemical or electrical
+coupling, the energy balance has to be modiﬁed accordingly. For instance, the formulation of the free energy
+and the interaction to the surrounding in terms of work or power have to be adapted.
+For rigid particles in the isothermal case, the notation
+U + K = W (18)
+is usually introduced. Here, U denotes the potential energy, which is associated with the free energy of
+continuous deformable solids, and K denotes the kinetic energy. The mechanical work is given by W =
+W
+in + W ex with the contributions W in and W ex due to internal and external forces, respectively.
+3.2 The second law of thermodynamics
+The second law of thermodynamics accounts for the observation that the ﬂow direction of heat is not universal:
+two bodies of different temperatures will compensate their thermal difference by lowering the temperature
+of the body with initially higher temperature to increase the temperature of the body with initially lower
+temperature. This process is irreversible since a “segregation” of temperature does not take place.
+
+===== PAGE 6 =====
+1936 P . Junker, D. Balzani
+The unidirectional ﬂow of heat is recast in mathematical terms by the condition that the heat-related energy
+may only increase. This energy was identiﬁed to be the entropy such that Clausius’ theorem reads
+D
+Dt
+∫
+ω
+ρ ¯s dv ≥ 0 . (19)
+The entropy s may change in time due to entropy ﬂux qs, entropy source ρ ¯hs, and entropy production /Delta1s.
+It is worth mentioning that precisely the entropy production /Delta1s accounts for dissipative processes which are
+always path-dependent. Thus, the amount of entropy produced, termed as Ds, is not given by time integration
+of the production term /Delta1s, i.e.,
+Ds(t1) − Ds(t0) ̸=
+∫ t1
+t0
+/Delta1s dt . (20)
+The balance of entropy can be written as
+D
+Dt
+∫
+ω
+ρ ¯s dv =−
+∫
+∂ω
+qs · n da +
+∫
+ω
+ρ ¯hs dv +
+∫
+ω
+/Delta1s dv (21)
+where entropy ﬂux and entropy source are given by qs = q/θ and ¯hs = ¯h/θ, respectively, see, e.g., [1]. Then,
+(21) locally demands, in the current conﬁguration,
+ρ ˙¯s =− ∇ x ·
+( q
+θ
+)
++ ρ
+¯h
+θ + /Delta1s = 1
+θ2 q ·∇ xθ− 1
+θ∇x · q + ρ
+¯h
+θ + /Delta1s (22)
+and
+ρ(0) ˙¯s =− ∇ X ·
+( q(0)
+θ
+)
++ ρ(0) ¯h
+θ + /Delta1s = 1
+θ2 q(0) ·∇ Xθ− 1
+θ∇X · q(0) + ρ(0) ¯h
+θ + /Delta1s (23)
+in the reference conﬁguration.
+The observation that mechanical energy can be transformed completely into heat but the reverse trans-
+formation of heat into mechanical energy can only be performed partly, gives rise to deﬁne the dissipated
+energy: it measures the amount of heat that cannot be transformed (back) into mechanical energy, thus into the
+free energy density. The process of transformation of mechanical energy into non-recoverable thermal energy,
+which is referred to as dissipation, can be described by restricting /Delta1
+s ≥ 0. An idealized, reversible process
+in which no dissipation takes place is identiﬁed by /Delta1s = 0; a more general case of irreversible processes is
+identiﬁed by /Delta1s > 0.
+Making use of /Delta1s ≥ 0, we reformulate ( 22) as follows:
+ρ ˙¯s +∇ x · qs − ρ ¯hs = /Delta1s ≥ 0
+⇒ ρ ˙¯s +∇ x · qs − ρ ¯hs ≥ 0
+⇒ ρ ˙¯s ≥− ∇ x · qs + ρ ¯hs (24)
+where (24) is the well-known Clausius–Duhem inequality [ 1].
+Combination of the balance of entropy according to ( 22)a n d( 23), respectively, with the energy balance
+in current or reference conﬁguration in ( 16)a n d( 17) gives rise to the modiﬁed form of the second law of
+thermodynamics in the current conﬁguration as
+θ/Delta1s = σ : D − ρ ˙¯/Psi1− ρ ˙θ¯s − 1
+θq ·∇ xθ≥ 0 (25)
+and in the reference conﬁguration as
+θ/Delta1s = P : ˙F − ρ(0) ˙¯/Psi1− ρ(0) ˙θ¯s − 1
+θq(0) ·∇ Xθ≥ 0 , (26)
+respectively. Application of the Coleman–Noll procedure, which is equivalent to the standard argument of
+dissipative media, results in the constitutive equations for the stresses
+P = 2ρ(0) F · ∂¯/Psi1
+∂C (27)
+
+===== PAGE 7 =====
+An extended Hamilton principle as unifying theory 1937
+and entropy
+¯s =− ∂¯/Psi1
+∂θ . (28)
+Furthermore, the relation
+− 1
+θq(0) ·∇ Xθ≥ 0 (29)
+needs to be satisﬁed which can be directly fulﬁlled by Fourier’s law
+q(0) =− λ∇Xθ (30)
+with the heat conductivityλ> 0. Finally, the second law of thermodynamics reduces to the so-called dissipation
+inequality
+θ/Delta1s = p · ˙α > 0 (31)
+which needs to be satisﬁed. Here, we used the deﬁnition of the thermodynamic driving force p as
+p := −ρ(0) ∂¯/Psi1
+∂α . (32)
+It is important to mention that θ/Delta1s is not deﬁned by p· ˙α in (31): the entropy production remains an additional
+quantity that needs to be modeled. Since the case of reversible processes in solids with /Delta1s = 0 was associated
+with a non-evolving microstructure, i.e., ˙α = 0, it is obvious that for the present case of irreversible processes
+the entropy production is related to the evolution of microstructure. Thus, in analogy to the assumption for
+mechanical power in ( 12), it is convenient to postulate
+/Delta1
+s = ps · ˙α (33)
+for the entropy production with the non-conservative forces ps that have to be speciﬁed for a speciﬁc material.
+Provided that ˙α is known, it is worth mentioning that the non-conservative forces ps have to be modeled rather
+than /Delta1s. Consequently, (31) transforms to the
+Evolution equation for the internal variables α
+ps = 1
+θ p . (34)
+This equation indicates that the thermodynamic driving force p and the non-conservative force ps are
+in balance. It serves as condition to describe the non-conservative evolution of microstructure provided
+that p
+s has been chosen appropriately to the observed material behavior. It is worth mentioning that
+this local investigation yields an ordinary differential equation (ODE) as evolution equation for α.
+Note that in case of other couplings than thermo-mechanics the relations have to be adapted accordingly.
+4 The principle of stationary action
+Here, the basics of the principle of stationary action for rigid particles is shortly recapitulated to set the basis
+for its generalization leading to Hamilton’s principle.
+
+===== PAGE 8 =====
+1938 P . Junker, D. Balzani
+4.1 The action functional for rigid particles
+Routing back to the pioneering works of Maupertuis and Euler, a variational approach to modeling the dynamic
+behavior of physical systems was established by the axiom that the momentum integrated along the path a
+rigid particle follows tends to be stationary. This can be recast in formulas as
+A :=
+∫ u1
+u0
+l · du → statu (35)
+with the momentum vector
+l = m ˙u (36)
+for a rigid particle with mass m and velocity ˙u = du/dt. Here, the quantity A is referred to as action.
+Accounting for the time dependence of the spatial coordinate, i.e., u = u(t) such that d u = ˙u dt, the action
+can be reformulated as
+A =
+∫ t1
+t0
+m||˙u||2 dt . (37)
+Making use of the kinetic energy
+K = 1
+2 m||˙u||2 , (38)
+it can be concluded that the action turns into
+A =
+∫
+τ
+(K + K) dt (39)
+with the arbitrary time interval τ= t1 − t0.
+4.2 The principle of stationary action for conservative processes
+The action can be brought to a form that is much more familiar in the context of modern mechanics. To this
+end, energy conservation as ∫
+τ
+U dt +
+∫
+τ
+K dt = 0( 4 0 )
+is used to express “one” kinetic energy in A =
+∫
+τ(K + K) dt in (39)b y
+∫
+τ K dt =−
+∫
+τ U dt. Thus, the action
+transforms to
+A =
+∫
+τ
+(K − U) dt . (41)
+In contrast to the kinetic energy, the potential energy depends on the placement of the rigid particle given by
+the deformation u. The velocity is, per se, not an additional quantity but can be computed from u such that the
+principle of stationary action is speciﬁed to
+A =
+∫
+τ
+L dt → statu (42)
+with the Lagrange function L := K − U . The necessary condition for A being stationary is
+δA =
+∫
+τ
+[ ∂L
+∂˙u · δ˙u + ∂L
+∂u · δu
+]
+dt = 0 ∀δu . (43)
+Application of integration by parts and postulating δu|t0 = δu|t1 = 0 yields the so-called Lagrange equations
+of 2nd kind, reading
+d
+dt
+∂L
+∂˙u − ∂L
+∂u = 0 , (44)
+which provides an equivalent formulation of Newton’s law
+f cons = m ¨u (45)
+with the conservative forces f cons.
+
+===== PAGE 9 =====
+An extended Hamilton principle as unifying theory 1939
+4.3 The principle of stationary action for non-conservative processes
+In many practical problems, the restriction to conservative particles is an inadmissible simpliﬁcation of the
+physical reality. Therefore, non-conservative effects should also be taken into account in the principle of
+stationary action. The necessary manipulation, however, is small: instead of using energy conservation, the
+energy theorem
+U + K = W
+in + W ex (46)
+is used with the work due to non-conservative internal and external forces, denoted by W in and W ex, respec-
+tively. The work due to non-conservative internal forces is given byW in =− f in · u since the non-conservative
+internal force f in points in opposite direction to the displacements u. The work due to non-conservative
+external forces f ex is given by W ex = f ex · u. Consequently, the action functional transforms to
+A =
+∫
+τ
+(
+K − U + W in + W ex)
+dt =
+∫
+τ
+(
+L + W in + W ex)
+dt → statu . (47)
+The variation yields
+δA =
+∫
+τ
+[ ∂L
+∂˙u · δ˙u + ∂L
+∂u · δu + ∂W in
+∂u · δu + ∂W ex
+∂u · δu
+]
+dt = 0 ∀δu (48)
+such that the Euler equation constitutes after integration by parts as
+d
+dt
+∂L
+∂˙u − ∂L
+∂u = ∂W in
+∂u + ∂W ex
+∂u (49)
+when we postulate vanishing variations at the arbitrarily chosen time pointst0 and t1 which deﬁned the interval,
+i.e., δu(t0) = δu(t1) = 0. The relation ( 49) provides an equivalent formulation of Newton’s law
+f = m ¨u (50)
+with the (conservative and non-conservative) resultant forces f .
+5 Hamilton’s principle
+5.1 The action functional for continuous deformable bodies
+In analogy to rigid particles, the action functional can be assigned for each material point in continuous
+deformable bodies as
+d
+A :=
+∫ u1
+u0
+dm(0) ˙u · du =
+∫ u1
+u0
+ρ(0) ˙u · du dV (51)
+such that the action functional of the total body is given by
+A =
+∫
+A
+dA =
+∫
+/Omega1
+∫ u1
+u0
+ρ(0) ˙u · du dV . (52)
+In analogy to the treatment of the action for rigid particles, we transform the increment by d u = ˙udt.T h i s
+yields
+A =
+∫
+/Omega1
+∫
+τ
+ρ(0) ||˙u||2 dt dV =
+∫
+τ
+∫
+/Omega1
+ρ(0) ||˙u||2 dV dt =
+∫
+τ
+(K + K ) dt . (53)
+
+===== PAGE 10 =====
+1940 P . Junker, D. Balzani
+5.2 The classical Hamilton functional for conservative continua
+Classically, Hamilton’s functional equals the action functional A when the reduced energy theorem K =
+− E + W + cint is inserted into the second term in
+∫
+τ(K + K) dt in (53), yielding
+Hclassical :=
+∫
+τ
+(K − E + W + cint) dt . (54)
+The integration constant cint does not affect the following results and can be set arbitrarily to zero. The reduced
+energy theorem neglects thermal contributions by dropping Q such that it is restricted to isothermal processes.
+Consequently, the free energy in (8) reduces toE =
+∫
+/Omega1ρ(0) ¯/Psi1dV . Making use of the formula for the mechanical
+work W in (11), we obtain for Hamilton’s functional in its classical sense
+Hclassical =
+∫
+τ
+(
+K −
+∫
+/Omega1
+ρ(0) ¯/Psi1dV +
+∫
+∂/Omega1
+t⋆( 0) · u d A +
+∫
+/Omega1
+b⋆( 0) · u dV
+)
+dt . (55)
+We introduce the total potential to be deﬁned as
+G :=
+∫
+/Omega1
+ρ(0) ¯/Psi1dV −
+∫
+∂/Omega1
+t⋆( 0) · u d A −
+∫
+/Omega1
+b⋆( 0) · u dV . (56)
+The ﬁrst integral
+∫
+/Omega1ρ(0) ¯/Psi1dV =: /Pi1in is the internal potential which depends on the current physical state
+expressed in terms of distortions, (constant) temperature and the (frozen) microstructure. The last two integrals
+−
+∫
+∂/Omega1t⋆( 0) · u d A −
+∫
+/Omega1b⋆( 0) · u dV =: /Pi1ex represent the potential due to external forces which depends on
+the current boundary conditions. Consequently, by inserting ( 56)i n t o(55), we obtain
+Hclassical =
+∫
+τ
+(
+K − G
+)
+dt . (57)
+Assuming stationarity for Hclassical with respect to the only remaining variable, which are the displacements
+u, Hamilton’s functional corresponds to the representation of the action in ( 41) for conservative continuous
+deformable bodies. Note the similarity to the principle of the minimum of the total potential energy: however,
+whereas the Hamilton principle only demands stationarity of ( 57), the principle of minimum potential energy
+requires minimizers. In practice, this leads to the same conditions as only the ﬁrst variation is analyzed for
+both cases. Making use of the potentials /Pi1
+in and /Pi1ex,( 57) can be represented by
+Hclassical =
+∫
+τ
+(
+K − /Pi1in − /Pi1ex
+)
+dt . (58)
+5.3 The classical Hamilton principle
+Comparably to the axiom of stationary action for rigid particles, Hamilton’s principle in its classical sense
+reads
+Hclassical → statu ⇔ δuHclassical = 0 ∀δu . (59)
+Computation of the Gâteaux derivative results in
+∫
+τ
+( ∫
+/Omega1
+ρ(0) ˙u · δ˙u dV −
+∫
+/Omega1
+ρ(0) ∂¯/Psi1
+∂C : δC dV +
+∫
+∂/Omega1
+t⋆( 0) · δu d A −
+∫
+/Omega1
+b⋆( 0) · δu dV
+)
+dt = 0( 6 0 )
+and after integration by parts
+−
+∫
+/Omega1
+ρ(0) ¨u · δu dV +
+∫
+/Omega1
+(
+∇X · PT + b⋆( 0)
+)
+· δu dV +
+∫
+∂/Omega1
+(
+n(0) · PT − t⋆( 0)
+)
+· δu d A = 0 (61)
+which yields the balance of linear momentum and Cauchy’s theorem as boundary condition. Consequently,
+the classical Hamilton’s principle can be interpreted as a generalization of the principle of stationary action.
+Conversely, the principle of stationary action constitutes a special case of the classical Hamilton principle
+when deformations are neglected (rigid bodies).
+
+===== PAGE 11 =====
+An extended Hamilton principle as unifying theory 1941
+5.4 The extended Hamilton functional for non-conservative continua
+The restriction to isothermal processes of Hamilton’s functional in its classical form according to ( 57)a l s o
+prevents to account directly for dissipation due to microstructure evolution. Consequently, we propose to
+replace one K by the entire energy, thus K =− E + W + Q + cint. This yields
+H =
+∫
+τ
+(
+K − E + W + Q + cint
+)
+dt (62)
+where consideration of the thermal work Q indicates the extension of the classical Hamilton functional. For
+other coupled problems, the replacement of one kinetic energy term has to be adapted according to the respective
+form of energy conservation, i.e., taking into account Poynting’s theorem which includes Joule heating [ 49],
+for instance. Inserting the formulas for internal energy
+E, mechanical work W and thermal work Q introduced
+in Eqs. ( 8), (11), and (15), and setting cint = 0, we obtain for Hamilton’s functional
+H =
+∫
+τ
+(
+K −
+∫
+/Omega1
+ρ(0) ¯/Psi1dV −
+∫
+/Omega1
+ρ(0) θ¯s dV +
+∫
+∂/Omega1
+t⋆( 0) · u d A
++
+∫
+/Omega1
+b⋆( 0) · u dV −
+∫
+∂/Omega1
+∫
+q(0) · n(0) dt d A +
+∫
+/Omega1
+∫
+ρ(0) ¯h dt dV
+)
+dt . (63)
+By inserting (56)i n t o(63), we receive for Hamilton’s functional
+H =
+∫
+τ
+(
+K − G −
+∫
+/Omega1
+ρ(0) θ¯s dV −
+∫
+∂/Omega1
+∫
+q(0) · n(0) dt d A +
+∫
+/Omega1
+∫
+ρ(0) ¯h dt dV
+)
+dt . (64)
+In contrast to the classical form of Hamilton’s functional according to ( 57), the extended form in ( 64)a l s o
+accounts for non-isothermal contributions which covers both conservative and non-conservative processes that
+are accompanied by changes of the state variable θ. This extension, as we will show in the following, allows
+to derive ﬁeld equations for all physical state variables including temperature and internal variables.
+For the following derivations, it is beneﬁcial to reformulate
+H. To this end, let us make use of the entropy
+equivalence according to ( 23)a s
+ρ(0) θ˙¯s = 1
+θq(0) ·∇ Xθ−∇ X · q(0) + ρ(0) ¯h + θ/Delta1s . (65)
+Integration by parts yields
+∫
+ρ(0) θ˙¯s dt = ρ(0) θ¯s −
+∫
+ρ(0) ˙θ¯s dt (66)
+=
+∫ 1
+θq(0) ·∇ Xθ dt −
+∫
+∇X · q(0) dt +
+∫
+ρ(0) ¯h dt +
+∫
+θ/Delta1s dt
+⇔− ρ(0) θ¯s −
+∫
+∇X · q(0) dt +
+∫
+ρ(0) ¯h dt =−
+∫
+ρ(0) ˙θ¯s dt −
+∫ 1
+θq(0) ·∇ Xθ dt −
+∫
+θ/Delta1s dt
+when mass conservation ˙ρ(0) = 0 is considered. As already mentioned above, the antiderivative
+∫
+θ/Delta1s dt
+does not exist as rational mathematical formula: application of the fundamental theorem of calculus would
+suppress the path-dependence of the entropy production. Consequently, the antiderivative has to be modeled
+appropriately if necessary. Finally, inserting ( 66)i n t o(64) yields the
+Extended Hamilton functional
+H =
+∫
+τ
+(
+K − G −
+∫
+/Omega1
+∫
+ρ(0) ˙θ¯s dt dV −
+∫
+/Omega1
+∫ 1
+θq(0) ·∇ Xθ dt dV −
+∫
+/Omega1
+∫
+θ/Delta1s dt dV
+)
+dt (67)
+which is valid for thermo-mechanically coupled problems and dissipative microstructure evolution.
+It is worth mentioning that the presentation of Hamilton’s functional in ( 67) includes antiderivatives with
+respect to time, i.e.,
+∫
+•dt, which constitutes a generalization of Hamilton’s functional in the classical sense,
+where only isothermal processes have been accounted for. Consequently, the unspeciﬁc time integrals are not
+present in the classical form. However, they resemble methods using time-incremental variations, see, e.g.,
+[41,42,53].
+
+===== PAGE 12 =====
+1942 P . Junker, D. Balzani
+5.5 The extended Hamilton principle for non-conservative continua
+The extended Hamilton principle for non-conservative continua postulates that Hamilton’s functional in ( 67)
+tends to be stationary for the state variables. Usually, the stationarity conditions with respect to displacements
+and internal variables are investigated. However, we propose that the stationarity conditions with respect to
+all state variables shall be investigated. This, obviously, comprises the stationarity condition with respect to
+temperature. Then, the stationarity is recast in formulas as
+H → stat
+u,θ,α
+⇔ δH = δuH + δθH + δαH = 0 ∀δu,δ θ ,δα . (68)
+Since the variations of u, θ,a n dα are independent, the necessary conditions for stationarity constitute as
+⎧
+⎪⎨
+⎪⎩
+δuH = 0 ∀δu
+δθH = 0 ∀δθ
+δαH = 0 ∀δα
+. (69)
+This set of equations describes, in a uniﬁed way, the evolution of the thermomechanical state of solids, given
+in terms of {u,θ, α}. Let us evaluate the stationarity conditions by computing the Gâteaux derivatives with
+respect to u, θ,a n dα. They read
+⎧
+⎪⎪⎪
+⎪
+⎪⎪⎪
+⎪
+⎪⎪⎪
+⎨
+⎪⎪
+⎪⎪⎪
+⎪
+⎪⎪⎪
+⎪⎪⎩
+δ
+uH =
+∫
+τ
+(
+δuK − δuG
+)
+dt = 0 ∀δu ,
+δθH =
+∫
+τ
+(
+− δθG −
+∫
+/Omega1
+∫
+δθ(ρ(0) ˙θ¯s) dt dV
+−
+∫
+/Omega1
+∫
+δθ
+( 1
+θq(0) ·∇ Xθ
+)
+dt dV −
+∫
+/Omega1
+∫
+δθ
+(
+θ/Delta1s)
+dt dV
+)
+dt = 0 ∀δθ ,
+δαH =
+∫
+τ
+(
+− δαG −
+∫
+/Omega1
+∫
+δα
+(
+θ/Delta1s)
+dt dV
+)
+dt = 0 ∀δα .
+(70)
+We postpone the detailed evaluation of ( 70) to Sect. 6 and present directly the results, which are the
+Field equations for the thermo-mechanical state variables u,θ, α
+⎧
+⎪⎪⎨
+⎪⎪⎩
+∫
+/Omega1
+(
+∇X · PT + b⋆( 0)
+)
+· δu dV =
+∫
+/Omega1
+ρ(0) ¨u · δu dV
+∫
+∂/Omega1
+(
+n(0) · PT − t⋆( 0)
+)
+· δu d A = 0
+(71)
+⎧
+⎪⎪
+⎨
+⎪⎪⎩
+∫/Omega1
+(
+κ ˙θ+∇X · q(0) + 28)
+[
+∂/Psi1(0)
+∂α + θ ∂
+∂θ
+∂/Psi1(0)
+∂α
+]
+· ˙α − 2θ∂S
+∂θ : ˙C
+)
+δθdV = 0
+∫
+∂/Omega1
+n(0) · q(0) δθd A = 0
+(72)
+⎧
+⎪⎪⎪
+⎨
+⎪⎪
+⎪⎩
+∫
+/Omega1
+( ∂/Psi1(0)
+∂α −∇ X · ∂/Psi1(0)
+∂∇Xα + ∂/Delta1diss
+∂˙α
+)
+· δα dV = 0
+∫
+∂/Omega1
+n(0) · ∂/Psi1(0)
+∂∇Xα · δα d A = 0
+(73)
+It is worth mentioning that the balance of linear momentum in ( 71) is identical to the one which
+results from Hamilton’s principle in its classical form, which is equivalent to the stationarity of the
+total potential in the quasi-static case, i.e. ¨u ≈ 0. However, the stationarity of the extended Hamilton
+functional yields also the heat equation in ( 72). Here, two heat sources are present without any further
+assumptions: i) the heat production due to microstructure evolution; and ii) the thermo-elastic coupling
+term 2θ∂S
+∂θ : ˙C. Note that the classical form of the heat conduction equation results if the dependence
+on temperature of both, the thermodynamic driving force and the 2nd Piola Kirchhoff stress tensor

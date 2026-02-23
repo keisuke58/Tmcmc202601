@@ -1,0 +1,19 @@
+件名: HiWi契約更新のお願いと進捗報告（西岡）
+
+お疲れ様です。西岡です。
+
+現在のHiWi契約が2026年3月31日で満了となりますが、研究が順調に進展しており、次年度も継続して取り組ませていただきたく、契約の延長をお願いできますでしょうか。
+事務手続きに1〜1.5ヶ月ほどかかると伺っておりますので、早めにご連絡いたしました。
+
+【現在の進捗】
+5菌種バイオフィルムモデル（Nishioka Algorithm）の実装と予備的なパラメータ推定（Light Test）が完了しました。
+現在、生物学的制約を取り入れた4段階推定スキームにより、従来手法よりも安定した推定結果が得られています。
+今後は本計算を行い、実験データとの適合度をさらに向上させる予定です。
+
+【関連する成果・参考文献】
+本研究は、以下の最新の研究成果（TSM法およびバイオフィルムモデル）に基づいています。
+
+1. Heine, N., et al. (2025). Influence of species composition and cultivation condition on peri-implant biofilm dysbiosis in vitro. Frontiers in Oral Health, 6:1649419.
+2. Geisler, H., Erdogan, C., Nagel, J., and Junker, P. (2025). A new paradigm for the efficient inclusion of stochasticity in engineering simulations: Time-separated stochastic mechanics. Computational Mechanics, 75(1):211-235.
+
+お忙しいところ恐縮ですが、ご検討のほどよろしくお願いいたします。

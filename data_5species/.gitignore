@@ -1,0 +1,11 @@
+__pycache__/
+results/
+simulationdata/
+experiment_fig/
+*.log
+*.aux
+*.fdb_latexmk
+*.fls
+*.out
+*.toc
+*.xdv
