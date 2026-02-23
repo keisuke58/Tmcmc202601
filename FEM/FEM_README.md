@@ -1,387 +1,318 @@
-# FEM Spatial Extension of the Hamilton Biofilm Model
+# Biofilm FEM Pipeline — Reference Documentation
+
+**Updated**: 2026-02-21
+**Author**: Nishioka (Tmcmc202601 project)
+
+---
 
 ## Overview
 
-This directory extends the **5-species Hamilton biofilm model** — whose parameters
-are estimated by TMCMC in `Tmcmc202601/data_5species/` — into spatial
-reaction-diffusion simulations using the **finite-element / finite-difference method**
-in 1D, 2D, and 3D.
-
-The core idea is:
+This directory extends the **5-species Hamilton biofilm model** (TMCMC-estimated,
+`Tmcmc202601/data_5species/`) into a full **3D FEM stress analysis pipeline**.
 
 ```
-TMCMC estimation (0D)      → θ_MAP (20 parameters)
-                                      ↓
-FEM spatial extension      → φᵢ(x, [y, z], t)  for i = 1…5 species
-```
-
----
-
-## Mathematical Background
-
-### 1. The Hamilton Biofilm Model (0D)
-
-State vector **g** ∈ ℝ¹²:
-
-| Index | Symbol | Meaning |
-|-------|--------|---------|
-| 0–4   | φᵢ     | Volume fraction of species i (S.oralis, A.naeslundii, Veillonella, F.nucleatum, P.gingivalis) |
-| 5     | φ₀     | Void (water) fraction; φ₀ = 1 − Σφᵢ |
-| 6–10  | ψᵢ     | Nutrient concentration for species i |
-| 11    | γ      | Substrate / oxygen level |
-
-**Volume constraint:** Σᵢφᵢ + φ₀ = 1 at all times.
-
-Parameters **θ** ∈ ℝ²⁰:
-
-| Block | Params | Meaning |
-|-------|--------|---------|
-| M1    | a11, a12, a22, b1, b2 | S.oralis + A.naeslundii self/cross interaction |
-| M2    | a33, a34, a44, b3, b4 | Veillonella + F.nucleatum |
-| M3    | a13, a14, a23, a24    | Commensal cross-feeding |
-| M4    | a55, b5               | P.gingivalis self |
-| M5    | a15, a25, a35, a45    | P.gingivalis cross (received from commensals) |
-
-The ODE system Q(**g**_new, **g**_old; θ) = 0 is solved at each time step by
-Newton iteration with line-search backtracking (Numba JIT: `_newton_step_jit`).
-
----
-
-### 2. Reaction-Diffusion PDE
-
-Each species' volume fraction satisfies:
-
-```
-∂φᵢ/∂t = Rᵢ(φ, ψ, γ; θ)  +  Dᵢ ∇²φᵢ
-```
-
-- **Rᵢ** = Hamilton reaction term (from the 0D model)
-- **Dᵢ** = effective diffusion coefficient
-- **∇²** = Laplacian in 1D / 2D / 3D
-
-Default diffusion coefficients (motility proxies, in model units):
-
-| Species | D_eff |
-|---------|-------|
-| S.oralis | 1×10⁻³ |
-| A.naeslundii | 1×10⁻³ |
-| Veillonella | 8×10⁻⁴ |
-| F.nucleatum | 5×10⁻⁴ |
-| P.gingivalis | 2×10⁻⁴ |
-
-Boundary conditions: **no-flux (Neumann)** on all boundaries.
-
----
-
-### 3. Operator Splitting (Lie Splitting)
-
-Each macro time step Δt_mac = dt_h × n_react_sub:
-
-```
-Step ①  Reaction  :  solve dg/dt = R(g; θ) at each node independently
-                      → n_react_sub Newton steps (Numba prange parallel)
-
-Step ②  Diffusion :  (I − Δt_mac · Dᵢ · L) φᵢ_new = φᵢ_old
-                      → backward Euler, one sparse linear solve per species
-                      → SuperLU factorization precomputed at init
-```
-
-The Lie splitting is first-order accurate in time; second-order Strang splitting
-can be added if higher accuracy is required.
-
----
-
-### 4. Spatial Discretisation
-
-#### 1D (P1 finite elements, uniform mesh)
-- Consistent mass matrix M + stiffness matrix K
-- Solve: (M + Δt·Dᵢ·K) φ_new = M φ_old
-
-#### 2D (finite differences on uniform Nx × Ny grid)
-- Node index: k = ix·Ny + iy  (row-major)
-- 2D Laplacian: **L₂D = kron(Lx, Iy) + kron(Ix, Ly)**
-- Neumann BC: ghost-node approach → diagonal modified at boundary rows
-
-#### 3D (finite differences on uniform Nx × Ny × Nz grid)
-- Node index: k = ix·(Ny·Nz) + iy·Nz + iz
-- 3D Laplacian: **L₃D = kron(kron(Lx,Iy),Iz) + kron(kron(Ix,Ly),Iz) + kron(kron(Ix,Iy),Lz)**
-- All six faces: Neumann
-
-The 1D Neumann Laplacian matrix (per-axis) using the ghost-node / half-stencil:
-
-```
-    [-1/h²   1/h²                        ]   ← wall
-    [ 1/h²  -2/h²   1/h²                 ]   ← interior
-    [         ⋱       ⋱     ⋱            ]
-    [                  1/h² -2/h²  1/h²  ]   ← interior
-    [                         1/h² -1/h² ]   ← wall
+TMCMC estimation (0-D)         →  θ_MAP  (20 parameters per condition)
+          ↓
+3D FEM reaction–diffusion       →  φᵢ(x,y,z)  species fields
+          ↓
+Dysbiotic Index (DI) field     →  DI(x,y,z) = 1 − H/log5
+          ↓
+DI → E(DI) mapping             →  E(x,y,z) = Emax(1−r)ⁿ + Emin·r
+          ↓
+Abaqus FEM stress analysis     →  S_Mises, U, RF  (substrate / surface)
 ```
 
 ---
 
-## File Structure
+## Directory Structure
 
 ```
-Tmcmc202601/FEM/
-├── fem_spatial_extension.py   1D simulation
-├── fem_visualize.py           1D visualisation (8 figures)
-├── fem_2d_extension.py        2D simulation
-├── fem_2d_visualize.py        2D visualisation (5 figures)
-├── fem_3d_extension.py        3D simulation
-├── fem_3d_visualize.py        3D visualisation (5 figures)
-├── fem_convergence.py         Mesh convergence analysis + MD report
-├── FEM_README.md              This file
+FEM/
+├── ── Source scripts ──────────────────────────────────────────────────────
+│   abaqus_biofilm_aniso_3d.py     C1: Abaqus transversely isotropic model
+│   abaqus_biofilm_cohesive_3d.py  B3: Abaqus 3D cohesive zone model
+│   abaqus_biofilm_cohesive.py     (legacy) 2D CZM base
+│   abaqus_biofilm_demo_3d.py      A: 3D isotropic stress model
+│   abaqus_biofilm_demo.py         A: 2D base model
+│   abaqus_biofilm_thread.py       Threaded Abaqus runner (legacy)
+│   compare_biofilm_abaqus.py      ODB stress extractor (abaqus python)
+│   aggregate_di_credible.py       B1: DI field credible interval
+│   fem_aniso_analysis.py          C1: ∇φ_Pg gradient / aniso direction
+│   run_material_sensitivity_sweep.py  A1+A2+A3 sweep runner
+│   run_czm3d_sweep.py             B3 runner
+│   run_aniso_comparison.py        C1 runner
+│   run_posterior_abaqus_ensemble.py   Posterior ensemble Abaqus
+│   run_posterior_pipeline.py      End-to-end pipeline
+│   export_for_abaqus.py           CSV export for Abaqus field import
+│   fem_*.py                       FEM computation (1D/2D/3D, Lie splitting)
+│   posterior_sensitivity*.py      Sensitivity / stress uncertainty
+│   plot_*.py                      Visualization helpers
+│   analyze_abaqus_profiles.py     Depth-profile analysis
+│   usdfld_biofilm.f               Fortran USDFLD (DI → E mapping)
 │
-├── _results/                  1D results
-│   ├── dh_baseline/           fig1–fig8.png + *.npy
-│   └── commensal_static/
+├── ── Output directories (prefix _) ───────────────────────────────────────
+│   _posterior_abaqus/      Posterior ensemble: 20 samples × 4 conditions
+│   _di_credible/           B1: DI credible interval fields (p05/p50/p95)
+│   _material_sweep/        A1+A2+A3: E_max/E_min/n sensitivity results
+│   _aniso/                 C1: ∇φ_Pg gradient fields + aniso_summary.json
+│   _aniso_sweep/           C1: Abaqus anisotropy sweep results
+│   _results/, _results_3d/ FEM species field results
+│   _posterior_plots/       Posterior ensemble figures
+│   _posterior_sensitivity/ Sensitivity analysis outputs
+│   _benchmarks/            FEM convergence / benchmark data
 │
-├── _results_2d/               2D results
-│   ├── dh_baseline/
-│   ├── commensal_static/
-│   ├── conv_N20/ conv_N30/ conv_N40/   convergence grids
-│   └── convergence/           conv_A–conv_E figures + convergence_report.md
+├── ── Archive ─────────────────────────────────────────────────────────────
+│   _job_archive/           Abaqus job files (.odb, .inp, etc.) archived
+│       aniso/              C1 anisotropy jobs
+│       biofilm_demo/       A: isotropic demo jobs
+│       di_credible/        B1: DI credible interval jobs
+│       material_sweep/     A: material sensitivity jobs
+│       old_field_csv/      Legacy field CSVs / PNGs
 │
-└── _results_3d/               3D results
-    ├── dh_baseline/
-    └── commensal_static/
+├── ── Reports ─────────────────────────────────────────────────────────────
+│   FEM_README.md           This file
+│   fem_report.pdf/.tex     Earlier isotropic FEM report
+│   abaqus_implementation_report.pdf/.tex  Abaqus scripting report
+│   docs/
+│       fem_pipeline.md     Extended pipeline documentation
+│       fem_pipeline.tex    LaTeX version for publication
+│       fem_pipeline.pdf    Compiled PDF
 ```
 
 ---
 
-## Usage
+## 4 Conditions
 
-### Prerequisites
+| Key | Label | Description |
+|-----|-------|-------------|
+| `dh_baseline` | dh-baseline | dh θ (a₃₅=21.4), original model |
+| `commensal_static` | Comm. Static | healthy θ, no HOBIC |
+| `commensal_hobic` | Comm. HOBIC | healthy θ + HOBIC perturbation |
+| `dysbiotic_static` | Dysb. Static | dysbiotic θ, no perturbation |
+
+---
+
+## Physics
+
+### Dysbiotic Index (DI)
+
+Shannon entropy-based measure of biofilm state:
+
+```
+H = -Σᵢ φᵢ/Φ · log(φᵢ/Φ)     (i = species present)
+DI = 1 - H / log(5)            (0 = commensal, 1 = dysbiotic)
+```
+
+### E(DI) Power-Law Mapping
+
+```
+r(x)     = clamp(DI(x) / s,  0, 1)        s = 0.025778 (global scale)
+E(DI)    = E_max · (1−r)^n + E_min · r    n = 2  (power-law exponent)
+E_max    = 10.0 GPa   (commensal stiffness)
+E_min    = 0.5  GPa   (dysbiotic stiffness)
+ν        = 0.30
+```
+
+### Biofilm material model (substrate vs. biofilm modes)
+
+- Substrate mode (`--mode substrate` in biofilm_conformal_tet.py)
+  - GPa-scale effective stiffness of the biofilm-covered dental surface.
+  - Material: linear elastic (engineering constants or isotropic), NLGEOM as needed.
+- Biofilm mode (`--mode biofilm` in biofilm_conformal_tet.py)
+  - Pa-scale EPS matrix (Billings 2015; Klempt 2024).
+  - Default: linear elastic + NLGEOM (qualitative for large strains).
+  - Optional: Neo-Hookean hyperelastic via `--neo-hookean`, using Abaqus built-in
+    `*Hyperelastic, Neo Hooke` with parameters derived from E(DI) and ν.
+
+---
+
+## Pipeline Steps
+
+### A. Material Sensitivity Sweep (A1 + A2 + A3)
+
+**Script**: `run_material_sensitivity_sweep.py`
+**Output**: `_material_sweep/results.csv`, `_material_sweep/figures/`
+
+#### A1 — E_max × E_min Grid
+4×4 grid: E_max ∈ {5, 10, 15, 20} GPa × E_min ∈ {0.1, 0.5, 1.0, 2.0} GPa
+Fixed: n=2, θ = dh_old (a₃₅=21.4)
+
+#### A2 — Power-Law Exponent Comparison
+n ∈ {1, 2, 3}
+Fixed: E_max=10 GPa, E_min=0.5 GPa, θ = dh_old
+
+#### A3 — θ Variant Comparison
+
+| Tag | Source | a₃₅ | a₄₅ |
+|-----|--------|-----|-----|
+| `mild_weight` | `_sweeps/K0.05_n4.0/theta_MAP.json` | **3.56** | 2.41 |
+| `dh_old` | `data_5species/_runs/.../theta_MAP.json` | 21.4 | 3.97 |
+| `nolambda` | `_sweeps/K0.05_n4.0_baseline/theta_MAP.json` | 20.9 | — |
+
+**57 total Abaqus jobs** (3 FEM runs cached + 57 stress solves, ~10 min)
+
+Key result: mild_weight θ (a₃₅=3.56) gives ~30% lower S_Mises at substrate
+vs dh_old (a₃₅=21.4), confirming Pg suppression reduces mechanical risk.
+
+---
+
+### B1. DI Field Credible Interval
+
+**Script**: `aggregate_di_credible.py`
+**Output**: `_di_credible/{cond}/`
+
+From 20 posterior samples per condition:
+- Computes nodal DI quantiles: p05 / p50 / p95 at each of 3375 nodes
+- Exports `p05_field.csv`, `p50_field.csv`, `p95_field.csv` for Abaqus
+- Runs Abaqus on p05/p50/p95 → stress credible bands
+- P.g center-of-mass depth profiles across samples
+
+| Condition | DI_mean (p50) | S_Mises substrate (MPa) |
+|-----------|--------------|------------------------|
+| dh-baseline | ~0.015 | ~0.84 |
+| Comm. Static | ~0.010 | ~0.86 |
+| Comm. HOBIC | ~0.010 | ~0.85 |
+| Dysb. Static | ~0.011 | ~0.86 |
+
+---
+
+### B3. 3D Cohesive Zone Model
+
+**Script**: `run_czm3d_sweep.py`
+**Abaqus script**: `abaqus_biofilm_cohesive_3d.py`
+**Output**: `_czm3d/czm_results.csv`, `_czm3d/figures/`
+
+Interface cohesive properties (DI-dependent):
+
+```
+t_max(DI) = t_max,0 · (1 − r)^n     t_max,0 = 1.0 MPa
+G_c(DI)   = G_c,0  · (1 − r)^n     G_c,0   = 10.0 J/m²
+```
+
+Mixed-mode damage: Benzeggagh-Kenane (BK) law
+Pull displacement: u_max = 5 mm, N_steps = 20
+
+---
+
+### C1. Transverse Isotropy (Anisotropy)
+
+**Scripts**: `fem_aniso_analysis.py` → `run_aniso_comparison.py`
+**Output**: `_aniso/`, `_aniso_sweep/`
+
+#### Step 1 — Gradient Field (`fem_aniso_analysis.py`)
+
+Loads `_di_credible/{cond}/phi_pg_stack.npy` (20 samples × 3375 nodes),
+takes median, reshapes to 15×15×15 grid, computes ∇φ_Pg via `np.gradient`.
+
+Dominant direction **e₁** = weighted mean of strongest gradients:
+
+| Condition | e₁ | angle from x-axis |
+|-----------|-----|------------------|
+| dh-baseline | [-0.972, +0.211, -0.105] | **13.6°** |
+| Comm. Static | [-0.956, +0.258, -0.142] | 17.1° |
+| Comm. HOBIC | [-0.959, +0.245, -0.145] | 16.5° |
+| Dysb. Static | [-0.952, +0.262, -0.160] | **17.9°** |
+
+All conditions: dominant gradient is nearly along −x (depth toward substrate),
+confirming P.g colonizes close to the tooth surface.
+
+#### Step 2 — Abaqus Sweep (`run_aniso_comparison.py`)
+
+Material model: **transversely isotropic**, stiff axis = e₁:
+
+```
+E₁(DI) = E(DI)             (stiff, along ∇φ_Pg)
+E₂ = E₃ = β · E₁           (transverse, β = aniso_ratio)
+ν₁₂ = ν₁₃ = ν₂₃ = 0.30
+G₁₂ = G₁₃ = E₁/(2(1+ν))
+G₂₃       = E₂/(2(1+ν))
+```
+
+Implemented via Abaqus `*ELASTIC, TYPE=ENGINEERING CONSTANTS`.
+
+Sweep: **β ∈ {1.0, 0.7, 0.5, 0.3}** × 4 conditions = **16 jobs**
+Loading: 1 MPa compressive pressure on top face, fixed bottom face.
+
+#### C1 Results (1 MPa compression)
+
+| Condition | β=1.0 sub | β=0.5 sub | Δ sub | β=1.0 surf | β=0.5 surf | Δ surf |
+|-----------|-----------|-----------|-------|-----------|-----------|-------|
+| dh-baseline | 0.839 MPa | 0.817 MPa | **−2.6%** | 0.979 MPa | 0.981 MPa | +0.2% |
+| Comm. Static | 0.860 MPa | 0.849 MPa | −1.3% | 1.020 MPa | 1.020 MPa | 0.0% |
+| Comm. HOBIC | 0.854 MPa | 0.843 MPa | −1.3% | 1.020 MPa | 1.020 MPa | 0.0% |
+| Dysb. Static | 0.856 MPa | 0.849 MPa | −0.8% | 1.020 MPa | 1.020 MPa | 0.0% |
+
+**Key findings**:
+- Reducing β (more anisotropic) **decreases substrate S_Mises** by 1–3%
+- Surface stress is largely **insensitive** to β (load-controlled BC dominates)
+- dh-baseline shows the **largest anisotropy sensitivity** (steeper gradient angle)
+- Effect is modest but consistent with a stiff-in-depth, soft-in-transverse biofilm
+
+---
+
+## Running the Pipeline
 
 ```bash
-# From Tmcmc202601/FEM/
-# Python packages: numpy, scipy, matplotlib, numba
-```
+cd Tmcmc202601/FEM
 
-### 1D Simulation
+# Step 0: FEM field + posterior ensemble (prerequisite)
+python run_posterior_abaqus_ensemble.py
 
-```bash
-python fem_spatial_extension.py \
-    --theta-json ../data_5species/_runs/<run>/theta_MAP.json \
-    --condition "dh_baseline" \
-    --n-nodes 30 --n-macro 100 --n-react-sub 50 \
-    --init-mode gradient \
-    --save-every 5 \
-    --out-dir _results/dh_baseline
+# Step B1: DI credible interval fields (requires Step 0)
+python aggregate_di_credible.py
 
-python fem_visualize.py \
-    --results-dir _results/dh_baseline \
-    --condition "dh_baseline"
-```
+# Step A: Material sensitivity sweep (requires Step 0)
+python run_material_sensitivity_sweep.py
 
-Figures generated:
+# Step C1: Gradient analysis (requires B1)
+python fem_aniso_analysis.py
 
-| Figure | Content |
-|--------|---------|
-| fig1 | Space-time heatmaps (5 species × depth × time) |
-| fig2 | Time series at 3 spatial nodes |
-| fig3 | Spatial profiles at 4 time snapshots |
-| fig4 | Final composition: stacked area (absolute + relative %) |
-| fig5 | P.g invasion front tracking |
-| fig6 | Dysbiotic Index heatmap + time series |
-| fig7 | Surface vs bulk comparison (transient clipped) |
-| fig8 | 6-panel summary (heatmap, profiles, θ bar chart) |
+# Step C1: Abaqus anisotropy sweep (requires B1 + C1 grad)
+python run_aniso_comparison.py
 
-### 2D Simulation
+# Step B3: CZM sweep (requires B1)
+python run_czm3d_sweep.py
 
-```bash
-python fem_2d_extension.py \
-    --theta-json ../data_5species/_runs/<run>/theta_MAP.json \
-    --condition "dh_baseline" \
-    --nx 20 --ny 20 \
-    --n-macro 100 --n-react-sub 50 \
-    --out-dir _results_2d/dh_baseline
-
-python fem_2d_visualize.py \
-    --results-dir _results_2d/dh_baseline \
-    --condition "dh_baseline"
-```
-
-Figures generated:
-
-| Figure | Content |
-|--------|---------|
-| fig1 | 2D heatmaps: 5 species × 3 time points |
-| fig2 | Hovmöller diagram: φ(x,t) y-averaged |
-| fig3 | Lateral y-profiles at 3 depths (surface/mid/deep) |
-| fig4 | 2D Dysbiotic Index maps at 3 time points |
-| fig5 | 6-panel summary |
-
-### 3D Simulation
-
-```bash
-python fem_3d_extension.py \
-    --theta-json ../data_5species/_runs/<run>/theta_MAP.json \
-    --condition "dh_baseline" \
-    --nx 15 --ny 15 --nz 15 \
-    --n-macro 100 --n-react-sub 50 \
-    --out-dir _results_3d/dh_baseline
-
-python fem_3d_visualize.py \
-    --results-dir _results_3d/dh_baseline \
-    --condition "dh_baseline"
-```
-
-For larger grids (> 20³), use `--solver cg` (conjugate gradient + ILU) instead of SuperLU.
-
-Figures generated:
-
-| Figure | Content |
-|--------|---------|
-| fig1 | XY / XZ / YZ cross-section slices, 5 species, t_final |
-| fig2 | Hovmöller (yz-averaged, depth × time) |
-| fig3 | Final depth profile (yz-averaged) |
-| fig4 | Dysbiotic Index: 3×3 slice panels at t_init/mid/final |
-| fig5 | 6-panel summary |
-
-### Mesh Convergence Test (2D)
-
-```bash
-# Run three grids
-for N in 20 30 40; do
-  python fem_2d_extension.py --nx $N --ny $N --out-dir _results_2d/conv_N$N ...
-done
-
-# Analyse
-python fem_convergence.py \
-    --dirs _results_2d/conv_N20 _results_2d/conv_N30 _results_2d/conv_N40 \
-    --labels "N=20" "N=30" "N=40" \
-    --out-dir _results_2d/convergence
-```
-
-Outputs: `conv_A_mean_phi.png`, `conv_B_errors.png`, `conv_C_depth.png`,
-`conv_D_pg_max.png`, `conv_E_rate.png`, **`convergence_report.md`**.
-
----
-
-## Conditions Tested
-
-| Condition | Run directory | Key features |
-|-----------|---------------|--------------|
-| dh_baseline | `sweep_pg_20260217_081459/dh_baseline` | a23=21, a35=21 (pathological dysbiosis) |
-| Commensal Static | `Commensal_Static_20260208_002100` | All θ ≤ 2.79 (balanced community) |
-
-### Theta comparison (selected parameters)
-
-| Parameter | dh_baseline | Commensal Static | Role |
-|-----------|-------------|-----------------|------|
-| a23 | 21.0 | 2.69 | A.n → Vei cross-feeding |
-| a35 | 21.4 | 1.37 | Vei → P.g support |
-| a45 | 2.50 | 2.79 | F.n → P.g support |
-| a55 | 0.12 | 2.62 | P.g self-growth |
-
----
-
-## Convergence Results (2D, dh_baseline)
-
-### Domain-averaged φᵢ at t_final
-
-| Grid | φ̄_S.o | φ̄_A.n | φ̄_Vei | φ̄_F.n | φ̄_P.g |
-|------|--------|--------|--------|--------|--------|
-| 20×20 | 0.0918 | 0.0975 | 0.0820 | 0.0659 | 0.0727 |
-| 30×30 | 0.0916 | 0.0976 | 0.0820 | 0.0659 | 0.0727 |
-| 40×40 | 0.0916 | 0.0978 | 0.0821 | 0.0659 | 0.0727 |
-
-Differences < **0.03 %** across all grids.
-
-### Spatial L2 error vs N=40
-
-| Grid | F.nucleatum | P.gingivalis | S.oralis* |
-|------|------------|-------------|-----------|
-| 20×20 | 0.7 % | 1.2 % | 9.1 %* |
-| 30×30 | 0.7 % | 1.2 % | 8.8 %* |
-
-\* S.oralis / A.naeslundii errors reflect **different random noise realisations**
-at each grid size, not true discretisation error. F.n and P.g use deterministic
-gradient initial conditions and show true convergence.
-
-**Conclusion: N=20 is sufficient for biological analysis; N=30–40 for publication figures.**
-
----
-
-## Performance
-
-| Simulation | Grid | Nodes | Runtime |
-|-----------|------|-------|---------|
-| 1D | 30 nodes | 30 | ~5 s |
-| 2D | 20×20 | 400 | ~8 s |
-| 2D | 30×30 | 900 | ~18 s |
-| 2D | 40×40 | 1 600 | ~45 s |
-| 3D | 15³ | 3 375 | ~60 s (estimated) |
-| 3D | 20³ | 8 000 | ~150 s (estimated) |
-
-All simulations: 100 macro steps × 50 Hamilton sub-steps, dt_h=1e-5, Numba parallel.
-Machine: Intel CPU (number of cores determines reaction step scaling).
-
-**Bottleneck:** reaction step scales as O(N_nodes / N_cores).
-**Diffusion step:** SuperLU factorisation done once at init; repeated solves are fast.
-For 3D grids > 20³, switch to `--solver cg` to avoid large SuperLU fill-in.
-
----
-
-## Implementation Notes
-
-### Numba Import Path
-
-The model solver lives at `Tmcmc202601/tmcmc/program2602/improved_5species_jit.py`.
-All FEM scripts add `_MODEL_PATH` to `sys.path` **before** importing, to avoid
-Numba cache path conflicts:
-
-```python
-_MODEL_PATH = _HERE.parent / "tmcmc" / "program2602"
-sys.path.insert(0, str(_MODEL_PATH))
-from improved_5species_jit import _newton_step_jit, HAS_NUMBA
-```
-
-If you see `ModuleNotFoundError` in Numba cache: clear `__pycache__` in
-`tmcmc/program2602/`.
-
-### theta_MAP.json format
-
-Two formats are supported by `_load_theta()`:
-1. `{"theta_full": [v0, v1, …, v19]}` — output from TMCMC sweep
-2. `{"a11": v, "a12": v, …}` — named parameter dict
-
-### Volume Constraint
-
-After each diffusion step, φ₀ is recomputed as `1 − Σφᵢ` (clipped to ≥ 0)
-to maintain the volume constraint numerically.
-
-### Initial Conditions ("gradient" mode)
-
-| Species | IC |
-|---------|----|
-| S.oralis, A.naeslundii | Uniform + small noise |
-| Veillonella | Uniform + noise |
-| F.nucleatum | exp(−3x/Lx) + noise (surface-enriched) |
-| P.gingivalis (2D) | exp(−5x/Lx) × Gaussian(y_centre) |
-| P.gingivalis (3D) | exp(−5x/Lx) × Gaussian(y_centre) × Gaussian(z_centre) |
-
----
-
-## Dependencies
-
-```
-numpy >= 1.24
-scipy >= 1.10    (sparse, linalg)
-matplotlib >= 3.7
-numba >= 0.57    (JIT parallel reaction step)
+# Re-plot only (no Abaqus)
+python run_aniso_comparison.py --plot-only
+python run_material_sensitivity_sweep.py --plot-only
+python run_czm3d_sweep.py --plot-only
 ```
 
 ---
 
-## Related Files
+## Key Parameters Summary
 
-- **TMCMC estimation**: `Tmcmc202601/data_5species/main/estimate_reduced_nishioka.py`
-- **Hamilton solver**: `Tmcmc202601/tmcmc/program2602/improved_5species_jit.py`
-- **Prior bounds**: `Tmcmc202601/data_5species/model_config/prior_bounds.json`
-- **Convergence report**: `_results_2d/convergence/convergence_report.md`
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| `DI_SCALE` (s) | 0.025778 | Global DI normalization scale (primary displacement knob) |
+| `E_MAX` | 10.0 GPa | Stiffness at DI=0 (commensal), fixed from literature |
+| `E_MIN` | 0.5 GPa | Stiffness at DI=s (dysbiotic), fixed from literature |
+| `DI_EXPONENT` (n) | 2.0 | Power-law exponent (primary displacement knob) |
+| `NU` | 0.30 | Poisson's ratio |
+| `N_BINS` | 20 | DI bins for material assignment |
+| Grid size | 15×15×15 | FEM nodal grid (3375 nodes) |
+| Pressure | 1.0 MPa | Applied compressive load |
 
 ---
 
-*FEM spatial extension implemented 2026-02-21*
+## Abaqus API Notes
+
+Abaqus Python (CAE) environment quirks:
+
+| Issue | Fix |
+|-------|-----|
+| No generator in `math.sqrt(sum(...))` | Use explicit arithmetic |
+| `mat.Elastic(type="STRING")` fails | Use constant: `ENGINEERING_CONSTANTS` |
+| `Region(cells=[cell])` fails (needs GeomSequence) | Use `elements.sequenceFromLabels()` |
+| `model.DatumCsysByThreePoints` → AttributeError | Use `part.DatumCsysByThreePoints` |
+| `fieldOutputRequests["F-Output-1"]` on new model → AttributeError | Remove; use defaults |
+| Material orientation: use `part.MaterialOrientation(orientationType=SYSTEM, axis=AXIS_1, ...)` | |
+
+---
+
+## References
+
+- Wriggers & Junker (2024): *A Hamilton principle-based model for diffusion-driven biofilm growth*, CMAME
+- Junker & Balzani (2021): *Hamilton model for biofilm mechanics*
+- Abaqus Documentation: `*ELASTIC, TYPE=ENGINEERING CONSTANTS` (transverse isotropy)

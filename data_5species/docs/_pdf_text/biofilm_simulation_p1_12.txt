@@ -1,0 +1,841 @@
+
+
+===== PAGE 1 =====
+A continuum multi-species biofilm model with a novel
+interaction scheme
+Felix Klempt, Hendrik Geisler, Meisam Soleimani, Philipp Junker
+Leibniz University Hannover, Institute of Continuum Mechanics, Hannover, Germany
+Corresponding author:
+Felix Klempt,  klempt@ikm.uni-hannover.de
+Abstract
+Biofilms are complex structures which are inhabited by numerous amount of different species
+of microorganisms. Due to their ubiquity, they influence human life on an everyday basis. It
+is therefore important to understand the interactions between different biofilm components and
+reactions to outside conditions. For this purpose, mathematical models and in silico experiments
+have proven themselves to be fundamental. In combination within vitro and in vivo experiments,
+they can give more insights and focus researchers’ attention, reducing costs in the process. In this
+work, a comprehensive multi-species continuum-based biofilm model is presented. This model
+is capable of replicating a variety of different biofilm interactions with an arbitrary number of
+species, while still being comprehensive to encourage usage by researchers less familiar with
+mathematical modeling. In addition to a nutrient source, antibiotic agents and their effect on
+the biofilm can also be depicted. The model is derived using Hamilton’s principle of stationary
+action, ensuring thermodynamic consistency automatically. The results show good quantitative
+agreement with biofilm behavior.
+Keywords: biofilm, multi-species, biofilm interaction, continuum model
+1 Introduction
+The necessity to model and simulate biofilm behavior stems from the ubiquity of microbial
+biofilms. It is estimated that half of the existing biomass are prokaryotes [30, 6]. Much of that
+mass is located in dense biofilm communities, containing hundreds of species, i.e., upwards of 500
+different species in dental biofilms [10, 18]. In these multi-species systems, complex interactions
+and relationships between different species emerge [23, 8]. The first, theoretical interaction is
+Neutralism, if biofilms do not interact at all with each other. With a lack of enough resources,
+i.e., space, nutrients or other necessary compounds, different species of bacteria have to compete
+with each other. Often times, the biofilm is then dominated by one species, but other ones
+persist in the biofilm [8]. If both species benefit from the presence of one another, it is called
+Protocooperation. This has been demonstrated often in biofilms [8]. Other interactions are Al-
+lelopathy [25], where one species produces chemicals, which in turn influence the others. This
+can lead to Ammensalism, where one species harms the other and Commensalism, where one
+1
+arXiv:2509.01274v1  [cs.CE]  1 Sep 2025
+
+===== PAGE 2 =====
+species benefits from the other. These interactions lead to the stabilization of the biofilm [8].
+To control harmful and use beneficial biofilms, an understanding of the underlying principles is
+necessary, but the large number of interactions pose a challenge for in vitro experiments [24].
+Mathematical models can provide an environment where hypotheses can be tested rapidly and
+connections between different aspects can be drawn. Additionally, an in silico experiment, i.e.,
+a simulation, takes considerably less time than an in vitro or an in vivo experiment. Models
+based on mathematical descriptions have thus proven themselves to be a viable tool in analyz-
+ing complicated processes [3]. Prominent modeling approaches are Individual Based Modeling
+(IbM), cellular automaton (CA) and continuum-based modeling. IbM seems to be the natural
+approach since the biofilm itself consists of individual particles. Behaviors like cell divisions and
+interactions between two cells can be modeled directly as an interaction between two individual
+particles. There exist several open-source software systems using this approach, such as Bac-
+Sim [13], Infobiotics Workbench [2], iDynoMiCS [15], Simbiotics [21], and NUFEB [16]. IbM
+models containing multiple species have been used to study the effects of EPS [12] as well as
+detachment and sloughing [31, 32] on multi species biofilm. In combination with the contin-
+uum approach, physical factors, like nutrient gradients, have been included [23, 20]. To avoid
+the stochastic effects resulting from the randomized placement of the individual particles in the
+modeling approach of IbM, the same simulation has to be repeated or it can be combined with
+cellular automata rules, see [14]. Multi-species models based fully on cellular automata are, for
+example, [19, 27, 28]. Another way of modeling biofilm is the continuum approach. Here, the in-
+corporation of governing laws from physics comes naturally. Thermodynamic consistency can be
+assured automatically when using the right modeling approach. The thermodynamics and me-
+chanics of growth are discussed in detail by [4] and [17]. Additionally, continuum-based models
+are deterministic, stochastic effects are thus not present and models do not need additional runs
+to average out random effects before conclusions can be drawn. Although the derivation of these
+models can be more complex, analytical studies can be performed to compare and characterize
+model results [1]. The complexity of these models makes them very predictive, but also hard to
+understand, especially for researchers not familiar with material modeling. Easier models can
+focus the attention on more important and relevant aspects of biofilm formation and growth,
+as well as species interaction. Multi-species continuum-based models in literature, which are
+suitable to model an arbitrary number of species, i.e., [29, 1], link the species via shared re-
+sources as space and nutrient available. This means that only competition between the species
+can be depicted. Models, which can depict Protocooperation, solve the problem of interaction
+with an additional interaction variable, which developes where one or both species are present
+and enhance the growth process of the other species [26, 5]. For a small number of species, i.e.,
+dual-species systems, this is a suitable approach, but since for every interaction between two
+species an interaction variable is necessary, the number of internal variables and consequently
+the computational cost becomes unreasonable when the number of species increases.
+In this work, a continuum model is presented which provides a framework for integrating a the-
+oretically arbitrary number of species into the biofilm. It is capable of displaying a wide variety
+of possible interactions from mutually inhibitory species to a symbiotic relationship. The inte-
+gration of interaction is done via a constant interaction matrix. Thus, no additional internal
+variables need to be introduced. The model is derived from Hamilton’s principle of station-
+ary action, ensuring thermodynamic consistency. The energy density function is modeled to be
+comprehensive. The complexity of the model stems from the dissipation function, which is for-
+mulated as a function of the product of the internal variables. It thus interconnects the governing
+evolution equations leading to complex material behavior.
+The article is structured as follows. In Section 2, the mathematical derivation of the model is
+presented. The necessary variables and assumptions are introduced and the governing equations
+2
+
+===== PAGE 3 =====
+are shown. In Section 3, a numerical study displaying the behavior of the models with differ-
+ent numbers of species, initial conditions and parameters is presented to show the versatility
+of the model. The last chapter, Section 4, gives a short conclusion and an outlook for future
+investigations possible with this model.
+2 Mathematical description
+In this work, a comprehensive model for biofilm growth and death is presented. An arbitrary
+number of species with interactions can be modeled. The model is derived based on Hamilton’s
+principle of stationary action. Hamilton’s principle provides a physically sound way of material
+modelling, in particular, the automatic fulfillment of the first and second law of thermodynamics
+through the derivation of the model from a potential [9]. Thus, the biofilm model presented in
+this work is thermodynamically consistent. In addition, necessary constraints can be considered
+in Hamilton’s principle simply by adding corresponding potentials. Hamilton’s principle for a
+quasi-static and isothermal process is given by [9, 11] as
+(1) H “
+ż
+τ
+pG ` C ` Dq dt Ñ stat
+ξ,γ
+.
+The Hamilton functional H consists of three parts: the total potential G, the constraint func-
+tional C and the dissipation energy D. Hamilton’s principle states that H is stationary for all
+thermodynamic state variables. In this case, the thermodynamic state variables are the internal
+variables ξ and the Lagrange multiplier γ.
+In the following, the individual parts are described in more detail. The total potential G is given
+as
+(2) G :“
+ż
+Ω0
+Ψ dV ´
+ż
+Ω0
+ 
+0
+f ‹ ¨ u dV ´
+ż
+BΩ0
+ 
+0
+t‹ ¨ u dA
+with the Helmholtz free energy Ψ, the density ρ0, the body force f ‹, the traction force t‹ and the
+displacements u. No external forces are applied to this biofilm model. Therefore, the external
+forces f ‹ and t‹ are set to zero.
+The constraint functional
+(3) C :“
+ż
+Ω0
+γ pf pξqq dV,
+allows incorporation of the holonomic constraint f pξq with the Lagrange parameter γ.
+The dissipated energy is given as
+(4) D :“
+ż
+Ω0
+Ddiss dV.
+with the volume-specific dissipated potential D diss.
+To arrive at a sensible description of a predictive model for biofilm growth and death, suitable
+3
+
+===== PAGE 4 =====
+model assumptions have to be made, which will be explained in the following.
+The set of internal variables ξ is given as
+(5) ξ “
+ˆ
+ϕ
+ψ
+˙
+.
+The volume fraction ϕi i P t1, 2, ¨ ¨ ¨ , nu, which indicates the volume covered by each of n species
+of bacteria, as well as the empty space ϕ0, is listed in the vector
+(6) ϕ “
+¨
+˚˚˚˚˚˝
+ϕ0
+ϕ1
+ϕ2
+...
+ϕn
+˛
+‹‹‹‹‹‚
+with ϕi P r0, 1s, @i.
+In order to model the growth as well as the death of biofilm, a second state variable per biofilm
+species is necessary. The percentage of living bacteria of the nth species is given by
+(7) ψ “
+¨
+˚˚˚˝
+ψ1
+ψ2
+...
+ψn
+˛
+‹‹‹‚ with ψi P r0, 1s, @i.
+Therefore, the volume covered by living bacteria of species i is
+(8) ¯ϕi :“ ϕi ψi with @i.
+The amount of dead cells is consequently τi :“ ϕi p1 ´ ψiq with i P t1, 2, ¨ ¨ ¨ , nu.
+Since the total volume of all bacteria plus the empty space cannot exceed the available volume,
+the holonomic constraint
+(9) f “
+nÿ
+l“0
+ϕl ´ 1 “ 0
+has to be fulfilled at all times. Since the model is formulated as a material point model, inter-
+preting the empty space as physical voids or channels within the biofilm would be inappropriate.
+The empty space variable ϕ0 rather serves as a numerical auxiliary quantity used to enforce the
+holonomic volume constraint given by Equation (9)
+The nutrients are modeled by a given variable c ‹, and the antibiotics by the given variable α‹.
+Both are possibly time-dependent. Since living bacteria thrive with nutrients and the percentage
+of living bacteria reduces with antibiotics present, the energy density function is modeled as
+(10) Ψ “ ´ 1
+2c‹ ¯ϕ ¨ A ¨ ¯ϕ ` 1
+2 α‹ ψ ¨ B ¨ ψ.
+The quadratic approach is chosen to allow for a linear dependency between nutrients and ¯ϕi and
+antibiotics and ψi. Additionally, the quadratic approach ensures the convexity of the free energy
+density. The symmetric growth coefficient matrix
+(11) A “
+¨
+˚˚˚˝
+a11 a12 ¨ ¨ ¨ a1n
+a12 a22 ¨ ¨ ¨ a2n
+... ... ... ...
+a1n a2n ¨ ¨ ¨ ann
+˛
+‹‹‹‚
+4
+
+===== PAGE 5 =====
+and the antibiotic sensitivity matrix
+(12) B “
+¨
+˚˚˚˝
+b1 0 ¨ ¨ ¨ 0
+0 b2 ¨ ¨ ¨ 0
+... ... ... ...
+0 0 ¨ ¨ ¨ bn
+˛
+‹‹‹‚.
+allow to specify the effect of nutrients and antibiotics on each species. Furthermore, the off-
+diagonal entries of the matrix A describe how the different species of bacteria interact with
+one another, i.e., if they promote or impair each others growth. While in principle the entries
+of the matrices can have any form, i.e., be a function of any parameters or variables of the
+model, for simplicity reasons a zero-order Taylor series, i.e., a constant, is chosen to represent
+the interactions with nutrients and antibiotics. Hereby, a positive value indicates an equally
+favorable, a negative value an equally disadvantageous interaction. The interaction between two
+species is consequently modeled with a single scalar with no need for additional state variables
+as in [26]. This modeling choice vastly decreases simulation time.
+The dissipated energy is modeled as
+(13) D diss :“ B∆s
+B 9ξ
+¨ ξ.
+For more information on modeling assumptions concerning energy dissipation in the Hamiltonian
+framework, see [9]. The dissipation function is modeled as
+(14) ∆ s “ ∆sp 9¯ϕ, 9ϕq “ 1
+2
+9¯ϕ ¨ η ¨ 9¯ϕ ` 1
+2
+9ϕ ¨ η ¨ 9ϕ.
+with the diagonal viscosity matrix
+(15) η “
+¨
+˚˚˚˝
+η1 0 ¨ ¨ ¨ 0
+0 η2 ¨ ¨ ¨ 0
+... ... ... ...
+0 0 ¨ ¨ ¨ ηn
+˛
+‹‹‹‚.
+The dissipation function is the sum of two parts. The first part describes the dissipation due to
+the change in living biofilm. Due to the living biofilm being the product of the two state variables
+¯ϕi “ ϕiψi, the rates of the internal variables 9ϕ and 9ψ are directly linked together. This allows for
+complicated, non-linear effects in the model. Using only the first term of the dissipation function
+would lead to a rank-deficient system of differential equations. The second term depending only
+on the rate of the volume fraction of each biofilm leads to a full rank. The overall resulting
+behavior is rate-dependent.
+By evaluating Hamilton’s principle, the strong form of the evolution equations are found as
+δϕH “ 0 @δϕ ô 0 “ ´c‹ψi
+˜
+aii ¯ϕi `
+n´1ÿ
+j
+aij ¯ϕj
+¸
+` ηip 9ϕiψ2
+i ` ¯ϕi 9ψi ` 9ϕiq ` γ(16)
+δψH “ 0 @δψ ô 0 “ ´c‹ϕi
+˜
+aii ¯ϕi `
+n´1ÿ
+j
+aij ¯ϕj
+¸
+` α‹ψibi ` ηip 9ψiϕ2
+i ` ¯ϕi 9ϕiq ` γ(17)
+δγH “ 0 @δγ ô 0 “
+nÿ
+l“0
+ϕl ´ 1 (18)
+5
+
+===== PAGE 6 =====
+The variable describing the empty space ϕ0 is described through the constraint in Equation (9).
+The model was implemented using Wolfram Mathematica [7] in an implicit framework on a
+material point. Therefore, the governing Equation (16), Equation (17) and Equation (18) are
+solved using Newton’s method at each time step. The volume constraint (9) is enforced by
+means of a Lagrange multiplicator γ. To enforce ϕi, ψi P r0, 1s, the barrier method is used with
+a penalty parameter Kp,i “ ηi 10´4 [22].
+3 Numerical results
+Several numerical experiments were performed to investigate the behavior of the model. First, a
+model with two species was chosen. This minimal model helps in understanding the interaction
+between different variables. For further investigation, a four species model was implemented.
+The four species model allows for a more thorough investigation of the model as well as showing
+more complex behaviors. The time step size ∆ t is set constant to ∆ t “ 10´4 T ime throughout
+the numerical experiments. The unit of time can be chosen to represent an appropriate timescale
+for biofilm growth and has to be determined in subsequent in vitro experiments.
+3.1 Two species
+For the two species model, five cases are investigated. They differ in the parameters listed in
+Table 1.
+variable unit Case 1 Case 2 Case 3 Case 4 Case 5 Case 6
+a11 [-] 2 1 1 1 1 1
+a12 [-] 0 0 1 0 0 -1
+a22 [-] 1 1 1 1 1 1
+b1 [-] 0 0 0 1 1 0
+b2 [-] 0 0 0 2 2 0
+η1 r kg
+m Time s 1 1 1 1 1 1
+η2 r kg
+m Time s 1 2 2 2 2 2
+initial ϕ1 [-] 0.2 0.2 0.2 0.2 0.25 0.2
+initial ϕ2 [-] 0.2 0.2 0.2 0.3 0.3 0.2
+Table 1: Values for the parameters of the simulations performed with two species present. The
+variables describing the nutrients c ‹ and the antibiotics α‹ are left constant at c ‹ “ 100 J
+m3 and
+α‹ “ 10 J
+m3 .
+The results from the first test case are depicted in Figure 1a and Figure 1b. Figure 1a shows the
+plot of the state variables ϕ and ψ over time. The amount of biofilm present from a species ϕi is
+given with a solid colored line. The empty space ϕ0 is shown in black. The dashed line represents
+the percentage of living bacteria of a given species ψi. In this first test case, the only interaction
+between both species is due to the limited amount of space available, since the non-diagonal
+terms of the growth parameter matrix A are set to zero. The diagonal entries of the growth
+parameters matrix are chosen to be a11 ą a22. This results in a faster growth rate of species 1.
+Once the empty space converges to zero, kinks in the graphs emerge and the volume fraction ϕ2
+drops down rapidly. As soon as the volume fraction of species 2 reaches a value close to zero, its
+percentage of living cells ψ2 drops down. Similar effects can be observed in the results of test
+6
+
+===== PAGE 7 =====
+case 2 in Figure 2a and Figure 2b. In this test case, the viscosity of the species ηi differs. A
+higher viscosity leads to a slower reaction of the biofilm. The simulation time is thus elongated
+to be 1500 time steps. The aforementioned model behaviors from case 1 are also visible and even
+more prominent. While in case 1 the amount of species 2 ϕ2 is already at a low percentage of
+around 10% and still declining before the empty space reaches zero. In case 2, ϕ2 is at roughly
+30% and ascending. The different amounts of species 2 present, result in different reaction from
+species 1. In the first case, the slope of the ϕ1-curve changes only slightly, while in case 2 a
+prominent kink is observable. The drop in the percentage of living bacteria of species 2 ψ2 is
+comperable for both cases, as is the converged steady state solution.
+50 100 150 200 250 300 350 400 450 500
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1
+ϕ2
+ϕ0
+ψ1
+ψ2
+sum
+(a) Volume fractions ϕi and percentage of liv-
+ing cells ψi of test case 1
+50 100 150 200 250 300 350 400 450 500
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1ψ1
+ϕ2ψ2
+(b) Amount of living cells ¯ϕi of test case 1
+Figure 1: Results of the test case with two species with different growth parameters. The species
+only interact through the space available and don’t enhance each other’s growth. Both species
+are fully resistant to antibiotics.
+200 400 600 800 1,000 1,200 1,400
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1
+ϕ2
+ϕ0
+ψ1
+ψ2
+sum
+(a) Volume fractions ϕi and percentage of liv-
+ing cells ψi of test case 2
+200 400 600 800 1,000 1,200 1,400
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1ψ1
+ϕ2ψ2
+(b) Amount of living cells ¯ϕi of test case 2
+Figure 2: Results of the test case with two species with different viscosities. The species only
+interact through the space available and do not enhance each other’s growth. Both species are
+fully resistant to antibiotics.
+When interactions between the species are enabled via aij ‰ 0 for i ‰ j, as it is in test case 3,
+the survival of the other species is favorable for both species. An equilibrium between the two
+species emerges, where none gets extinguished. This can be observed in the result of test case 3
+in Figure 3a and Figure 3b.
+7
+
+===== PAGE 8 =====
+50 100 150 200 250 300 350 400 450 500
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1
+ϕ2
+ϕ0
+ψ1
+ψ2
+sum
+(a) Volume fractions ϕi and percentage of liv-
+ing cells ψi of test case 3
+50 100 150 200 250 300 350 400 450 500
+0.2
+0.3
+0.4
+0.5
+0.6
+time steps
+Value
+ϕ1ψ1
+ϕ2ψ2
+(b) Amount of living cells ¯ϕi of test case 3
+Figure 3: Results of the test case with two species. The species interact and enhance each others
+growth. Both species are fully resistant to antibiotics.
+200 400 600 800 1,000 1,200 1,400
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1
+ϕ2
+ϕ0
+ψ1
+ψ2
+sum
+(a) Volume fractions ϕi and percentage of liv-
+ing cells ψi of test case 4
+200 400 600 800 1,000 1,200 1,400
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1ψ1
+ϕ2ψ2
+(b) Amount of living cells ¯ϕi of test case 4
+Figure 4: Results of the test cases with sensitivity of antibiotics. The initial volume fractions
+of species ϕi differ. Species 1 starts with an initial volume fraction of ϕ1 “ 0.2, species 2 with
+ϕ2 “ 0.3.
+200 400 600 800 1,000 1,200 1,400
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1
+ϕ2
+ϕ0
+ψ1
+ψ2
+sum
+(a) Volume fractions ϕi and percentage of liv-
+ing cells ψi of test case 5
+200 400 600 800 1,000 1,200 1,400
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1ψ1
+ϕ2ψ2
+(b) Amount of living cells ¯ϕi of test case 5
+Figure 5: Results of the test cases with sensitivity of antibiotics. The initial volume fractions
+of species ϕi differ. Species 1 starts with an initial volume fraction of ϕ1 “ 0.2, species 2 with
+ϕ2 “ 0.3.
+For antibiotics sensitive biofilms, longer simulation times are necessary as well. It can be observed
+in Figure 4a and Figure 5a, that the percentage of living species ψi drops initially. Although the
+sensitivity for antibiotics of species 2 is higher than that of species 1, due to the higher initial
+condition, species 2 can prevail over species 1 in the fourth test case. If the difference of initial
+biofilm is closer, as it is in test case 5, it is not enough and species 1 prevails instead. This can
+be seen in Figure 5a. The amount of living bacteria of each species ¯ϕi “ ϕiψi can be observed
+for both cases in Figure 4b and Figure 5b. In all cases above, the interaction between different
+species of biofilm is modeled with a positive integer to model cooperative behavior. To model
+competition, a negative value for the off-diagonal entries of the interaction matrixA can be used.
+8
+
+===== PAGE 9 =====
+The results of this simulation are shown in Figure 6. It can be observed, that the slower reacting
+species 2, i.e., the species with a higher viscosity ηi, comes out dominant. While a faster reaction
+is advantageous while reacting to nutrients, it can be detrimental when reacting negatively to
+another species. Early in the simulation, the percentage of living bacteria of species 1 ψ1 drops
+of faster than the the living percentage of species 2 ψ2. This leads to a difference in volume
+growth, where the species 2 with more living cells flourishes. The drop off in percentage of living
+cells is different from the experiment, where no interactions is present (c.f. Figure 1). There is
+no negative part in the driving force in these simulation, thus the percentage of living cells ψi
+stays at a relatively high level.
+200 400 600 800 1,000 1,200 1,400
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1
+ϕ2
+ϕ0
+ψ1
+ψ2
+sum
+(a) Volume fractions ϕi and percentage of liv-
+ing cells ψi of test case 6
+200 400 600 800 1,000 1,200 1,400
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1ψ1
+ϕ2ψ2
+(b) Amount of living cells ¯ϕi of test case 6
+Figure 6: Results of the test cases with negative entry in the growth coefficient matrix.
+Additional simulation with varying viscosities ηi were performed. The results are listed in Ap-
+pendix A.
+3.2 Four Species
+In theory, an arbitrary number of species can be inserted into the model. For this study, a
+biofilm consisting of four species is considered. The growth parameter matrix A stays the
+same throughout all numerical experiments in this chapter, as do the viscosities ηi, only the
+antibiotic sensitivity parameters bi as well as the nutrient concentration c‹ and the concentration
+of antibiotics α‹ are changed. The values for the symmetric growth coefficient matrix A and the
+diagonal viscosity matrix η are
+(19) A “ 1
+2
+¨
+˚˚˝
+1 5 5 5
+5 1 3 3
+5 3 1 2
+5 3 2 1
+˛
+‹‹‚
+and
+(20) η “
+¨
+˚˚˝
+0.8 0 0 0
+0 1 .0 0 0
+0 0 1 .5 0
+0 0 0 2 .0
+˛
+‹‹‚
+kg
+m Time,
+respectively. The values for the remaining parameters of the four cases investigated are listed in
+Table 2.
+9
+
+===== PAGE 10 =====
+variable unit Case 1 Case 2 Case 3 Case 4
+b1 [-] 0.4 0.4 0.4 10
+b2 [-] 0.3 0.3 0.3 2
+b3 [-] 0.2 0.2 0.2 1
+b4 [-] 0.1 0.1 0.1 0.01
+initial ϕ1 [-] 0.02 0.02 0.02 0.02
+initial ϕ2 [-] 0.02 0.02 0.02 0.02
+initial ϕ3 [-] 0.02 0.02 0.02 0.02
+initial ϕ4 [-] 0.02 0.2 0.02 0.02
+nutrients c‹ r J
+m3 s 100 100 50 ` 50 Sinp500tq 100
+antibiotics α‹ r J
+m3 s 10 10 10 Piecewise t0, t100, t ą 500uu
+Table 2: Values for the parameters of the simulations performed with four species present.
+50 100 150 200 250 300 350 400 450 500
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1
+ϕ2
+ϕ3
+ϕ4
+ϕ0
+ψ1
+ψ2
+ψ3
+ψ4
+sum
+(a) Volume fractions ϕi and percentage of liv-
+ing cells ψi of test case 1
+50 100 150 200 250 300 350 400 450 500
+0
+0.1
+0.2
+0.3
+0.4
+time steps
+Value
+ϕ1ψ1
+ϕ2ψ2
+ϕ3ψ3
+ϕ4ψ4
+(b) Amount of living cells ¯ϕi of test case 1
+Figure 7: Result of the first test case with four species.
+50 100 150 200 250 300 350 400 450 500
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1
+ϕ2
+ϕ3
+ϕ4
+ϕ0
+ψ1
+ψ2
+ψ3
+ψ4
+sum
+(a) Volume fractions ϕi and percentage of liv-
+ing cells ψi of test case 2
+50 100 150 200 250 300 350 400 450 500
+0
+0.1
+0.2
+0.3
+0.4
+time steps
+Value
+ϕ1ψ1
+ϕ2ψ2
+ϕ3ψ3
+ϕ4ψ4
+(b) Amount of living cells ¯ϕi of test case 2
+Figure 8: Result of the second test case with four species. The initial volume fractions of species
+ϕi differ. Species 1, 2 and 3 start with an an initial volume fraction of ϕ1 “ ϕ2 “ ϕ3 “ 0.02,
+species 4 starts with ϕ4 “ 0.2
+In Figure 7 and Figure 8, the results can be seen. The first case shows all four species with the
+same initial biofilm concentration. Since the antibiotic sensitivity differs in all four species, with
+species 1 being the most sensitive and species 4 being the least sensitive, the initial drop in living
+percentage of each species ψi is also different. Species 4 is the only species with a minimum of
+20% of its cells still living. Due to the greater growing parameter of the first species, however, in
+the course of the simulation, the first species takes over as the dominant species in the biofilm.
+The different viscosities ηi determine how fast each species grows. This can be seen in Figure 7a
+and Figure 8a, where the first species’ gradient in the beginning is much greater than that of
+10
+
+===== PAGE 11 =====
+each other species. The second case investigated here only differs in the initial conditions, i.e.,
+the fourth species gets a head start in the simulation. Since there is now less free space available
+to all species of biofilm, the equilibrium between all species is reached earlier. In addition to
+that, by the last time step, species 4 still has more volume than species 3, which, in the prior
+experiment, had more. For the nutrients, as well as the antibiotics, an arbitrary function can
+be implemented. In the following test case, the nutrients were applied with a Sine function (see
+Figure 9a). The results can be seen in Figure 10a and Figure 10b. The general shape of the
+results roughly mimics these from Figure 7a, with the exception of the fluctuation due to little
+(or no) nutrients in the system.
+200 400 600 800 1,000 1,200 1,400
+0
+20
+40
+60
+80
+100
+time steps
+Value
+c⋆
+α⋆
+(a) Nutrients and antibiotics for test case 3
+200 400 600 800 1,000 1,200 1,400
+0
+20
+40
+60
+80
+100
+time steps
+Value
+c⋆
+α⋆ (b) Nutrients and antibiotics for test case 4
+Figure 9: Functions with which nutrients and antibiotics are applied in test cases 3 and 4.
+For the final case investigated, the sensitivity towards antibiotics was adjusted. The first species
+now has a high sensitivity of b1 “ 10, while the fourth species is almost resistant against an-
+tibiotics with b4 “ 0.01. After one-third of the simulation time, antibiotics are inserted into the
+system (see Figure 9b). Every species, except the resistant species 4, almost immediately dies, as
+can be observed in Figure 11a and Figure 11b. After the insertion of antibiotics, resistant species
+4 takes over the space which was inhabited by the other species prior to the insertion. The second
+species, which is not as sensitive to antibiotics but has a smaller viscosity than species 4, i.e.
+η2ăη4, and is thus more reactive to changes in the system, regains some space but is ultimately
+dominated by the fourth species. In this example, cooperative behavior is not the dominating
+factor of species survival. The resistance against antibiotics is more important.
+200 400 600 800 1,000 1,200 1,400
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1
+ϕ2
+ϕ3
+ϕ4
+ϕ0
+ψ1
+ψ2
+ψ3
+ψ4
+sum
+(a) Volume fractions ϕi and percentage of liv-
+ing cells ψi of test case 3
+200 400 600 800 1,000 1,200 1,400
+0
+0.1
+0.2
+0.3
+0.4
+time steps
+Value
+ϕ1ψ1
+ϕ2ψ2
+ϕ3ψ3
+ϕ4ψ4
+(b) Amount of living cells ¯ϕi of test case 3
+Figure 10: Result of the third test case with four species. Nutrients are applied with a sine
+function.
+11
+
+===== PAGE 12 =====
+200 400 600 800 1,000 1,200 1,400
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1
+ϕ2
+ϕ3
+ϕ4
+ϕ0
+ψ1
+ψ2
+ψ3
+ψ4
+sum
+(a) Volume fractions ϕi and percentage of liv-
+ing cells ψi of test case 4
+200 400 600 800 1,000 1,200 1,400
+0
+0.2
+0.4
+0.6
+0.8
+1
+time steps
+Value
+ϕ1ψ1
+ϕ2ψ2
+ϕ3ψ3
+ϕ4ψ4
+(b) Amount of living cells ¯ϕi of test case 4
+Figure 11: Result of the forth test case with four species. Antibiotics are applied with a step
+function at time step 500.
+4 Conclusion and outlook
+In this work, a new multi-species biofilm model is presented. In principle, an arbitrary number
+of species can be described using this model. For the description, one internal variable is needed
+to describe the empty space as well as two additional internal variables for each biofilm. In
+this work, biofilm is modeled with the variables of the volume fraction of all, living and dead,
+biofilm ϕ, as well as the percentage of living cells inside the volume fraction ψ. This leads to
+the amount of living cells given by ¯ϕ “ ϕψ. The interactions between each species are modeled
+with energies. For the evolution of biofilm, a dissipated function is introduced as a function of
+the living bacteria ¯ϕ and thus a product of the internal state variables, leading to a coupled
+system of evolution equations, capable of non-linear effects. The free energy density is modeled
+with little assumptions concerning the growth and death of biofilm. Nevertheless, the model is
+capable of producing complex results. Many behaviors as observed in multi-species biofilm can
+be modeled. The reduced number of parameters of the model simplifies the pending validation
+of the model with in vitro experiments. The model is also suitable for further investigation of
+biofilm behavior, for example, accounting for stochastic properties.
+Funding and acknowledgment
+The authors highly acknowledge the funding by the German Research Foundation (Deutsche
+Forschungsgemeinschaft, DFG) through the project grant SFB/TRR-298-SIIRI – Project-ID
+426335750.
+Funded by the European Union (ERC, Gen-TSM, project number 101124463). Views and opin-
+ions expressed are however those of the author(s) only and do not necessarily reflect those of the
+European Union or the European Research Council Executive Agency. Neither the European
+Union nor the granting authority can be held responsible for them.
+Data availability statement
+The datasets used and/or analysed during the current study is available from the corresponding
+author on reasonable request.
+12

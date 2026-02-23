@@ -1,0 +1,33 @@
+{
+    "species_names": [
+        "S. oralis",
+        "A. naeslundii",
+        "V. dispar",
+        "F. nucleatum",
+        "P. gingivalis"
+    ],
+    "colors": {
+        "default": [
+            "#1f77b4",
+            "#2ca02c",
+            "#bcbd22",
+            "#9467bd",
+            "#d62728"
+        ],
+        "Commensal": [
+            "#1f77b4",
+            "#2ca02c",
+            "#bcbd22",
+            "#9467bd",
+            "#d62728"
+        ],
+        "Dysbiotic": [
+            "#1f77b4",
+            "#2ca02c",
+            "#ff7f0e",
+            "#9467bd",
+            "#d62728"
+        ]
+    },
+    "description": "Socransky complex colors. S3 (V. dispar) is Yellow in Commensal, Orange in Dysbiotic."
+}

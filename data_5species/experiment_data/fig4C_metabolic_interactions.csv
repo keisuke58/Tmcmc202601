@@ -1,0 +1,51 @@
+source,target,interaction_type,arrow_color
+S. oralis,Lactate,produces,cyan
+S. oralis,Carbon dioxide,produces,cyan
+S. oralis,Hydrogen,produces,cyan
+S. oralis,Acetate,produces,cyan
+S. oralis,Formate,produces,cyan
+S. oralis,Succinate,produces,cyan
+S. oralis,Phosphatase,produces_enzyme,cyan
+Glucose,S. oralis,utilized_by,cyan
+Carbohydrates,S. oralis,utilized_by,cyan
+(Glyco)Proteins,S. oralis,utilized_by,cyan
+A. naeslundii,Lactate,produces,green
+A. naeslundii,Succinate,produces,green
+A. naeslundii,Acetate,produces,green
+A. naeslundii,Formate,produces,green
+A. naeslundii,Carbon dioxide,produces,green
+A. naeslundii,DNase,produces_enzyme,green
+Glucose,A. naeslundii,utilized_by,green
+Amino acids,A. naeslundii,utilized_by,green
+Vitamins,A. naeslundii,utilized_by,green
+F. nucleatum,Butyrate,produces,purple
+F. nucleatum,Propionate,produces,purple
+F. nucleatum,Acetate,produces,purple
+F. nucleatum,Hydrogen sulfide,produces,purple
+F. nucleatum,Indole,produces,purple
+F. nucleatum,Carbon dioxide,produces,purple
+Amino acids,F. nucleatum,utilized_by,purple
+Peptides,F. nucleatum,utilized_by,purple
+Glucose,F. nucleatum,utilized_by,purple
+Other growth factors,F. nucleatum,utilized_by,purple
+P. gingivalis,Butyrate,produces,red
+P. gingivalis,Propionate,produces,red
+P. gingivalis,Acetate,produces,red
+P. gingivalis,Hydrogen sulfide,produces,red
+P. gingivalis,Indole,produces,red
+P. gingivalis,Protease,produces_enzyme,red
+P. gingivalis,Peptidases,produces_enzyme,red
+P. gingivalis,Glycosidases,produces_enzyme,red
+Peptides,P. gingivalis,utilized_by,red
+Amino acids,P. gingivalis,utilized_by,red
+Carbohydrates,P. gingivalis,utilized_by,red
+(Glyco)Proteins,P. gingivalis,utilized_by,red
+V. dispar/parvula,Propionate,produces,orange
+V. dispar/parvula,Acetate,produces,orange
+V. dispar/parvula,Carbon dioxide,produces,orange
+V. dispar/parvula,Hydrogen,produces,orange
+Lactate,V. dispar/parvula,utilized_by,orange
+Succinate,V. dispar/parvula,utilized_by,orange
+Other growth factors,V. dispar/parvula,utilized_by,orange
+Vitamins,V. dispar/parvula,utilized_by,orange
+V. parvula,Thiamine (Vitamin B1),produces,orange

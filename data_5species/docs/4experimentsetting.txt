@@ -1,0 +1,47 @@
+Experiment Condition Settings & Justifications
+==============================================
+
+This document defines the 4 experimental patterns and the corresponding parameter locking logic for the Nishioka Algorithm.
+
+Condition 1: Commensal Static
+-----------------------------
+*   **Parameters**: Lock 9 / Estimate 11
+*   **Locked Indices**:
+    *   Standard Nishioka Locks: 6, 12, 13, 16, 17
+    *   Late Colonizers (Red/Purple) Growth: 15 (b_red), 9 (b_purple)
+    *   Interactions involving Red/Purple: 18 (a_53, Yellow->Red), 10 (a_13, Yellow->Purple check index?) -> Actually locking Yellow interactions 6, 10, 12, 18.
+*   **Justification**:
+    *   "Based on qPCR data showing P. gingivalis and F. nucleatum were undetectable or below detection limits (Heine et al., Table S8)."
+    *   Prevent noise fitting by strictly locking non-existent species.
+
+Condition 2: Dysbiotic Static
+-----------------------------
+*   **Parameters**: Lock 5 / Estimate 15
+*   **Locked Indices**:
+    *   Standard Nishioka Locks: 6, 12, 13, 16, 17
+*   **Justification**:
+    *   "Metabolite accumulation in static culture limits the dynamic interactions observed in flow conditions (Heine et al., Discussion)."
+    *   Pathogens exist but lack the "Surge" dynamics seen in HOBIC.
+    *   Locks only the biologically implausible interactions (Nishioka locks).
+
+Condition 3: Commensal HOBIC
+----------------------------
+*   **Parameters**: Lock 8 / Estimate 12
+*   **Locked Indices**:
+    *   Standard Nishioka Locks: 6, 12, 13, 16, 17
+    *   Red Growth: 15 (b_red) -> Locked to 0.0
+    *   Yellow Interactions: 10, 18 (in addition to 6, 12)
+*   **Special Setting**:
+    *   Blue Growth (b_blue, idx 3) is estimated freely (high prior) to match the rapid initial decline/growth dynamics in flow.
+*   **Justification**:
+    *   "Staticとほぼ同じだが、Blueの増殖を推定" (Similar to Static but estimating Blue growth).
+    *   Flow washes out Blue species differently than Static.
+
+Condition 4: Dysbiotic HOBIC ("The Surge Model")
+------------------------------------------------
+*   **Parameters**: Lock 0 / Estimate 20
+*   **Locked Indices**: None.
+*   **Justification**:
+    *   "To capture the complex metabolic cross-feeding (lactate, pH, vitamins) and co-aggregation described in the metabolic map (Heine et al., Fig 4C)."
+    *   **Value Proposition**: Only by unlocking ALL parameters can the model reproduce the "Surge" (delayed rapid growth of pathogens) observed in experiments.
+    *   Acts as a "Core Network Discovery" phase.

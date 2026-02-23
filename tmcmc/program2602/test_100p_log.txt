@@ -1,0 +1,18 @@
+2026-01-30 16:55:42 INFO __main__: Modules imported with TSM Linearization support
+2026-01-30 16:55:42 INFO __main__: Numba: enabled
+Traceback (most recent call last):
+  File "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/main/case2_main.py", line 2918, in <module>
+    main()
+  File "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/main/case2_main.py", line 1097, in main
+    chains_M1, logL_M1, MAP_M1, converged_M1, diag_M1 = run_multi_chain_TMCMC(
+                                                        ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/core/tmcmc.py", line 1713, in run_multi_chain_TMCMC
+    result = run_TMCMC(
+             ^^^^^^^^^^
+  File "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/core/tmcmc.py", line 1252, in run_TMCMC
+    evaluator.update_linearization_point(theta0_next)
+  File "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/core/evaluator.py", line 271, in update_linearization_point
+    self.tsm.update_linearization_point(theta_new_full)
+  File "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/demo_analytical_tsm_with_linearization_jit.py", line 228, in update_linearization_point
+    raise ValueError(f"theta_new must have shape (14,), got {theta_new.shape}")
+ValueError: theta_new must have shape (14,), got (20,)
