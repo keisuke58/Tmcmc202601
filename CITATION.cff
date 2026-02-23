@@ -1,0 +1,54 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Tmcmc202601: 5-Species Oral Biofilm TMCMC + FEM Pipeline"
+abstract: >
+  Bayesian parameter estimation (TMCMC) and 3D FEM stress analysis pipeline
+  for a 5-species oral biofilm model. Infers species interaction strengths
+  from in vitro longitudinal data across four experimental conditions
+  (Commensal/Dysbiotic × Static/HOBIC) and propagates posterior uncertainty
+  through a Dysbiotic Index → stiffness mapping into Abaqus 3D finite element
+  stress analysis of periodontal tissue.
+authors:
+  - family-names: Nishioka
+    given-names: Keisuke
+    affiliation: "Keio University / IKM Leibniz Universität Hannover"
+repository-code: "https://github.com/keisuke58/Tmcmc202601"
+license: MIT
+date-released: "2026-02-24"
+version: "1.0.0"
+keywords:
+  - bayesian-inference
+  - TMCMC
+  - oral-microbiome
+  - biofilm
+  - finite-element-analysis
+  - periodontal-disease
+  - jax
+  - scientific-computing
+  - dysbiosis
+references:
+  - type: article
+    title: "Transitional Markov Chain Monte Carlo Method for Bayesian Model Updating, Model Class Selection, and Model Averaging"
+    authors:
+      - family-names: Ching
+        given-names: Jianye
+      - family-names: Chen
+        given-names: Yi-Chu
+    journal: "Journal of Engineering Mechanics"
+    year: 2007
+    doi: "10.1061/(ASCE)0733-9399(2007)133:7(816)"
+  - type: article
+    title: "A Hamilton principle-based model for diffusion-driven biofilm growth"
+    authors:
+      - family-names: Klempt
+        given-names: Paul
+      - family-names: Soleimani
+        given-names: Meisam
+      - family-names: Wriggers
+        given-names: Peter
+      - family-names: Junker
+        given-names: Philipp
+    journal: "Biomechanics and Modeling in Mechanobiology"
+    year: 2024
+    doi: "10.1007/s10237-024-01883-x"

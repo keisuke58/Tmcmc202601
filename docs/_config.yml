@@ -1,0 +1,9 @@
+theme: minima
+title: "Tmcmc202601"
+description: "5-Species Oral Biofilm: TMCMC Bayesian Inference + 3D FEM Pipeline"
+url: "https://keisuke58.github.io"
+baseurl: "/Tmcmc202601"
+author:
+  name: "Nishioka Keisuke"
+  url: "https://github.com/keisuke58"
+show_excerpts: true
