@@ -1,0 +1,24 @@
+{
+  "description": "Interaction network derived from Figure 4C (Nishioka Algorithm)",
+  "nodes": [
+    {"id": 0, "name": "S. oralis", "short": "S.o", "color": "blue"},
+    {"id": 1, "name": "A. naeslundii", "short": "A.n", "color": "green"},
+    {"id": 2, "name": "Veillonella", "short": "Vei", "color": "yellow"},
+    {"id": 3, "name": "F. nucleatum", "short": "F.n", "color": "purple"},
+    {"id": 4, "name": "P. gingivalis", "short": "P.g", "color": "red"}
+  ],
+  "active_edges": [
+    {"source": 0, "target": 1, "relation": "bidirectional", "param_idx": 1, "biological_note": "Co-aggregation"},
+    {"source": 0, "target": 2, "relation": "bidirectional", "param_idx": 10, "biological_note": "Lactate consumption"},
+    {"source": 0, "target": 3, "relation": "bidirectional", "param_idx": 11, "biological_note": "Formate/Acetate symbiosis"},
+    {"source": 2, "target": 4, "relation": "bidirectional", "param_idx": 18, "biological_note": "pH rise support"},
+    {"source": 3, "target": 4, "relation": "bidirectional", "param_idx": 19, "biological_note": "Co-aggregation/Peptides"}
+  ],
+  "locked_edges": [
+    {"source": 2, "target": 3, "relation": "none", "param_idx": 6, "reason": "No direct interaction in Fig 4C"},
+    {"source": 1, "target": 2, "relation": "none", "param_idx": 12, "reason": "No direct interaction in Fig 4C"},
+    {"source": 1, "target": 3, "relation": "none", "param_idx": 13, "reason": "No direct interaction in Fig 4C"},
+    {"source": 0, "target": 4, "relation": "none", "param_idx": 16, "reason": "No direct interaction in Fig 4C"},
+    {"source": 1, "target": 4, "relation": "none", "param_idx": 17, "reason": "No direct interaction in Fig 4C"}
+  ]
+}

@@ -1,0 +1,149 @@
+
+
+===== PAGE 1 =====
+Continuum Mech. Thermodyn. (2021) 33:1931–1956
+https://doi.org/10.1007/s00161-021-01017-z
+ORIGINAL ARTICLE
+Philipp Junker · Daniel Balzani
+An extended Hamilton principle as unifying theory for
+coupled problems and dissipative microstructure evolution
+Received: 9 September 2020 / Accepted: 23 April 2021 / Published online: 7 June 2021
+© The Author(s) 2021
+Abstract An established strategy for material modeling is provided by energy-based principles such that
+evolution equations in terms of ordinary differential equations can be derived. However, there exist a variety
+of material models that also need to take into account non-local effects to capture microstructure evolution. In
+this case, the evolution of microstructure is described by a partial differential equation. In this contribution,
+we present how Hamilton’s principle provides a physically sound strategy for the derivation of transient
+ﬁeld equations for all state variables. Therefore, we begin with a demonstration how Hamilton’s principle
+generalizes the principle of stationary action for rigid bodies. Furthermore, we show that the basic idea behind
+Hamilton’s principle is not restricted to isothermal mechanical processes. In contrast, we propose an extended
+Hamilton principle which is applicable to coupled problems and dissipative microstructure evolution. As
+example, we demonstrate how the ﬁeld equations for all state variables for thermo-mechanically coupled
+problems, i.e., displacements, temperature, and internal variables, result from the stationarity of the extended
+Hamilton functional. The relation to other principles, as the principle of virtual work and Onsager’s principle,
+is given. Finally, exemplary material models demonstrate how to use the extended Hamilton principle for
+thermo-mechanically coupled elastic, gradient-enhanced, rate-dependent, and rate-independent materials.
+Keywords Coupled processes · Multi-physics · V ariational modeling· Local and non-local effects
+1 Introduction
+Physical bodies are described by a varying number of state variables. For instance, two state variables are
+necessary in a thermo-mechanical sense: displacements u and temperature θ. Other problems could be chemo-
+mechanical ones with the displacements and the concentration of substances, electro-mechanical ones with the
+displacements and the electric ﬁeld, or combinations of the latter. Particularly for solids, these state variables,
+however, do not carry enough information to reﬂect the total state. The important inﬂuence of microstructure
+and its time-dependent conﬁguration is not accounted for, i.e., for thermo-mechanically coupled problems, by
+the primary state variables u and θ. To overcome this deﬁciency, additional variables for the “inner state” were
+introduced between 1820 and 1850 by Carnot, Joule, and Clausius [ 9,12,28]. More details on the history are
+g i v e ni n[27]. These variables are nowadays referred to as internal variables which might be denoted, arbitrarily,
+Communicated by Marcus Aßmus, Victor A. Eremeyev and Andreas Öchsner.
+P . Junker
+Leibniz University Hannover, Institute of Continuum Mechanics, Hannover, Germany
+D. Balzani ( B)
+Chair of Continuum Mechanics, Ruhr University Bochum, Bochum, Germany
+E-mail: daniel.balzani@rub.de
+
+===== PAGE 2 =====
+1932 P . Junker, D. Balzani
+by the vector α. Then, the set {u,θ, α} completely describes the physical state of thermo-mechanically cou-
+pled problems and dissipative microstructure evolution. Appropriate choices for α mimic the experimentally
+observed material conﬁguration. However, a sophisticated challenge of modern mechanics is the develop-
+ment of mathematical equations that describe how the microstructural state, given in terms of α,e v o l v e s .
+Consequently, these equations are referred to as evolution equations and form the material model. Herein, a
+material-speciﬁc choice ofα deﬁnes answers to questions as is it a plastic strain, a volume fraction, a hardening
+or damage variable, or others.
+Along with the choice which set of internal variables shall be used in the material model, the identiﬁcation
+of constraints from experimentally observed material behavior is a crucial step during the derivation of a
+related mathematical description of the material behavior. Then, the consideration of the constraints in terms
+of mathematical formulas often turns out to be a non-trivial issue. It is thus convenient to derive material
+models from a potential which might comprise several beneﬁts: ensurance of thermodynamic consistency
+and simpliﬁed consideration of constraints by using appropriate Lagrange parameters. One potential-based
+principle of material modeling is the principle of maximum dissipation. Here, the dissipation, being a function
+of the thermodynamic driving forces p, is maximized to derive the evolution equations. The assumption
+that (microstructural) processes maximize the dissipation is physically sound and, consequently, material
+models that are derived by using this approach agree to the fundamental laws of physics. A similar potential-
+based principle is given by the so-called principle of the minimum of the dissipation potential. In contrast
+to the principle of maximum dissipation, the potential is here a function of the thermodynamic ﬂux ˙α such
+that minimizing the dissipation potential directly results in the evolution equations. A subsequent Legendre
+transformation of the associated dissipation function allows to identify the related yield function /Phi1if rate-
+independent processes are modeled.
+It is obvious that a model for a speciﬁc material should be able to describe the related processes with
+sufﬁcient accuracy and, of course, must not contradict fundamental physical observations and their related
+laws. These requirements still provide a huge variety to construct a speciﬁc material model. For instance, the
+relation
+˙α ∝ p (1)
+is often used for rate-dependent processes. This proportionality between the thermodynamic driving force p,
+which can be derived from the free energy density /Psi1by
+p := − ∂/Psi1
+∂α , (2)
+and the thermodynamic ﬂux ˙α routes back to Onsager and is consequently known as Onsager’s principle. In
+case of rate-independent processes, materials are modeled by deﬁning a suitable yield function /Phi1,a n dt h e
+evolution of the internal variable is assumed to be obtained from a thermodynamic extremal principle, e.g.,
+principle of maximum dissipation or principle of the minimum of the dissipation potential, yielding
+˙α ∝ ∂/Phi1
+∂p (3)
+This procedure has proven to be beneﬁcial when quasi-static processes evolve. Whereas for appropriate choices
+for /Phi1and using Onsager’s principle, it can be shown that such material models are thermodynamically sound
+by construction, the veriﬁcation of the latter is usually a part of the derivation of a material model if other
+modeling techniques are employed. Here, the Coleman–Noll procedure is used for the identiﬁcation of the
+driving forces and thermodynamic consistency is proved by checking the dissipation inequality
+p · ˙α ≥ 0 . (4)
+However, a drawback of these potential-based approaches is that they are not suitable for the derivation of ﬁeld
+equations for the internal variable. To be more precise, the inclusion of gradient terms is not possible since the
+principle of maximum dissipation and the principle of the minimum of the dissipation potential are both deﬁned
+locally for a material point. A solution to this drawback is given by Hamilton’s principle: it is formulated as
+variational problem for the entire physical body. Thus, ﬁeld equations, i.e., partial differential equations in
+time and space, can be derived from related stationarity conditions. Hamilton’s principle is strongly related to
+the principle of stationary action and comprises the principle of virtual work and the principle of the minimum
+of the dissipation potential, which all turn out to be special cases of Hamilton’s principle.
+
+===== PAGE 3 =====
+An extended Hamilton principle as unifying theory 1933
+In this contribution, we aim at highlighting the relation of Hamilton’s principle to the fundamental laws
+of thermodynamics and other extremal principles of continuum mechanics. We begin with a short overview
+on the history of material modeling and give a brief introduction to thermodynamics. Later, we recall the
+principle of stationary action and demonstrate its relation to the 1
+st law of thermodynamics. This serves as
+basis to present how a generalization of the principle of stationary action, which is originally restricted to rigid
+particles, can be used to describe non-conservative deformable solids. Particularly, we show that an extended
+Hamilton principle thus might be used for the derivation of material models including ﬁeld equations for all
+state variables in thermo-mechanically coupled problems given by {u,θ, α}. Finally, we show basic examples
+of thermo-mechanically coupled material models based on the extended Hamilton principle.
+2 Brief outline of the history of material modeling
+Material modeling comprises the usage of internal variables and strategies to derive governing equations for
+describing their evolution. A prominent modeling strategy is the application of variational methods which were
+invented far earlier than the concept of internal variables, see [27]. The idea of some quantity that is maximized
+or minimized by physical processes roots back to Aristotle or even before, cf. [ 5]. It is strongly related to the
+principle of stationary action which was embedded into a rigorous mathematical concept in the late 1700s by
+Leibniz, Euler, Maupertuis, Lagrange, and others, see [ 50]. The invention of variational calculus allowed to
+solve the problem of brachistochrone as well as light refraction, the motion of a conservative oscillator, and
+many more. A related approach is the well-known principle of Castigliano and Menabrea [ 11,40]. A historical
+review is presented in [ 8]. Hamilton generalized the principle of stationary action in [ 25,26]. More details
+on Hamilton’s principle are given by Bedford [ 4] and Bailey [ 2] who presents a clear distinction of different
+energy-based extremal principles.
+The usage of internal variables in current sense routes back to the concept of “variables of inner state”
+as pioneered by Carnot [ 9], Joule [ 28], and Clausius [ 12]. Afterwards, the concept was put in a sound ther-
+modynamic framework by Helmholtz [ 56], Thomson [ 54], Maxwell [ 39], Gibbs [ 20], and Duhem [ 17]( s e e
+[27]a n d[ 38] for a detailed historical presentation). In 1931, Onsager used the thermodynamic approach of
+thermodynamic ﬂuxes ˙α and thermodynamic forces p. Starting from the (reduced) Clausius–Duhem inequality
+p · ˙α ≥ 0 , (5)
+he postulated a proportionality which served as fundamental ansatz for material modeling since it fulﬁlls
+thermodynamic consistency a priori [ 46,47]. Roughly at the same time, the concept of thermodynamic ﬂuxes
+and forces was conveyed to continuum mechanics by Bridgman [7] and Eckart [18]. A time-dependent evolution
+was investigated in the general work by Ziegler [ 57]. The thermodynamics of irreversible processes was put
+in the 1960s into a more rigorous mathematical framework by Truesdell [ 55] and Coleman and Noll [ 13–15]
+who established so-called rational thermodynamics. A further elaboration by Rice [
+51] and Lubliner [ 33]
+founded in the 1970s the concept of internal variables in its current form. The concept of maximum dissipation
+as fundamental strategy for the derivation of evolution equations was given by Lubliner in 1984 [ 34]a n d
+Simo in 1988 [ 52]. A concept for complex microstructures was proposed by Ortiz and Repetto in their work
+on non-convex energy minimization [ 48] which built upon the mathematical basis of Ball and James [ 3].
+An alternative for the principle of maximum dissipation was introduced by the principle of the minimum
+of the dissipation potential, published in various forms, e.g., by Martin, Maier, Halphen, Maugin and Hackl
+[21,24,35–37]. A comparison between the two approaches was given in [ 22]. Strategies to couple the local
+material behavior to non-local ﬁelds can be given by the introduction of penalty terms, see, e.g., [ 16], or by
+postulating evolution equations that are added as constraints to the functional by using Lagrange parameters,
+see, e.g., the works by Hackl and Fischer [19,23]. It is also worth mentioning that instead of a time-continuous
+presentation, time-incremental variational methods for material modeling have been established. Examples are
+given in a more numerical setting by Simo [ 53]. A more analytical setting is discussed by Mielke for the case
+of ﬁnite elasto-plasticity in [ 43] based on dissipation distances and by Miehe who generalized this approach
+to gradient-extended standard dissipative materials [ 42]. More details are also provided in the textbook by
+Mielke in 2015 [ 44].
