@@ -11,6 +11,7 @@ Welcome to the **Tmcmc202601** project wiki — a 5-species oral biofilm Bayesia
 | [Installation](Installation) | Environment setup (TMCMC + JAX-FEM conda) |
 | [TMCMC Guide](TMCMC-Guide) | Running estimations, key options, interpreting output |
 | [FEM Pipeline](FEM-Pipeline) | From TMCMC posterior to Abaqus stress analysis |
+| [Multiscale Coupling](Multiscale-Coupling) | Micro→Macro: ODE ecology → spatial eigenstrain for Abaqus |
 | [Parameter Reference](Parameter-Reference) | All 20 θ parameters with biological meaning |
 | [Results Gallery](Results-Gallery) | Key figures from best runs |
 | [Troubleshooting](Troubleshooting) | Common errors and fixes |
@@ -20,17 +21,19 @@ Welcome to the **Tmcmc202601** project wiki — a 5-species oral biofilm Bayesia
 ## Quick Overview
 
 ```
-In vitro data (4 conditions × 5 species)
+In vitro data (4 conditions × 5 species × 5 time points)
         │
         ▼
   TMCMC Bayesian Inference
   Hamilton ODE · 20 parameters
-  → θ_MAP · posterior samples
+  → θ_MAP · 1000 posterior samples
         │
-        ▼
-  3D FEM Stress Analysis
-  DI(x) → E(x) → Abaqus
-  → S_Mises · U_max
+        ├──────────────────────────────┐
+        ▼                              ▼
+  3D FEM Stress Analysis       Multiscale Micro→Macro
+  DI(x) → E(x) → Abaqus       0D ODE → DI_0D (18× diff)
+  → S_Mises · U_max            1D PDE → α_Monod(x)
+                               → ε_growth(x) → Abaqus INP
 ```
 
 ### Five Species

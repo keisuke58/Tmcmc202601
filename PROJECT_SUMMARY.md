@@ -1,6 +1,6 @@
 # プロジェクト進捗まとめ
 **Tmcmc202601 — 5種バイオフィルム TMCMC + FEM 応力解析**
-最終更新: 2026-02-21
+最終更新: 2026-02-24
 
 ---
 
@@ -182,6 +182,34 @@ DI 依存コヒーシブ特性:
 
 ---
 
+### Phase 3: TMCMC → Hamilton ODE → Klempt 栄養拡散 1D パイプライン (2026-02-24)
+
+**スクリプト**: `FEM/jax_hamilton_to_rd_1d_pipeline.py`
+**出力**: `FEM/klempt2024_results/hamilton_rd_pipeline/`
+
+完全な科学的チェーンを実装・実行:
+1. TMCMC MAP パラメータ（Commensal/Dysbiotic）
+2. Hamilton 0D ODE 積分 → 最終種組成 φ_i
+3. 1D 深さプロファイル構築: φ(x) = φ_0D × exp(−x/l_scale) （x=0: 歯面, x=1: 唾液）
+4. Klempt 2024 定常栄養輸送 PDE（1D, Newton 法）:
+   `-D_c d²c/dx² + g·φ(x)·c/(k+c) = 0`, BC: c(x=1)=1, dc/dx|_{x=0}=0
+
+#### 結果 (t_final=0.05, g_eff=50, D_c=1, k=1)
+
+| 条件 | a₃₅ | φ_Pg (最終) | φ_total_mean | c_min | Thiele 数 |
+|------|-----|------------|-------------|-------|----------|
+| Commensal | 2.41 | 0.009 | 0.366 | 0.028 | 4.27 |
+| Dysbiotic | 20.94 | **0.048** | 0.351 | 0.031 | 4.19 |
+
+**知見**:
+- a₃₅ 大 (20.94) → Pg が 5.4 倍高くなる（Vd→Pg 相互作用による病原菌増殖）
+- 栄養減衰（c_min）の差は小さい（~0.003）: 総 φ_total が類似しているため Thiele 数も近似
+- 個々の種組成の変化より総バイオフィルム量が栄養輸送を支配することを示す
+
+図: `hamilton_rd_pipeline_comparison.png`（6パネル: ODE 軌跡×2, 最終組成, 深さプロファイル, 栄養場, g_eff スウィープ）
+
+---
+
 ## 成果物一覧
 
 | 種別 | ファイル |
@@ -192,6 +220,7 @@ DI 依存コヒーシブ特性:
 | 材料感度図 | `_material_sweep/figures/*.png` |
 | 異方性図 | `_aniso_sweep/figures/*.png` |
 | DI 信頼区間図 | `_di_credible/fig_*.png` |
+| Hamilton→RD パイプライン図 | `FEM/klempt2024_results/hamilton_rd_pipeline/*.png` |
 | 全スクリプト | `FEM/*.py`, `FEM/usdfld_biofilm.f` |
 
 ---
@@ -206,6 +235,8 @@ DI 依存コヒーシブ特性:
 
 4. **Pg は基材近傍に局在**: ∇φ_Pg の主方向が全条件で −x（基材側）を向く → 病原性バイオフィルムの深部定着を力学的に示唆。
 
+5. **栄養輸送は総 φ_total が支配**: 種組成（commensal vs dysbiotic）より総バイオフィルム体積分率が栄養減衰の大きさを決定する。Thiele 数が一致する条件では栄養場の差は小さい。
+
 ---
 
 ## 残課題（Next Steps）
@@ -214,3 +245,4 @@ DI 依存コヒーシブ特性:
 - [ ] **Posterior S_Mises 不確かさ完成** → 20 サンプル CI バー付き比較図
 - [ ] **現実的荷重への拡張** → 50–150 N 咀嚼荷重、接触面積考慮
 - [ ] **TMCMC 精緻化** → V.dispar/Fn bounds 拡張で mild_weight のトレードオフ改善
+- [ ] **Hamilton→RD パイプライン 2D 拡張** → JAX-FEM を使った 2D 解析（φ_Pg 空間分布を jax-fem に接続）

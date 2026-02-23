@@ -1,0 +1,49 @@
+============================================================
+  Conformal Biofilm Tet Mesh – Validation Report
+============================================================
+
+Geometry
+  Inner vertices (= tooth STL verts) : 3357
+  STL faces                           : 6710
+  Layers                              : 4
+  Target thickness                    : 0.2000 mm
+  Actual mean thickness               : 0.2000 mm
+
+Mesh
+  Total nodes  : 16785
+  Total C3D4   : 80520
+  Neg-volume   : 0  (should be 0)
+  Aspect ratio : min=0.0672  mean=0.1010  (ideal=1.0)
+  Volume range : 0.0006535 .. 0.002999 mm^3
+
+DI Bins
+  Bin     E_stiff (GPa)  n_tets      
+  00     0.0000        0
+  01     0.0000        0
+  02     0.0000        0
+  03     0.0000        20130
+  04     0.0000        0
+  05     0.0000        20130
+  06     0.0000        20130
+  07     0.0000        0
+  08     0.0000        20130
+  09     0.0000        0
+  10     0.0000        0
+  11     0.0000        0
+  12     0.0000        0
+  13     0.0000        0
+  14     0.0000        0
+  15     0.0000        0
+  16     0.0000        0
+  17     0.0000        0
+  18     0.0000        0
+  19     0.0000        0
+
+Boundary conditions
+  BC mode     : inner_fixed
+  Pressure    : 100 Pa (inward on outer face)
+
+Key advantage over previous C3D8R hex approach:
+  Inner surface = tooth STL vertices exactly
+  → zero penetration by construction
+  → mesh conforms to all surface curvature
