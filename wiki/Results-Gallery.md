@@ -83,11 +83,15 @@ DI depth profiles with 90% credible intervals. Higher DI = more dysbiotic commun
 
 ---
 
-### Posterior Stress Uncertainty
+### Posterior Stress Uncertainty (updated 2026-02-24)
 
 ![Stress violin](../FEM/_posterior_uncertainty/Fig1_stress_violin.png)
 
-Von Mises stress distribution across 4 conditions, with uncertainty propagated from TMCMC posterior through the DI→E→FEM chain.
+Von Mises stress distribution across 4 conditions (20 TMCMC posterior samples each). Median [5th–95th CI] annotated per condition. dh-baseline shows widest spread (p95/p05 = 1.58×) due to unconstrained a₃₅; commensal/dysbiotic conditions are tight (1.05–1.17×).
+
+![Stress summary](../FEM/_posterior_uncertainty/Fig5_stress_summary_panel.png)
+
+6-panel summary: box plots (substrate+surface), parameter sensitivity (Spearman ρ), CI bars, and relative change vs. commensal static reference.
 
 ---
 
@@ -151,3 +155,36 @@ Side-by-side: 0D ODE trajectories, 1D nutrient + species profiles, and eigenstra
 ---
 
 → See [Multiscale Coupling](Multiscale-Coupling) for the full technical guide.
+
+---
+
+## 2D Nutrient PDE Extension (2026-02-24, Issue #3)
+
+Hamilton 0D ODE → 2D depth profile → steady-state Klempt nutrient PDE on 40×40 grid.
+
+### 2D Heatmap Comparison
+
+![2D comparison](../FEM/klempt2024_results/hamilton_rd_2d_pipeline/hamilton_rd_2d_comparison.png)
+
+Left: total biofilm volume fraction φ_total(x,y). Center: nutrient field c(x,y) at g_eff=50. Right: *P. gingivalis* distribution. Top=Commensal, Bottom=Dysbiotic. Pg max ratio = **5.7×** between conditions.
+
+### Cross-Section Comparison (y = 0.5)
+
+![2D cross-section](../FEM/klempt2024_results/hamilton_rd_2d_pipeline/hamilton_rd_2d_cross_section.png)
+
+1D cross-sections from the 2D simulation, directly comparable to the 1D pipeline. Panels: 0D ODE trajectories, final composition bar chart, depth profiles, nutrient profiles at g_eff=50, and nutrient sensitivity sweep (g_eff = 5, 20, 50).
+
+### Condition Difference Maps
+
+![2D difference](../FEM/klempt2024_results/hamilton_rd_2d_pipeline/hamilton_rd_2d_difference.png)
+
+Δ(Dysbiotic − Commensal) for φ_total, nutrient c, and Pg. The Pg difference is concentrated near the tooth surface (x ≈ 0) with max Δφ_Pg ≈ 0.04.
+
+### Summary Table (g_eff = 50)
+
+| Metric | Commensal | Dysbiotic | Ratio |
+|--------|:---------:|:---------:|:-----:|
+| φ_total mean | 0.368 | 0.354 | 0.96 |
+| c(tooth, y=0.5) | 0.028 | 0.031 | 1.09 |
+| Thiele mod | 4.29 | 4.21 | 0.98 |
+| **Pg max** | **0.0085** | **0.0484** | **5.7×** |

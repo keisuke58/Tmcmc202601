@@ -14,6 +14,8 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [Novelty & Contribution](#novelty--contribution)
+- [Repository Structure](#repository-structure)
 - [TMCMC: Bayesian Parameter Estimation](#tmcmc-bayesian-parameter-estimation)
 - [FEM: Stress Analysis Pipeline](#fem-stress-analysis-pipeline)
 - [Multiscale Micro→Macro Coupling](#multiscale-micromacro-coupling)
@@ -150,6 +152,68 @@ HOBIC (High-flow Open Biofilm Incubation Chamber) mimics oral shear forces that 
 ![Species interaction network](data_5species/interaction_network.png)
 
 *Fig. 1 — Inferred 5-species interaction network. Positive weights (blue) indicate facilitation; negative (red) indicate inhibition. Bridge species Vd and Fn mediate Pg colonisation.*
+
+---
+
+## Novelty & Contribution
+
+> 口腔バイオフィルムの種間相互作用パラメータをベイズ推定し、その事後分布を 3D FEM 応力解析まで一貫して伝播する、マルチスケール計算フレームワーク。
+
+### 研究の位置づけ
+
+歯周病の発症機序において、commensal → dysbiotic への菌叢遷移（polymicrobial synergy and dysbiosis; PSD モデル [Hajishengallis & Lamont 2012]）が鍵を握る。しかし既存研究には以下の 2 つのギャップがある：
+
+1. **種間相互作用の定量化が不十分** — 16S rRNA シーケンシングや共培養実験は「菌 A–B 間に相関がある」という定性的知見に留まり、相互作用強度 *a*ᵢⱼ の事後分布を推定した研究はない
+2. **微生物生態と組織力学の断絶** — バイオフィルムの構成論的モデル（e.g., Klempt et al. 2024）と歯周組織の FEM 解析は別々に発展してきたが、**推定パラメータの不確かさを力学応答まで伝播するフレームワーク**は存在しない
+
+### 4 つの新規性
+
+#### 1. Hamilton 変分 ODE + TMCMC による種間相互作用の確率的同定
+
+Klempt et al. (2024) の Hamilton 原理に基づく 5 種バイオフィルム ODE に対し、TMCMC（Ching & Chen 2007）による逐次テンパリングベイズ推定を適用。20 パラメータの同時事後分布を取得する。
+
+- **Hill ゲート** H(φ) = φⁿ/(Kⁿ+φⁿ) による非線形相互作用の導入で、bridge organism（Vd, Fn）→ keystone pathogen（Pg）の促進機構をモデル化
+- MAP 推定値だけでなく **N=1000 の事後サンプル** を保持 → 下流の全解析に不確かさを伝播
+- 4 条件（Commensal/Dysbiotic × Static/HOBIC）すべてで MAP RMSE < 0.075 を達成
+
+#### 2. 微生物生態 → 組織力学のエンドツーエンドパイプライン
+
+```
+In vitro CFU データ (Heine et al. 2025)
+  → TMCMC: θ_MAP, {θ⁽ⁱ⁾}ᵢ₌₁ᴺ  (20-dim 事後分布)
+    → Hamilton ODE → 空間菌組成場 φᵢ(x)
+      → Dysbiotic Index: DI(x) = 1 − H(x)/ln 5
+        → 構成則マッピング: E(x) = E_max(1−r)² + E_min·r
+          → Abaqus 3D FEM (Open-Full-Jaw patient mesh)
+            → σ_Mises(x), U(x) + 90% credible band
+```
+
+CFU 計測値から応力場の信用区間まで**単一の自動化パイプライン**で接続する点が、従来の単一スケール研究との本質的な違いである。
+
+#### 3. 事後分布の FEM への完全伝播（End-to-End Uncertainty Propagation）
+
+TMCMC 事後サンプル {θ⁽ⁱ⁾} を ODE → DI → E(x) → FEM に順伝播し、応力場の **90% credible interval** を構成する。決定論的最適化（NLS 等）では点推定しか得られず、この定量的不確かさ評価は不可能である。具体的には：
+
+- DI フィールドの条件間差異を信用区間付きで議論可能
+- von Mises 応力の分散が最も大きい空間領域を同定 → 実験デザインへのフィードバック
+
+#### 4. 栄養場–菌組成の空間連成によるマルチスケール固有ひずみ場
+
+Hamilton ODE を反応拡散 PDE（Monod 型消費項 + Fick 拡散）と連成し、**栄養場 c(x) に依存した空間非一様な成長固有ひずみ** ε(x) を導出する。
+
+- Monod 活性: α(x) = k_α ∫₀ᵀ φ_total · c/(k+c) dt → 固有ひずみ ε = α/3
+- 結果：唾液側 ε ≈ 0.14（14% 体積膨張）、歯面側 ε ≈ 0.001（栄養枯渇で成長停止）、空間勾配 **~100×**
+- この ε(x) を熱膨張アナロジーとして Abaqus INP に入力 → 空間的に非均一な残留応力場を生成
+
+### 従来研究との比較
+
+| 観点 | 従来の研究 | 本研究 |
+|------|-----------|--------|
+| 種間相互作用の推定 | 相関解析・定性的記述 | **Hamilton ODE + TMCMC による事後分布推定** |
+| 力学解析の材料入力 | 均一定数（文献値） | **DI(x) に基づく空間変動構成則** |
+| 不確かさの扱い | 点推定（感度解析のみ） | **事後分布の順伝播 → 応力の credible interval** |
+| スケール連成 | 単一スケール | **ODE（0D）→ 反応拡散 PDE（1D/2D）→ FEM（3D）** |
+| 固有ひずみ | 均一または未考慮 | **栄養場依存の空間非一様固有ひずみ** |
 
 ---
 
