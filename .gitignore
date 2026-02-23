@@ -48,7 +48,8 @@ abaqus.rpy.*
 *.pickle
 
 # =====================================================================
-# Output / result directories (underscore prefix convention)
+# Output / result directories
+# Convention: underscore prefix (_xxx/) = generated, never commit
 # =====================================================================
 _runs/
 _sweeps/
@@ -61,7 +62,7 @@ _benchmarks/
 _biofilm_mode_runs/
 _czm*/
 _di_credible/
-_eeff_sensitivity_runs/*.odb
+_eeff_sensitivity_runs/
 _growth_job_runs*/
 _jax_rd_datasets/
 _job_archive/
@@ -69,12 +70,22 @@ _material_sweep/
 _mesh_convergence/
 _openjaw_results/
 _posterior_abaqus/
+_posterior_abaqus_test/
+_posterior_abaqus_ALL_DONE.flag
 _posterior_plots/
 _posterior_sensitivity/
 _posterior_uncertainty/
 _pressure_sweep/
 _tmp_*/
+overview_figs/
+
+# tmcmc subdir run outputs
 tmcmc/_runs/
+tmcmc/data_5species_sequential/
+tmcmc/temp_check_fit/
+
+# data_5species run outputs
+data_5species/_runs/
 
 # =====================================================================
 # LaTeX build artifacts (keep .tex and .pdf sources)
@@ -94,12 +105,12 @@ tmcmc/_runs/
 *.xdv
 
 # =====================================================================
-# Images / figures (generated outputs)
+# Images / figures
 # =====================================================================
-# Keep figures/ tracked; exclude auto-generated dumps
-_posterior_abaqus_test/
-_posterior_abaqus_ALL_DONE.flag
-overview_figs/
+# Rule: track final publication figures, ignore auto-generated dumps
+# Place publication-ready figures in FEM/figures/ or docs/figures/
+verify_*.png
+*_comparison*.png
 
 # =====================================================================
 # Misc
