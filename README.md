@@ -309,6 +309,71 @@ c = 1                               on ∂Ω
 
 ---
 
+## Multiscale Micro→Macro Coupling
+
+> **Added 2026-02-24** — bridges the 0D/1D ODE ecology model with spatially non-uniform eigenstrain fields for Abaqus.
+
+### Concept
+
+The TMCMC posterior gives a *mean-field* community composition θ. The multiscale pipeline turns this into a **spatially varying growth eigenstrain** ε(x) that can be imported into any FEM solver:
+
+```
+TMCMC θ_MAP
+    │
+    ├─► 0D JAX ODE (T*=25, n=2500 steps)
+    │       → DI_0D     commensal≈0.05,  dysbiotic≈0.84  (17× difference)
+    │       → α_0D      condition-specific activity scalar
+    │
+    └─► 1D Hamilton + Nutrient PDE (N=30 nodes, T*=20)
+            → c(x,T)    nutrient field  (decays from saliva→tooth surface)
+            → φᵢ(x,T)   species profiles
+            │
+            ▼
+        α_Monod(x) = k_α ∫ φ_total · c/(k+c) dt     [KEY spatial bridge]
+        ε_growth(x) = α_Monod(x) / 3                  [volumetric eigenstrain]
+            │
+            ▼
+        Abaqus T3D2 bar element INP
+        → spatially non-uniform thermal-analogy eigenstrain field
+```
+
+### Key Numerical Results (2026-02-24)
+
+| Quantity | Commensal | Dysbiotic | Ratio |
+|----------|:---------:|:---------:|:-----:|
+| DI_0D | 0.047 | 0.845 | **18×** |
+| α_Monod at tooth surface (x=0) | 0.004 | 0.004 | ≈1× |
+| α_Monod at saliva side (x=1) | 0.420 | 0.420 | ≈1× |
+| Spatial gradient (x=1 / x=0) | **101×** | **101×** | — |
+| ε_growth at x=1 | 0.14 (14%) | 0.14 (14%) | — |
+| E_eff (Pa, from DI) | **~909** | **~33** | **28×** |
+
+> The spatial gradient in ε_growth is driven by nutrient depletion c(x): the biofilm interior (tooth surface, x=0) is nutrient-starved and barely grows, while the saliva-exposed outer layer (x=1) grows at 14% volumetric strain.
+
+### Implementation Files
+
+| File | Purpose |
+|------|---------|
+| `FEM/multiscale_coupling_1d.py` | Full 0D+1D pipeline → α_Monod(x) CSV |
+| `FEM/generate_hybrid_macro_csv.py` | Hybrid: 0D DI scalar × 1D spatial α |
+| `FEM/generate_abaqus_eigenstrain.py` | T3D2 bar INP with thermal eigenstrain |
+| `FEM/generate_pipeline_summary.py` | 9-panel summary figure |
+
+### Quick Run
+
+```bash
+~/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python \
+    FEM/multiscale_coupling_1d.py
+# → FEM/_multiscale_results/macro_eigenstrain_{commensal,dysbiotic}.csv
+# → FEM/_multiscale_results/multiscale_comparison.png
+
+~/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python \
+    FEM/generate_abaqus_eigenstrain.py
+# → FEM/_abaqus_input/biofilm_1d_bar_{commensal,dysbiotic}.inp
+```
+
+---
+
 ## Quick Start
 
 ### TMCMC Estimation

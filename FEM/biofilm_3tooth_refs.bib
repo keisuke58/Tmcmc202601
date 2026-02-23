@@ -1,0 +1,224 @@
+%% biofilm_3tooth_refs.bib
+%% References for biofilm_3tooth_report.tex
+%% Covers: OpenJaw geometry, biofilm ODE model, E_eff material model,
+%%         DI entropy formula, TMCMC inference, oral microbiology, jaw FEM.
+
+% ── Geometry / Dataset ────────────────────────────────────────────────────────
+
+@article{gholamalizadeh2022open,
+  author    = {Gholamalizadeh, Torkan and Moshfeghifar, Faezeh and Ferguson, Zachary
+               and Schneider, Teseo and Panozzo, Daniele and Darkner, Sune
+               and Makaremi, Masrour and Chan, Fran{\c{c}}ois
+               and S{\o}ndergaard, Peter Lampel and Erleben, Kenny},
+  title     = {Open-Full-Jaw: An open-access dataset and pipeline for finite element
+               models of human jaw},
+  journal   = {Computer Methods and Programs in Biomedicine},
+  volume    = {224},
+  pages     = {107009},
+  year      = {2022},
+  doi       = {10.1016/j.cmpb.2022.107009},
+  note      = {Source of Patient-1 tooth STL files (T23, T30, T31) used in this work}
+}
+
+% ── Biofilm ODE / Continuum model ─────────────────────────────────────────────
+
+@article{Klempt2025ContinuumBiofilm,
+  author  = {Klempt, F. and Geisler, H. and Soleimani, M. and Junker, P.},
+  title   = {A continuum multi-species biofilm model with a novel interaction scheme},
+  journal = {arXiv preprint arXiv:2509.01274},
+  year    = {2025},
+  note    = {5-species ODE model; provides the E\_eff material model
+             ($E_{\max}=10$\,MPa, $E_{\min}=0.5$\,MPa, $\alpha=2.0$,
+             $s_{\mathrm{DI}}=0.025778$) adopted in this work}
+}
+
+@unpublished{Fritsch2025BayesianMicrofilms,
+  author  = {Fritsch, L. and Geisler, H. and Grashorn, J. and Klempt, F.
+             and Soleimani, M. and Broggi, M. and Junker, P. and Beer, M.},
+  title   = {Bayesian updating of bacterial microfilms under hybrid uncertainties
+             with a novel surrogate model},
+  year    = {2025},
+  note    = {Manuscript; basis for the TMCMC inference pipeline applied here}
+}
+
+@article{JunkerBalzani2021ExtendedHamilton,
+  author  = {Junker, P. and Balzani, D.},
+  title   = {An extended Hamilton principle as unifying theory for coupled problems
+             and dissipative microstructure evolution},
+  journal = {Continuum Mechanics and Thermodynamics},
+  volume  = {33},
+  number  = {4},
+  pages   = {1931--1956},
+  year    = {2021},
+  doi     = {10.1007/s00161-021-01017-z}
+}
+
+% ── DI: Entropy-based Dysbiotic Index ─────────────────────────────────────────
+
+@article{Shannon1948,
+  author  = {Shannon, C. E.},
+  title   = {A Mathematical Theory of Communication},
+  journal = {The Bell System Technical Journal},
+  volume  = {27},
+  number  = {3},
+  pages   = {379--423},
+  year    = {1948},
+  doi     = {10.1002/j.1538-7305.1948.tb01338.x},
+  note    = {Entropy $H = -\sum p_i \ln p_i$ used as the basis for DI
+             $= 1 - H/H_{\max}$, $H_{\max}=\ln 5$}
+}
+
+% ── Oral biofilm / dysbiosis ───────────────────────────────────────────────────
+
+@article{Heine2025PeriImplant,
+  author  = {Heine, N. and Bittroff, K. and Szafra{\'n}ski, S. P.
+             and Duitscher, M. and Behrens, W. and Vollmer, C.
+             and Mikolai, C. and Kommerein, N. and Debener, N.
+             and Frings, K. and Heisterkamp, A. and Scheper, T.
+             and Torres-Mapa, M. L. and Bahnemann, J.
+             and Stiesch, M. and Doll-Nikutta, K.},
+  title   = {Influence of species composition and cultivation condition on
+             peri-implant biofilm dysbiosis in vitro},
+  journal = {Frontiers in Oral Health},
+  volume  = {6},
+  pages   = {1649419},
+  year    = {2025},
+  doi     = {10.3389/froh.2025.1649419},
+  note    = {In vitro 5-species peri-implant biofilm including \textit{P.~gingivalis};
+             supports use of $a_{35}$ (Veillonella$\to$Pg) as a key dysbiosis parameter}
+}
+
+@article{ODonnell2014InVitroPeriodontalBiofilm,
+  author  = {O'Donnell, L. E. and others},
+  title   = {Development of an in vitro periodontal biofilm model for assessing
+             inflammatory responses},
+  journal = {BMC Oral Health},
+  volume  = {14},
+  pages   = {80},
+  year    = {2014},
+  doi     = {10.1186/1472-6831-14-80}
+}
+
+@article{Kolenbrander2010OralBiofilm,
+  author  = {Kolenbrander, P. E. and Palmer, R. J. and Periasamy, S.
+             and Jakubovics, N. S.},
+  title   = {Oral multispecies biofilm development and the key role of
+             cell--cell distance},
+  journal = {Nature Reviews Microbiology},
+  volume  = {8},
+  number  = {7},
+  pages   = {471--480},
+  year    = {2010},
+  doi     = {10.1038/nrmicro2381},
+  note    = {Ecological basis for the 5-species succession model
+             (S.\,oralis $\to$ A.\,naeslundii $\to$ V.\,dispar $\to$
+              F.\,nucleatum $\to$ P.\,gingivalis)}
+}
+
+% ── Biofilm mechanical properties ──────────────────────────────────────────────
+
+@article{Biofilm2023Viscoelastic,
+  author  = {Peterson, B. W. and others},
+  title   = {Viscoelastic properties of \textit{Pseudomonas aeruginosa} biofilms:
+             {B}ayesian estimation},
+  journal = {Biophysical Reports},
+  volume  = {3},
+  pages   = {100130},
+  year    = {2023},
+  doi     = {10.1016/j.bpr.2023.100130},
+  note    = {Bayesian characterisation of biofilm viscoelastic moduli;
+             supports the linear-elastic approximation adopted here
+             for small-deformation loading}
+}
+
+@article{Stoodley2002BiofilmCommunities,
+  author  = {Stoodley, P. and Sauer, K. and Davies, D. G. and Costerton, J. W.},
+  title   = {Biofilms as complex differentiated communities},
+  journal = {Annual Review of Microbiology},
+  volume  = {56},
+  pages   = {187--209},
+  year    = {2002},
+  doi     = {10.1146/annurev.micro.56.012302.160705}
+}
+
+% ── TMCMC / Bayesian inference ─────────────────────────────────────────────────
+
+@article{ChingChen2007TMCMC,
+  author  = {Ching, J. and Chen, Y.-C.},
+  title   = {Transitional {Markov} Chain {Monte Carlo} Method for {Bayesian} Model
+             Updating, Model Class Selection, and Model Averaging},
+  journal = {Journal of Engineering Mechanics},
+  volume  = {133},
+  number  = {7},
+  pages   = {816--832},
+  year    = {2007},
+  doi     = {10.1061/(ASCE)0733-9399(2007)133:7(816)}
+}
+
+@article{BetzPapaioannouStraub2016TMCMC,
+  author  = {Betz, W. and Papaioannou, I. and Straub, D.},
+  title   = {Transitional {Markov} Chain {Monte Carlo}: Observations and Improvements},
+  journal = {Journal of Engineering Mechanics},
+  volume  = {142},
+  number  = {5},
+  pages   = {04016016},
+  year    = {2016},
+  doi     = {10.1061/(ASCE)EM.1943-7889.0001066}
+}
+
+@article{BeckKatafygiotis1998BMU,
+  author  = {Beck, J. L. and Katafygiotis, L. S.},
+  title   = {Updating Models and Their Uncertainties. {I}: {Bayesian} Statistical
+             Framework},
+  journal = {Journal of Engineering Mechanics},
+  volume  = {124},
+  number  = {4},
+  pages   = {455--461},
+  year    = {1998},
+  doi     = {10.1061/(ASCE)0733-9399(1998)124:4(455)}
+}
+
+% ── Jaw / PDL FEM ─────────────────────────────────────────────────────────────
+
+@article{Asadzadeh2020PDLJawFEM,
+  author  = {Asadzadeh, E. and others},
+  title   = {Finite element modeling of the periodontal ligament under a realistic
+             kinetic loading of the jaw system},
+  journal = {Journal of the Mechanical Behavior of Biomedical Materials},
+  year    = {2020},
+  note    = {Dynamic FEA of PDL under chewing-like loading;
+             contextualises the 1\,MPa inward pressure loading used here}
+}
+
+@article{McCormack2017PDLFibres,
+  author  = {McCormack, S. W. and Witzel, U. and Watson, P. J.
+             and Fagan, M. J. and Gr{\"o}ning, F.},
+  title   = {Inclusion of periodontal ligament fibres in mandibular finite element
+             models leads to an increase in alveolar bone strains},
+  journal = {PLOS ONE},
+  volume  = {12},
+  number  = {10},
+  pages   = {e0188707},
+  year    = {2017},
+  doi     = {10.1371/journal.pone.0188707}
+}
+
+% ── Digital twin / dental AI ──────────────────────────────────────────────────
+
+@article{Editorial2025DentalDigitalTwin,
+  author  = {Li, X. and others},
+  title   = {Editorial: {A}pplications of digital twin technology in dentistry},
+  journal = {Frontiers in Bioengineering and Biotechnology},
+  year    = {2025},
+  note    = {Contextualises the TMCMC--FEM pipeline as a dental digital-twin workflow}
+}
+
+% ── Abaqus ────────────────────────────────────────────────────────────────────
+
+@manual{Abaqus2024,
+  author       = {{Dassault Syst\`{e}mes}},
+  title        = {{Abaqus/Standard} User's Manual, Version 2024},
+  organization = {Dassault Syst\`{e}mes Simulia Corp.},
+  address      = {Providence, RI},
+  year         = {2024}
+}

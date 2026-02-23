@@ -123,3 +123,7 @@ verify_*.png
 *.bak
 logs/
 test_run/
+
+# Personal files
+career/
+claude.md
