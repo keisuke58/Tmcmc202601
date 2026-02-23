@@ -8,6 +8,9 @@ Loads from --results-dir:
   mesh_x.npy          (Nx,)          x = depth  (0 = substratum)
   mesh_y.npy          (Ny,)          y = lateral
   theta_MAP.npy       (20,)
+  snapshots_c.npy     (n_snap, Nx, Ny)   [optional, nutrient coupling]
+  di_field.npy        (n_snap, Nx, Ny)   [optional]
+  alpha_monod.npy     (Nx, Ny)           [optional]
 
 Figures
   fig1_2d_heatmaps.png    5 species × 3 time points (2D imshow)
@@ -15,6 +18,9 @@ Figures
   fig3_lateral.png        Lateral (y) profiles at 3 depths, t_final
   fig4_dysbiotic_2d.png   2D Dysbiotic Index at 3 time points
   fig5_summary.png        6-panel summary
+  fig6_nutrient_2d.png    Nutrient c(x,y) at 3 time points  [if c available]
+  fig7_alpha_monod.png    alpha_Monod(x,y) + eigenstrain     [if alpha available]
+  fig8_nutrient_summary.png  Combined nutrient coupling summary [if c available]
 
 Convention
   Image orientation: x = depth on vertical axis, 0 (substratum) at BOTTOM;
@@ -22,8 +28,8 @@ Convention
 
 Usage
 -----
-  python fem_2d_visualize.py --results-dir _results_2d/dh_baseline \\
-                              --condition "dh_baseline"
+  python fem_2d_visualize.py --results-dir _results_2d_nutrient/quick_test \\
+                              --condition "quick_test"
 """
 import argparse
 from pathlib import Path
@@ -61,7 +67,18 @@ def load_results(d: Path):
     print(f"  snapshots : {n_snap}  |  grid : {Nx}×{Ny}")
     print(f"  t range   : [{t[0]:.5f}, {t[-1]:.5f}]")
     print(f"  phi range : [{phi.min():.4f}, {phi.max():.4f}]")
-    return phi, t, x, y, theta
+
+    # Optional nutrient coupling outputs
+    c_path = d / "snapshots_c.npy"
+    c = np.load(c_path) if c_path.exists() else None
+    alpha_path = d / "alpha_monod.npy"
+    alpha = np.load(alpha_path) if alpha_path.exists() else None
+    if c is not None:
+        print(f"  c range   : [{c.min():.4f}, {c.max():.4f}]")
+    if alpha is not None:
+        print(f"  alpha range: [{alpha.min():.6f}, {alpha.max():.6f}]")
+
+    return phi, t, x, y, theta, c, alpha
 
 
 def _pick3(n):
@@ -289,6 +306,146 @@ def fig5_summary(phi, t, x, y, theta, out_dir, cond):
     print(f"  Saved: {p.name}")
 
 
+# ── Fig 6: Nutrient field c(x,y) at 3 time points ───────────────────────────
+def fig6_nutrient_2d(c, t, x, y, out_dir, cond):
+    n_snap = len(t)
+    ti3    = _pick3(n_snap)
+    ext    = _extent(x, y)
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig.suptitle(f"2D Nutrient Concentration  |  {cond}",
+                 fontsize=13, fontweight="bold")
+
+    for col, ti in enumerate(ti3):
+        ax = axes[col]
+        im = ax.imshow(
+            c[ti],
+            origin="lower",
+            extent=ext,
+            aspect="auto",
+            cmap="viridis",
+            vmin=0, vmax=c.max(),
+            interpolation="bilinear",
+        )
+        ax.set_title(f"t = {t[ti]:.4f}", fontsize=10)
+        ax.set_xlabel("Lateral y", fontsize=9)
+        if col == 0:
+            ax.set_ylabel("Depth x  (0 = substratum)", fontsize=9)
+        plt.colorbar(im, ax=ax, label="c  (nutrient)", pad=0.02)
+
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    p = out_dir / "fig6_nutrient_2d.png"
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved: {p.name}")
+
+
+# ── Fig 7: alpha_Monod + eigenstrain ────────────────────────────────────────
+def fig7_alpha_monod(alpha, x, y, out_dir, cond):
+    ext = _extent(x, y)
+    eps_growth = alpha / 3.0
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    fig.suptitle(f"Monod Growth Activity & Eigenstrain  |  {cond}",
+                 fontsize=13, fontweight="bold")
+
+    # (A) alpha_Monod
+    ax = axes[0]
+    im = ax.imshow(alpha, origin="lower", extent=ext, aspect="auto",
+                   cmap="inferno", interpolation="bilinear")
+    plt.colorbar(im, ax=ax, label="α_Monod", pad=0.02)
+    ax.set_xlabel("Lateral y"); ax.set_ylabel("Depth x")
+    ax.set_title(f"(A) α_Monod  [{alpha.min():.2e}, {alpha.max():.2e}]")
+
+    # (B) Eigenstrain eps_growth = alpha/3
+    ax = axes[1]
+    im2 = ax.imshow(eps_growth, origin="lower", extent=ext, aspect="auto",
+                    cmap="magma", interpolation="bilinear")
+    plt.colorbar(im2, ax=ax, label="ε_growth", pad=0.02)
+    ax.set_xlabel("Lateral y"); ax.set_ylabel("Depth x")
+    ax.set_title(f"(B) ε_growth = α/3  [{eps_growth.min():.2e}, {eps_growth.max():.2e}]")
+
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    p = out_dir / "fig7_alpha_monod.png"
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved: {p.name}")
+
+
+# ── Fig 8: Combined nutrient coupling summary ───────────────────────────────
+def fig8_nutrient_summary(phi, c, alpha, t, x, y, out_dir, cond):
+    ext = _extent(x, y)
+    DI_all = _di(phi)
+
+    fig = plt.figure(figsize=(18, 10))
+    fig.suptitle(f"Nutrient Coupling Summary  |  {cond}",
+                 fontsize=14, fontweight="bold")
+    gs = fig.add_gridspec(2, 3, hspace=0.42, wspace=0.38)
+
+    # (A) Final nutrient c
+    ax = fig.add_subplot(gs[0, 0])
+    im = ax.imshow(c[-1], origin="lower", extent=ext, aspect="auto",
+                   cmap="viridis", vmin=0, vmax=c.max(), interpolation="bilinear")
+    plt.colorbar(im, ax=ax, label="c", pad=0.02)
+    ax.set_xlabel("Lateral y"); ax.set_ylabel("Depth x")
+    ax.set_title(f"(A) Nutrient  t={t[-1]:.4f}")
+
+    # (B) Final P.gingivalis
+    ax = fig.add_subplot(gs[0, 1])
+    vmax_pg = max(phi[-1, 4].max(), 1e-4)
+    im2 = ax.imshow(phi[-1, 4], origin="lower", extent=ext, aspect="auto",
+                    cmap="Reds", vmin=0, vmax=vmax_pg, interpolation="bilinear")
+    plt.colorbar(im2, ax=ax, label="φ_Pg", pad=0.02)
+    ax.set_xlabel("Lateral y"); ax.set_ylabel("Depth x")
+    ax.set_title(f"(B) P.gingivalis  t={t[-1]:.4f}")
+
+    # (C) Final DI
+    ax = fig.add_subplot(gs[0, 2])
+    im3 = ax.imshow(DI_all[-1], origin="lower", extent=ext, aspect="auto",
+                    cmap="RdYlGn_r", vmin=0, vmax=1, interpolation="bilinear")
+    plt.colorbar(im3, ax=ax, label="DI", pad=0.02)
+    ax.set_xlabel("Lateral y"); ax.set_ylabel("Depth x")
+    ax.set_title(f"(C) Dysbiosis Index  t={t[-1]:.4f}")
+
+    # (D) alpha_Monod
+    ax = fig.add_subplot(gs[1, 0])
+    im4 = ax.imshow(alpha, origin="lower", extent=ext, aspect="auto",
+                    cmap="inferno", interpolation="bilinear")
+    plt.colorbar(im4, ax=ax, label="α_Monod", pad=0.02)
+    ax.set_xlabel("Lateral y"); ax.set_ylabel("Depth x")
+    ax.set_title("(D) α_Monod (Monod growth activity)")
+
+    # (E) c mean + phi_total mean over time
+    ax = fig.add_subplot(gs[1, 1])
+    c_mean = c.mean(axis=(1, 2))
+    phi_total = phi.sum(axis=1).mean(axis=(1, 2))
+    ax.plot(t, c_mean, color="#1b9e77", lw=2, label="c (mean)")
+    ax.set_xlabel("Time t"); ax.set_ylabel("Mean c", color="#1b9e77")
+    ax.tick_params(axis="y", labelcolor="#1b9e77")
+    ax2 = ax.twinx()
+    ax2.plot(t, phi_total, color="#d95f02", lw=2, label="φ_total (mean)")
+    ax2.set_ylabel("Mean φ_total", color="#d95f02")
+    ax2.tick_params(axis="y", labelcolor="#d95f02")
+    ax.set_title("(E) Nutrient depletion & growth")
+    ax.grid(True, alpha=0.3)
+
+    # (F) Depth profile: c and phi_total (y-averaged) at t_final
+    ax = fig.add_subplot(gs[1, 2])
+    c_depth = c[-1].mean(axis=1)
+    phi_depth = phi[-1].sum(axis=0).mean(axis=1)
+    ax.plot(c_depth, x, color="#1b9e77", lw=2, label="c (nutrient)")
+    ax.plot(phi_depth, x, color="#d95f02", lw=2, label="φ_total")
+    ax.set_xlabel("Value (y-averaged)"); ax.set_ylabel("Depth x")
+    ax.set_title(f"(F) Depth profiles  t={t[-1]:.4f}")
+    ax.invert_yaxis()
+    ax.legend(fontsize=8); ax.grid(True, alpha=0.3)
+
+    p = out_dir / "fig8_nutrient_summary.png"
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved: {p.name}")
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 def main():
     ap = argparse.ArgumentParser(description="Visualise 2D FEM biofilm results")
@@ -297,13 +454,20 @@ def main():
     args = ap.parse_args()
 
     d = Path(args.results_dir)
-    phi, t, x, y, theta = load_results(d)
+    phi, t, x, y, theta, c, alpha = load_results(d)
 
     fig1_2d_heatmaps  (phi, t, x, y,        d, args.condition)
     fig2_hovmoller    (phi, t, x, y,        d, args.condition)
     fig3_lateral      (phi, t, x, y,        d, args.condition)
     fig4_dysbiotic_2d (phi, t, x, y,        d, args.condition)
     fig5_summary      (phi, t, x, y, theta, d, args.condition)
+
+    if c is not None:
+        fig6_nutrient_2d(c, t, x, y, d, args.condition)
+    if alpha is not None:
+        fig7_alpha_monod(alpha, x, y, d, args.condition)
+    if c is not None and alpha is not None:
+        fig8_nutrient_summary(phi, c, alpha, t, x, y, d, args.condition)
 
     print("\nAll figures generated.")
 
