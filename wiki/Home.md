@@ -13,7 +13,8 @@ Welcome to the **Tmcmc202601** project wiki — a 5-species oral biofilm Bayesia
 | [FEM Pipeline](FEM-Pipeline) | From TMCMC posterior to Abaqus stress analysis |
 | [Multiscale Coupling](Multiscale-Coupling) | Micro→Macro: ODE ecology → spatial eigenstrain for Abaqus |
 | [Parameter Reference](Parameter-Reference) | All 20 θ parameters with biological meaning |
-| [Results Gallery](Results-Gallery) | Key figures from best runs |
+| [Results Gallery](Results-Gallery) | Key figures from best runs (chronological) |
+| [Results by Category](Results-by-Category) | Same figures, organized by analysis type |
 | [TMCMC Per-Condition](TMCMC-Per-Condition) | Detailed posteriors, fits & diagnostics for all 4 conditions |
 | [FEM Spatial Analysis](FEM-Spatial-Analysis) | 1D dynamics, 3D FEM fields, DI depth profiles |
 | [Uncertainty & Mechanics](Uncertainty-and-Mechanics) | Stress UQ, anisotropy, CZM, benchmarks, nutrient PDE |
