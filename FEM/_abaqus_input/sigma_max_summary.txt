@@ -1,0 +1,15 @@
+======================================================================
+BIOFILM EIGENSTRAIN SUMMARY  (Two-scale coupling result)
+======================================================================
+Condition                 E_mean[Pa]  eps_tooth eps_saliva  σ0_tooth[Pa]
+----------------------------------------------------------------------
+commensal_static               909.1   0.001384     0.1399       -1.2584
+commensal_hobic                890.1   0.001384     0.1399       -1.2320
+dysbiotic_static                32.3   0.001384     0.1399       -0.0447
+dysbiotic_hobic                 33.9   0.001384     0.1398       -0.0469
+----------------------------------------------------------------------
+
+Note: sigma_compressive = -E * eps_growth  (fully constrained bar)
+      eps_growth = alpha_monod / 3  (nutrient-limited isotropic eigenstrain)
+      For hybrid CSV: E uses condition-specific DI_0D from 0D Hamilton ODE.
+======================================================================
