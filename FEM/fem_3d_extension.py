@@ -106,10 +106,7 @@ def _build_1d_lap_neu(N: int, h: float) -> sp.csr_matrix:
 
 
 def build_3d_laplacian(Nx, Ny, Nz, dx, dy, dz) -> sp.csr_matrix:
-    """L = kron(kron(Lx,Iy),Iz) + kron(kron(Ix,Ly),Iz) + kron(kron(Ix,Iy),Lz).
-
-    Node ordering: k = ix*(Ny*Nz) + iy*Nz + iz  (row-major, x outer / z inner).
-    """
+    """L = kron(kron(Lx,Iy),Iz) + kron(kron(Ix,Ly),Iz) + kron(kron(Ix,Iy),Lz)."""
     Lx = _build_1d_lap_neu(Nx, dx)
     Ly = _build_1d_lap_neu(Ny, dy)
     Lz = _build_1d_lap_neu(Nz, dz)
@@ -120,6 +117,19 @@ def build_3d_laplacian(Nx, Ny, Nz, dx, dy, dz) -> sp.csr_matrix:
     term_y = sp.kron(sp.kron(Ix, Ly, format="csr"), Iz, format="csr")
     term_z = sp.kron(sp.kron(Ix, Iy, format="csr"), Lz, format="csr")
     return term_x + term_y + term_z
+
+
+def build_3d_operators(Nx, Ny, Nz, dx, dy, dz):
+    Lx = _build_1d_lap_neu(Nx, dx)
+    Ly = _build_1d_lap_neu(Ny, dy)
+    Lz = _build_1d_lap_neu(Nz, dz)
+    Ix = sp.eye(Nx, format="csr")
+    Iy = sp.eye(Ny, format="csr")
+    Iz = sp.eye(Nz, format="csr")
+    term_x = sp.kron(sp.kron(Lx, Iy, format="csr"), Iz, format="csr")
+    term_y = sp.kron(sp.kron(Ix, Ly, format="csr"), Iz, format="csr")
+    term_z = sp.kron(sp.kron(Ix, Iy, format="csr"), Lz, format="csr")
+    return term_x, term_y, term_z
 
 
 _D_EFF = np.array([1e-3, 1e-3, 8e-4, 5e-4, 2e-4])
@@ -148,6 +158,10 @@ class FEM3DBiofilm:
         save_every: int = 5,
         condition: str = "",
         solver: str = "superlu",   # "superlu" or "cg"
+        split_scheme: str = "lie",
+        D_aniso_x: float = 1.0,
+        D_aniso_y: float = 1.0,
+        D_aniso_z: float = 1.0,
     ):
         self.theta       = theta.astype(np.float64)
         self.Nx, self.Ny, self.Nz = Nx, Ny, Nz
@@ -159,6 +173,10 @@ class FEM3DBiofilm:
         self.save_every  = save_every
         self.condition   = condition
         self.solver_type = solver
+        self.split_scheme = split_scheme
+        self.D_aniso_x   = float(D_aniso_x)
+        self.D_aniso_y   = float(D_aniso_y)
+        self.D_aniso_z   = float(D_aniso_z)
 
         self.dx = Lx / max(Nx - 1, 1)
         self.dy = Ly / max(Ny - 1, 1)
@@ -175,25 +193,35 @@ class FEM3DBiofilm:
         self._Eta_phi  = np.ones(5, dtype=np.float64)
         self._active   = np.ones(5, dtype=np.int64)
 
-        # ── assemble 3D Laplacian + factorize ────────────────────────────
         N_nodes = Nx * Ny * Nz
         print(f"Assembling 3D Laplacian ({Nx}×{Ny}×{Nz} = {N_nodes} nodes) "
               f"and factorising ... ", end="", flush=True)
-        L    = build_3d_laplacian(Nx, Ny, Nz, self.dx, self.dy, self.dz)
         I_sp = sp.eye(N_nodes, format="csr")
-        self._A_diff  = []
         self._solvers = []
+        self._solvers_half = []
+        term_x, term_y, term_z = build_3d_operators(Nx, Ny, Nz, self.dx, self.dy, self.dz)
         for D_i in self.D_eff:
-            A_sys = (I_sp - self.dt_macro * D_i * L).tocsc()
-            self._A_diff.append(A_sys)
+            D_x = D_i * self.D_aniso_x
+            D_y = D_i * self.D_aniso_y
+            D_z = D_i * self.D_aniso_z
+            L_full = D_x * term_x + D_y * term_y + D_z * term_z
+            A_full = (I_sp - self.dt_macro * L_full).tocsc()
             if solver == "superlu":
-                self._solvers.append(spla.factorized(A_sys))
+                self._solvers.append(spla.factorized(A_full))
             else:
-                # CG with ILU preconditioner (better for large grids)
-                ilu  = spla.spilu(A_sys, fill_factor=5)
-                prec = spla.LinearOperator(A_sys.shape,
+                ilu  = spla.spilu(A_full, fill_factor=5)
+                prec = spla.LinearOperator(A_full.shape,
                                            matvec=lambda v, M=ilu: M.solve(v))
-                self._solvers.append((A_sys, prec))
+                self._solvers.append((A_full, prec))
+            dt_half = 0.5 * self.dt_macro
+            A_half = (I_sp - dt_half * L_full).tocsc()
+            if solver == "superlu":
+                self._solvers_half.append(spla.factorized(A_half))
+            else:
+                ilu_h  = spla.spilu(A_half, fill_factor=5)
+                prec_h = spla.LinearOperator(A_half.shape,
+                                             matvec=lambda v, M=ilu_h: M.solve(v))
+                self._solvers_half.append((A_half, prec_h))
         print("done.")
 
         # ── Numba warm-up ─────────────────────────────────────────────────
@@ -264,8 +292,22 @@ class FEM3DBiofilm:
     # ── diffusion ─────────────────────────────────────────────────────────────
     def _diffuse(self, G: np.ndarray) -> np.ndarray:
         G_new  = G.copy()
-        N      = self.Nx * self.Ny * self.Nz
         for i, solver_i in enumerate(self._solvers):
+            rhs = G[:, :, :, i].ravel()
+            if self.solver_type == "superlu":
+                phi_new = solver_i(rhs).clip(0)
+            else:
+                A_sys, prec = solver_i
+                phi_new, info = spla.cg(A_sys, rhs, M=prec, rtol=1e-8)
+                phi_new = phi_new.clip(0)
+            G_new[:, :, :, i] = phi_new.reshape(self.Nx, self.Ny, self.Nz)
+        phi_sum          = G_new[:, :, :, :5].sum(axis=3)
+        G_new[:, :, :, 5]= (1.0 - phi_sum).clip(0)
+        return G_new
+
+    def _diffuse_half(self, G: np.ndarray) -> np.ndarray:
+        G_new  = G.copy()
+        for i, solver_i in enumerate(self._solvers_half):
             rhs = G[:, :, :, i].ravel()
             if self.solver_type == "superlu":
                 phi_new = solver_i(rhs).clip(0)
@@ -297,8 +339,13 @@ class FEM3DBiofilm:
         t0 = time.perf_counter()
         for step in range(1, self.n_macro + 1):
             t = step * self.dt_macro
-            G = self._react(G)
-            G = self._diffuse(G)
+            if self.split_scheme == "strang":
+                G = self._diffuse_half(G)
+                G = self._react(G)
+                G = self._diffuse_half(G)
+            else:
+                G = self._react(G)
+                G = self._diffuse(G)
             if step % self.save_every == 0 or step == self.n_macro:
                 snaps_phi.append(G[:, :, :, :5].transpose(3, 0, 1, 2).copy())
                 snaps_t.append(t)
@@ -320,6 +367,179 @@ class FEM3DBiofilm:
         np.save(out_dir / "mesh_z.npy",        self.z_mesh)
         np.save(out_dir / "theta_MAP.npy",     self.theta)
         print(f"Saved to: {out_dir}")
+
+
+def run_posterior_fem_3d(
+    tmcmc_run_dir: str,
+    nx: int,
+    ny: int,
+    nz: int,
+    n_macro: int,
+    n_react_sub: int,
+    dt_h: float,
+    save_every: int,
+    out_dir: str,
+    condition: str,
+    solver: str,
+    n_samples: int,
+    seed: int = 0,
+):
+    """Run 3D posterior FEM for *n_samples* draws from a TMCMC posterior.
+
+    Per-sample outputs are written to ``{out_dir}/sample_XXXX/`` and a
+    ``done.flag`` is created on completion, enabling resume on interrupt.
+    Aggregate percentile arrays (5/50/95) and the full ensemble are written
+    directly to *out_dir*.
+    """
+    run_dir = Path(tmcmc_run_dir)
+    theta_map_path = run_dir / "theta_MAP.json"
+    samples_path   = run_dir / "samples.npy"
+    if not theta_map_path.exists():
+        print(f"[error] theta_MAP.json not found in {run_dir}")
+        return
+    if not samples_path.exists():
+        print(f"[error] samples.npy not found in {run_dir}")
+        return
+
+    with open(theta_map_path) as f:
+        theta_map_data = json.load(f)
+    samples = np.load(samples_path)
+    if samples.size == 0:
+        print("[error] samples.npy is empty")
+        return
+
+    active_indices       = theta_map_data.get("active_indices", list(range(20)))
+    theta_full_template  = np.array(theta_map_data["theta_full"], dtype=np.float64)
+    n_total              = samples.shape[0]
+    n_use                = min(n_samples, n_total)
+
+    rng     = np.random.default_rng(seed)
+    indices = np.arange(n_total) if n_total == n_use else rng.choice(n_total, size=n_use, replace=False)
+
+    out_path = Path(out_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    # ── persist run metadata ────────────────────────────────────────────────
+    meta = {
+        "condition":           condition,
+        "tmcmc_run_dir":       str(run_dir),
+        "n_samples_requested": int(n_samples),
+        "n_samples_total":     int(n_total),
+        "n_samples_used":      int(n_use),
+        "nx": nx, "ny": ny, "nz": nz,
+        "n_macro": n_macro, "n_react_sub": n_react_sub,
+        "dt_h": dt_h, "save_every": save_every,
+        "solver": solver, "seed": seed,
+        "sample_indices": indices.tolist(),
+    }
+    with open(out_path / "meta.json", "w") as f:
+        json.dump(meta, f, indent=2)
+
+    print(f"\n{'='*65}")
+    print(f"Posterior FEM 3D  |  condition={condition!r}")
+    print(f"  TMCMC run : {run_dir}")
+    print(f"  Samples   : {n_use} / {n_total}  (seed={seed})")
+    print(f"  Output    : {out_path}")
+    print(f"{'='*65}")
+
+    phibar_list = []
+    depth_list  = []
+    t_ref       = None
+
+    for enum_k, idx in enumerate(indices):
+        sample_dir = out_path / f"sample_{enum_k:04d}"
+        done_flag  = sample_dir / "done.flag"
+
+        # ── resume: reload already-finished sample ─────────────────────────
+        if done_flag.exists():
+            print(f"  [resume] {enum_k+1}/{n_use} (pool_idx={idx})")
+            phi_mean  = np.load(sample_dir / "phibar.npy")
+            depth_arr = np.load(sample_dir / "depth_pg.npy")
+            if t_ref is None:
+                t_ref = np.load(sample_dir / "t_snap.npy")
+            phibar_list.append(phi_mean)
+            depth_list.append(depth_arr)
+            continue
+
+        # ── build theta vector ─────────────────────────────────────────────
+        theta_sample = samples[idx]
+        theta_curr   = theta_full_template.copy()
+        if theta_sample.shape[0] == len(active_indices):
+            theta_curr[active_indices] = theta_sample
+        elif theta_sample.shape[0] == 20:
+            theta_curr = theta_sample.astype(np.float64)
+        else:
+            print(f"  [skip] sample {enum_k} – unexpected shape {theta_sample.shape}")
+            continue
+
+        print(f"\n  --- sample {enum_k+1}/{n_use} (pool_idx={idx}) ---")
+        sim = FEM3DBiofilm(
+            theta_curr,
+            Nx=nx, Ny=ny, Nz=nz,
+            Lx=1.0, Ly=1.0, Lz=1.0,
+            n_macro=n_macro,
+            n_react_sub=n_react_sub,
+            dt_h=dt_h,
+            save_every=save_every,
+            condition=condition,
+            solver=solver,
+        )
+        snaps_phi, snaps_t = sim.run()  # (n_snap, 5, Nx, Ny, Nz)
+
+        phi_mean = snaps_phi.mean(axis=(2, 3, 4))   # (n_snap, 5)
+        if t_ref is None:
+            t_ref = snaps_t
+
+        # ── Pg penetration depth (centre-of-mass along x) ─────────────────
+        phi_pg   = snaps_phi[:, 4, :, :, :]          # (n_snap, Nx, Ny, Nz)
+        prof_1d  = phi_pg.mean(axis=(2, 3))           # (n_snap, Nx)
+        x_coords = sim.x_mesh
+        depth_arr = np.zeros(prof_1d.shape[0], dtype=np.float64)
+        for it in range(prof_1d.shape[0]):
+            prof  = prof_1d[it]
+            total = prof.sum()
+            if total > 0.0:
+                depth_arr[it] = float((prof / total * x_coords).sum())
+
+        # ── save per-sample output (enables resume + sensitivity) ──────────
+        sample_dir.mkdir(parents=True, exist_ok=True)
+        np.save(sample_dir / "snapshots_phi.npy", snaps_phi)
+        np.save(sample_dir / "mesh_x.npy",        sim.x_mesh)
+        np.save(sample_dir / "mesh_y.npy",        sim.y_mesh)
+        np.save(sample_dir / "mesh_z.npy",        sim.z_mesh)
+        np.save(sample_dir / "theta.npy",         theta_curr)
+        np.save(sample_dir / "phibar.npy",        phi_mean)
+        np.save(sample_dir / "depth_pg.npy",      depth_arr)
+        np.save(sample_dir / "t_snap.npy",        snaps_t)
+        done_flag.touch()
+
+        phibar_list.append(phi_mean)
+        depth_list.append(depth_arr)
+
+    if not phibar_list:
+        print("[error] No valid posterior FEM samples (3D)")
+        return
+
+    # ── aggregate percentiles ───────────────────────────────────────────────
+    phibar_stack = np.stack(phibar_list, axis=0)    # (n_valid, n_snap, 5)
+    np.save(out_path / "t_snap.npy",      t_ref)
+    np.save(out_path / "phibar_p05.npy",  np.percentile(phibar_stack,  5, axis=0))
+    np.save(out_path / "phibar_p50.npy",  np.percentile(phibar_stack, 50, axis=0))
+    np.save(out_path / "phibar_p95.npy",  np.percentile(phibar_stack, 95, axis=0))
+    np.save(out_path / "phibar_all.npy",  phibar_stack)
+
+    if depth_list:
+        depth_stack = np.stack(depth_list, axis=0)  # (n_valid, n_snap)
+        np.save(out_path / "depth_pg_p05.npy", np.percentile(depth_stack,  5, axis=0))
+        np.save(out_path / "depth_pg_p50.npy", np.percentile(depth_stack, 50, axis=0))
+        np.save(out_path / "depth_pg_p95.npy", np.percentile(depth_stack, 95, axis=0))
+        np.save(out_path / "depth_pg_all.npy", depth_stack)
+
+    meta["n_samples_computed"] = len(phibar_list)
+    with open(out_path / "meta.json", "w") as f:
+        json.dump(meta, f, indent=2)
+
+    print(f"\n[done] Posterior FEM ({len(phibar_list)} samples) → {out_path}")
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -362,25 +582,67 @@ def main():
     ap.add_argument("--n-react-sub", type=int,   default=50)
     ap.add_argument("--dt-h",        type=float, default=1e-5)
     ap.add_argument("--save-every",  type=int,   default=5)
+    ap.add_argument("--split-scheme", choices=["lie", "strang"], default="lie")
+    ap.add_argument("--D-aniso-x", type=float, default=1.0)
+    ap.add_argument("--D-aniso-y", type=float, default=1.0)
+    ap.add_argument("--D-aniso-z", type=float, default=1.0)
+    ap.add_argument("--dt-auto", action="store_true")
     ap.add_argument("--out-dir",     default="_results_3d/run")
     ap.add_argument("--solver",      default="superlu", choices=["superlu", "cg"],
                     help="Linear solver for diffusion step (superlu or cg)")
+    ap.add_argument("--tmcmc-run-dir", default=None)
+    ap.add_argument("--posterior-n-samples", type=int, default=20)
+    ap.add_argument("--posterior-seed", type=int, default=0)
+    ap.add_argument("--posterior-only", action="store_true",
+                    help="Skip the MAP single-run and only execute the posterior ensemble")
     args = ap.parse_args()
 
-    theta = _load_theta(args.theta_json)
-    sim   = FEM3DBiofilm(
-        theta       = theta,
-        Nx=args.nx, Ny=args.ny, Nz=args.nz,
-        Lx=args.lx, Ly=args.ly, Lz=args.lz,
-        n_macro     = args.n_macro,
-        n_react_sub = args.n_react_sub,
-        dt_h        = args.dt_h,
-        save_every  = args.save_every,
-        condition   = args.condition,
-        solver      = args.solver,
-    )
-    snaps_phi, snaps_t = sim.run()
-    sim.save(Path(args.out_dir), snaps_phi, snaps_t)
+    if args.dt_auto:
+        hx = args.lx / max(args.nx - 1, 1)
+        hy = args.ly / max(args.ny - 1, 1)
+        hz = args.lz / max(args.nz - 1, 1)
+        h_min = min(hx, hy, hz)
+        D_max = float(_D_EFF.max())
+        cfl_c = 2e-4
+        dt_mac = cfl_c * h_min * h_min / D_max
+        args.dt_h = dt_mac / float(args.n_react_sub)
+
+    if not args.posterior_only:
+        theta = _load_theta(args.theta_json)
+        sim   = FEM3DBiofilm(
+            theta        = theta,
+            Nx=args.nx, Ny=args.ny, Nz=args.nz,
+            Lx=args.lx, Ly=args.ly, Lz=args.lz,
+            n_macro      = args.n_macro,
+            n_react_sub  = args.n_react_sub,
+            dt_h         = args.dt_h,
+            save_every   = args.save_every,
+            condition    = args.condition,
+            solver       = args.solver,
+            split_scheme = args.split_scheme,
+            D_aniso_x    = args.D_aniso_x,
+            D_aniso_y    = args.D_aniso_y,
+            D_aniso_z    = args.D_aniso_z,
+        )
+        snaps_phi, snaps_t = sim.run()
+        sim.save(Path(args.out_dir), snaps_phi, snaps_t)
+
+    if args.tmcmc_run_dir is not None:
+        run_posterior_fem_3d(
+            tmcmc_run_dir=args.tmcmc_run_dir,
+            nx=args.nx,
+            ny=args.ny,
+            nz=args.nz,
+            n_macro=args.n_macro,
+            n_react_sub=args.n_react_sub,
+            dt_h=args.dt_h,
+            save_every=args.save_every,
+            out_dir=str(Path(args.out_dir) / "posterior"),
+            condition=args.condition,
+            solver=args.solver,
+            n_samples=args.posterior_n_samples,
+            seed=args.posterior_seed,
+        )
 
 
 if __name__ == "__main__":

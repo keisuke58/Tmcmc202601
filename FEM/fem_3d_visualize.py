@@ -24,6 +24,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 SPECIES = ["S.oralis", "A.naeslundii", "Veillonella", "F.nucleatum", "P.gingivalis"]
 COLORS  = ["#4477AA", "#66AADD", "#228833", "#CCBB44", "#EE6677"]
@@ -261,6 +262,81 @@ def fig5_summary_3d(phi, t, x, y, z, theta, out_dir, cond):
     print(f"  Saved: {p.name}")
 
 
+def fig6_overview_3d(phi, t, x, y, z, out_dir, cond):
+    phi_f = phi[-1]
+    pg = phi_f[4]
+    Nx, Ny, Nz = pg.shape
+    X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+    vals = pg.ravel()
+    Xv = X.ravel()
+    Yv = Y.ravel()
+    Zv = Z.ravel()
+    vmax = max(vals.max(), 1e-6)
+    thr = 0.1 * vmax
+    mask = vals > thr
+    if not np.any(mask):
+        mask = vals >= 0.0
+    Xs = Xv[mask]
+    Ys = Yv[mask]
+    Zs = Zv[mask]
+    Cs = vals[mask]
+    fig = plt.figure(figsize=(6, 6))
+    ax = fig.add_subplot(111, projection="3d")
+    sc = ax.scatter(Ys, Zs, Xs, c=Cs, cmap="Reds", s=20, alpha=0.7)
+    ax.set_xlabel("Lateral y")
+    ax.set_ylabel("Lateral z")
+    ax.set_zlabel("Depth x")
+    ax.set_title(f"3D overview P.g  t={t[-1]:.4f}  |  {cond}")
+    fig.colorbar(sc, ax=ax, shrink=0.7, pad=0.1)
+    ax.view_init(elev=25, azim=-60)
+    fig.tight_layout()
+    p = out_dir / "fig6_overview_pg_3d.png"
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved: {p.name}")
+
+
+def fig7_overview_all_species_3d(phi, t, x, y, z, out_dir, cond):
+    phi_f = phi[-1]
+    Nx, Ny, Nz = phi_f.shape[1:]
+    X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+    Xv = X.ravel()
+    Yv = Y.ravel()
+    Zv = Z.ravel()
+    fig = plt.figure(figsize=(13, 7))
+    gs = fig.add_gridspec(2, 3)
+    for i in range(5):
+        vals = phi_f[i].ravel()
+        vmax = max(vals.max(), 1e-6)
+        thr = 0.1 * vmax
+        mask = vals > thr
+        if not np.any(mask):
+            mask = vals >= 0.0
+        Xs = Xv[mask]
+        Ys = Yv[mask]
+        Zs = Zv[mask]
+        Cs = vals[mask]
+        row = i // 3
+        col = i % 3
+        ax = fig.add_subplot(gs[row, col], projection="3d")
+        sc = ax.scatter(Ys, Zs, Xs, c=Cs, cmap=CMAPS[i], s=15, alpha=0.7)
+        ax.set_title(SPECIES[i], fontsize=10)
+        ax.set_xlabel("y")
+        ax.set_ylabel("z")
+        ax.set_zlabel("x")
+        ax.view_init(elev=25, azim=-60)
+        fig.colorbar(sc, ax=ax, shrink=0.7, pad=0.05)
+    ax = fig.add_subplot(gs[1, 2], projection="3d")
+    ax.axis("off")
+    fig.suptitle(f"3D overview of all species  t={t[-1]:.4f}  |  {cond}",
+                 fontsize=14)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    p = out_dir / "fig7_overview_all_species_3d.png"
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved: {p.name}")
+
+
 # ── main ──────────────────────────────────────────────────────────────────────
 def main():
     ap = argparse.ArgumentParser()
@@ -271,11 +347,13 @@ def main():
     d = Path(args.results_dir)
     phi, t, x, y, z, theta = load(d)
 
-    fig1_3d_slices       (phi, t, x, y, z,        d, args.condition)
-    fig2_hovmoller_3d    (phi, t, x, y, z,        d, args.condition)
-    fig3_depth_profiles  (phi, t, x, y, z,        d, args.condition)
-    fig4_dysbiotic_3d    (phi, t, x, y, z,        d, args.condition)
-    fig5_summary_3d      (phi, t, x, y, z, theta, d, args.condition)
+    fig1_3d_slices              (phi, t, x, y, z,        d, args.condition)
+    fig2_hovmoller_3d           (phi, t, x, y, z,        d, args.condition)
+    fig3_depth_profiles         (phi, t, x, y, z,        d, args.condition)
+    fig4_dysbiotic_3d           (phi, t, x, y, z,        d, args.condition)
+    fig5_summary_3d             (phi, t, x, y, z, theta, d, args.condition)
+    fig6_overview_3d            (phi, t, x, y, z,        d, args.condition)
+    fig7_overview_all_species_3d(phi, t, x, y, z,        d, args.condition)
 
     print("\nAll 3D figures generated.")
 

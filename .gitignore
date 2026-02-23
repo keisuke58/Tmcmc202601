@@ -1,75 +1,114 @@
+# =====================================================================
 # Python
+# =====================================================================
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
+*.pyo
+*.pyd
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual environments
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.venv/
 venv/
-env/
-ENV/
-.venv
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb_checkpoints/
-
-# Data files (uncomment if you don't want to track data)
-# *.npy
-# *.npz
-# *.h5
-# *.hdf5
-
-# Output files and runs
-tmcmc/_runs/
+# =====================================================================
+# Abaqus output files (large binary / job outputs)
+# =====================================================================
+*.odb
+*.dat
+*.msg
+*.sta
+*.com
+*.prt
+*.lck
+*.023
+*.f11
+*.f06
+*.sel
+*.sim
+*.mdl
+*.stt
 *.log
+abaqus.rpy
+abaqus.rpy.*
+
+# =====================================================================
+# Large data / result files
+# =====================================================================
+*.npy
+*.npz
+*.zip
+*.hdf5
+*.h5
+*.pkl
+*.pickle
+
+# =====================================================================
+# Output / result directories (underscore prefix convention)
+# =====================================================================
+_runs/
+_sweeps/
+_results/
+_results_*/
+_aniso/
+_aniso_sweep/
+_bc_sensitivity/
+_benchmarks/
+_biofilm_mode_runs/
+_czm*/
+_di_credible/
+_eeff_sensitivity_runs/*.odb
+_growth_job_runs*/
+_jax_rd_datasets/
+_job_archive/
+_material_sweep/
+_mesh_convergence/
+_openjaw_results/
+_posterior_abaqus/
+_posterior_plots/
+_posterior_sensitivity/
+_posterior_uncertainty/
+_pressure_sweep/
+_tmp_*/
+tmcmc/_runs/
+
+# =====================================================================
+# LaTeX build artifacts (keep .tex and .pdf sources)
+# =====================================================================
 *.aux
+*.bbl
+*.blg
 *.fdb_latexmk
 *.fls
+*.lof
+*.lot
+*.nav
+*.out
+*.snm
 *.synctex.gz
 *.toc
-*.out
+*.xdv
 
-# Figures (uncomment if you don't want to track generated figures)
-# *.png
-# *.jpg
-# *.pdf
+# =====================================================================
+# Images / figures (generated outputs)
+# =====================================================================
+# Keep figures/ tracked; exclude auto-generated dumps
+_posterior_abaqus_test/
+_posterior_abaqus_ALL_DONE.flag
+overview_figs/
 
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.swp
-
-# OS files
-Thumbs.db
+# =====================================================================
+# Misc
+# =====================================================================
 .DS_Store
-
-# Project specific
-*.pdf
-!docs/*.pdf
+*.swp
+*.swo
+*.tmp
+.env
+*.bak
+logs/
+test_run/

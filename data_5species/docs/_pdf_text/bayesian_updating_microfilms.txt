@@ -1,0 +1,1255 @@
+
+
+===== PAGE 1 =====
+Bayesian updating of bacterial microfilms under
+hybrid uncertainties with a novel surrogate model
+Lukas Fritsch1,2, Hendrik Geisler 3*, Jan Grashorn 4,
+Felix Klempt3, Meisam Soleimani 3, Matteo Broggi 1,
+Philipp Junker 2,3, Michael Beer 1,2,5,6
+1Institute for Risk and Reliability, Leibniz University Hannover,
+Callinstr. 34, Hannover, 30167, Germany.
+2International Research Training Group (IRTG) 2657, Leibniz
+University Hannover, Appelstr. 11/11a, Hannover, 30167, Germany.
+3Institute for Continuum Mechanics, Leibniz University Hannover, An
+der Universit¨ at 1, Garbsen, 30823, Germany.
+4Chair of Engineering Materials and Building Preservation,
+Helmut-Schmidt-University, Holstenhofweg 85, Hamburg, 22043,
+Germany.
+5Department of Civil and Environmental Engineering, University of
+Liverpool, Liverpool, L69 3GH, UK.
+6International Joint Research Center for Resilient Infrastructure &
+International Joint Research Center for Engineering Reliability and
+Stochastic Mechanics, Tongji University, 1239 Siping road, Shanghai,
+200092, People’s Republic of China.
+*Corresponding author(s). E-mail(s): geisler@ikm.uni-hannover.de;
+Contributing authors: fritsch@irz.uni-hannover.de; grashorn@hsu-hh.de;
+klempt@ikm.uni-hannover.de; soleimani@ikm.uni-hannover.de;
+broggi@irz.uni-hannover.de; junker@ikm.uni-hannover.de;
+beer@irz.uni-hannover.de;
+Abstract
+Accurate modeling of bacterial biofilm growth is essential for understanding their
+complex dynamics in biomedical, environmental, and industrial settings. These
+dynamics are shaped by a variety of environmental influences, including the
+presence of antibiotics, nutrient availability, and inter-species interactions, all of
+1
+
+===== PAGE 2 =====
+which affect species-specific growth rates. However, capturing this behavior in
+computational models is challenging due to the presence of hybrid uncertainties,
+a combination of epistemic uncertainty (stemming from incomplete knowledge
+about model parameters) and aleatory uncertainty (reflecting inherent biological
+variability and stochastic environmental conditions). In this work, we present a
+Bayesian model updating (BMU) framework to calibrate a recently introduced
+multi-species biofilm growth model. To enable efficient inference in the presence
+of hybrid uncertainties, we construct a reduced-order model (ROM) derived using
+the Time-Separated Stochastic Mechanics (TSM) approach. TSM allows for an
+efficient propagation of aleatory uncertainty, which enables single-loop Bayesian
+inference, thereby avoiding the computationally expensive nested (double-loop)
+schemes typically required in hybrid uncertainty quantification. The BMU frame-
+work employs a likelihood function constructed from the mean and variance
+of stochastic model outputs, enabling robust parameter calibration even under
+sparse and noisy data. We validate our approach through two case studies: a
+two-species and a four-species biofilm model. Both demonstrate that our method
+not only accurately recovers the underlying model parameters but also provides
+predictive responses consistent with the synthetic data.
+Keywords: Bayesian updating, hybrid uncertainty, bacterial biofilms, time-separated
+stochastic mechanics, model calibration
+1 Introduction
+Bacterial biofilms are structured microbial communities whose growth dynamics are
+influenced by environmental conditions, nutrient availability, antibiotics, and inter-
+species interactions [1]. A key feature of biofilms is their remarkable resilience: they
+can exhibit up to 1000-fold greater tolerance to antibiotics and environmental stressors
+compared to planktonic (free-floating) bacteria [2]. This inherent robustness con-
+tributes to the widespread presence of biofilms across diverse settings, such as natural
+ecosystems, industrial systems, and clinical environments. In industrial and environ-
+mental contexts, biofilms can play beneficial roles, such as in wastewater treatment
+processes [3]. However, they are also associated with numerous challenges, including
+persistent infections [4, 5], medical device contamination [6], and infrastructure bio-
+fouling [7]. One particularly important area is oral biofilm formation, which can lead
+to infections around dental implants [8–11].
+In many environments, biofilms are composed of multiple microbial species that
+compete for resources and respond collectively to external cues [12–14]. Understanding
+the dynamics of such multispecies biofilms and modeling these systems is critical
+for any application. Some fundamental interaction principles are outlined by James
+et al. [15] and they serve as a theoretical foundation of how the species interact, and
+also how they do not interact in some scenarios. Depending on the specific area of
+application, different aspects are modeled and different parameters are used to describe
+the physical and chemical processes of the biofilm growth. Ouidir et al. [16] review
+different approaches for the modeling of such systems and classify them by application
+2
+
+===== PAGE 3 =====
+to wastewaster treatment, soil, and biomedical applications. Specifically, they focus on
+biofilms in the oral cavity which is important for dental applications, also highlighted
+in [14, 17].
+A recently proposed continuum model by Klempt et al. [18], derived from the
+extended Hamilton principle, captures multi-species biofilm growth by introduc-
+ing abstract material parameters. However, these parameters are typically unknown
+and subject to uncertainty. Combined with the inherent stochasticity of biological
+processes, this presents a significant challenge for constructing predictive and phys-
+ically meaningful models. Accurate parameter inference is thus essential to identify
+underlying biofilm properties from data and enable robust modeling.
+Various strategies for calibrating biological models have been proposed. Frequen-
+tist approaches, such as those reviewed by Read et al. [19], rely on statistical tests
+(e.g., Kolmogorov-Smirnov) to compare model output distributions with data. Other
+works follow similar strategies [20–23]. In contrast, Bayesian inference provides a prob-
+abilistic framework for parameter estimation that naturally incorporates uncertainty
+[24, 25]. While Bayesian methods offer interpretability and flexibility, their computa-
+tional cost remains a key limitation. Recent developments, including modern Markov
+Chain Monte Carlo (MCMC), sequential Monte Carlo, and Approximate Bayesian
+Computation (ABC), have helped mitigate this burden [24].
+Despite their advantages, parameter calibration is often neglected in biofilm model-
+ing. For example, Shewa et al. [23] and Rittmann et al. [26] note that default literature
+values are frequently used instead of performing parameter calibration. Recent stud-
+ies have demonstrated the value of Bayesian inference for biofilm models, including
+parameter estimation with quorum sensing [27] and the inference of rheological prop-
+erties from experimental data [28]. In the field of computational mechanics, Willmann
+et al. [29] propose a Bayesian framework for the calibration of a model of multi-physics
+bioflm model introduced in Ref. [30]. The authors present an approach that can also
+handle unavoidable uncertainty and reduces the computational cost through the use
+of a Gaussian process surrogate for the log-likelihood. Further, different discrepancy
+metrics are introduced and compared in their study.
+The problem to estimate parameters under uncertainty with limited experimen-
+tal data is also present in many other fields of applications. One such application
+is the estimation of parameters of constitutive models in computational mechanics.
+Wollner et al. [31] present a Bayesian inference framework which they apply to the
+parameter estimation of the hyperelastic Ogden model. A summary of approaches
+common in applications in mechanical and civil engineering are given in in Ref. [32].
+There, again, we come back to Bayesian inference which allows for the handling of
+the unknown parameters through a posterior probability distribution of said param-
+eters conditioned on the observed data. In engineering applications this is commonly
+referred to as Bayesian model updating (BMU) and related to the contribution of Beck
+and Katafygiotis [33].
+Building on recent advancements in BMU for engineering applications, we extend
+these methods to the biofilm growth model introduced by Klempt et al. [18]. In such
+systems, it is essential to account for inherent variability caused by biological ran-
+domness and stochastic environmental influences. This intrinsic variability introduces
+3
+
+===== PAGE 4 =====
+aleatory uncertainty, which significantly increases the complexity of stochastic model
+updating. For robust and reliable inference, it is crucial to represent both epistemic
+(due to limited knowledge) and aleatory (inherent randomness) uncertainties, collec-
+tively referred to as hybrid uncertainty [34, 35]. However, hybrid uncertainty poses
+major computational challenges in Bayesian inference, where propagating stochastic
+variability through complex models typically requires expensive double-loop proce-
+dures [32, 36, 37]. To address this, we employ a reduced-order model (ROM) based on
+the Time-Separated Stochastic Mechanics (TSM) methodology [38, 39]. TSM approx-
+imates the stochastic dynamics by expanding the model response with respect to the
+uncertain parameters around their expected values and solving a sequence of determin-
+istic evolution equations for the expansion coefficients. This separation of temporal and
+stochastic components enables efficient forward simulation under aleatory uncertainty,
+eliminating the need for repeated sampling in time.
+The aim of this work is to calibrate a continuum model of biofilm growth, influenced
+by nutrients and antibiotics, as introduced in [18]. We employ a Bayesian updating
+approach to infer key model parameters under hybrid uncertainties. We model our
+unknown parameters as parametric probability-boxes (p-boxes) with unknown mean
+values and fixed coefficients of variations, in order to model natural variability as
+aleatory uncertainty. Then, a TSM-ROM is derived for an efficient propagation of
+the aleatory uncertainties as to not use a double-loop of full-order model calls. We
+construct a likelihood function based on summary statistics, i.e., mean and variance,
+of model responses.
+In this paper, we begin with a review of the theoretical background on Bayesian
+model updating, the treatment of hybrid uncertainties and TSM in section 2. Subse-
+quently, in section 3, we present the application of TSM-ROM to the biofilm model.
+Finally, we demonstrate the efficacy of our methodology through two case studies,
+illustrating its accuracy and computational efficiency in section 4. Our results high-
+light the potential for broader applications in uncertainty-aware modeling of biological
+systems.
+2 Background
+2.1 Bayesian model updating
+Stochastic model updating aims to refine a forward model M(θ) by inferring unknown
+parameters θ based on observed data [40]. Here,θ is a realization of theM-dimensional
+random variableΘ, defined over a parameter spaceDΘ ⊂ RM. The forward model thus
+defines a mapping from the parameter space to the output space M : DΘ → RNout .
+To relate the model predictions y = M(θ) to the observed data D, a discrepancy
+term ε is introduced:
+D = M(θ) + ε. (1)
+This term accounts for measurement noise and model inaccuracies, acknowledging
+that computational models are idealized approximations of reality [40]. A common
+assumption is that ε follows a zero-mean Gaussian distribution with covariance Σε,
+i.e., ε ∼ N (0, Σε).
+4
+
+===== PAGE 5 =====
+The Bayesian model updating (BMU) approach [33] addresses challenges such as
+incomplete data, observation noise, and model-form uncertainty by treating the param-
+eters θ as random variables. Prior knowledge about these parameters is encoded in a
+prior distribution p(θ).
+A central component of Bayesian inference is the likelihood function L(θ) =
+p(D|θ), which quantifies the probability of observing the dataD for a given parameter
+realization θ. Essentially, the likelihood serves as a stochastic measure of fit between
+model predictions and observations. Its specific form depends on modeling assump-
+tions for the discrepancy term. Under the Gaussian noise assumption, the likelihood is
+itself a Gaussian distribution centered at the model output and evaluated at the data
+[33, 40]. Its value increases as the data and model assumptions align more closely.
+Bayes’ theorem then combines the prior and likelihood to yield the posterior
+distribution p(θ|D) over the parameters:
+p(θ|D) = L(θ) p(θ)
+p(D) , (2)
+where p(D) =
+R
+L(θ) p(θ) dθ is the model evidence. Since this normalizing constant is
+independent of a fixed set of observations D and often intractable, the unnormalized
+posterior is typically used in practice:
+p(θ|D) ∝ L(θ) p(θ). (3)
+Note that in eq. (2) and eq. (3) the densities are implicitly also conditioned on the
+model assumptions.
+2.1.1 Bayesian model updating in the presence of hybrid
+uncertainties
+The previously introduced Bayesian model updating approach treats unknown param-
+eters as random variables with prior distributions that are refined into posterior
+distributions using observational data. This process only reduces epistemic uncer-
+tainty, assuming that all variability can be captured probabilistically. However, many
+real-world systems exhibit not only epistemic but also aleatory uncertainty: inher-
+ent randomness that cannot be reduced through further data collection. While
+epistemic uncertainty refers to fixed-but-unknown quantities, aleatory uncertainty
+reflects stochastic variation between experimental or simulation outcomes, even under
+identical conditions.
+A comprehensive review of model updating under different uncertainty types is
+provided in [32], where parameters are categorized into four types based on the pres-
+ence and combination of aleatory and epistemic uncertainty. An overview of these
+categories is illustrated in fig. 1.
+In this work, we focus on the specific challenges posed by parameters of cate-
+gory IV, which involve both types of uncertainty and are thus described by imprecise
+probabilities [35]. A common representation of such parameters is the probability box
+5
+
+===== PAGE 6 =====
+(p-box), in which aleatory uncertainty is modeled as a random variable, while epistemic
+uncertainty is expressed as interval bounds on the distribution parameters.
+In these cases, model outputs are inherently stochastic. A deterministic mapping
+like in eq. (1) is no longer sufficient, and commonly a stochastic forward model based on
+Monte Carlo simulation ˆM : DΘ → RNout×Nsamples is defined, where Nsamples denotes
+the number of Monte Carlo samples used to propagate aleatory uncertainty for each
+parameter configuration θ. Each input returns a sequence of outputs:
+Y =
+
+y1, y2, . . . ,yNsamples
+	
+= ˆM(θ). (4)
+This setup typically results in a nested (double-loop) approach: an outer loop explores
+different realizations of θ, while the inner loop samples the stochastic model output
+using the deterministic model M. Examples for this are the updating approaches in
+Refs. [32, 36, 37]. Although this allows the construction of p-boxes for the model
+response, it comes at a high computational cost, particularly in Bayesian inverse
+problems, which require many model evaluations across the parameter space.
+Epistemic
+Known Unknown
+Aleatory
+Constant
+Category I Category II
+x∗ x x
+Variable
+Category III Category IV
+Fig. 1: Parameters with different combinations of aleatory and epistemic uncertainties.
+In the presence of hybrid uncertainties, constructing the likelihood function
+becomes especially challenging, since model outputs are no longer deterministic but
+represent probability distributions. In Approximate Bayesian Computation (ABC), for
+example, model predictions are compared with observations using distance metrics to
+approximate a likelihood function [32, 41, 42]. Alternatively, summary statistics such
+as the mean and variance can be used to define the likelihood function.
+6
+
+===== PAGE 7 =====
+2.1.2 Formulation of the likelihood function
+Given the deterministic model in eq. (1) and a corresponding observation D, and
+assuming Gaussian-distributed measurement noise, the likelihood function can be
+written as:
+L(θ) = 1p
+(2π)Nout det Σε
+exp
+
+−1
+2(D − y)⊤Σ−1
+ε (D − y)
+
+. (5)
+Note that eq. (5) is relating a single multi-variate observation D to a single deter-
+ministic model output y, where Σε describes the expected spread due to the additive
+errors. This can be extended to the stochastic model ˆM by using for example the
+predicted mean µY and covariance ΣY of the stochastic predictions in eq. (4):
+L(θ) = 1p
+(2π)Nout det ΣY
+exp
+
+−1
+2(D − µY)⊤Σ−1
+Y (D − µY)
+
+. (6)
+Since the likelihood typically has limited support within the parameter space DΘ, it
+is convenient to consider its logarithmic form to improve numerical stability:
+log L(θ) = − log
+q
+(2π)Nout det ΣY
+
+− 1
+2(D − µY)⊤Σ−1
+Y (D − µY). (7)
+This formulation extends naturally to multiple uncorrelated observations Dk, k ∈
+{1, . . . , m}, by summing the log-likelihoods:
+log L(θ) =
+X
+k
+− log
+q
+(2π)Nout det Σk
+Y
+
+− 1
+2(Dk − µk
+Y)⊤Σk
+Y,k
+−1
+(Dk − µk
+Y). (8)
+Here, the measurements Dk can correspond to either repeated observations of the same
+quantity or, as in this paper, values taken at different time steps. The quantities µk
+Y
+and Σk
+Y thus denote the model-predicted mean and covariance at each measurement
+time step tk. Note that in stochastic forward models, where Monte Carlo sampling
+is used, eq. (8) would need the mentioned double-loop approach, as estimating the
+means and covariances requires multiple samples. For this reason, we will implement
+a TSM-ROM to facilitate faster parameter inference. Details on the exact setup of the
+likelihood will be given in section 4.
+2.1.3 Transitional Markov Chain Monte Carlo
+In practice, the posterior distribution is analytically intractable, primarily due to its
+implicit dependence on the forward model through the likelihood function [40]. More-
+over, when multiple measurements are incorporated, the posterior typically does not
+conform to any standard probability distribution, which becomes clear when consider-
+ing how the log-likelihood function is constructed in eq. (8). To address this, Markov
+Chain Monte Carlo (MCMC) methods are widely used, as they enable sampling from
+7
+
+===== PAGE 8 =====
+distributions of arbitrary shape. A key advantage of MCMC techniques is their abil-
+ity to draw samples directly from the unnormalized posterior distribution, as given in
+eq. (3).
+The most common MCMC algorithm is the Metropolis-Hastings algorithm [43,
+44] which generates samples from the unnormalized posterior by starting a random
+walk algorithm with Markov chains form some initial samples and than accepting or
+rejecting new samples based on a proposal distribution.
+In this paper, we apply the Transitional Markov Chain Monte Carlo (TMCMC)
+algorithm [45] to draw samples from eq. (3). TMCMC is an advanced MCMC method
+designed to sample from multimodal distributions by sampling from a sequence of
+intermediate distributions rather than from the posterior directly, a process which is
+also known as annealing [46]. These transitional densities are defined as:
+pj(θ) ∝ L(θ)βj p(θ) (9)
+where j ∈ { 1, 2, . . . , m} represents the transition steps, with the corresponding tem-
+pering parameter βj progressing from β0 = 0 to βm = 1 through intermediate values
+β0 = 0 < β 1 < β 2 < · · · βm = 1. This gradual transition allows the prior density
+p(θ) to smoothly evolve into the posterior density L(θ)p(θ), as noted in Ref. [40]. To
+make use of the formulation of the log-likelihood in eq. (8), the transitional densities
+in eq. (9) are also formulated in a logarithmic expression. We chose TMCMC for its
+robustness against posteriors with small support due to the annealing procedure.
+2.2 Time-separated Stochastic Mechanics
+In order to reduce the high computational cost of the double-loop approach, a sur-
+rogate model or ROM can be used to replace the inner loop and thus decrease the
+computational cost, as also mentioned in [32]. Faes et al. [47] discuss different surrogate
+modeling techniques for the propagation of hybrid uncertainties modeled with p-boxes.
+Further, Reiser et al. [48] present a two-step Bayesian framework for surrogate-based
+inference that propagates both epistemic and aleatoric uncertainties from surrogate
+model training to parameter inference.
+Here, we use the Time-separated Stochastic Mechanics (TSM) [38, 39] to efficiently
+handle the intrinsic aleatory uncertainty and reduce the updating from a double to
+a single-loop algorithm. The main idea of the TSM is to replace a forward model
+M(θ) with the parameters θ by a surrogate MS. The surrogate is defined such, that
+the first p partial derivatives of the surrogate coincide with the forward model at the
+expectation of the parameters. For a scalar parameter θ with expectation ⟨θ⟩ this
+reads as
+∂i
+∂θ i M
+
+⟨θ⟩
+= ∂i
+∂θ i MS
+
+⟨θ⟩
+∀i ∈ {0, . . . , p}. (10)
+For an algebraic model, this coincides with a Taylor series. Forward models involv-
+ing derivatives in time need a special treatment. This is presented in more detail
+in Section 3.2. The approach is advantageous for the application to Bayesian Model
+Updating as the approximation is best near to the expectation of the parameters.
+8
+
+===== PAGE 9 =====
+Often, much of the probability mass is indeed collected around the expectation. In com-
+parison to other surrogate models, as the Polynomial Chaos Expansion and Stochastic
+Collocation Method, only a very limited number of function evaluations needed. In
+fact, for many problems a linear or quadratic approximation suffices.
+3 Application to biofilm growth
+In this paper, we apply Bayesian model updating to identify parameters in the evo-
+lution of biofilm growth of a model introduced by Klempt et al. [18]. This model
+incorporates the growth of multiple species under the influence of nutrients and antibi-
+otics, as well as their interactions. The growth is represented by the concentration of
+the biofilms over time, denoted by ϕ. Additionally, ψ is defined as the percentage of
+living bacteria. The volume occupied by living bacteria from species l is expressed as
+ϕl = ϕlψl. The model derives from the extended Hamilton principle [49], which leads
+for the special case of a local, quasi-static, isothermal model with no external forces to
+∂Ψ
+∂ξ + ∂∆s
+∂ ˙ξ
++ ∂c
+∂ξ = 0, (11)
+with the vector of internal variables
+ξ =
+
+ϕ
+ψ
+
+, (12)
+the energy density function Ψ, the dissipation function ∆s and the constraint function
+c.
+The temporal evolution of biofilm concentration is determined by the energy den-
+sity function and the dissipation function. The energy density function is defined
+as
+Ψ = −1
+2c∗ϕ · A · ϕ + 1
+2 α∗ψ · B · ψ (13)
+and consists of two terms. The first term, where c∗ represents nutrients, which promote
+an increase in living bacteria, while the second term, where α∗ signifies antibiotics,
+results in a decrease.
+Coefficient matrices A and B are crucial in characterizing the material behavior of
+the species. The matrix A is a symmetric matrix designed to capture the interactions
+between different biofilm species and the effects of nutrients on their growth. Its off-
+diagonal elements represent inter-species interactions, while the diagonal elements
+account for the effects of nutrients on individual species growth. Generally, A can be
+expressed for multiple species as
+A =
+
+
+a11 a12 · · · a1n
+a12 a22 · · · a2n
+...
+... ... ...
+a1n a2n · · · ann
+
+ . (14)
+9
+
+===== PAGE 10 =====
+The matrix B is a diagonal matrix that characterizes the impact of antibiotics on
+the viability of the biofilm species. Its diagonal components represent the susceptibility
+of each species to antibiotics. The general form of B for multiple species is assumed
+to be
+B =
+
+
+b1 0 · · · 0
+0 b2 · · · 0
+... ... ... ...
+0 0 · · · bn
+
+ . (15)
+The dissipation function is modeled as a function of ˙¯ϕ and ˙ϕ:
+∆s = ∆s( ˙¯ϕ, ˙ϕ) = 1
+2
+˙¯ϕ · η · ˙¯ϕ + 1
+2
+˙ϕ · η · ˙ϕ (16)
+with the diagonal viscosity matrix
+η =
+
+
+η1 0 · · · 0
+0 η2 · · · 0
+...
+... ... ...
+0 0 · · · ηn
+
+ . (17)
+The choice of modeling the dissipation as a function of the rate of living bacteria ˙¯ϕ
+and not directly of the rate of the state variables ˙ϕ and ˙ψ leads to a deeply linked
+system of equation, resulting in complex model behavior.
+To limited the growth to a finite amount, the total volume of all species is limited
+by the constraint function
+c = γ
+ nX
+l=0
+ϕl − 1
+!
+= 0 (18)
+with the Lagrange multiplicator γ. This leads to the governing evolution equations in
+their strong forms:
+0 = −c⋆ψi
+ 
+aii ¯ϕi +
+n−1X
+j
+aij ¯ϕj
+!
++ ηi( ˙ϕiψ2
+i + ¯ϕi ˙ψi + ˙ϕi) + γ (19)
+0 = −c⋆ϕi
+ 
+aii ¯ϕi +
+n−1X
+j
+aij ¯ϕj
+!
++ α⋆ψibi + ηi( ˙ψiϕ2
+i + ¯ϕi ˙ϕi) + γ (20)
+0 =
+nX
+l=0
+ϕl − 1 (21)
+In the following, the parameters in A and B, which describe the behavior of the
+species are referred to as the unknown, stochastic parameters θ. The observations D
+are the volume percentage for each species ϕl and the percentage of living cells for
+each species ψl for each time step.
+10
+
+===== PAGE 11 =====
+To ensure, that the internal variables remained in the intervalξi ∈ [0, 1], the penalty
+method was applied. The penalty terms Kp( 1
+ξ2
+1(1−ξ1)2 ) were added for all internal
+variables to the free energy density in Equation 13.
+3.1 Uncertainty model for biofilm growth
+For the uncertainty model involved in the parameter modeling of the biofilm growth,
+we treat these parameters θ as category IV, specifically using p-boxes. This complex
+setup with mixed uncertainties is designed to replicate the uncertainties in real-world
+biofilm growth due to both inherent randomness (aleatory uncertainty) and data
+scarcity (epistemic uncertainty). The hybrid nature of these uncertainties justifies the
+application of a ROM using TSM to more efficiently handle both types of uncertainties
+in inverse problems.
+Based on this reasoning, the biofilm growth model is implemented in a stochastic
+manner, as shown in eq. (4). The TSM-ROM replaces the Monte Carlo simulation ˆM
+and returns a sequence of outputs for a given input θ. The sequence of outputs at a
+given time instance is stochastic due to the aleatoric uncertainty inherent to biofilm
+growth. This is true even if the epistemic uncertainty is reduced to zero. The epistemic
+uncertainty is connected to the mean value of θ, whose exact distribution is unknown
+a priori and is inferred via Bayesian updating.
+3.2 TSM-ROM for biofilm growth
+Equations (19), (20) and (21) constitute a nonlinear system of equations for the evolu-
+tion of the variablesψ and ϕ. The input parameterθ is split into an part with epistemic
+uncertainty θ(0) and a part with aleatoric uncertainties ˜θ with the expectation ⟨ ˜θ⟩ = 0.
+In the following, the input parameters are referred to asθTSM = θ(0)+ ˜θ. The variables
+ψ and ϕ are expressed by a linear Taylor series in the aleatoric uncertainties
+ψTSM = ψ(0) + ˜θ · ψ(1) (22)
+ϕTSM = ϕ(0) + ˜θ · ϕ(1). (23)
+The Taylor series for the variables ψ and ϕ constitute the surrogate model MS. No
+solution of the systems of equations is needed for a new parameter value θ. While a
+higher order model is simple to implement, a linear series already often suffices [39]. For
+simplicity, let us refer to the system of equations (19) to (21) as G( ˙ϕ, ˙ψ, ϕ, ψ, θTSM).
+The system of equations naturally depends on both, the variables themselves and their
+time derivatives. The time derivative of the Taylor series results trivially as
+˙ψTSM = ˙ψ(0) + ˜θ · ˙ψ(1) (24)
+˙ϕTSM = ˙ϕ(0) + ˜θ · ˙ϕ(1). (25)
+because the random term ˜θ is time-independent. All Taylor series are set into the
+system of equations. The zeroth order terms can be calculated as
+G( ˙ϕTSM, ˙ψTSM, ϕTSM, ψTSM, θTSM)
+˜θ=0. (26)
+11
+
+===== PAGE 12 =====
+Unsurprisingly, the original system of equations evaluated at θTSM = 0 results. For
+the derivation of the first order term,
+d
+d ˜θ
+G( ˙ϕTSM, ˙ψTSM, ϕTSM, ψTSM, θTSM)
+˜θ=0. (27)
+is calculated. This results in a nonlinear system of equations that allow to compute˙ϕ(1)
+and ˙ψ(1). As these equations depend on ˙ϕ(0) and ˙ψ(0), a staggered solution scheme
+naturally arises.
+The model and its updating procedure are implemented in the open-source pro-
+gramming language Julia. Performance tests for a single deterministic model prediction
+and for the TSM-ROM implementation indicate that one model run with two species
+requires approximately 3 ms, whereas solving the complete TSM-ROM takes about 40
+ms on the same hardware. It should be noted that, to fully represent aleatory uncer-
+tainties, MC simulations require multiple, often hundreds of model runs. In contrast,
+the TSM-ROM computes stochastic moments directly, making it considerably more
+efficient for mixed-uncertainty models and well-suited for multi-query applications.
+4 Numerical Experiments
+To illustrate the application of BMU in determining the material properties governing
+biofilm growth, we present two case studies. The primary objective in both cases is to
+infer the matrices A and B, which characterize biofilm evolution through the energy
+density function outlined in eq. (13).
+The first case study involves a model with two species and five unknown material
+parameters. The second case study extends this framework to four species with 14
+parameters. In both scenarios, the BMU approach utilizes TMCMC, implemented via
+the Julia package UncertaintyQuantification.jl [50]. To compare model predictions with
+experimental data, we employ the likelihood function given in eq. (8), assessing dis-
+crepancies in the volume fractions of living bacteria, denoted by Φ, at predetermined
+discrete time steps.
+To build the likelihood function, the response of the TSM biofilm model is com-
+pared to experimental data. Specifically, we consider the mean response feature of the
+l-th species at the k-th time step, denoted as µk
+y,l. Similarly, its variance is denoted as
+σk
+y,l. In this context, the output features are defined as the volume fractions of n living
+bacterial species at various discrete time steps k. For a single sample θj, i.e. one full
+simulation of the TSM-ROM model, these features are structured in a matrix form:
+yj =
+
+
+ϕ
+1
+1 ϕ
+2
+1 · · · ϕ
+m
+1
+ϕ
+1
+2 ϕ
+2
+2 · · · ϕ
+m
+2
+... ... ... ...
+ϕ
+1
+n ϕ
+2
+n · · · ϕ
+m
+n
+
+
+, (28)
+where ϕ
+k
+l denotes the volume fraction of species l at time step k. Here, n represents
+the total number of species, while m is the number of selected discrete time steps used
+12
+
+===== PAGE 13 =====
+for comparison with observational data. For better readability, we omitted the index
+j in ϕ
+k
+l .
+It is important to note that m ≪ N, where N denotes the total number of time
+steps in the complete analysis. Typically, a large number of steps such as N = 1000
+is used when performing the time integration of the TSM model. This is chosen to
+ensure numerical stability and accuracy, as a smaller time step size ∆t helps to control
+numerical errors during the calculation.
+While N allows for detailed modeling of the biofilm dynamics over time, m is
+strategically chosen to facilitate the construction of the likelihood function by pro-
+viding a manageable subset of time steps. For instance, one might select m = 20
+time steps for comparing simulation responses with experimental data. This selection
+ensures efficient and meaningful statistical inference without overwhelming computa-
+tional resources. Thus, a datasetD is constructed from Ndata = m unique experiments,
+each representing a realization that terminates at different time steps. Our aim is to
+replicate the setup of in vitro experiments in our in silico experiments, i.e., simu-
+lating multiple experiments started from the same initial conditions, but stopped at
+different time instances. This approach accounts for both aleatory uncertainty, arising
+from inherent randomness in biofilm growth, and epistemic uncertainty due to limited
+observational data.
+Finally, the likelihood function from eq. (8) is computed for each row within the
+feature matrix detailed in eq. (28), as described above. In preliminary testing we found
+that using the full covariance matrix is unnecessary, as correlations between the model
+outputs are implicitly handled by the model. Therefore, the likelihood is reduced to
+only the diagonal elements of the covariance matrix, and the expression in eq. (7)
+can be simplified. The full likelihood, constructed from the l ∈ {1, . . . , n} species and
+k ∈ {1, . . . , m} time steps, thus reads
+log L(θ) =
+X
+l
+X
+k
+− log
+h
+2πσ k
+y,l
+2i
+− 1
+2 σk
+y,l
+−2
+ϕ
+k
+l − µk
+y,l
+2
+. (29)
+where σk
+y,l is the i-th diagonal element of Σk
+Y at time step tk. Further comment will
+be given below.
+4.1 Case I: Two-Species Biofilm Model
+In this first case study, we focus on biofilm growth comprisingn = 2 interacting species.
+Specifically, this case aligns with case 5 in Ref. [18], augmented by the addition of an
+interaction parameter a12 to adeptly capture inter-species interactions.
+For the two-species scenario, the material behavior of the biofilm is characterized
+by the two matrices in eqs. (14) and (15) with n = 2. The symmetry inherent in
+matrix A reduces the dimensionality of the problem to five independent parameters
+θ = [a11, a 12, a 22, b 1, b 2]. Each of the five parameters is modeled as a parametric p-
+box with a Normal distribution with an unknown mean and a coefficient of variation
+of 0.5%.
+The dataset D comprises Ndata = 20 individual simulations, each concluding at
+different time steps, as shown in fig. 2. These data points correspond to model outputs
+generated from 20 parameter samples θ, randomly selected from a larger set of 1000
+13
+
+===== PAGE 14 =====
+samples drawn from the Normal distributions of the respective parameters with true
+means.
+The solid lines represent the time evolution of the 20 samples of volume fractions
+of living bacteria for both species, ¯ϕ1 and ¯ϕ2. The scatters present the 20 randomly
+selected realizations at m = 20 evenly spaced time steps within the interval t ∈
+[0, N = 1000]. Since the initial conditions at t = 0 are known, the first time step is
+chosen at t = 50, as depicted in fig. 2. It is important to highlight that the dataset D
+only consist of the 20 discrete data points. Further, we note that the time steps were
+chosen as a balance between accuracy by using a large number of time instances to
+compare the data and realism by using as little data as possible.
+The different constant simulation parameters used in case I, e.g., the viscosity
+η, different initial conditions, nutrients and antibiotics, are summarized in table 1.
+Further, for all the following cases, we use a penalty term Kp = 10 −4 and initial
+ψi = 0.999 for all species. Similarly, table 2 shows the chosen prior distributions of the
+mean values of the five parameters that are inferred with the proposed BMU approach.
+Here, uninformative priors modeled by uniform distributions are chosen.
+Fig. 2: Dataset with Ndata = 20 volume fractions of living bacteria for two species,
+ϕ1(t) and ϕ2(t). Individual realizations are shown as yellow and blue lines, each ending
+at different steps, indicated by the dots. The data is generated from 1000 samples of
+the underlying true distribution of parameters with mean values θ∗ = [1, 0.1, 1, 1, 2]
+along with a CoV of 0 .5%.
+The Bayesian model updating with the described procedure is performed to cali-
+brate the model parameters. The resulting samples of the posterior are visualized in
+fig. 3. We observe that the posterior bounds are much tighter compared to the pri-
+ors, indicating a significant reduction in uncertainty due to the incorporation of data.
+The posterior distributions generally peak around the “true” parameter values used
+14
+
+===== PAGE 15 =====
+Table 1: Values of simulation parameters for case I.
+Variable Unit Value
+viscosity η1 [ kg
+ms ] 1
+viscosity η2 [ kg
+ms ] 2
+initial ϕ1 [-] 0.25
+initial ϕ2 [-] 0.30
+nutrients c∗ [ m2
+s2 ] 100
+antibiotics α∗ [ m2
+s2 ] 10
+number of time steps N [-] 1000
+time step size ∆ t [s] 10 −4
+number of data points Ndata [-] 20
+number of aleatory samples Nsamples [-] 500
+number of posterior samples Nposterior [-] 5000
+coefficient of variation CoV [%] 0 .5
+Table 2: Uniform prior ranges U(a, b) for the mean values
+of the parameters in case I.
+Parameter θ1 = a11 θ2 = a12 θ3 = a22 θ4 = b1 θ5 = b2
+Range (0 , 3) (0 , 0.5) (0 , 3) (0 , 3) (0 , 3)
+to construct the dataset, while still capturing some spread that reflects the inher-
+ent variability in the data. Specifically, the dataset was generated using mean values
+θ∗ = [1, 0.1, 1, 1, 2] along with a CoV of 0 .5%, and the results demonstrate that our
+Bayesian updating framework is capable of accurately resolving these values. More-
+over, dependencies between parameters become apparent, both in the scatter plots
+and in the Pearson correlation coefficients ρ calculated from the posterior samples. For
+instance, we observe strong linear correlations between a12 and b1 (ρ = 0.934), as well
+as between a12 and b2 (ρ = 0.898). Moderate correlations are also evident between a11
+and b1 (ρ = 0.725), and between b1 and b2 (ρ = 0.759). When considering the govern-
+ing equations of the biofilm growth given by eqs. (19) to (21), these correlations seem
+reasonable as the respective parameters jointly influence the growth and degradation
+behavior of the biofilm.
+Figure 4 visualizes the model responses corresponding to the posterior samples,
+alongside the data D used for the updating. There, we show the responses for the
+two individual quantities ϕ and ψ as well as the combined measure ¯ϕ = ϕψ. It shall
+be noted that the updating was only performed using the output ¯ϕ and the corre-
+sponding data. We visualize ϕ and ψ along with the respective data to validate the
+calibrated model. In general, we observe a good agreement between the model outputs
+and the data: the posterior-informed simulations can reproduce similar behavior as
+the observed dataset while appropriately handling the variability introduced by ran-
+dom realizations and differing termination times across trajectories. This holds true
+15
+
+===== PAGE 16 =====
+for all measures, also for the two quantities used for the validations which highlights
+the robustness of the parameter estimation.
+The tight output prediction interval observed in fig. 4 is a contrast to fig. 5. There,
+the model response ¯ϕ when sampling the parameters θ from the prior distributions
+given in table 2 is visualized. It can be seen that the response for all possible parameters
+from the prior covers a wide range of solutions.
+Lastly, to show that using only the diagonal elements of the estimated covariance
+matrix does not decrease the accuracy of the updating, fig. 6 shows the resulting p-
+boxes. Figure 6a shows results with only the diagonal elements, while fig. 6b shows
+results obtained from using the full covariance. Both results do not diverge from each
+other, and the resulting intervals are very similar. Thus, in the following, we will
+concentrate on only using the diagonal elements.
+Fig. 3 : Posterior samples of the mean values of the five material parameters θ =
+[a11, a 12, a 22, b 1, b 2] of case I.
+16
+
+===== PAGE 17 =====
+Fig. 4: Model outputs ϕ, ψ and ¯ϕ corresponding to the input given by the posterior
+samples of case I in fig. 3. Note: Only ¯ϕ along with its associated data are used for
+the model calibration, the outputs ϕ and ψ serve as a validation.
+Fig. 5: Model realizations corresponding to the input given by the prior samples of
+case I from table 2.
+17
+
+===== PAGE 18 =====
+(a) Diagonal covariance
+ (b) Full covariance
+Fig. 6 : Differences in the updated p-boxes between using the diagonal covariance
+(fig. 6a) and the full covariance (fig. 6b) in the likelihood
+4.2 Case II: Four-Species Biofilm Model
+As a second case study, we consider a biofilm model withn = 4 interacting species and
+a total of 14 unknown parameters. To render Bayesian inference tractable, we employ
+a hierarchical (multilevel) updating strategy in three stages. First, we decompose the
+full four-species system into two simpler two-species submodels: M1 captures the
+interactions of species 1 and 2 (five parameters), and M2 captures the interactions
+of species 3 and 4 (five parameters). These submodels are calibrated in parallel using
+uninformative priors, yielding posterior distributions on the reduced parameter spaces
+D1
+Θ ⊂ R5 and D2
+Θ ⊂ R5. A schematic of this multilevel updating is shown in fig. 7.
+Next, in model M3, we assemble the full four-species interaction matrices A, B ∈
+R4×4, where the ten parameters already inferred in the submodels are highlighted
+(blue for M1, red for M2). We now fix the corresponding ten parameters at their
+respective maximum-a-posteriori (MAP) estimates obtained from Steps 1 and 2. As
+a result, only the four remaining cross-block interaction parameters a13, a14, a23, a24
+are treated as uncertain in M3 and assigned uninformative uniform priors, yielding
+18
+
+===== PAGE 19 =====
+a reduced inference subspace D3
+Θ ⊂ R4. A final Bayesian update is then performed
+solely over this four-dimensional subspace.
+M1: Interactions between species 1 & 2
+θ(1) ≡
+{[ a11 a12
+a22
+]
+,
+[ b1
+b2
+]}
+M2: Interactions between species 3 & 4
+θ(2) ≡
+{[ a33 a34
+a44
+]
+,
+[ b3
+b4
+]}
+M3: Remaining interactions
+θ(3) ≡
+
+
+
+
+
+a11 a12 a13 a14
+a22 a23 a24
+a33 a34
+sym. a44
+
+,
+
+
+b1
+b2
+b3
+b4
+
+
+
+
+
+Fig. 7: Visualization of the hierarchical updating procedure on two different levels:
+Updating of two model M1 and M2 is performed using simpler two-species models,
+subsequently M3 is used to update the remaining interactions.
+In practice, Steps 1 and 2 follow the same two-species Bayesian updating procedure
+described in Case I, starting from uninformative priors. In Step 3, instead of reusing full
+posterior distributions, we carry forward only the MAP estimates from M1 and M2,
+thereby focusing inference in M3 entirely on the remaining four interaction param-
+eters. This hierarchical structure reduces the dimensionality of each inference step—
+from 14 parameters in total to two problems of dimension 5, followed by one of dimen-
+sion 4. Such a staged reduction in dimensionality is expected to improve computational
+efficiency and convergence, as also observed in [51], where the authors highlight the
+impact of parameter dimension on the performance of TMCMC algorithms.
+Afterwards, we look at a modified setup of M3 to validate the calibrated param-
+eters with new data in a different setup. For this, we apply the antibiotics only after
+t = 0.5 to check if our calibrated are model parameters are robust to this change in
+the setup. We denote this as the model M3
+val. The selected simulation parameters of
+the submodels are summarized in table 3. All prior distributions are chosen as U(0, 3).
+Values in table 3 vary betweenM1, M2 and M3 since the different species have dif-
+ferent sensitivities to nutrients and antibiotics. In M2 the antibiotics were reduced to
+not have a zero-concentration of the bacteria, since this would lead to non-informative
+data. Moreover, M2 has a longer experimental duration (5000 instead of 2500 time
+steps) due to slower growth of the microfilms. We simulated M1 for a shorter dura-
+tion because the concentrations became almost stationary and did not result in any
+further information gain.
+4.2.1 Interaction of Species 1 and 2
+First, the parameter set θ(1) is inferred using the two-species model M1. For this
+first submodel, the antibiotic parameter is set to α = 100 m2
+s2 . We employ the same
+likelihood and same approach as in case I for the updating. The resulting posterior
+samples are shown in fig. 8. Here, again, for every parameter, a single peak along with
+some spread aorund that can be observed. Notably, we observe a strong correlation
+between the mean values of the parameters a11 and a22.
+19
+
+===== PAGE 20 =====
+Table 3: Values of simulation parameters for the submodels of case II.
+Variable Unit M1 M2 M3 M3
+val
+viscosity η1 [ kg
+ms ] 1.0 1.0 1.0 1.0
+viscosity η2 [ kg
+ms ] 1.0 1.0 1.0 1.0
+viscosity η3 [ kg
+ms ] - - 1.0 1.0
+viscosity η4 [ kg
+ms ] - - 1.0 1.0
+initial ϕ1 [-] 0.2 0.2 0.02 0.02
+initial ϕ2 [-] 0.2 0.2 0.02 0.02
+initial ϕ3 [-] - - 0.02 0.02
+initial ϕ4 [-] - - 0.02 0.02
+nutrients c∗ [ m2
+s2 ] 100 100 25 25
+antibiotics α∗ [ m2
+s2 ] 100 10 0 50 I[t > 500]
+number of time steps N [-] 2500 5000 750 1500
+time step size ∆ t [s] 10 −5 10−5 10−4 10−4
+number of data points Ndata [-] 20 20 20 20
+number of aleatory samples Nsamples [-] 500 500 500 500
+number of posterior samples Nposterior [-] 5000 5000 5000 -
+coefficient of variation CoV [%] 0 .5 0 .5 0 .5 0 .5
+Figure 9 visualizes the model output corresponding to the posterior samples along
+with the data points used for the updating. Good agreement between the model
+response and the data can be observed.
+20
+
+===== PAGE 21 =====
+Fig. 8 : Posterior samples of the mean values of the five parameter in the set θ(1)
+updated with the two-species model M1.
+Fig. 9 : Comparison of the model output of model M1 corresponding to calibrated
+posterior samples (shaded) and the data (scatter).
+21
+
+===== PAGE 22 =====
+4.2.2 Interaction of Species 3 and 4
+The same approach is applied to infer the mean values of the parameter set θ(2)
+with the second two-species model, M2. The results of the model calibration are
+shown in figs. 10 and 11, which again show the posterior samples and model outputs,
+respectively. Here, an antibiotic concentration of α = 10 m2
+s2 is applied to build the
+data set and perform the updating.
+It can be observed that the peak are not as sharp as in the case of the first
+parameter set. However, for all parameters but b4, the spread around the peak is still
+small where comparing the ranges of the posterior samples to the prior range, i.e.,
+[0, 3]. Only for the antibiotic sensitivity of the forth species, b4, the range of posterior
+samples is rather large.
+The model output in fig. 11, however, shows very good agreement with the data
+points that are used for the Bayesian updating of the second parameter set.
+Fig. 10 : Posterior samples of the mean values of the five parameter in the set θ(2)
+updated with the two-species model M2.
+22
+
+===== PAGE 23 =====
+Fig. 11: Comparison of the model output of model M2 corresponding to calibrated
+posterior samples (shaded) and the data (scatter).
+4.2.3 Remaining Interactions
+After the first two parameter sets are inferred using the two submodels M1 and M2,
+the remaining interaction parameters can be determined with the final four-species
+model M3. In this setup, we fix the parameters in θ(1) and θ(2) to their respective
+MAP estimates. Thus, only the remaining four interactions parameters are inferred,
+denotes as θ(3). Since the remaining interaction parameters are only in the matrix A,
+the term that is not dependent on the antibiotic concentration, we set the latter to
+α = 0.
+The results of this third and last updating are show in figs. 12 and 13. Here, sharp
+and distinct peaks along with a strong linear correlation can be observed for all four
+parameters. Again, a good agreement between posterior model response and data is
+observed after the updating.
+23
+
+===== PAGE 24 =====
+Fig. 12: Posterior samples of the mean values of the parameter set θ(3) updated with
+the four-species model M3.
+Fig. 13: Comparison of the model output of model M3 corresponding to calibrated
+posterior samples (shaded) and the data (scatter).
+24
+
+===== PAGE 25 =====
+4.2.4 Comparison of the identified posterior mean with true mean
+In fig. 14, we compare the identified material parameters with the true parameter
+values used for the data generation. In addition, an error bar is added to the posterior
+means highlighting the standard deviation of the posterior. For almost all parameters,
+the values are very similar. The largest difference is obtained for the parameter b4
+connected to the sensitivity to antibiotics of the fourth biofilm. In addition, a rather
+high standard deviation of the posterior results. This gives an important hint that
+more data is needed for a better identification.
+Fig. 14: Comparison of the mean values of the identified parameters and true values
+used to generate the data used in case II. The error bars reflect the standard deviation
+of the posterior samples of the respective parameters.
+4.2.5 Validation with time-dependent antibiotics
+As a final part, a validation setup is considered in order to see how robust the calibrated
+model parameters are to a changed setup. Specifically, a time-dependent application
+of antibiotics is considered in the validation case. As indicated for M3
+val in table 3,
+antibiotics are applied t = 0.5. For t < 0.5, the setup is identical with model M3 used
+to calibrate the final interaction parameters.
+The result of the validation is shown in fig. 15. There, the model responses up until
+the antibiotics are applied are the same in for M3. When the antibiotics are applied,
+a rapid change of the antibiotic concentration can be observed. Again, we see a good
+agreement between the data and the predicted model response. Here, the data is only
+used to validate the predicted response by comparison; no additional model calibration
+is performed. We note that the application of the antibiotics leads to an increased
+variability in the model response for the same set of inputs. This validation also shows
+that calibrating a physical model is useful in settings where the model is used in a
+25
+
+===== PAGE 26 =====
+predictive setting. Since the underlying model parameters were updated, a change in
+environmental conditions can be modeled, even if no data is available for this change.
+Fig. 15: Comparison of the model output of model M3
+val corresponding to calibrated
+posterior samples (shaded) and the data (scatter). The output for t < 0.5 corresponds
+to M3 from fig. 13.
+5 Conclusion
+In this paper, we presented a Bayesian updating approach for biofilm growth mod-
+els that accounts for hybrid uncertainties, incorporating both epistemic (unknown
+parameters) and aleatory (biological variability) uncertainty via a probabilistic for-
+mulation. Traditional double-loop approaches to uncertainty quantification are often
+inefficient in this context. To address this, we employed a reduced-order model based
+on Time-separated Stochastic Mechanics (TSM), enabling the propagation of aleatory
+uncertainty with only a single model evaluation, thus eliminating the need for nested
+simulation loops. By leveraging a Taylor-decomposition-based representation of the
+stochastic process, our approach allows direct computation of the outputs mean
+and variance, which are then used in a Gaussian likelihood function for inference.
+This significantly reduces computational costs while preserving accuracy in capturing
+uncertainty effects compared to a Monte Carlo approach.
+The proposed methodology was validated through two representative case studies.
+The first involves a two-species biofilm model with five parameters, where monolithic
+updating was used to infer parameters governing growth, interaction, and antibiotic
+sensitivity. The second expands to a four-species system with fourteen parameters,
+employing a hierarchical inference strategy to decompose the high-dimensional prob-
+lem into tractable sub-tasks. In both cases, the model successfully recovered the
+26
+
+===== PAGE 27 =====
+true parameters and revealed meaningful interdependencies among them, highlight-
+ing the ability of the method to capture complex inter-species dynamics. Additionally,
+a validation study using time-dependent antibiotic application confirmed that the
+inferred parameters retain predictive power under varying experimental conditions.
+This supports the robustness and generalizability of the calibrated model.
+Furthermore, our results show that employing the TSM-ROM approach for
+Bayesian updating is robust to nonlinearities and suitable to deal with a large number
+of uncertain parameters. Moreover, since the TSM-ROM directly captures the out-
+put’s uncertainties, the necessity for expensive multi-query simulations is removed and
+the updating is less demanding in terms of computation time. The proposed approach
+therefore has the ability to reduce the time it takes to infer model parameters. Thus,
+the TSM-ROM approach can be used to accelerate the verification of the presented
+biofilm model against in vitro biofilm data, as for example presented by [52].
+Overall, the TSM-ROM approach offers a computationally efficient and robust
+framework for Bayesian inference in complex, uncertainty-laden biological systems. In
+future research, the computational demand can further be addressed by using more
+efficient updating schemes like variational inference [53] or more efficient sampling
+strategies [54].
+Acknowledgements
+The work has been funded by the German Research Foundation (DFG) within the
+framework of the International Research Training Group IRTG 2657 “Computational
+Mechanics Techniques in High Dimensions” under grant number 433082294. The work
+has been funded by the European Union (ERC, Gen-TSM, project number 101124463).
+Views and opinions expressed are however those of the author(s) only and do not
+necessarily reflect those of the European Union or the European Research Coun-
+cil Executive Agency. Neither the European Union nor the granting authority can
+be held responsible for them. The work has been funded by dtec.bw - Digitaliza-
+tion and Technology Research Center of the Bundeswehr. dtec.bw is funded by the
+European Union - NextGenerationEU. The work has been funded by the German
+Research Foundation (Deutsche Forschungsgemeinschaft, DFG) through the project
+grant SFB/TRR-298-SIIRI (Project-ID 426335750).
+27
+
+===== PAGE 28 =====
+References
+[1] Donlan, R.: Biofilms: Microbial Life on Surfaces. Emerging Infectious Disease
+journal 8(9), 881 (2002) https://doi.org/10.3201/eid0809.020063
+[2] Kang, X., Yang, X., He, Y., Guo, C., Li, Y., Ji, H., Qin, Y., Wu, L.: Strategies
+and materials for the prevention and treatment of biofilms. Materials Today Bio
+23, 100827 (2023) https://doi.org/10.1016/j.mtbio.2023.100827
+[3] Chattopadhyay, I., J, R.B., Usman, T.M.M., Varjani, S.: Exploring the role of
+microbial biofilm for industrial effluents treatment. Bioengineered 13(3), 6420–
+6440 (2022) https://doi.org/10.1080/21655979.2022.2044250
+[4] Klapper, I., Dockery, J.: Mathematical Description of Microbial Biofilms. SIAM
+Review 52(2), 221–265 (2010) https://doi.org/10.1137/080739720
+[5] Shree, P., Singh, C.K., Sodhi, K.K., Surya, J.N., Singh, D.K.: Biofilms: Under-
+standing the structure and contribution towards bacterial resistance in antibiotics.
+Medicine in Microecology 16, 100084 (2023) https://doi.org/10.1016/j.medmic.
+2023.100084
+[6] Khatoon, Z., McTiernan, C.D., Suuronen, E.J., Mah, T.-F., Alarcon, E.I.: Bac-
+terial biofilm formation on implantable devices and approaches to its treatment
+and prevention. Heliyon 4(12), 01067 (2018) https://doi.org/10.1016/j.heliyon.
+2018.e01067
+[7] Melo, L.F., Bott, T.R.: Biofouling in water systems. Experimental Thermal
+and Fluid Science 14(4), 375–381 (1997) https://doi.org/10.1016/S0894-1777(96)
+00139-2
+[8] Paquette, D.W., Brodala, N., Williams, R.C.: Risk Factors for Endosseous Dental
+Implant Failure. Dental Clinics of North America 50(3), 361–374 (2006) https:
+//doi.org/10.1016/j.cden.2006.05.002
+[9] Kommerein, N., Stumpp, S.N., M¨ usken, M., Ehlert, N., Winkel, A., H¨ aussler, S.,
+Behrens, P., Buettner, F.F.R., Stiesch, M.: An oral multispecies biofilm model
+for high content screening applications. PLOS ONE 12(3), 0173973 (2017) https:
+//doi.org/10.1371/journal.pone.0173973
+[10] Rath, H., Feng, D., Neuweiler, I., Stumpp, N.S., Nackenhorst, U., Stiesch, M.:
+Biofilm formation by the oral pioneer colonizer Streptococcus gordonii: An exper-
+imental and numerical study. FEMS Microbiology Ecology 93(3), 010 (2017)
+https://doi.org/10.1093/femsec/fix010
+[11] Feng, D., Neuweiler, I., Nogueira, R., Nackenhorst, U.: Modeling of Symbiotic
+Bacterial Biofilm Growth with an Example of the Streptococcus–Veillonella sp.
+System. Bulletin of Mathematical Biology 83(5), 48 (2021) https://doi.org/10.
+28
+
+===== PAGE 29 =====
+1007/s11538-021-00888-2
+[12] Moons, P., Michiels, C.W., Aertsen, A.: Bacterial interactions in biofilms. Crit-
+ical Reviews in Microbiology 35(3), 157–168 (2009) https://doi.org/10.1080/
+10408410902809431
+[13] Nadell, C.D., Xavier, J.B., Foster, K.R.: The sociobiology of biofilms.
+FEMS Microbiology Reviews 33(1), 206–224 (2009) https://doi.org/10.1111/j.
+1574-6976.2008.00150.x
+[14] Yang, L., Liu, Y., Wu, H., Høiby, N., Molin, S., Song, Z.-j.: Current understanding
+of multi-species biofilms. International Journal of Oral Science 3(2), 74–81 (2011)
+https://doi.org/10.4248/IJOS11027
+[15] James, G.A., Beaudette, L., Costerton, J.W.: Interspecies bacterial interactions
+in biofilms. Journal of Industrial Microbiology 15(4), 257–262 (1995) https://doi.
+org/10.1007/bf01569978
+[16] Ouidir, T., Gabriel, B., Nait Chabane, Y.: Overview of multi-species biofilms
+in different ecosystems: Wastewater treatment, soil and oral cavity. Journal of
+Biotechnology 350, 67–74 (2022) https://doi.org/10.1016/j.jbiotec.2022.03.014
+[17] Marsh, P.D.: Dental plaque: Biological significance of a biofilm and community
+life-style. Journal of Clinical Periodontology 32(s6), 7–15 (2005) https://doi.org/
+10.1111/j.1600-051X.2005.00790.x
+[18] Klempt, F., Geisler, H., Soleimani, M., Junker, P.: A Continuum Multi-Species
+Biofilm Model with a Novel Interaction Scheme. Biofilm paper (2025)
+[19] Read, M.N., Alden, K., Timmis, J., Andrews, P.S.: Strategies for calibrating mod-
+els of biology. Briefings in Bioinformatics (2020) https://doi.org/10.1093/bib/
+bby092
+[20] G´ abor, A., Banga, J.R.: Robust and efficient parameter estimation in dynamic
+models of biological systems. BMC Systems Biology 9(1), 74 (2015) https://doi.
+org/10.1186/s12918-015-0219-2
+[21] Mitra, E.D., Hlavacek, W.S.: Parameter estimation and uncertainty quantification
+for systems biology models. Current Opinion in Systems Biology 18, 9–18 (2019)
+https://doi.org/10.1016/j.coisb.2019.10.006
+[22] Mary-Huard, T., Robin, S.: In: Stumpf, M.P.H., Balding, D., Girolami, M. (eds.)
+Introduction to Statistical Methods for Complex Systems, 1st edn., pp. 15–38.
+Wiley, Chichester, West Sussex (2011). https://doi.org/10.1002/9781119970606.
+ch2
+[23] Shewa, W.A., Sun, L., Bossy, K., Dagnew, M.: Biofilm characterization and
+29
+
+===== PAGE 30 =====
+dynamic simulation of advanced rope media reactor for the treatment of primary
+effluent. Water Environment Research 96(11), 11150 (2024) https://doi.org/10.
+1002/wer.11150
+[24] Robert, C.P., Marin, J.-M., Rousseau, J.: In: Stumpf, M.P.H., Balding, D., Giro-
+lami, M. (eds.) Bayesian Inference and Computation, 1st edn., pp. 39–65. Wiley,
+Chichester, West Sussex (2011). https://doi.org/10.1002/9781119970606.ch3
+[25] Wilkinson, D.J.: Bayesian methods in bioinformatics and computational sys-
+tems biology. Brief Bioinform 8(2), 109–116 (2007) https://doi.org/10.1093/bib/
+bbm007
+[26] Rittmann, B.E., Boltz, J.P., Brockmann, D., Daigger, G.T., Morgenroth, E.,
+Sørensen, K.H., Tak´ acs, I., van Loosdrecht, M., Vanrolleghem, P.A.: A frame-
+work for good biofilm reactor modeling practice (GBRMP). Water Science and
+Technology 77(5), 1149–1164 (2018) https://doi.org/10.2166/wst.2018.021
+[27] Taghizadeh, L., Karimi, A., Presterl, E., Heitzinger, C.: Bayesian inversion for
+a biofilm model including quorum sensing. Computers in Biology and Medicine
+117, 103582 (2020) https://doi.org/10.1016/j.compbiomed.2019.103582
+[28] Nooranidoost, M., Cogan, N.G., Stoodley, P., Gloag, E.S., Hussaini, M.Y.:
+Bayesian estimation of Pseudomonas aeruginosa viscoelastic properties based on
+creep responses of wild type, rugose, and mucoid variant biofilms. Biofilm 5,
+100133 (2023) https://doi.org/10.1016/j.bioflm.2023.100133
+[29] Willmann, H., Nitzler, J., Brandst¨ ater, S., Wall, W.A.: Bayesian calibration of
+coupled computational mechanics models under uncertainty based on interface
+deformation. Advanced Modeling and Simulation in Engineering Sciences 9(1),
+24 (2022) https://doi.org/10.1186/s40323-022-00237-5
+[30] Willmann, H., Wall, W.A.: Inverse analysis of material parameters in coupled
+multi-physics biofilm models. Advanced Modeling and Simulation in Engineering
+Sciences 9(1), 7 (2022) https://doi.org/10.1186/s40323-022-00220-0
+[31] Wollner, M.P., Rolf-Pissarczyk, M., Holzapfel, G.A.: A reparameterization-
+invariant Bayesian framework for uncertainty estimation and calibration of
+simple materials. Computational Mechanics (2025) https://doi.org/10.1007/
+s00466-024-02573-2
+[32] Bi, S., Beer, M., Cogan, S., Mottershead, J.: Stochastic Model Updating with
+Uncertainty Quantification: An Overview and Tutorial. Mechanical Systems
+and Signal Processing 204, 110784 (2023) https://doi.org/10.1016/j.ymssp.2023.
+110784
+[33] Beck, J.L., Katafygiotis, L.S.: Updating Models and Their Uncertainties. I:
+Bayesian Statistical Framework. J. Eng. Mech. 124(4), 455–461 (1998) https:
+30
+
+===== PAGE 31 =====
+//doi.org/10.1061/(ASCE)0733-9399(1998)124:4(455)
+[34] Kiureghian, A.D., Ditlevsen, O.: Aleatory or epistemic? Does it matter? Struc-
+tural Safety 31(2), 105–112 (2009) https://doi.org/10.1016/j.strusafe.2008.06.
+020
+[35] Beer, M., Ferson, S., Kreinovich, V.: Imprecise probabilities in engineering anal-
+yses. Mechanical Systems and Signal Processing 37(1-2), 4–29 (2013) https:
+//doi.org/10.1016/j.ymssp.2013.01.024
+[36] Bi, S., Broggi, M., Beer, M.: The role of the Bhattacharyya distance in stochastic
+model updating. Mechanical Systems and Signal Processing 117, 437–452 (2019)
+https://doi.org/10.1016/j.ymssp.2018.08.017
+[37] Kitahara, M., Bi, S., Broggi, M., Beer, M.: Nonparametric Bayesian stochas-
+tic model updating with hybrid uncertainties. Mechanical Systems and Signal
+Processing 163, 108195 (2022) https://doi.org/10.1016/j.ymssp.2021.108195
+[38] Geisler, H., Junker, P.: Time-separated stochastic mechanics for the simulation of
+viscoelastic structures with local random material fluctuations. Computer Meth-
+ods in Applied Mechanics and Engineering 407, 115916 (2023) https://doi.org/
+10.1016/j.cma.2023.115916
+[39] Geisler, H., Erdogan, C., Nagel, J., Junker, P.: A new paradigm for the efficient
+inclusion of stochasticity in engineering simulations: Time-separated stochas-
+tic mechanics. Comput Mech 75(1), 211–235 (2025) https://doi.org/10.1007/
+s00466-024-02500-5
+[40] Lye, A., Cicirello, A., Patelli, E.: Sampling methods for solving Bayesian model
+updating problems: A tutorial. Mechanical Systems and Signal Processing 159,
+107760 (2021) https://doi.org/10.1016/j.ymssp.2021.107760
+[41] Turner, B.M., Van Zandt, T.: A tutorial on approximate Bayesian computa-
+tion. Journal of Mathematical Psychology 56(2), 69–85 (2012) https://doi.org/
+10.1016/j.jmp.2012.02.005
+[42] Lye, A., Ferson, S., Xiao, S.: Comparison between Distance Functions for Approx-
+imate Bayesian Computation to Perform Stochastic Model Updating and Model
+Validation under Limited Data. ASCE-ASME J. Risk Uncertainty Eng. Syst.,
+Part A: Civ. Eng. 10(2), 03124001 (2024) https://doi.org/10.1061/AJRUA6.
+RUENG-1223
+[43] Metropolis, N., Rosenbluth, A.W., Rosenbluth, M.N., Teller, A.H., Teller, E.:
+Equation of State Calculations by Fast Computing Machines. The Journal of
+Chemical Physics 21(6), 1087–1092 (1953) https://doi.org/10.1063/1.1699114
+[44] Hastings, W.K.: Monte Carlo sampling methods using Markov chains and their
+31
+
+===== PAGE 32 =====
+applications. Biometrika 57(1), 97–109 (1970) https://doi.org/10.1093/biomet/
+57.1.97
+[45] Ching, J., Chen, Y.-C.: Transitional Markov Chain Monte Carlo Method for
+Bayesian Model Updating, Model Class Selection, and Model Averaging. J. Eng.
+Mech. 133(7), 816–832 (2007) https://doi.org/10.1061/(ASCE)0733-9399(2007)
+133:7(816) . 1
+[46] Kirkpatrick, S., Gelatt Jr, C.D., Vecchi, M.P.: Optimization by simulated
+annealing. science 220(4598), 671–680 (1983)
+[47] Faes, M., Daub, M., Marelli, S., Patelli, E., Beer, M.: Engineering analysis with
+probability boxes: A review on computational methods 93, 102092 https://doi.
+org/10.1016/j.strusafe.2021.102092
+[48] Reiser, P., Aguilar, J.E., Guthke, A., B¨ urkner, P.-C.: Uncertainty quantification
+and propagation in surrogate-based Bayesian inference. Stat Comput 35(3), 66
+(2025) https://doi.org/10.1007/s11222-025-10597-8
+[49] Junker, P., Balzani, D.: An extended hamilton principle as unifying theory for
+coupled problems and dissipative microstructure evolution. Continuum Mechanics
+and Thermodynamics 33(4), 1931–1956 (2021)
+[50] Behrensdorf, J., Gray, A., Perin, A., Grashorn, J., Luttmann, M., Broggi, M.,
+Agarwal, G., Fritsch, L., Mett, F., Knipper, L.: FriesischScott/UncertaintyQuan-
+tification.Jl: V0.12.0. Zenodo (2025). https://doi.org/10.5281/zenodo.14901342
+[51] Betz, W., Papaioannou, I., Straub, D.: Transitional Markov Chain Monte Carlo:
+Observations and Improvements. J. Eng. Mech. 142(5), 04016016 (2016) https:
+//doi.org/10.1061/(ASCE)EM.1943-7889.0001066
+[52] Heine, N., Bittroff, K., Szafra´ nski, S.P., Duitscher, M., Behrens, W., Vollmer, C.,
+Mikolai, C., Kommerein, N., Debener, N., Frings, K., et al.: Influence of species
+composition and cultivation condition on peri-implant biofilm dysbiosis in vitro
+(2025)
+[53] Rubio, P.-B., Chamoin, L., Louf, F.: Real-time Bayesian data assimilation with
+data selection, correction of model bias, and on-the-fly uncertainty propagation.
+Comptes Rendus M´ ecanique347(11), 762–779 (2019) https://doi.org/10.1016/j.
+crme.2019.11.004
+[54] Igea, F., Cicirello, A.: Cyclical Variational Bayes Monte Carlo for efficient
+multi-modal posterior distributions evaluation. Mechanical Systems and Signal
+Processing 186, 109868 (2023) https://doi.org/10.1016/j.ymssp.2022.109868
+32

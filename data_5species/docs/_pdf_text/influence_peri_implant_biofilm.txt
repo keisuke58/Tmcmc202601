@@ -1,0 +1,324 @@
+
+
+===== PAGE 1 =====
+EDITED BY
+Maribasappa Karched,
+Kuwait University, Kuwait
+REVIEWED BY
+Caroline Dini,
+Piracicaba Dental School - UNICAMP, Brazil
+Gabrijela Begić,
+University of Rijeka, Croatia
+*CORRESPONDENCE
+Katharina Doll-Nikutta
+nikutta.katharina@mh-hannover.de
+†These authors have contributed equally to
+this work
+RECEIVED 18 June 2025
+ACCEPTED 12 August 2025
+PUBLISHED 04 September 2025
+CITATION
+Heine N, Bittroff K, Szafra ński SP, Duitscher M,
+Behrens W, Vollmer C, Mikolai C,
+Kommerein N, Debener N, Frings K,
+Heisterkamp A, Scheper T, Torres-Mapa ML,
+Bahnemann J, Stiesch M and Doll-Nikutta K
+(2025) In ﬂuence of species composition and
+cultivation condition on peri-implant bio ﬁlm
+dysbiosis in vitro .
+Front. Oral Health 6:1649419.
+doi: 10.3389/froh.2025.1649419
+COPYRIGHT
+© 2025 Heine, Bittroff, Szafra ński, Duitscher,
+Behrens, Vollmer, Mikolai, Kommerein,
+Debener, Frings, Heisterkamp, Scheper,
+Torres-Mapa, Bahnemann, Stiesch and Doll-
+Nikutta. This is an open-access article
+distributed under the terms of the
+Creative
+Commons Attribution License (CC BY) . The
+use, distribution or reproduction in other
+forums is permitted, provided the original
+author(s) and the copyright owner(s) are
+credited and that the original publication in
+this journal is cited, in accordance with
+accepted academic practice. No use,
+distribution or reproduction is permitted
+which does not comply with these terms.
+Inﬂuence of species composition
+and cultivation condition on peri-
+implant bio ﬁlm dysbiosis in vitro
+Nils Heine
+1,2
+, Kristina Bittroff
+1,2
+, Szymon P. Szafra ński
+1,2
+,
+Maya Duitscher
+1,2
+, Wiebke Behrens
+1,2
+, Clarissa Vollmer
+1,2
+,
+Carina Mikolai
+1,2
+, Nadine Kommerein
+1,2
+, Nicolas Debener
+3
+,
+Katharina Frings
+2,4
+, Alexander Heisterkamp
+2,4
+, Thomas Scheper
+2,3
+,
+Maria L. Torres-Mapa
+2,4
+, Janina Bahnemann
+5,6
+, Meike Stiesch
+1,2†
+and Katharina Doll-Nikutta
+1,2*†
+1Department of Dental Prosthetics and Biomedical Materials Science, Hannover Medical School,
+Hannover, Germany, 2Lower Saxony Center for Biomedical Technology, Implant Research and
+Development (NIFE), Hannover, Germany, 3Institute of Technical Chemistry, Leibniz University
+Hannover, Hannover, Germany, 4Institute of Quantum Optics, Leibniz University Hannover, Hannover,
+Germany, 5Institute of Physics, University of Augsburg, Augsburg, Germany, 6Centre for Advanced
+Analytics and Predictive Sciences (CAAPS), University of Augsburg, Augsburg, Germany
+Introduction: Changes in bacterial species composition within oral bio ﬁlms,
+known as bio ﬁlm dysbiosis, are associated with the development of severe
+oral diseases. To better understand this process and help establish early
+detection systems, models are needed which replicate oral bio ﬁlm dysbiosis in
+vitro – ideally by also mimicking natural salivary ﬂow conditions.
+Methods: For this purpose, the present study cultivated two different
+combinations of oral commensal and pathogenic strains – Streptococcus
+oralis, Actinomyces naeslundii, Veillonella dispar/parvula, Fusobacterium
+nucleatum and Porphyromonas gingivalis – comparatively within an
+established ﬂow chamber model on the implant material titanium, and
+statically in 6-well plates for 21 days. Bio ﬁlm morphology, species distribution,
+and bacterial metabolism were analyzed by ﬂuorescence microscopy,
+molecular biological methods, and metabolic interaction prediction.
+Results: Bioﬁlm growth and composition were strongly in ﬂuenced by bacterial
+species selection, and to a more minor extent, by cultivation conditions.
+Within the model containing V. dispar and a laboratory P. gingivalis strain, a
+diversiﬁcation of commensal species was observed over time along with a
+signiﬁcantly reduced pH-value. In contrast, the model containing V. parvula
+and the clinical isolate P. gingivalis W83, a dysbiotic shift with increased
+pathogen levels, pH-value, and virulence factors was achieved.
+Conclusion: Within the present study, different in vitro oral multispecies bio ﬁlm
+models were successfully developed. Depending on bacterial species selection,
+these models were able to depict the infection-associated dysbiotic shift in
+species composition under ﬂow conditions solely by intrinsic interactions and
+without the use of external stimuli.
+KEYWORDS
+dental plaque, dysbiosis, dental implants, microbiological techniques, dynamic
+cultivation
+TYPE Original Research
+PUBLISHED 04 September 2025
+DOI 10.3389/froh.2025.1649419
+Frontiers in Oral Health 01 frontiersin.org
+
+===== PAGE 2 =====
+1 Introduction
+Bacterial bio ﬁlms of the oral cavity – also known as dental
+plaque – are associated with the development and progression of
+multiple oral diseases. These bio ﬁlms are formed by a multitude
+of oral bacterial species that adhere both to surfaces and to each
+other. These bacteria successfully protect themselves within an
+extracellular matrix, resulting in drastically increased tolerance
+towards the immune system and antibiotic treatment. In this
+regard, bio ﬁlm formation on dental implants in particular is
+closely linked to progressive diseases, since the implant lacks an
+innate immune response and other protective anatomical features
+(
+1). Peri-implant mucositis and peri-implantitis – analogous to
+gingivitis and periodontitis on natural teeth – are associated with
+severe in ﬂammatory reactions that can lead to subsequent soft-
+and hard-tissue destruction. From the microbiological
+perspective, the progression of peri-implantitis/periodontitis is
+often accompanied by a notable shift in the bio ﬁlm species
+composition and activity (
+2). Whereas the initial commensal
+bioﬁlm is dominated by mitis-group streptococci, Actinomyces
+and Veillonella species, advanced disease state bio ﬁlms frequently
+exhibit larger amounts of Prevotella and Peptostreptococacae
+species ( 2). This process of disease-associated changes in
+bacterial species composition is called bacterial dysbiosis.
+To prevent the onset of peri-implantitis, early detection of
+bacterial dysbiosis would allow for a timely treatment that also
+circumvents tolerance development. However, the establishment
+of dysbiosis sensors – e.g., based on spectroscopy or
+chemometrics – requires reproducible in vitro models to serve as
+test systems. Oral multispecies bio ﬁlm in vitro models typically
+contain up to ten characteristic bacterial species that are either
+sampled from volunteers or commercially available type strains
+(
+3–5). These bio ﬁlms are grown on various materials (including
+implant-grade titanium) for several days or weeks under either
+static or salivary shear force-mimicking dynamic conditions (
+6,
+7). One example is the Hannoverian Oral Multispecies Bio ﬁlm
+Implant Flow Chamber (HOBIC) model developed in our group,
+which contains the oral commensals Streptococcus oralis ,
+Actinomyces naeslundii , Veillonella dispar as well as the oral
+pathogen Porphyromonas gingivalis (
+8). This four-species bio ﬁlm
+is grown on titanium discs in custom-made ﬂow chambers
+designed for non-invasive microscopic readout. Within the
+incubation time of 24 h, reproducible bio ﬁlms of commensal
+composition are formed. In contrast, Siddiqui et al. have reported
+on a similar six-species bio ﬁlm model on titanium that was
+cultivated under static conditions for 21 days (
+6). Over time, a
+clear shift in bacterial species composition towards the increase
+of pathogenic species could be detected. However, this model
+lacks the naturally existing ﬂow shear forces.
+The aim of the present study was to advance the HOBIC model
+and reproduce the bacterial dysbiosis associated with peri-
+implantitis in vitro . For this purpose, two different ﬁve-species
+combinations were grown comparatively under both static and
+dynamic conditions over 21 days and analyzed for bacterial
+growth (optical density and pH development), bio ﬁlm
+morphology (live/dead ﬂuorescence staining with confocal
+microscopy and digital image analysis) and species distribution
+(quantitative real-time PCR and ﬂuorescence in situ
+hybridization). By this, the research hypotheses that (I) a
+bacterial shift can be introduced solely by increasing cultivation
+time as well as that (II) the shift depends on species composition
+and (III) cultivation conditions were addressed.
+2 Materials and methods
+2.1 Bacterial strains and culture conditions
+Bacteria were routinely stored as glycerol stocks at −80°C.
+Veillonella dispar DSM 20735 (German Collection of
+Microorganisms and Cell Cultures GmbH, DSMZ, Braunschweig,
+Germany), Veillonella parvula ATCC
+® 17745TM (American Type
+Culture Collection, ATCC, Manassas, VA, USA), Fusobacterium
+nucleatum DSM 15643, Porphyromonas gingivalis DSM 20709
+and Porphyromonas gingivalis ATCC W83, were streaked out on
+fastidious anaerobe agar (Lab M Ltd., Heywood, UK) plates
+supplemented with 5% de ﬁbrinated sheep blood (Thermo Fisher
+Scientiﬁc Inc., Waltham, MA, USA) and incubated at 37°C under
+anaerobic conditions, which were achieved using AnaeroGen
+TM
+bags (Thermo Fisher Scienti ﬁc Inc.), for three days. Afterwards,
+colonies from the agar plates were transferred to liquid medium
+and cultured overnight in brain heart infusion medium (BHI,
+Oxoid Deutschland GmbH, Wesel, Germany) supplemented with
+10 mg/L vitamin K (Carl Roth GmbH + Co. KG, Karlsruhe,
+Germany) (BHI + VitK, V. dispar/parvula ) or in fastidious
+anaerobe broth (Lab M Ltd., F. nucleatum and P. gingivalis ) at 
+37°C under anaerobic conditions. Streptococcus oralis ATCC
+9811
+TM and Actinomyces naeslundii DSM 43013 were cultured
+overnight in BHI + VitK at 37°C under anaerobic conditions.
+2.2 Static bio ﬁlm growth in well plates
+Bacterial overnight cultures were adjusted to an optical density
+at 600 nm (OD
+600) of 0.05 in BHI + VitK with 5 mg/L hemin
+(BHI + VitK/Hem, Sigma Aldrich, St. Louis, MO, USA), and
+mixed in two different ﬁve-species combinations: S. oralis , A.
+naeslundii and F. nucleatum were combined either with V. dispar
+and P gingivalis DSM 20709 (commensal model) or V. parvula
+and P. gingivalis ATCC W83 (dysbiotic model). 5 ml per well of
+the mixed suspension were directly added to polystyrene 6-well
+plates and incubated for 1, 3, 6, 10, 15, or 21 days at 37°C under
+anaerobic conditions. Every other day, half of the medium was
+replaced with fresh medium. Before analysis, bio ﬁlms were
+washed once with phosphate buffered saline (PBS, Sigma Aldrich).
+2.3 Bio ﬁlm growth in the adaptive HOBIC
+model
+The setup of the ﬂow chamber system is shown in
+Figure 1A ,
+and is based on the previously described “Hannoverian Oral
+Heine et al. 10.3389/froh.2025.1649419
+Frontiers in
+Oral Health 02 frontiersin.org
+
+===== PAGE 3 =====
+Multispecies Bio ﬁlm Implant Flow Chamber (HOBIC) ” model ( 8)
+with the following modi ﬁcations: In this case, pH-sensitive ﬂow-
+through cells connected to optical ﬁbers (FTC-SU-LG1-S,
+PreSense Precision Sensing GmbH, Regensburg, Germany) were
+integrated behind the ﬂow chambers. Grade 4 titanium discs
+(12 mm diameter, 1.5 mm height, R
+a = 0.31 µm) were submerged
+in arti ﬁcial saliva (850 mg/L mucin, 10 µg/ml lysozyme, 1 mg/ml
+α-amylase, 40 µg/ml albumin) during sterile assembly of the
+chambers. Then, the chambers were integrated into the system
+and 2.1 ml per strain with OD
+600 of 0.05 were added to 1.5
+L BHI + VitK/Hem in the bioreactor. In addition to the
+previously described HOBIC model (
+8), F. nucleatum was added
+as ﬁfth bacterium to the inoculum for both combinations and V.
+dispar and P. gingivalis 20709 were replaced by V. parvula and P.
+gingivalisW83 as “dysbiotic” strain combination. After 24 h of
+cultivation with 100 µl/min at 37°C under anaerobic conditions,
+the components up to the bubble trap (
+Figure 1A ) were replaced
+with new sterile parts, except for the OD measuring bypass. The
+system was then run for 20 additional days with sterile 1:2
+diluted medium. On day 1, 3, 6, 10, 15, and 21, chambers were
+washed with PBS for 30 min at 100 µl/min before subjected to
+further analysis. Optical density of the ﬁrst 24 h and pH
+development were recorded with N = 5 replicates per condition.
+Statistical comparisons of each parameter between the models at
+individual time points were done using 2-way ANOVA with
+Śidák’s correction for multiple comparison.
+2.4 Live/dead staining and microscopic
+analysis
+Static and ﬂow chamber bio ﬁlms were stained using SYTO
+®9
+and propidium iodide (PI) of the LIVE/DEAD ® BacLightTM
+Bacterial Viability Kit (Life Technologies, Darmstadt, Germany)
+at a concentration of 1:2000 of the stock solutions in PBS,
+followed by ﬁxation with 2.5% glutardialdehyde. For staining of
+ﬂow chamber bio ﬁlms, the dye and ﬁxation solutions were
+pumped through the system as previously described (
+8).
+Likewise, confocal laser-scanning microscopy was done using
+established protocols (
+8). For the HOBIC systems, from day 6
+onwards, images were taken from the cover slip downwards
+rather than directly on the titanium surface, since the laser could
+not reach through the thick bio ﬁlm. From at least N = 15 images
+per condition, bio ﬁlm volume and live/dead distribution were
+quantiﬁed using the software Imaris (v8.4.1, Bitplane AG, Zurich,
+Switzerland). For statistical analysis, bio ﬁlm volume data were
+tested for normal distribution using D ’Agostino & Pearson
+Omnibus Normality test followed by Kruskal –Wallis test with
+Dunn’s multiple comparison correction. Bio ﬁlm viability data
+were tested using 2-way ANOVA with Tukey ’s multiple
+comparison test.
+2.5 PMA treatment, DNA extraction, and
+qRT-PCR
+After microscopy, the bio ﬁlm inside the chambers was
+harvested and either directly frozen or subjected to additional
+PMA treatment (
+9). Following washing with PBS, bacteria were
+incubated with 0.2 mM PMAxx TM (Biotium, Inc., Fremont, CA,
+USA) for 10 min at 4°C, and then again for 20 min in the
+PMA-Lite
+TM LED Photolysis Device (Biotium, Inc.). DNA was
+extracted using a customized protocol which deploys a
+combination of enzymatic lysis, mechanical disruption, and
+column-based DNA isolation. Bacterial sample material was
+initially treated with 450 µl lysozyme solution [20 mg/ml
+lysozyme (Merck, Darmstadt, Germany) in 20 mM Tris HCl, pH
+8.0; 2 mM EDTA; 1,2% Triton] for two hours at 37°C. After
+FIGURE 1
+Bacterial growth in the hannoverian oral multispecies bio ﬁlm implant ﬂow chamber (HOBIC) model. (A) Schematics of the ﬂow chamber system with
+indicated components. Blue arrows indicate ﬂow direction with 100 µl/min. Created with BioRender, Winkel. A. (2025)
+https://BioRender.com/
+d73y389. (B) Bacterial growth curves (mean ± standard deviation) of commensal and dysbiotic species composition within the ﬁrst 24 h in the
+bioreactor measured by an inline photometer at λ = 600 nm. Signi ﬁcant differences (*) between the commensal and dysbiotic model after 18 and
+24 h could be identi ﬁed with p ≤ 0.05 ( N = 5).
+Heine et al. 10.3389/froh.2025.1649419
+Frontiers in
+Oral Health 03 frontiersin.org

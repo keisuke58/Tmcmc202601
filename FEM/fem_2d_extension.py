@@ -135,16 +135,22 @@ def _build_1d_laplacian_neumann(N: int, h: float) -> sp.csr_matrix:
 
 
 def build_2d_laplacian(Nx: int, Ny: int, dx: float, dy: float) -> sp.csr_matrix:
-    """2-D Laplacian  L = kron(Lx, Iy) + kron(Ix, Ly).
-
-    Node ordering  k = ix*Ny + iy  (row-major, x outer / depth, y inner / lateral).
-    Shape: (Nx*Ny, Nx*Ny), Neumann on all four walls.
-    """
+    """2-D Laplacian  L = kron(Lx, Iy) + kron(Ix, Ly)."""
     Lx = _build_1d_laplacian_neumann(Nx, dx)
     Ly = _build_1d_laplacian_neumann(Ny, dy)
     Ix = sp.eye(Nx, format="csr")
     Iy = sp.eye(Ny, format="csr")
     return sp.kron(Lx, Iy, format="csr") + sp.kron(Ix, Ly, format="csr")
+
+
+def build_2d_operators(Nx: int, Ny: int, dx: float, dy: float):
+    Lx = _build_1d_laplacian_neumann(Nx, dx)
+    Ly = _build_1d_laplacian_neumann(Ny, dy)
+    Ix = sp.eye(Nx, format="csr")
+    Iy = sp.eye(Ny, format="csr")
+    Lx2d = sp.kron(Lx, Iy, format="csr")
+    Ly2d = sp.kron(Ix, Ly, format="csr")
+    return Lx2d, Ly2d
 
 
 # ── diffusion coefficients ────────────────────────────────────────────────────
@@ -176,6 +182,9 @@ class FEM2DBiofilm:
         D_eff: np.ndarray = None,
         save_every: int = 5,
         condition: str = "",
+        split_scheme: str = "lie",
+        D_aniso_x: float = 1.0,
+        D_aniso_y: float = 1.0,
     ):
         self.theta       = theta.astype(np.float64)
         self.Nx, self.Ny = Nx, Ny
@@ -186,6 +195,9 @@ class FEM2DBiofilm:
         self.D_eff       = _D_EFF.copy() if D_eff is None else np.asarray(D_eff, dtype=np.float64)
         self.save_every  = save_every
         self.condition   = condition
+        self.split_scheme = split_scheme
+        self.D_aniso_x   = float(D_aniso_x)
+        self.D_aniso_y   = float(D_aniso_y)
 
         self.dx        = Lx / max(Nx - 1, 1)
         self.dy        = Ly / max(Ny - 1, 1)
@@ -203,15 +215,21 @@ class FEM2DBiofilm:
         self._Eta_phi    = np.ones(5, dtype=np.float64)
         self._active     = np.ones(5, dtype=np.int64)
 
-        # ── precompute SuperLU factorisations for 5 diffusion systems ─────
         print("Assembling 2D Laplacian and factorising ... ", end="", flush=True)
         N_nodes = Nx * Ny
-        L    = build_2d_laplacian(Nx, Ny, self.dx, self.dy)
         I_sp = sp.eye(N_nodes, format="csr")
+        Lx2d, Ly2d = build_2d_operators(Nx, Ny, self.dx, self.dy)
         self._solvers = []
+        self._solvers_half = []
         for D_i in self.D_eff:
-            A_sys = (I_sp - self.dt_macro * D_i * L).tocsc()
-            self._solvers.append(spla.factorized(A_sys))
+            D_x = D_i * self.D_aniso_x
+            D_y = D_i * self.D_aniso_y
+            L_full = D_x * Lx2d + D_y * Ly2d
+            A_full = (I_sp - self.dt_macro * L_full).tocsc()
+            self._solvers.append(spla.factorized(A_full))
+            dt_half = 0.5 * self.dt_macro
+            A_half = (I_sp - dt_half * L_full).tocsc()
+            self._solvers_half.append(spla.factorized(A_half))
         print("done.")
 
         # ── Numba warm-up ─────────────────────────────────────────────────
@@ -292,6 +310,15 @@ class FEM2DBiofilm:
         G_new[:, :, 5]  = (1.0 - phi_sum).clip(0)   # update void
         return G_new
 
+    def _diffuse_half(self, G: np.ndarray) -> np.ndarray:
+        G_new = G.copy()
+        for i, solve_i in enumerate(self._solvers_half):
+            phi_new = solve_i(G[:, :, i].ravel()).clip(0)
+            G_new[:, :, i] = phi_new.reshape(self.Nx, self.Ny)
+        phi_sum         = G_new[:, :, :5].sum(axis=2)
+        G_new[:, :, 5]  = (1.0 - phi_sum).clip(0)
+        return G_new
+
     # ── main loop ─────────────────────────────────────────────────────────────
     def run(self):
         G          = self._make_G0("gradient")
@@ -312,8 +339,13 @@ class FEM2DBiofilm:
         t0 = time.perf_counter()
         for step in range(1, self.n_macro + 1):
             t = step * self.dt_macro
-            G = self._react(G)
-            G = self._diffuse(G)
+            if self.split_scheme == "strang":
+                G = self._diffuse_half(G)
+                G = self._react(G)
+                G = self._diffuse_half(G)
+            else:
+                G = self._react(G)
+                G = self._diffuse(G)
             if step % self.save_every == 0 or step == self.n_macro:
                 snaps_phi.append(G[:, :, :5].transpose(2, 0, 1).copy())
                 snaps_t.append(t)
@@ -334,6 +366,87 @@ class FEM2DBiofilm:
         np.save(out_dir / "mesh_y.npy",        self.y_mesh)
         np.save(out_dir / "theta_MAP.npy",     self.theta)
         print(f"Saved to: {out_dir}")
+
+
+def run_posterior_fem(
+    tmcmc_run_dir: str,
+    nx: int,
+    ny: int,
+    n_macro: int,
+    n_react_sub: int,
+    dt_h: float,
+    save_every: int,
+    out_dir: str,
+    condition: str,
+    n_samples: int,
+):
+    run_dir = Path(tmcmc_run_dir)
+    theta_map_path = run_dir / "theta_MAP.json"
+    samples_path = run_dir / "samples.npy"
+    if not theta_map_path.exists():
+        print(f"theta_MAP.json not found in {run_dir}")
+        return
+    if not samples_path.exists():
+        print(f"samples.npy not found in {run_dir}")
+        return
+    with open(theta_map_path) as f:
+        theta_map_data = json.load(f)
+    samples = np.load(samples_path)
+    if samples.size == 0:
+        print("samples.npy is empty")
+        return
+    active_indices = theta_map_data.get("active_indices", list(range(20)))
+    theta_full_template = np.array(theta_map_data["theta_full"], dtype=np.float64)
+    n_total = samples.shape[0]
+    if n_total <= 0:
+        print("No samples available")
+        return
+    n_use = min(n_samples, n_total)
+    rng = np.random.default_rng(0)
+    if n_total == n_use:
+        indices = np.arange(n_total)
+    else:
+        indices = rng.choice(n_total, size=n_use, replace=False)
+    phibar_list = []
+    t_ref = None
+    for idx in indices:
+        theta_sample = samples[idx]
+        theta_curr = theta_full_template.copy()
+        if theta_sample.shape[0] == len(active_indices):
+            theta_curr[active_indices] = theta_sample
+        elif theta_sample.shape[0] == 20:
+            theta_curr = theta_sample.astype(np.float64)
+        else:
+            continue
+        sim = FEM2DBiofilm(
+            theta_curr,
+            Nx=nx,
+            Ny=ny,
+            n_macro=n_macro,
+            n_react_sub=n_react_sub,
+            dt_h=dt_h,
+            save_every=save_every,
+            condition=condition,
+        )
+        snaps_phi, snaps_t = sim.run()
+        phi_mean = snaps_phi.mean(axis=(2, 3))
+        if t_ref is None:
+            t_ref = snaps_t
+        phibar_list.append(phi_mean)
+    if not phibar_list:
+        print("No valid posterior FEM samples")
+        return
+    phibar_stack = np.stack(phibar_list, axis=0)
+    p05 = np.percentile(phibar_stack, 5, axis=0)
+    p50 = np.percentile(phibar_stack, 50, axis=0)
+    p95 = np.percentile(phibar_stack, 95, axis=0)
+    out_path = Path(out_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+    np.save(out_path / "t_snap.npy", t_ref)
+    np.save(out_path / "phibar_p05.npy", p05)
+    np.save(out_path / "phibar_p50.npy", p50)
+    np.save(out_path / "phibar_p95.npy", p95)
+    print(f"Saved posterior FEM stats to: {out_path}")
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -379,8 +492,23 @@ def main():
     ap.add_argument("--n-react-sub", type=int,   default=50)
     ap.add_argument("--dt-h",        type=float, default=1e-5)
     ap.add_argument("--save-every",  type=int,   default=5)
+    ap.add_argument("--split-scheme", choices=["lie", "strang"], default="lie")
+    ap.add_argument("--D-aniso-x", type=float, default=1.0)
+    ap.add_argument("--D-aniso-y", type=float, default=1.0)
+    ap.add_argument("--dt-auto", action="store_true")
     ap.add_argument("--out-dir",     default="_results_2d/run")
+    ap.add_argument("--tmcmc-run-dir", default=None)
+    ap.add_argument("--posterior-n-samples", type=int, default=10)
     args = ap.parse_args()
+
+    if args.dt_auto:
+        h_x = args.lx / max(args.nx - 1, 1)
+        h_y = args.ly / max(args.ny - 1, 1)
+        h_min = min(h_x, h_y)
+        D_max = float(_D_EFF.max())
+        cfl_c = 2e-4
+        dt_mac = cfl_c * h_min * h_min / D_max
+        args.dt_h = dt_mac / float(args.n_react_sub)
 
     theta = _load_theta(args.theta_json)
     sim   = FEM2DBiofilm(
@@ -394,9 +522,25 @@ def main():
         dt_h        = args.dt_h,
         save_every  = args.save_every,
         condition   = args.condition,
+        split_scheme = args.split_scheme,
+        D_aniso_x   = args.D_aniso_x,
+        D_aniso_y   = args.D_aniso_y,
     )
     snaps_phi, snaps_t = sim.run()
     sim.save(Path(args.out_dir), snaps_phi, snaps_t)
+    if args.tmcmc_run_dir is not None:
+        run_posterior_fem(
+            tmcmc_run_dir=args.tmcmc_run_dir,
+            nx=args.nx,
+            ny=args.ny,
+            n_macro=args.n_macro,
+            n_react_sub=args.n_react_sub,
+            dt_h=args.dt_h,
+            save_every=args.save_every,
+            out_dir=str(Path(args.out_dir) / "posterior"),
+            condition=args.condition,
+            n_samples=args.posterior_n_samples,
+        )
 
 
 if __name__ == "__main__":
