@@ -34,13 +34,41 @@ This project addresses two coupled questions:
 ### Pipeline
 
 ```mermaid
-flowchart TD
-    A["🦷 In vitro longitudinal data\n4 conditions × 5 species × 5 time points\nHeine et al. 2025"]
-    A --> B["Stage 1 — TMCMC Bayesian Inference\nHamilton ODE · 20 parameters\np(θ|data) via sequential tempering\n→ θ_MAP · θ_MEAN · posterior samples"]
-    B --> C["Posterior ensemble\nper condition"]
-    C --> D["Stage 2 — 3D composition fields\nφᵢ(x) → Dysbiotic Index DI(x)\nE(DI) power-law stiffness mapping"]
-    D --> E["🦷 Abaqus 3D FEM Stress Analysis\n→ S_Mises · U_max\nsubstrate / EPS"]
-    C --> F["JAX-FEM nutrient transport\n−D_c Δc + g φ₀ c/(k+c) = 0\nKlempt 2024 benchmark"]
+flowchart LR
+    subgraph INPUT["📊 Input — Heine et al. 2025"]
+        direction TB
+        I1["4 conditions\nCS · CH · DS · DH"]
+        I2["5 species\nSo · An · Vd · Fn · Pg"]
+        I3["5 time points  0–48 h\nIn vitro CFU/mL"]
+    end
+
+    subgraph TMCMC["🔬 Stage 1 — TMCMC Bayesian Inference"]
+        direction TB
+        T1["Hamilton ODE  (20 free params)\ndφᵢ/dt = φᵢ·(rᵢ − dᵢφᵢ + Σⱼ aᵢⱼ·H(φⱼ))\nHill gate: H = φⁿ/(Kⁿ+φⁿ)  K=0.05, n=4"]
+        T2["Sequential tempering  β: 0 → 1\nMH-MCMC resample at each β stage\nAdaptive Δβ via CoV(weights) = 1"]
+        T3["Per-condition output\nθ_MAP · θ_MEAN\n1000 posterior samples"]
+        T1 --> T2 --> T3
+    end
+
+    subgraph FEM["🦷 Stage 2 — 3D FEM Stress Analysis"]
+        direction TB
+        F1["Posterior ODE trajectories\n→ composition fields φᵢ(x)"]
+        F2["Dysbiotic Index\nDI(x) = 1 − H(x)/log(5)\nH = Shannon entropy of φᵢ"]
+        F3["Power-law stiffness mapping\nr = clamp(DI/s, 0, 1)  s=0.025778\nE(x) = Emax·(1−r)ⁿ + Emin·r"]
+        F4["Abaqus 3D · NLGEOM\nOpen-Full-Jaw teeth P1_23/30/31\n→ S_Mises · U_max  per condition"]
+        F1 --> F2 --> F3 --> F4
+    end
+
+    subgraph JAXFEM["🧪 JAX-FEM — Klempt 2024"]
+        direction TB
+        J1["Steady-state nutrient PDE\n−D_c·Δc + g·φ₀(x)·c/(k+c) = 0\nBC: c = 1 on ∂Ω"]
+        J2["Newton solver  4 iters\nc_min ≈ 0.31  (diffusion-limited)\nautodiff: ∂loss/∂D_c via JAX"]
+        J1 --> J2
+    end
+
+    INPUT  --> TMCMC
+    TMCMC  --> FEM
+    TMCMC  --> JAXFEM
 ```
  In vitro longitudinal data (4 conditions × 5 species × 5 time points)
            │   Commensal/Dysbiotic × Static/HOBIC  [Heine et al. 2025]
