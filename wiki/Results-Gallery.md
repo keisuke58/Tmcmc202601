@@ -115,3 +115,39 @@ Effect of E_max / E_min / n on von Mises stress. S_Mises increases approximately
 | Commensal HOBIC | `data_5species/_runs/Commensal_HOBIC_20260208_002100/` |
 | Dysbiotic Static | `data_5species/_runs/Dysbiotic_Static_20260207_203752/` |
 | Dysbiotic HOBIC | `data_5species/_runs/Dysbiotic_HOBIC_20260208_002100/` |
+
+---
+
+## Multiscale Coupling Results (2026-02-24)
+
+### DI_0D — Condition Discrimination
+
+| Condition | DI_0D | E_eff mean (Pa) |
+|-----------|:-----:|:--------------:|
+| Commensal | 0.047 | ~909 |
+| Dysbiotic | 0.845 | ~33 |
+| **Ratio** | **18×** | **28×** |
+
+### α_Monod Spatial Profile
+
+| Depth | α_Monod | ε_growth |
+|-------|:-------:|:--------:|
+| x=0 (tooth surface) | 0.004 | ~0% (nutrient-starved) |
+| x=1 (saliva side) | 0.420 | 14% |
+| **Gradient** | **101×** | **101×** |
+
+### Pipeline Summary Figure
+
+![Pipeline summary](../FEM/_pipeline_summary/pipeline_summary.png)
+
+9-panel overview: pipeline schematic, DI_0D comparison, 1D nutrient field c(x), species profiles φᵢ(x), α_Monod(x), ε_growth(x), and effective stiffness E(x) for both conditions.
+
+### Multiscale Comparison Figure
+
+![Multiscale comparison](../FEM/_multiscale_results/multiscale_comparison.png)
+
+Side-by-side: 0D ODE trajectories, 1D nutrient + species profiles, and eigenstrain fields for commensal vs dysbiotic.
+
+---
+
+→ See [Multiscale Coupling](Multiscale-Coupling) for the full technical guide.

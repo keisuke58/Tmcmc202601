@@ -1,0 +1,419 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage{geometry}
+\geometry{margin=25mm}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{amssymb}
+\usepackage{ifpdf}
+
+% Avoid external font map files (cm-super) in pdfTeX mode only.
+\ifdefined\pdfoutput
+  \ifnum\pdfoutput>0
+    \pdfmapfile{=}
+  \fi
+\fi
+
+\title{Abaqus Implementation for Biofilm Stress Analysis}
+\author{Keisuke Nishioka}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Overview}
+
+This document summarizes the current Abaqus implementation used to evaluate mechanical stress in a multi-species oral biofilm model. The finite element (FE) fields are generated from a five-species biofilm model and exported as spatial distributions of bacterial volume fractions and demineralization index. These fields are then mapped to 1D, 2D, and 3D Abaqus models in order to quantify depth-resolved stress profiles under different experimental conditions (dh baseline and commensal static).
+
+The workflow is fully automated:
+\begin{enumerate}
+  \item Export FE results to CSV files for Abaqus.
+  \item Build 2D and 3D Abaqus models and run jobs in noGUI mode.
+  \item Extract depth-resolved stress profiles from ODB files.
+  \item Aggregate statistics across conditions and dimensions using Python.
+  \item Generate publication-quality figures summarizing the results.
+\end{enumerate}
+
+From a methodological standpoint, the key novelty is that posterior uncertainty from TMCMC parameter estimation is propagated all the way through the 3D FEM biofilm model into Abaqus-based stress predictions, yielding posterior credible bands for depth-resolved mechanical quantities. This provides a fully probabilistic link between biofilm kinetics, community composition, and mechanical risk at the tooth surface.
+
+Throughout the document, we consider four experimental conditions forming a $2\times2$ commensal/dysbiotic $\times$ static/HOBIC design: dh baseline (dysbiotic reference), commensal static (health-associated community under static conditions), commensal HOBIC (commensal community under HOBIC challenge), and dysbiotic static (dysbiotic community under static conditions). Later figures and tables use the abbreviations DH, CS, CH, and DS for these four conditions.
+
+\section{Finite-Element Biofilm Simulations and Posterior Fields}
+
+The mechanical analysis is driven by finite-element (FEM) reaction--diffusion simulations of the five-species biofilm model. The FEM codes are implemented in the Python modules \texttt{fem\_spatial\_extension.py} (1D), \texttt{fem\_2d\_extension.py} (2D), and \texttt{fem\_3d\_extension.py} (3D). For each condition (dh baseline, commensal static), the 3D FEM model uses a $15\times 15\times 15$ grid with operator-split time stepping and calibrated effective diffusion coefficients for the five bacterial species. The time integration employs Lie and Strang operator splitting with adaptive time steps, and the diffusion operators support anisotropic effective diffusion tensors in 2D and 3D.
+
+Grid-convergence tests in 2D confirm that relatively coarse grids are sufficient to obtain stable species-averaged volume fractions and P.\,gingivalis metrics. Figure~\ref{fig:fem-convergence} shows the convergence of mean species volume fractions at the final time for $20\times 20$, $30\times 30$, and $40\times 40$ grids. Differences between $30\times 30$ and $40\times 40$ are marginal, indicating that $20\times 20$ or $30\times 30$ grids are adequate for the present study.
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.75\linewidth]{_results_2d/convergence/conv_A_mean_phi.png}
+  \caption{2D FEM grid-convergence of mean species volume fractions at the final time for $20\times 20$, $30\times 30$, and $40\times 40$ grids.}
+  \label{fig:fem-convergence}
+\end{figure}
+\fi
+
+To verify the numerical properties of the extended schemes, benchmark simulations in 2D compare Lie and Strang operator splitting as well as isotropic and anisotropic diffusion. The Lie and Strang schemes yield nearly indistinguishable trajectories of spatially averaged species volume fractions, while anisotropic diffusion primarily modifies the lateral spreading and mean abundance of P.\,gingivalis without destabilizing the dynamics.
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.75\linewidth]{_benchmarks/plots/fem_benchmark_split_scheme.png}
+  \caption{Comparison of Lie and Strang operator splitting for 2D FEM simulations. Solid and dashed curves show mean species volume fractions $\bar\phi_i(t)$ for Lie and Strang schemes, respectively, demonstrating excellent agreement.}
+  \label{fig:fem-split-benchmark}
+\end{figure}
+\fi
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.75\linewidth]{_benchmarks/plots/fem_benchmark_anisotropic.png}
+  \caption{Effect of isotropic versus anisotropic diffusion on the mean P.\,gingivalis volume fraction in 2D FEM simulations. Anisotropy alters the spreading and mean abundance of P.\,gingivalis while preserving stable dynamics.}
+  \label{fig:fem-aniso-benchmark}
+\end{figure}
+\fi
+
+To quantify parametric uncertainty, posterior samples from the TMCMC parameter estimation are propagated through the 2D and 3D FEM models. The production pipeline is driven by \texttt{run\_posterior\_pipeline.py}, which maps each experimental condition to its canonical TMCMC run directory and orchestrates the full chain: posterior sampling $\to$ 3D FEM $\to$ figure generation. For each TMCMC run, the script \texttt{fem\_3d\_extension.py} draws $N=20$ parameter vectors (deterministically seeded for reproducibility) from \texttt{samples.npy}, reconstructs the full 20-dimensional parameter vector using the active-index mapping stored in \texttt{theta\_MAP.json}, and runs the 3D FEM biofilm simulation. Per-sample outputs are saved to \texttt{sample\_XXXX/} subdirectories, enabling both resume on interruption and downstream sensitivity analysis via \texttt{posterior\_sensitivity.py}. The resulting time series of spatially averaged species volume fractions $\bar\phi_i(t)$ are stored and summarized by the 5th, 50th, and 95th percentiles across posterior samples.
+
+Figures~\ref{fig:fem-phibar-commensal} and~\ref{fig:fem-phibar-dh} show the posterior predictive bands of $\bar\phi_i(t)$ for the commensal static and dh baseline conditions, respectively. The shaded regions correspond to the 5th--95th percentile range, and the solid lines indicate the posterior median trajectories.
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{_posterior_plots/commensal_static/phibar_posterior_Commensal_Static.png}
+  \caption{Posterior predictive bands (5th--95th percentiles, shaded) and median trajectories (solid lines) of spatially averaged species volume fractions $\bar\phi_i(t)$ from 3D FEM simulations under the commensal static condition.}
+  \label{fig:fem-phibar-commensal}
+\end{figure}
+\fi
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{_posterior_plots/dh_baseline/phibar_posterior_dh_baseline.png}
+  \caption{Posterior predictive bands and median trajectories of $\bar\phi_i(t)$ from 3D FEM simulations under the dh baseline condition.}
+  \label{fig:fem-phibar-dh}
+\end{figure}
+\fi
+
+In addition to volume fractions, a geometrical penetration metric for P.\,gingivalis is defined directly on the 3D FEM fields. At each time point and for each posterior sample, the 3D P.\,gingivalis field is laterally averaged over the two in-plane directions to yield a one-dimensional profile along the depth coordinate. This profile is normalized and used as a weight to compute the center-of-mass depth position, which serves as a quantitative measure of P.\,gingivalis penetration into the biofilm.
+
+From the ensemble of posterior samples, 5th, 50th, and 95th percentile trajectories of the P.\,gingivalis penetration depth are extracted. Figures~\ref{fig:fem-depth-commensal} and~\ref{fig:fem-depth-dh} summarize these depth statistics for the commensal static and dh baseline conditions, respectively.
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.6\linewidth]{_posterior_plots/commensal_static/depth_pg_posterior_Commensal_Static.png}
+  \caption{Posterior median and 90\% credible band of P.\,gingivalis penetration depth in the 3D FEM model under the commensal static condition.}
+  \label{fig:fem-depth-commensal}
+\end{figure}
+\fi
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.6\linewidth]{_posterior_plots/dh_baseline/depth_pg_posterior_dh_baseline.png}
+  \caption{Posterior median and 90\% credible band of P.\,gingivalis penetration depth in the 3D FEM model under the dh baseline condition.}
+  \label{fig:fem-depth-dh}
+\end{figure}
+\fi
+
+Figure~\ref{fig:fem-depth-compare} overlays both conditions on a single panel to facilitate direct comparison of P.\,gingivalis penetration dynamics. Under the dh baseline condition, P.\,gingivalis is consistently driven deeper into the biofilm than under the commensal static condition, consistent with the biologically expected dysbiotic shift.
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.65\linewidth]{_posterior_plots/comparison_depth_pg.png}
+  \caption{Direct comparison of posterior Pg penetration-depth trajectories for the dh baseline (red) and commensal static (blue) conditions. Shaded regions indicate the 5th--95th percentile band; solid lines show the posterior median. The divergence between conditions reflects the stronger dysbiotic character of the dh baseline scenario.}
+  \label{fig:fem-depth-compare}
+\end{figure}
+\fi
+
+\section{FEM to Abaqus Pipeline}
+
+The pipeline is implemented around the following key scripts:
+\begin{itemize}
+  \item \texttt{export\_for\_abaqus.py}: exports FE fields (P.\,gingivalis and DI distributions) to CSV.
+  \item \texttt{abaqus\_biofilm\_demo.py}: constructs and runs the 2D Abaqus model in noGUI mode.
+  \item \texttt{abaqus\_biofilm\_demo\_3d.py}: constructs and runs the 3D Abaqus model.
+  \item \texttt{compare\_biofilm\_abaqus.py}: reads ODB files and outputs depth-resolved profiles of displacements and stress.
+  \item \texttt{analyze\_abaqus\_profiles.py}: aggregates S11, S22, S33, and von Mises stress across conditions and dimensions.
+  \item \texttt{plot\_abaqus\_profiles.py}: generates the figures included in this document.
+\end{itemize}
+
+For each condition (dh baseline, commensal static), FE results are exported and mapped to Abaqus models in 2D and 3D. The resulting ODB files are post-processed to obtain stress values at three normalized depths: 0.0 (substrate), 0.5 (middle), and 1.0 (biofilm surface).
+
+\section{Depth-resolved von Mises Stress}
+
+Figure~\ref{fig:smises-depth} shows the depth-resolved von Mises stress obtained from 2D and 3D Abaqus models under dh baseline and commensal static conditions. Depth is normalized from 0 (substrate) to 1 (biofilm surface).
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.75\linewidth]{_job_archive/old_field_csv/abaqus_profile_Smises.png}
+  \caption{Depth-resolved von Mises stress for 2D and 3D Abaqus models under dh and commensal static conditions. Depth is normalized from substrate (0) to biofilm surface (1).}
+  \label{fig:smises-depth}
+\end{figure}
+\fi
+
+At the substrate (depth fraction 0.0), the 2D model exhibits a von Mises stress of approximately $8.4\times 10^{5}\,\mathrm{Pa}$, while the 3D model yields about $5.6\times 10^{5}\,\mathrm{Pa}$, corresponding to a 3D/2D ratio of roughly 0.67. Towards the biofilm surface (depth fraction 1.0), the 2D and 3D von Mises levels become very similar (both around $1.0\times 10^{6}\,\mathrm{Pa}$).
+
+\section{Depth-resolved Normal Stress S11}
+
+Figure~\ref{fig:s11-depth} plots the depth-resolved normal stress component S11. This component is particularly relevant for interpreting compressive and tensile behaviour along the primary loading direction.
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.75\linewidth]{_job_archive/old_field_csv/abaqus_profile_S11.png}
+  \caption{Depth-resolved S11 stress component for 2D and 3D models. The sign and magnitude of S11 highlight differences in compressive loading between 2D and 3D representations.}
+  \label{fig:s11-depth}
+\end{figure}
+\fi
+
+The substrate region shows substantially larger compressive S11 in the 3D model compared to the 2D model (ratio exceeding three), while the differences decrease toward the biofilm surface. This suggests that three-dimensional effects are particularly important near the rigid support.
+
+\section{3D/2D Ratio of von Mises Stress}
+
+To directly quantify dimensional effects, Figure~\ref{fig:ratio-smises} shows the ratio of von Mises stress in the 3D model to that in the 2D model as a function of depth.
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.75\linewidth]{_job_archive/old_field_csv/abaqus_profile_Smises_ratio.png}
+  \caption{Ratio of von Mises stress in 3D models to that in 2D models as a function of normalized depth. A value of one indicates identical stress levels in 2D and 3D.}
+  \label{fig:ratio-smises}
+\end{figure}
+\fi
+
+Near the substrate, the 3D model produces roughly two-thirds of the 2D von Mises level, whereas in the middle and at the surface, the ratio is close to unity. This behaviour indicates that 2D simulations may overestimate substrate-level stress, while providing a reasonable approximation near the biofilm surface.
+
+\section{Representative Numerical Values}
+
+Table~\ref{tab:smises-summary} summarizes representative von Mises stress values for the commensal static condition, extracted from the aggregated CSV data. The values are consistent between dh and commensal static conditions for the current FE configurations, but the pipeline is ready to handle more distinct conditions.
+
+\begin{table}[t]
+  \centering
+  \caption{Depth-resolved von Mises stress for commensal static (cs) condition. Values are extracted from the aggregated Abaqus post-processing and rounded to three significant digits.}
+  \label{tab:smises-summary}
+  \begin{tabular}{cccc}
+    \toprule
+    Depth fraction & Model & $\sigma_{\mathrm{vM}}$ [Pa] & 3D/2D ratio \\
+    \midrule
+    0.0 & 2D & $8.45\times 10^{5}$ & 0.67 \\
+        & 3D & $5.63\times 10^{5}$ &      \\
+    0.5 & 2D & $1.01\times 10^{6}$ & 1.02 \\
+        & 3D & $1.03\times 10^{6}$ &      \\
+    1.0 & 2D & $1.01\times 10^{6}$ & 1.01 \\
+        & 3D & $1.02\times 10^{6}$ &      \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Continuous DI$\to E(\mathrm{DI})$ Mapping}
+
+The binary HIGH/LOW threshold used previously could not distinguish between the two experimental conditions because all demineralization-index values were well below the 0.5 cutoff. A continuous power-law modulus function has been implemented in the updated Abaqus scripts:
+%
+\begin{equation}
+  E(\mathrm{DI}) \;=\; E_{\max}\,\bigl(1 - r\bigr)^{n} + E_{\min}\,r,
+  \qquad
+  r = \mathrm{clamp}\!\left(\frac{\mathrm{DI}}{s},\,0,\,1\right),
+  \label{eq:di-modulus}
+\end{equation}
+%
+where $E_{\max}=10\,\mathrm{GPa}$, $E_{\min}=0.5\,\mathrm{GPa}$, $n=2$, and the scale parameter $s$ is set automatically to $1.1\times\max(\mathrm{DI})$ from the loaded field data. Elements are classified into $N=20$ discrete material bins spanned uniformly over the observed DI range; each bin carries an $E$ value evaluated at the bin centre. This approach requires no Abaqus user subroutine (USDFLD) and is fully compatible with the existing Python CAE workflow.
+
+The DI range in the exported fields at the final simulation snapshot ($t=0.05$) differs between conditions:
+%
+\begin{itemize}
+  \item \textbf{DH baseline}:       DI $\in [0.00135,\,0.01783]$, $\bar{\mathrm{DI}}=0.0070$, $s=0.0196$.
+  \item \textbf{Commensal static}:  DI $\in [0.00170,\,0.02343]$, $\bar{\mathrm{DI}}=0.0095$, $s=0.0258$.
+\end{itemize}
+%
+Both mean DI values are very small compared with strongly dysbiotic regimes
+(DI $\mathcal{O}(0.1$--$0.5)$); the difference between 0.0070 and 0.0095 should
+therefore be interpreted as a subtle shift within an overall ``near-commensal''
+range rather than as a reversal of the intended health labels.  Under the
+power-law mapping the slightly larger DI range for the commensal static fields
+leads to a modestly softer effective modulus in parts of the domain and hence
+to small but systematic differences in the resulting stress field.
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.85\linewidth]{_job_archive/old_field_csv/abaqus_profile_Smises_comparison.png}
+  \caption{Comparison of 3D Abaqus von Mises stress at the substratum (depth fraction 0) and biofilm surface (depth fraction 1) under three material-assignment strategies. \emph{Binary threshold} (left): all elements receive the same stiff material because DI $\ll$ 0.5, giving identical stress for both conditions. \emph{Power-law with per-condition auto scale} (centre): each condition's DI range is normalised independently, revealing a $\sim$4\% surface difference. \emph{Power-law with global scale} (right): a single $s=0.0258$ is applied to both conditions, giving a consistent $\sim$3.5\% difference at both substrate and surface and enabling direct apples-to-apples comparison.}
+  \label{fig:smises-compare}
+\end{figure}
+\fi
+
+Table~\ref{tab:power-smises} summarises the von Mises stress under the global-scale run.
+The global DI scale is set to $s = 1.1\times\max(\mathrm{DI}_{\mathrm{dh,max}},\,\mathrm{DI}_{\mathrm{cs,max}}) = 1.1\times 0.02344 = 0.02578$, shared by both conditions.
+
+\begin{table}[t]
+  \centering
+  \caption{3D Abaqus von Mises stress with global-scale power-law DI$\to E(\mathrm{DI})$ mapping ($n=2$, $s=0.0258$, $E_{\max}=10\,\mathrm{GPa}$, $E_{\min}=0.5\,\mathrm{GPa}$). Centre-line node values at the two depth extremes.}
+  \label{tab:power-smises}
+  \begin{tabular}{lccc}
+    \toprule
+    Condition & Substrate ($x=0$) & Surface ($x=1$) & $\bar{\mathrm{DI}}$ \\
+    \midrule
+    DH baseline       & $6.11\times 10^{5}\,\mathrm{Pa}$ & $9.87\times 10^{5}\,\mathrm{Pa}$ & 0.0070 \\
+    Commensal static  & $6.32\times 10^{5}\,\mathrm{Pa}$ & $1.02\times 10^{6}\,\mathrm{Pa}$ & 0.0095 \\
+    \midrule
+    CS/DH ratio       & 1.035 & 1.035 & — \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent
+With a shared DI scale, the commensal static condition exhibits approximately
+3.5\% higher von Mises stress than dh baseline at both depth locations.  Given
+the very small absolute DI values, we interpret this primarily as a consequence
+of the mechanical mapping (slightly softer effective modulus where DI is
+larger) rather than as evidence that the commensal static biofilm is more
+dysbiotic than the dh baseline case.  The present report therefore uses DI as a
+continuous mechanical proxy, while the ``commensal'' versus ``dysbiotic''
+labels remain anchored in the underlying experimental design and TMCMC
+parameter-estimation stage.
+
+\section{Posterior Abaqus Ensemble}
+\label{sec:posterior-ensemble}
+
+To propagate TMCMC parameter uncertainty through to the mechanical stress prediction, the full FEM--Abaqus pipeline is executed at each of $N=20$ posterior samples per condition. For every sample $k$, the workflow is:
+\begin{enumerate}
+  \item Draw parameter vector $\boldsymbol{\theta}^{(k)}$ from the TMCMC posterior.
+  \item Run the 3D reaction--diffusion FEM ($15^3$ grid, $t_{\mathrm{tot}}=0.05$, 100 macro steps) to obtain species volume fractions $\boldsymbol{\phi}^{(k)}(\mathbf{x})$.
+  \item Export spatial field to CSV: $\phi_{\mathrm{Pg}}(\mathbf{x})$ and $\mathrm{DI}(\mathbf{x}) = 1 - H(\boldsymbol{\phi})/H_{\max}$.
+  \item Build and run the 3D Abaqus model with global-scale power-law DI$\to E(\mathrm{DI})$ mapping ($s=0.025778$, $n=2$, $N=20$ bins).
+  \item Extract von~Mises stress at substrate ($x=0$) and surface ($x=1$) centre-line nodes from the ODB.
+\end{enumerate}
+The pipeline is resume-safe via per-sample flag files (\texttt{fem\_done.flag}, \texttt{abaqus\_done.flag}, \texttt{done.flag}). Outputs are aggregated into \texttt{stress\_all.npy} and percentile arrays \texttt{stress\_p05/p50/p95.npy} (shape $2$: substrate, surface).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.8\linewidth]{_posterior_abaqus/stress_posterior_bands.png}
+  \caption{Posterior Abaqus von~Mises stress ensemble for all four conditions ($N=20$ samples each). Boxes and violins summarise the distribution at substrate (left) and surface (right); error bars span the 5th--95th percentile interval.}
+  \label{fig:posterior-ensemble}
+\end{figure}
+
+Table~\ref{tab:posterior-ensemble} summarises the ensemble stress statistics for both conditions. The 5th--95th credible interval reflects combined uncertainty in the biofilm kinetic parameters $\boldsymbol{\theta}$ propagated through the 3D FEM and the Abaqus mechanical model.
+
+\begin{table}[t]
+  \centering
+  \caption{Posterior Abaqus ensemble von~Mises stress (Pa) at substrate ($x=0$) and surface ($x=1$) for $N=20$ TMCMC samples. Values are median [5th, 95th percentile]. Global power-law DI$\to E$ mapping ($s=0.025778$, $n=2$).}
+  \label{tab:posterior-ensemble}
+  \begin{tabular}{lcc}
+    \toprule
+    Condition & Substrate $\sigma_{\mathrm{vM}}$ (Pa) & Surface $\sigma_{\mathrm{vM}}$ (Pa) \\
+    \midrule
+    DH baseline       & $6.09\times10^{5}$ [$4.97\times10^{5}$,\ $7.85\times10^{5}$] & $9.93\times10^{5}$ [$9.30\times10^{5}$,\ $1.08\times10^{6}$] \\
+    Commensal static  & $6.32\times10^{5}$ [$6.05\times10^{5}$,\ $6.40\times10^{5}$] & $1.01\times10^{6}$ [$9.56\times10^{5}$,\ $1.03\times10^{6}$] \\
+    Commensal HOBIC   & $6.33\times10^{5}$ [$5.54\times10^{5}$,\ $6.48\times10^{5}$] & $1.01\times10^{6}$ [$9.93\times10^{5}$,\ $1.04\times10^{6}$] \\
+    Dysbiotic static  & $6.32\times10^{5}$ [$6.08\times10^{5}$,\ $6.37\times10^{5}$] & $1.00\times10^{6}$ [$9.49\times10^{5}$,\ $1.03\times10^{6}$] \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The width of the posterior credible interval reflects how sensitively the stress field responds to variation in the biofilm kinetic parameters. A narrow band indicates that stress is a robust outcome, insensitive to remaining parameter uncertainty; a wide band indicates that resolving the posterior further (e.g.\ via additional experimental time points) would tighten the mechanical prediction. Comparing all four conditions under the same global DI scale ($s=0.025778$) enables a direct ranking of mechanical state across the 2$\times$2 factorial design (commensal/dysbiotic $\times$ static/HOBIC).
+
+\paragraph{Parameter sensitivity.}
+Figure~\ref{fig:sensitivity-stress} shows Spearman rank-correlation coefficients $\rho_S$ between each posterior parameter component $\theta_i$ and the resulting von~Mises stress, computed across the $N=20$ ensemble samples per condition. Parameters with large $|\rho_S|$ are those whose uncertainty most strongly controls the mechanical output; parameters near zero are mechanically irrelevant. This identifies which biofilm kinetic rates and interaction coefficients should be prioritised for tighter experimental constraint.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{_posterior_abaqus/sensitivity_stress_combined.png}
+  \caption{Spearman rank-correlation coefficient between each posterior parameter $\theta_i$ and von~Mises stress at substrate (left) and surface (right), for all four conditions. Bars show $\rho_S$ per condition; top 10 parameters by mean $|\rho_S|$ are shown. Species indices: 1=\emph{S.\,oralis}, 2=\emph{A.\,naeslundii}, 3=\emph{Veillonella}, 4=\emph{F.\,nucleatum}, 5=\emph{P.\,gingivalis}.}
+  \label{fig:sensitivity-stress}
+\end{figure}
+
+Table~\ref{tab:spearman-top} lists the top-ranked parameters with their Spearman coefficients per condition.
+
+% SPEARMAN_TABLE_START
+\begin{table}[t]
+  \centering
+  \caption{Top posterior parameters by mean $|\rho_S(\theta_i, \sigma_{\mathrm{vM}})|$ across conditions (substrate and surface). Notation: $a_{ij}$ = interaction coefficient of species $j$ on species $i$; $b_i$ = net growth/death rate of species $i$.}
+  \label{tab:spearman-top}
+  \begin{tabular}{llrrrr}
+    \toprule
+    Param & Description & \multicolumn{2}{c}{Substrate $\rho_S$} & \multicolumn{2}{c}{Surface $\rho_S$} \\
+    \cmidrule(lr){3-4}\cmidrule(lr){5-6}
+          &             & DH / DS & CS / CH & DH / DS & CS / CH \\
+    \midrule
+    $b_2$ & \emph{A.\,na} growth & 0.477 / -0.098 & -0.454 / 0.174 & -0.152 / 0.290 & -0.006 / -0.167 \\
+    $a_{34}$ & Vei--F.nu & -0.586 / -0.048 & -0.111 / -0.260 & 0.495 / -0.293 & -0.158 / -0.335 \\
+    $a_{23}$ & A.na--Vei & -0.242 / -0.296 & -0.111 / -0.293 & 0.020 / 0.110 & -0.030 / -0.328 \\
+    $a_{25}$ & A.na--Pg & -0.165 / -0.223 & 0.214 / 0.340 & 0.063 / 0.177 & 0.042 / 0.165 \\
+    $b_5$ & \emph{Pg} growth & 0.296 / 0.021 & 0.244 / 0.359 & -0.202 / 0.260 & 0.017 / -0.329 \\
+    $a_{22}$ & A.na self & -0.268 / 0.041 & 0.253 / 0.260 & 0.302 / 0.286 & 0.017 / 0.170 \\
+    $a_{33}$ & Vei self & 0.284 / 0.236 & 0.014 / -0.268 & 0.156 / -0.376 & 0.192 / -0.386 \\
+    $a_{15}$ & S.or--Pg & -0.077 / -0.183 & 0.192 / -0.319 & -0.006 / -0.338 & -0.150 / 0.105 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+% SPEARMAN_TABLE_END
+
+\noindent
+The parameters with the strongest influence on von~Mises stress (highest mean
+$|\rho_S|$ at the substrate) are $b_2$ (\emph{A.\,na} growth), $a_{34}$
+(Vei--F.nu), $a_{23}$ (A.na--Vei).  With only $N=20$ samples per condition,
+moderate $|\rho_S|$ values (below about 0.4) should be interpreted as
+qualitative sensitivity indicators rather than as formally significant
+correlations; the main value of Table~\ref{tab:spearman-top} is therefore in
+ranking parameters by relative importance.  Parameters with $|\rho_S| < 0.2$
+can be treated as mechanically inert at the current sample size and may be
+held fixed in follow-up analyses.
+
+\section{Summary and Outlook}
+\label{sec:summary}
+
+To connect the biofilm composition directly to mechanical risk across the full $2\times2$ design, posterior DI fields and P.\,gingivalis penetration metrics are aggregated over all $N=20$ samples per condition. For each condition, the nodewise DI credible interval is computed from the exported \texttt{field.csv} files, and its depth-wise average yields a DI depth profile with p05--p95 bands. Figure~\ref{fig:di-depth-cross} compares these profiles across the four conditions, showing that dh baseline and dysbiotic static exhibit elevated DI near the substratum, whereas the commensal conditions remain close to DI~$\approx 0$ throughout the depth.
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.9\linewidth]{_di_credible/fig_di_cross_condition.png}
+  \caption{Cross-condition comparison of DI depth profiles with posterior credible bands. Lines show the median DI as a function of depth $x$; shaded regions indicate the p05--p95 interval across posterior samples. Dh baseline and dysbiotic static exhibit higher near-substratum DI than the commensal conditions.}
+  \label{fig:di-depth-cross}
+\end{figure}
+\fi
+
+In addition, the centre-of-mass penetration depth of P.\,gingivalis at $t_{\mathrm{final}}$ is computed for every posterior sample by weighting the depth coordinate by the 3D P.\,gingivalis field. The resulting distributions are summarised in Figure~\ref{fig:pg-depth-cross}. Dh baseline yields the deepest P.\,gingivalis penetration on average, followed by dysbiotic static, whereas the two commensal conditions remain confined closer to the biofilm surface.
+
+\ifpdf
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.7\linewidth]{_di_credible/fig_pg_depth_cross_condition.png}
+  \caption{Posterior P.\,gingivalis penetration depth at $t_{\mathrm{final}}$ for all four conditions. Points show the posterior median of depth (centre-of-mass in $x$), and error bars indicate the 5th--95th percentile interval across posterior samples.}
+  \label{fig:pg-depth-cross}
+\end{figure}
+\fi
+
+Taken together with the stress credible bands (Table~\ref{tab:posterior-ensemble}) and the parameter sensitivity ranking (Figures~\ref{fig:sensitivity-stress} and~\ref{tab:spearman-top}), these results show a coherent mapping from TMCMC-estimated kinetic parameters $\boldsymbol{\theta}$ to biofilm composition (Pg depth, DI) and finally to mechanical stress. Parameters governing bridge-organism interactions and P.\,gingivalis growth ($a_{23}$, $a_{34}$, $a_{25}$, $b_5$) jointly control both the depth and intensity of dysbiosis and the resulting von~Mises stress levels at the biofilm--substrate interface.
+
+The current implementation therefore provides a fully automated pipeline from multi-species biofilm simulations to depth-resolved mechanical stress analysis:
+\begin{itemize}
+  \item FE outputs from the five-species biofilm model are exported to CSV and mapped into 2D and 3D Abaqus models.
+  \item Posterior uncertainty from TMCMC is propagated through the FEM models via \texttt{run\_posterior\_pipeline.py} and \texttt{run\_posterior\_abaqus\_ensemble.py} ($N=20$ samples per condition, resume-safe with per-sample checkpoints).
+  \item Per-sample 3D FEM outputs enable downstream sensitivity analysis: \texttt{posterior\_sensitivity.py} generates scatter plots of each parameter component versus the P.\,gingivalis penetration-depth metric, and \texttt{posterior\_sensitivity\_stress.py} quantifies Spearman correlations between $\theta_i$ and von~Mises stress (Figure~\ref{fig:sensitivity-stress}).
+  \item A side-by-side condition comparison of Pg depth posteriors (dh baseline vs.\ commensal static) and of DI and final Pg depth across all four conditions is produced automatically.
+  \item Stress fields are extracted along the biofilm depth and summarized as von~Mises and normal stress profiles, with posterior credible intervals at substrate and surface.
+  \item Publication-quality figures are generated automatically from the aggregated data.
+  \item A posterior Abaqus ensemble ($N=20$ samples, global-scale power-law DI$\to E$ mapping) propagates TMCMC parameter uncertainty through to depth-resolved von~Mises stress credible bands (Section~\ref{sec:posterior-ensemble}).
+\end{itemize}
+%
+Taken together, the posterior FEM fields and the Abaqus stress analysis demonstrate a consistent end-to-end workflow. The condition comparison (Fig.~\ref{fig:fem-depth-compare}) reveals that P.\,gingivalis penetrates deeper under the dh baseline condition than under commensal static, in agreement with the expected dysbiotic trend. The global-scale continuous DI$\to E(\mathrm{DI})$ mapping (Section~\ref{sec:posterior-ensemble}) reveals a consistent $\sim$3.5\% higher von~Mises stress in the commensal static condition relative to dh baseline (Table~\ref{tab:power-smises}), driven by the higher mean DI (0.0095 vs.\ 0.0070).
+
+The Lie and Strang operator-splitting schemes are numerically consistent at the level of spatially averaged dynamics, and anisotropic diffusion can be introduced to capture direction-dependent spreading of P.\,gingivalis without compromising stability in the FEM solver.
+
+Future work will focus on:
+\begin{itemize}
+  \item \textbf{Spatially resolved stress maps}: extending the analysis beyond depth-averaged profiles to include full 3D distributions and their posterior uncertainty, e.g.\ XZ slices coloured by $\sigma_\mathrm{vM}$ at p05/p50/p95 credible levels.
+  \item \textbf{Manuscript integration}: translating the 4-condition posterior stress comparison, DI and Pg-depth uncertainty, and parameter sensitivity ranking into the methods and results sections of the target journal article.
+  \item \textbf{ANSYS comparison} (deferred): once a suitable compute environment is available, re-running the same CSV inputs through the APDL template to benchmark solver dependence.
+\end{itemize}
+%
+This document, together with the associated figures, is intended as a concise summary for internal discussion and for integrating the FEM--Abaqus workflow into manuscripts and presentations.
+
+\end{document}
