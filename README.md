@@ -11,6 +11,20 @@
 
 ---
 
+## Table of Contents
+
+- [Overview](#overview)
+- [TMCMC: Bayesian Parameter Estimation](#tmcmc-bayesian-parameter-estimation)
+- [FEM: Stress Analysis Pipeline](#fem-stress-analysis-pipeline)
+- [Multiscale Micro→Macro Coupling](#multiscale-micromacro-coupling)
+- [Quick Start](#quick-start)
+- [Environment](#environment)
+- [Key References](#key-references)
+- [Contributing & GitHub](#contributing--github)
+- [Citation](#citation)
+
+---
+
 ## Overview
 
 ### Scientific Motivation
@@ -34,41 +48,60 @@ This project addresses two coupled questions:
 ### Pipeline
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#f0f9ff", "edgeLabelBackground": "#ffffff", "fontSize": "14px"}}}%%
 flowchart LR
-    subgraph INPUT["📊 Input — Heine et al. 2025"]
+
+    classDef inp    fill:#dbeafe,stroke:#3b82f6,stroke-width:2px,color:#1e3a5f
+    classDef tmcmc  fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef fem    fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
+    classDef jax    fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#4a1d96
+    classDef out    fill:#ffe4e6,stroke:#e11d48,stroke-width:2px,color:#881337,font-weight:bold
+
+    %% ── Input ──────────────────────────────────────────────────────────────
+    subgraph INPUT["📊  Input  ·  Heine et al. 2025"]
         direction TB
-        I1["4 conditions\nCS · CH · DS · DH"]
-        I2["5 species\nSo · An · Vd · Fn · Pg"]
-        I3["5 time points  0–48 h\nIn vitro CFU/mL"]
+        I1["4 experimental conditions\nCommensal / Dysbiotic  ×  Static / HOBIC"]:::inp
+        I2["5 species\nSo · An · Vd(bridge) · Fn(bridge) · Pg(pathogen)"]:::inp
+        I3["5 time points  ·  0 → 48 h\nIn vitro longitudinal  CFU/mL"]:::inp
     end
 
-    subgraph TMCMC["🔬 Stage 1 — TMCMC Bayesian Inference"]
+    %% ── Stage 1: TMCMC ─────────────────────────────────────────────────────
+    subgraph TMCMC["🔬  Stage 1  ·  TMCMC Bayesian Inference"]
         direction TB
-        T1["Hamilton ODE  (20 free params)\ndφᵢ/dt = φᵢ·(rᵢ − dᵢφᵢ + Σⱼ aᵢⱼ·H(φⱼ))\nHill gate: H = φⁿ/(Kⁿ+φⁿ)  K=0.05, n=4"]
-        T2["Sequential tempering  β: 0 → 1\nMH-MCMC resample at each β stage\nAdaptive Δβ via CoV(weights) = 1"]
-        T3["Per-condition output\nθ_MAP · θ_MEAN\n1000 posterior samples"]
+        T1["Hamilton variational ODE  ·  20 free params\ndφᵢ/dt = φᵢ · (rᵢ − dᵢφᵢ + Σⱼ aᵢⱼ · H(φⱼ))\nHill gate  H = φⁿ/(Kⁿ+φⁿ)  ·  K=0.05, n=4 fixed"]:::tmcmc
+        T2["Sequential tempering  β : 0 → 1\nAdaptive Δβ via  CoV(wᵢ) = 1\nMH-MCMC resample + local random walk"]:::tmcmc
+        T3["Output per condition\nθ_MAP  ·  θ_MEAN  ·  N=1000 posterior samples\nRMSE(MAP) < 0.075 across all 4 conditions"]:::tmcmc
         T1 --> T2 --> T3
     end
 
-    subgraph FEM["🦷 Stage 2 — 3D FEM Stress Analysis"]
+    %% ── Stage 2: FEM ────────────────────────────────────────────────────────
+    subgraph FEM["🦷  Stage 2  ·  3D FEM Stress Analysis"]
         direction TB
-        F1["Posterior ODE trajectories\n→ composition fields φᵢ(x)"]
-        F2["Dysbiotic Index\nDI(x) = 1 − H(x)/log(5)\nH = Shannon entropy of φᵢ"]
-        F3["Power-law stiffness mapping\nr = clamp(DI/s, 0, 1)  s=0.025778\nE(x) = Emax·(1−r)ⁿ + Emin·r"]
-        F4["Abaqus 3D · NLGEOM\nOpen-Full-Jaw teeth P1_23/30/31\n→ S_Mises · U_max  per condition"]
+        F1["Posterior ODE ensemble\n→ spatial composition fields  φᵢ(x)"]:::fem
+        F2["Dysbiotic Index\nDI(x) = 1 − H(x) / log(5)\nH = −Σᵢ φᵢ log φᵢ  Shannon entropy"]:::fem
+        F3["Power-law stiffness mapping\nr(x) = clamp(DI/s, 0, 1)  ·  s = 0.025778\nE(x) = E_max·(1−r)² + E_min·r\nsubstrate: E_max=10 GPa  ·  biofilm: 100 Pa"]:::fem
+        F4["Abaqus 3D  ·  NLGEOM enabled\nOpen-Full-Jaw  patient teeth P1_23 / 30 / 31\n→ S_Mises  ·  U_max  ·  90% credible band"]:::fem
         F1 --> F2 --> F3 --> F4
     end
 
-    subgraph JAXFEM["🧪 JAX-FEM — Klempt 2024"]
+    %% ── JAX-FEM sidechain ───────────────────────────────────────────────────
+    subgraph JAXFEM["🧪  JAX-FEM  ·  Klempt 2024 Benchmark"]
         direction TB
-        J1["Steady-state nutrient PDE\n−D_c·Δc + g·φ₀(x)·c/(k+c) = 0\nBC: c = 1 on ∂Ω"]
-        J2["Newton solver  4 iters\nc_min ≈ 0.31  (diffusion-limited)\nautodiff: ∂loss/∂D_c via JAX"]
+        J1["Steady-state nutrient transport PDE\n−D_c·Δc + g·φ₀(x)·c/(k+c) = 0  in [0,1]²\nDirichlet BC:  c = 1  on  ∂Ω"]:::jax
+        J2["Newton solver  ·  4 iterations\nThiele modulus ≈ 4  (diffusion-limited)\nc_min ≈ 0.31  inside biofilm\nautodiff:  ∂loss/∂D_c  via JAX AD"]:::jax
         J1 --> J2
     end
 
-    INPUT  --> TMCMC
-    TMCMC  --> FEM
-    TMCMC  --> JAXFEM
+    %% ── Outputs ─────────────────────────────────────────────────────────────
+    RFEM["MAP RMSE < 0.075\nU_max: 0.027–0.029 mm\nDI discriminates 4 conditions"]:::out
+    RJAX["c_min ≈ 0.31  (benchmark)\n∂c/∂D_c  via adjoint AD"]:::out
+
+    %% ── Edges ───────────────────────────────────────────────────────────────
+    INPUT  -->|"CFU/mL time-series\n4 × 5 × 5"| TMCMC
+    TMCMC  -->|"posterior samples\n1000 × 20 params"| FEM
+    TMCMC  -->|"φ₀(x) field\nbiofilm morphology"| JAXFEM
+    FEM    --> RFEM
+    JAXFEM --> RJAX
 ```
  In vitro longitudinal data (4 conditions × 5 species × 5 time points)
            │   Commensal/Dysbiotic × Static/HOBIC  [Heine et al. 2025]
