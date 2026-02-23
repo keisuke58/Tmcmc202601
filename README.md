@@ -2,28 +2,69 @@
 
 **5種口腔バイオフィルムのベイズパラメータ推定 (TMCMC) と 3D FEM 応力解析の統合パイプライン**
 
+[![CI](https://github.com/keisuke58/Tmcmc202601/actions/workflows/ci.yml/badge.svg)](https://github.com/keisuke58/Tmcmc202601/actions/workflows/ci.yml)
+[![Issues](https://img.shields.io/github/issues/keisuke58/Tmcmc202601)](https://github.com/keisuke58/Tmcmc202601/issues)
+[![Last Commit](https://img.shields.io/github/last-commit/keisuke58/Tmcmc202601)](https://github.com/keisuke58/Tmcmc202601/commits/master)
+
 ---
 
 ## Overview
 
-This project couples two computational stages for periodontal biofilm mechanics:
+### Scientific Motivation
+
+Periodontal disease is driven by **dysbiosis** — a community-level shift from a health-associated (commensal) microbiome to a disease-associated one dominated by the keystone pathogen *Porphyromonas gingivalis* (Pg). This shift is enabled by **bridge organisms**: *Veillonella dispar* (Vd) facilitates Pg via lactate cross-feeding and pH modulation, and *Fusobacterium nucleatum* (Fn) provides structural coaggregation scaffolding. Quantifying these ecological interactions is essential to understanding how dysbiosis develops.
+
+This project addresses two coupled questions:
+
+1. **Ecology**: How do species interaction strengths (*a*ᵢⱼ) differ between commensal and dysbiotic oral communities, and across cultivation methods (Static vs. HOBIC)?
+2. **Mechanics**: How does the inferred community composition alter the effective stiffness and stress distribution in periodontal tissue?
+
+### Pipeline
 
 ```
-Hamilton ODE model (5 species)
-         ↓
-   TMCMC Bayesian estimation
-         ↓  θ_MAP, posterior samples
-   3D FEM reaction–diffusion
-         ↓  φᵢ(x,y,z) species fields
-   Dysbiotic Index (DI) field
-         ↓  DI(x,y,z)
-   E(DI) power-law mapping
-         ↓  E(x,y,z)
-   Abaqus FEM stress analysis
-         ↓  S_Mises, U (substrate / surface)
+ In vitro longitudinal data (4 conditions × 5 species × 5 time points)
+           │   Commensal/Dysbiotic × Static/HOBIC  [Heine et al. 2025]
+           ▼
+ ┌─────────────────────────────────────┐
+ │  Stage 1 — TMCMC Bayesian Inference │
+ │                                     │
+ │  Hamilton ODE  (5-species, 20 θ)    │
+ │  p(θ|data) via sequential tempering │
+ │  → θ_MAP, θ_MEAN, posterior samples │
+ └────────────────┬────────────────────┘
+                  │  posterior samples per condition
+                  ▼
+ ┌─────────────────────────────────────┐
+ │  Stage 2 — 3D FEM Stress Analysis   │
+ │                                     │
+ │  φᵢ(x) composition fields           │
+ │  → Dysbiotic Index  DI(x)           │
+ │  → E(DI) power-law mapping          │
+ │  → Abaqus 3D FEM                    │
+ │  → S_Mises, U  (substrate / EPS)    │
+ └─────────────────────────────────────┘
 ```
 
-**5 species**: *S. oralis* (So), *A. naeslundii* (An), *V. dispar* (Vd), *F. nucleatum* (Fn), *P. gingivalis* (Pg)
+### Four Experimental Conditions
+
+| Condition | Role | Biological Interpretation |
+|-----------|------|--------------------------|
+| **Commensal Static** | Negative control | Health-associated community; Pg suppressed |
+| **Commensal HOBIC** | Negative control | Health-associated + fluid shear; Pg suppressed |
+| **Dysbiotic Static** | Partial control | Pg present but no HOBIC-driven surge |
+| **Dysbiotic HOBIC** | **Target** | Pg "surge" via Vd→Pg and Fn→Pg facilitation |
+
+HOBIC (High-flow Open Biofilm Incubation Chamber) mimics oral shear forces that accelerate pathogen colonisation.
+
+### Five Species
+
+| Abbr. | Species | Role |
+|-------|---------|------|
+| So | *Streptococcus oralis* | Early coloniser; health-associated |
+| An | *Actinomyces naeslundii* | Early coloniser; health-associated |
+| Vd | *Veillonella dispar* | Bridge organism — pH modulation → Pg facilitation |
+| Fn | *Fusobacterium nucleatum* | Bridge organism — coaggregation scaffold |
+| Pg | *Porphyromonas gingivalis* | Keystone periodontal pathogen |
 
 ---
 
@@ -74,18 +115,20 @@ Tmcmc202601/
 | θ[19] | a₄₅ | *F. nucleatum* → *P. gingivalis* facilitation |
 | θ[12] | a₂₃ | *S. oralis* → *A. naeslundii* cross-feeding |
 
-### Best Run (mild_weight, 2026-02-18)
+### Best Runs — All 4 Conditions (2026-02-08, 1000 particles, ~90 h)
 
-| Species | RMSE prev | RMSE (mild) |
-|---------|-----------|-------------|
-| S. oralis | 0.036 | **0.034** |
-| A. naeslundii | 0.129 | **0.105** |
-| V. dispar | 0.213 | 0.269 |
-| F. nucleatum | 0.088 | 0.161 |
-| P. gingivalis | 0.435 | **0.103** |
-| **Total** | **0.228** | **0.156** (−31%) |
+MAP RMSE per species:
 
-Settings: 150 particles, 8 stages, λ_Pg=2.0, λ_late=1.5, a₃₅/a₄₅ bounds [0, 5]
+| Species | Comm. Static | Comm. HOBIC | Dysb. Static | Dysb. HOBIC |
+|---------|:---:|:---:|:---:|:---:|
+| *S. oralis* | 0.0935 | 0.1044 | 0.0256 | 0.0416 |
+| *A. naeslundii* | 0.0422 | 0.0807 | 0.0566 | 0.0706 |
+| *V. dispar* | 0.0604 | 0.0458 | 0.0748 | 0.1069 |
+| *F. nucleatum* | 0.0210 | 0.0137 | 0.0291 | 0.0807 |
+| *P. gingivalis* | 0.0191 | 0.0169 | 0.0645 | 0.0562 |
+| **Total MAP RMSE** | **0.0547** | **0.0632** | **0.0538** | **0.0746** |
+
+Run directories: `_runs/Commensal_Static_20260208_002100`, `_runs/Commensal_HOBIC_20260208_002100`, `_runs/Dysbiotic_Static_20260207_203752`, `_runs/Dysbiotic_HOBIC_20260208_002100`
 
 ---
 
@@ -189,9 +232,37 @@ python biofilm_conformal_tet.py \
 
 ## Key References
 
+### Biofilm Mechanics & FEM
 - **Klempt, Soleimani, Wriggers, Junker (2024)**: *A Hamilton principle-based model for diffusion-driven biofilm growth*, Biomech Model Mechanobiol 23:2091–2113. [DOI](https://doi.org/10.1007/s10237-024-01883-x)
+- **Junker & Balzani (2021)**: Extended Hamilton principle for dissipative continua (thermodynamic framework underlying the ODE model)
 - **Soleimani et al. (2016, 2019)**: Periodontal ligament FEM with GPa-scale effective stiffness
-- **Billings et al. (2015)**: EPS matrix stiffness E ≈ 10 Pa
+- **Billings et al. (2015)**: EPS matrix stiffness E ≈ 10 Pa (biofilm mode reference)
+- **Fritsch, Geisler et al. (2025)**: Bayesian model updating for biofilm constitutive parameters under hybrid uncertainties
+
+### Microbiology & Experimental Data
+- **Heine et al. (2025)**: Original paper describing 5-species oral biofilm interaction network (Fig. 4C); source of in vitro data used for TMCMC calibration
+
+### Bayesian Inference
+- **Ching & Chen (2007)**: Transitional Markov Chain Monte Carlo (TMCMC) algorithm
+
+---
+
+## Contributing & GitHub
+
+| Resource | Link |
+|----------|------|
+| **Issues** — bug reports, feature requests | [github.com/…/issues](https://github.com/keisuke58/Tmcmc202601/issues) |
+| **Discussions** — questions, ideas | [github.com/…/discussions](https://github.com/keisuke58/Tmcmc202601/discussions) |
+| **Projects** — roadmap & task board | [github.com/…/projects](https://github.com/keisuke58/Tmcmc202601/projects) |
+| **Wiki** — extended documentation | [github.com/…/wiki](https://github.com/keisuke58/Tmcmc202601/wiki) |
+| **Actions** — CI status | [github.com/…/actions](https://github.com/keisuke58/Tmcmc202601/actions) |
+
+### CI
+
+A smoke-test workflow (`.github/workflows/ci.yml`) runs on every push / pull request to `main` / `master`:
+
+- Syntax check on `core/` modules (`py_compile`)
+- Import test: verifies `INTERACTION_GRAPH_JSON` structure and Nishioka interaction mask
 
 ---
 
