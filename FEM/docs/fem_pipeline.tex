@@ -1,0 +1,588 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage[pdfusetitle,unicode=false]{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{array}
+\usepackage{multirow}
+\setlength{\parskip}{6pt}
+
+\geometry{margin=2.2cm}
+
+\definecolor{codebg}{gray}{0.95}
+\definecolor{myblue}{RGB}{31,119,180}
+\definecolor{myred}{RGB}{214,39,40}
+\definecolor{mygreen}{RGB}{44,160,44}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  breaklines=true,
+  columns=fullflexible,
+}
+
+\title{\textbf{Biofilm FEM Stress Pipeline}\\[0.5em]
+  \large From TMCMC Parameter Estimation to 3D Abaqus Stress Analysis}
+\author{Nishioka \\ \textit{IKM Hiwi -- Tmcmc202601 Project}}
+\date{2026-02-21}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Overview}
+% ============================================================
+
+This report documents the complete finite-element mechanical analysis pipeline
+built on top of the 5-species Hamilton biofilm model.
+TMCMC parameter estimation yields posterior samples
+$\theta \in \mathbb{R}^{20}$, which drive a 3D reaction--diffusion FEM simulation
+of species volume fractions $\varphi_i(\mathbf{x})$.
+The resulting dysbiotic index field $\mathrm{DI}(\mathbf{x})$ drives a spatially
+heterogeneous elastic modulus, finally solved in Abaqus for $S_\mathrm{Mises}$.
+
+\subsection*{Pipeline}
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+Stage & Script & Output & Status \\
+\midrule
+TMCMC estimation & \texttt{estimate\_reduced\_nishioka.py} & $\theta_\mathrm{MAP}$, posterior & \textcolor{mygreen}{Done} \\
+FEM species field & \texttt{fem\_3d\_extension.py} & $\varphi_i(\mathbf{x})$, $15^3$ grid & \textcolor{mygreen}{Done} \\
+Posterior ensemble & \texttt{run\_posterior\_abaqus\_ensemble.py} & 20 smp.\ $\times$ 4 cond. & \textcolor{mygreen}{Done} \\
+B1: DI credible interval & \texttt{aggregate\_di\_credible.py} & p05/p50/p95 DI fields & \textcolor{mygreen}{Done} \\
+A: Material sensitivity & \texttt{run\_material\_sensitivity\_sweep.py} & $E_\max, E_\min, n$ sweep & \textcolor{mygreen}{Done} \\
+C1: Anisotropy gradient & \texttt{fem\_aniso\_analysis.py} & $\nabla\varphi_{Pg}$, $\mathbf{e}_1$ & \textcolor{mygreen}{Done} \\
+C1: Aniso Abaqus sweep & \texttt{run\_aniso\_comparison.py} & $\beta \in \{1.0,0.7,0.5,0.3\}$ & \textcolor{mygreen}{Done} \\
+B3: CZM interface & \texttt{run\_czm3d\_sweep.py} & $R_F^\mathrm{peak}$, $G_c^\mathrm{eff}$ & Next \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ============================================================
+\section{Physics}
+% ============================================================
+
+\subsection{Dysbiotic Index}
+
+\begin{equation}
+  H(\mathbf{x}) = -\sum_{i=1}^{5} \frac{\varphi_i}{\Phi} \ln\!\left(\frac{\varphi_i}{\Phi}\right),
+  \qquad
+  \mathrm{DI}(\mathbf{x}) = 1 - \frac{H(\mathbf{x})}{\ln 5}
+\end{equation}
+where $\mathrm{DI}=0$ is commensal (uniform) and $\mathrm{DI}=1$ is fully dysbiotic.
+
+\subsection{$E(\mathrm{DI})$ Power-Law Mapping}
+
+\begin{equation}
+  r(\mathbf{x}) = \mathrm{clamp}\!\left(\frac{\mathrm{DI}(\mathbf{x})}{s},\,0,1\right),
+  \qquad
+  \boxed{E(\mathbf{x}) = E_\max (1-r)^n + E_\min\, r}
+\end{equation}
+with $E_\max=10$~GPa, $E_\min=0.5$~GPa, $n=2$, $s=0.025778$.
+
+\subsection{Transversely Isotropic Material (C1)}
+
+\begin{equation}
+  E_1 = E(\mathrm{DI}),\quad E_2 = E_3 = \beta E_1,\quad \beta\in[0,1]
+\end{equation}
+Stiff axis $\mathbf{e}_1$ is aligned to the dominant $\nabla\varphi_{Pg}$ direction.
+Implemented via Abaqus \texttt{*ELASTIC, TYPE=ENGINEERING CONSTANTS}.
+
+\subsection{Cohesive Zone Model (B3)}
+
+\begin{equation}
+  t_\max(\mathrm{DI}) = t_{\max,0}(1-r)^n,\qquad
+  G_c(\mathrm{DI}) = G_{c,0}(1-r)^n
+\end{equation}
+with $t_{\max,0}=1.0$~MPa, $G_{c,0}=10.0$~J/m$^2$, BK mixed-mode criterion.
+
+% ============================================================
+\section{Conditions and Parameters}
+% ============================================================
+
+\begin{table}[H]
+\centering
+\caption{4 simulation conditions}
+\begin{tabular}{llll}
+\toprule
+Key & Label & $a_{35}$ (Veillonella$\to$Pg) & Description \\
+\midrule
+\texttt{dh\_baseline} & dh-baseline & 21.4 & Original dh TMCMC (unconstrained) \\
+\texttt{commensal\_static} & Comm.\ Static & 3.56 & Mild-weight $\theta$, no HOBIC \\
+\texttt{commensal\_hobic} & Comm.\ HOBIC & 3.56 & Mild-weight $\theta$ + HOBIC perturbation \\
+\texttt{dysbiotic\_static} & Dysb.\ Static & 20.9 & No-lambda $\theta$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Key global parameters}
+\begin{tabular}{lll}
+\toprule
+Parameter & Value & Description \\
+\midrule
+$s$ (DI\_SCALE) & 0.025778 & Global DI normalization \\
+$E_\max$ & 10.0 GPa & Commensal stiffness \\
+$E_\min$ & 0.5 GPa & Dysbiotic stiffness \\
+$n$ & 2 & Power-law exponent \\
+$\nu$ & 0.30 & Poisson's ratio \\
+$N_\mathrm{bins}$ & 20 & Material assignment bins \\
+Grid & $15^3 = 3375$ nodes & FEM spatial resolution \\
+Applied load & 1.0 MPa & Compressive surface pressure \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{3D Species Fields}
+% ============================================================
+
+The 3D FEM reaction--diffusion solver (\texttt{fem\_3d\_extension.py}) produces
+species volume fractions $\varphi_i(\mathbf{x})$ on a $15\times15\times15$ grid
+for each of the 4 conditions.
+Figure~\ref{fig:pg_4cond} shows the $P.\ gingivalis$ field overview across conditions.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\linewidth]{../_results_3d/panel_pg_overview_4conditions.png}
+  \caption{$P.\ gingivalis$ ($\varphi_{Pg}$) spatial distribution — 4 conditions.
+    Colour: species volume fraction. Columns: XY/XZ/YZ midplane slices + depth profile.}
+  \label{fig:pg_4cond}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_results_3d/dh_baseline/fig1_3d_slices.png}
+    \caption{dh-baseline: all species slices}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_results_3d/dh_baseline/fig4_dysbiotic_3d.png}
+    \caption{dh-baseline: DI field}
+  \end{subfigure}
+  \caption{3D FEM results for dh-baseline condition.
+    Left: species volume fraction slices. Right: Dysbiotic Index field.}
+  \label{fig:3d_dh}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_results_3d/commensal_static/fig3_depth_profiles.png}
+    \caption{Comm.\ Static: depth profiles}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_results_3d/Dysbiotic_Static/fig3_depth_profiles.png}
+    \caption{Dysb.\ Static: depth profiles}
+  \end{subfigure}
+  \caption{Depth profiles of species fractions. $x=0$: tooth surface (substrate);
+    $x=1$: biofilm outer surface.}
+  \label{fig:depth_profiles}
+\end{figure}
+
+% ============================================================
+\section{Results — A: Material Sensitivity Sweep}
+% ============================================================
+
+\textbf{Script}: \texttt{run\_material\_sensitivity\_sweep.py} \quad
+\textbf{Output}: \texttt{\_material\_sweep/}\\
+57 Abaqus jobs: A1 ($4\times4$ E grid) + A2 (exponent $n$) + A3 ($\theta$ variants).
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\linewidth]{../_material_sweep/figures/fig_A_combined_overview.png}
+  \caption{A1--A3 combined overview. Left: $E_\max\times E_\min$ heatmap (A1).
+    Centre: power-law exponent $n$ (A2). Right: $\theta$ variant comparison (A3).}
+  \label{fig:A_combined}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.32\linewidth}
+    \includegraphics[width=\linewidth]{../_material_sweep/figures/fig_A1_emax_emin_heatmap.png}
+    \caption{A1: $E_\max\times E_\min$ grid}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.32\linewidth}
+    \includegraphics[width=\linewidth]{../_material_sweep/figures/fig_A2_nexp_bars.png}
+    \caption{A2: exponent $n\in\{1,2,3\}$}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.32\linewidth}
+    \includegraphics[width=\linewidth]{../_material_sweep/figures/fig_A3_theta_comparison_improved.png}
+    \caption{A3: $\theta$ variant}
+  \end{subfigure}
+  \caption{Material sensitivity sweep results (A1/A2/A3).}
+  \label{fig:A_detail}
+\end{figure}
+
+\subsection*{A3 Key Finding}
+
+\begin{table}[H]
+\centering
+\caption{A3: $S_\mathrm{Mises}$ at substrate for 3 $\theta$ variants}
+\begin{tabular}{lllll}
+\toprule
+Variant & $a_{35}$ & $S_\mathrm{Mises}^\mathrm{sub}$ & $S_\mathrm{Mises}^\mathrm{surf}$ & $\Delta$ sub \\
+\midrule
+\textbf{mild\_weight} & \textbf{3.56} & \textbf{low} & & $\approx-30\%$ vs dh\_old \\
+dh\_old & 21.4 & reference & reference & -- \\
+nolambda & 20.9 & $\approx$ dh\_old & $\approx$ dh\_old & $<5\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textcolor{myred}{\textbf{Key result:}}
+\textit{mild\_weight} TMCMC (a$_{35}$=3.56, Pg suppressed) gives $\approx\mathbf{30\%}$
+lower substrate $S_\mathrm{Mises}$ than unconstrained \textit{dh\_old} (a$_{35}$=21.4).
+This provides mechanical evidence that TMCMC regularisation toward commensal biofilm
+is physically meaningful.
+
+% ============================================================
+\section{Results — B1: DI Field Credible Interval}
+% ============================================================
+
+\textbf{Script}: \texttt{aggregate\_di\_credible.py} \quad
+\textbf{Output}: \texttt{\_di\_credible/}\\
+20 posterior samples $\times$ 4 conditions $\to$ nodal DI quantiles (p05/p50/p95)
+$\to$ Abaqus stress credible bands.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\linewidth]{../_di_credible/fig_di_cross_condition_improved.png}
+  \caption{B1: DI depth profiles across 4 conditions (p05/p50/p95 bands).
+    $x=0$: substrate; $x=1$: surface.
+    dh-baseline shows highest DI (Pg-dominated), commensal conditions lowest.}
+  \label{fig:di_cross}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_di_credible/fig_pg_depth_cross_condition.png}
+    \caption{$P.\ gingivalis$ depth profile (20 posterior samples)}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_di_credible/fig_stress_di_uncertainty.png}
+    \caption{Stress uncertainty from DI credible interval}
+  \end{subfigure}
+  \caption{B1: Posterior uncertainty in Pg distribution and resulting stress.}
+  \label{fig:di_stress_uncertainty}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_di_credible/dh_baseline/fig_di_spatial_ci.png}
+    \caption{dh-baseline: DI spatial credible interval}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_di_credible/commensal_static/fig_di_spatial_ci.png}
+    \caption{Comm.\ Static: DI spatial credible interval}
+  \end{subfigure}
+  \caption{B1: Nodal DI p05/p95 spread for two representative conditions.}
+  \label{fig:di_spatial}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{B1: Posterior DI and substrate $S_\mathrm{Mises}$ (p50)}
+\begin{tabular}{lll}
+\toprule
+Condition & $\overline{\mathrm{DI}}$ (p50) & $S_\mathrm{Mises}^\mathrm{sub}$ (MPa) \\
+\midrule
+dh-baseline & $\approx 0.015$ & 0.571 \\
+Comm.\ Static & $\approx 0.010$ & $\approx 0.86$ \\
+Comm.\ HOBIC & $\approx 0.010$ & $\approx 0.85$ \\
+Dysb.\ Static & $\approx 0.011$ & 0.634 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{Results — C1: Transverse Isotropy}
+% ============================================================
+
+\subsection{Step 1: $\nabla\varphi_{Pg}$ Direction Analysis}
+
+\textbf{Script}: \texttt{fem\_aniso\_analysis.py} \quad
+\textbf{Output}: \texttt{\_aniso/}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\linewidth]{../_aniso/fig_aniso_cross_condition.png}
+  \caption{C1: Dominant $\nabla\varphi_{Pg}$ gradient fields across conditions.
+    Arrows show the local anisotropy direction; arrow length $\propto$ gradient magnitude.
+    All conditions: dominant direction $\approx -x$ (toward substrate).}
+  \label{fig:aniso_cross}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{C1: Dominant $\nabla\varphi_{Pg}$ direction per condition}
+\begin{tabular}{lll}
+\toprule
+Condition & $\mathbf{e}_1$ & Angle from depth axis \\
+\midrule
+dh-baseline & $[-0.972,+0.211,-0.105]$ & $13.6^\circ$ \\
+Comm.\ Static & $[-0.956,+0.258,-0.142]$ & $17.1^\circ$ \\
+Comm.\ HOBIC & $[-0.959,+0.245,-0.145]$ & $16.5^\circ$ \\
+Dysb.\ Static & $[-0.952,+0.262,-0.160]$ & $17.9^\circ$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent All conditions: $P.\ gingivalis$ concentrates near the tooth surface,
+producing a near-depth ($-x$) dominant gradient direction.
+
+\subsection{Step 2: Abaqus Anisotropy Sweep}
+
+\textbf{Script}: \texttt{run\_aniso\_comparison.py} \quad
+\textbf{Output}: \texttt{\_aniso\_sweep/}\\
+$\beta \in \{1.0,\,0.7,\,0.5,\,0.3\}$ $\times$ 4 conditions $= 16$ Abaqus jobs.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_aniso_sweep/figures/fig_C1_smises_vs_beta.png}
+    \caption{$S_\mathrm{Mises}$ vs anisotropy ratio $\beta$}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_aniso_sweep/figures/fig_C1_aniso_vs_iso.png}
+    \caption{Isotropic ($\beta=1$) vs Anisotropic ($\beta=0.5$) bars}
+  \end{subfigure}
+  \caption{C1: Effect of transverse anisotropy ratio $\beta = E_\mathrm{trans}/E_\mathrm{stiff}$
+    on $S_\mathrm{Mises}$ at substrate and surface (1 MPa compression).}
+  \label{fig:aniso_sweep}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{C1: $S_\mathrm{Mises}$ (MPa) vs $\beta$ — all conditions}
+\begin{tabular}{lllllll}
+\toprule
+Condition & $\beta=1.0$ sub & $\beta=0.5$ sub & $\Delta$ sub
+          & $\beta=1.0$ surf & $\beta=0.5$ surf & $\Delta$ surf \\
+\midrule
+dh-baseline & 0.839 & 0.817 & $-2.6\%$ & 0.979 & 0.981 & $+0.2\%$ \\
+Comm.\ Static & 0.860 & 0.849 & $-1.3\%$ & 1.020 & 1.020 & $0\%$ \\
+Comm.\ HOBIC & 0.854 & 0.843 & $-1.3\%$ & 1.020 & 1.020 & $0\%$ \\
+Dysb.\ Static & 0.856 & 0.849 & $-0.8\%$ & 1.020 & 1.020 & $0\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent \textbf{Findings}: Reducing $\beta$ (more anisotropic) decreases substrate
+$S_\mathrm{Mises}$ by 1--3\%; surface stress is insensitive (load-controlled BC).
+dh-baseline shows the largest sensitivity, consistent with its steeper Pg gradient.
+
+% ============================================================
+\section{Posterior Stress Uncertainty}
+% ============================================================
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\linewidth]{../_posterior_abaqus/stress_posterior_bands.png}
+  \caption{Posterior stress bands: $S_\mathrm{Mises}$ distribution from 20 TMCMC
+    posterior samples per condition. Boxes: interquartile range; whiskers: 5th--95th
+    percentile. Substrate (left) vs surface (right) for each condition.}
+  \label{fig:posterior_bands}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\linewidth]{../_posterior_abaqus/sensitivity_stress_combined.png}
+  \caption{Sensitivity of $S_\mathrm{Mises}$ to individual $\theta$ components
+    (dh-baseline and commensal\_static). Each point: one posterior sample.
+    Lines: LOESS trend.}
+  \label{fig:sensitivity_combined}
+\end{figure}
+
+% ============================================================
+\section{Results — E: Posterior $S_\mathrm{Mises}$ Uncertainty}
+% ============================================================
+
+\textbf{Script}: \texttt{plot\_posterior\_uncertainty.py} \quad
+\textbf{Output}: \texttt{\_posterior\_uncertainty/}\\
+20 TMCMC posterior samples $\times$ 4 conditions $\to$ full $S_\mathrm{Mises}$ posterior.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\linewidth]{../_posterior_uncertainty/Fig5_stress_summary_panel_improved.png}
+  \caption{E: Posterior $S_\mathrm{Mises}$ summary panel.
+    \textbf{Top-left}: box/violin per condition ($\blacksquare$=substrate, $\blacktriangle$=surface).
+    \textbf{Top-right}: top-8 parameter sensitivity (mean $|\rho_s|$).
+    \textbf{Bottom}: CI bars (p5--p95) for substrate and surface;
+    relative change $\Delta$ vs Comm.\ Static (reference).}
+  \label{fig:E_summary}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_posterior_uncertainty/Fig1_stress_violin_improved.png}
+    \caption{Posterior violin + box (all samples)}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_posterior_uncertainty/Fig2_stress_ci_bars.png}
+    \caption{CI bars p05--p95 with annotation}
+  \end{subfigure}
+  \caption{E: Posterior $S_\mathrm{Mises}$ distribution.
+    dh-baseline shows the widest spread (p95/p05 $\approx 1.6$),
+    reflecting unconstrained $a_{35}=21.4$.
+    Commensal conditions are tightly clustered (p95/p05 $\approx 1.05$--$1.17$).}
+  \label{fig:E_violin}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\linewidth]{../_posterior_uncertainty/Fig3_sensitivity_heatmap.png}
+  \caption{E: Spearman rank correlation $\rho_s$ (TMCMC parameters vs $S_\mathrm{Mises}$).
+    dh-baseline: $a_{34}$ and $b_3$ dominate.
+    Commensal conditions: sensitivity is more diffuse.
+    Blue = negative; Red = positive correlation.}
+  \label{fig:E_heatmap}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{E: Posterior substrate $S_\mathrm{Mises}$ credible intervals (MPa)}
+\begin{tabular}{lllll}
+\toprule
+Condition & p05 & p50 & p95 & p95/p05 \\
+\midrule
+dh-baseline & 0.497 & 0.609 & 0.785 & 1.58 \\
+Comm.\ Static & 0.605 & 0.632 & 0.640 & 1.06 \\
+Comm.\ HOBIC & 0.554 & 0.633 & 0.648 & 1.17 \\
+Dysb.\ Static & 0.608 & 0.632 & 0.637 & 1.05 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent \textbf{Key finding:}
+dh-baseline has 58\% posterior stress uncertainty (p95/p05=1.58),
+while mild-weight constrained conditions show only 5--17\% spread.
+TMCMC regularisation not only improves fit but also reduces mechanical prediction uncertainty.
+
+% ============================================================
+\section{Results — B3: Cohesive Zone Model (Analytical)}
+% ============================================================
+
+\textbf{Script}: \texttt{plot\_czm\_analytical.py} \quad
+\textbf{Output}: \texttt{\_czm3d/}\\
+Interface properties from B1 DI fields via analytical CZM model:
+
+\begin{equation}
+  r = \mathrm{clamp}(\mathrm{DI}/s,0,1),\quad
+  t_\max(\mathrm{DI}) = t_0(1-r)^n,\quad
+  G_c(\mathrm{DI}) = G_{c,0}(1-r)^n
+\end{equation}
+RF$_\mathrm{peak} \approx t_\max \times A_\mathrm{interface}$
+with $t_0=1$~MPa, $G_{c,0}=10$~J/m$^2$, $n=2$, $s=0.025778$.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\linewidth]{../_czm3d/figures/fig_B3_czm_summary_improved.png}
+  \caption{B3: Interface cohesive properties.
+    \textbf{Left}: RF$_\mathrm{peak}$ per condition
+    (bars=p50, errors=p05--p95 credible interval, dots=20 posterior samples).
+    \textbf{Right}: $G_c$ vs interface DI, overlaid on theoretical curve.}
+  \label{fig:B3_summary}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_czm3d/figures/fig_B3_czm_4panel.png}
+    \caption{4 metrics $\times$ 4 conditions}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../_czm3d/figures/fig_B3_czm_posterior_bands.png}
+    \caption{Posterior violin (20 samples)}
+  \end{subfigure}
+  \caption{B3: CZM interface metrics.
+    dh-baseline shows \textbf{strongest} interface ($G_c$ $+15.6\%$ vs Comm.\ Static)
+    because high $a_{35}$ concentrates Pg in mid-layers, leaving the substrate-proximal
+    interface more commensal.
+    Comm.\ HOBIC shows weakest adhesion ($-2.4\%$).}
+  \label{fig:B3_detail}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{B3: Interface CZM properties (p50 DI field)}
+\begin{tabular}{lllll}
+\toprule
+Condition & DI$_\mathrm{mean}^\mathrm{bot}$ & $t_\max$ (Pa) & $G_c$ (J/m²) & $\Delta G_c$ \\
+\midrule
+dh-baseline & 0.00857 & $4.45\times10^5$ & 4.455 & $+15.6\%$ \\
+Comm.\ Static & 0.00977 & $3.86\times10^5$ & 3.855 & ref \\
+Comm.\ HOBIC & 0.00997 & $3.76\times10^5$ & 3.762 & $-2.4\%$ \\
+Dysb.\ Static & 0.00956 & $3.96\times10^5$ & 3.959 & $+2.7\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{Abaqus CAE Scripting Notes}
+% ============================================================
+
+\begin{table}[H]
+\centering
+\caption{Abaqus CAE API issues and fixes}
+\label{tab:abq}
+\begin{tabular}{p{6.5cm}p{7.5cm}}
+\toprule
+Issue & Fix \\
+\midrule
+\texttt{math.sqrt(sum(v*v for v in e1))} raises TypeError &
+  Use: \texttt{math.sqrt(e1x*e1x + e1y*e1y + e1z*e1z)} \\
+\texttt{mat.Elastic(type="ENGINEERING CONSTANTS")} raises TypeError &
+  Use constant: \texttt{mat.Elastic(type=ENGINEERING\_CONSTANTS, ...)} \\
+\texttt{Region(cells=[cell])} raises TypeError &
+  Use \texttt{part.elements.sequenceFromLabels(labels=...)} \\
+\texttt{model.DatumCsysByThreePoints} raises AttributeError &
+  Use \texttt{part.DatumCsysByThreePoints} \\
+\texttt{fieldOutputRequests["F-Output-1"]} KeyError on new model &
+  Remove; default field output is sufficient \\
+Material orientation &
+  \texttt{part.MaterialOrientation(orientationType=SYSTEM, axis=AXIS\_1, localCsys=...)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{References}
+% ============================================================
+
+\begin{enumerate}
+\item P. Wriggers \& T. Junker (2024).
+  \textit{A Hamilton principle-based model for diffusion-driven biofilm growth.}
+  Computer Methods in Applied Mechanics and Engineering.
+\item T. Junker \& D. Balzani (2021).
+  \textit{Hamilton principle-based biofilm mechanics model.}
+\item Abaqus Documentation (2022).
+  \textit{*ELASTIC, TYPE=ENGINEERING CONSTANTS -- Transversely isotropic elasticity.}
+\end{enumerate}
+
+\end{document}

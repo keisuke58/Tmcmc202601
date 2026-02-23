@@ -1,0 +1,858 @@
+% ============================================================
+%  openjaw_openfulljaw.tex
+%  Full documentation: OpenJaw Patient-1 FEM biofilm analysis
+%  Hollow crown (T23) + inter-proximal slit (T30-T31)
+%  DI-mapped transversely isotropic material
+%
+%  Compile:  pdflatex openjaw_openfulljaw.tex
+% ============================================================
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{float}
+
+% ---- colour scheme ----
+\definecolor{codeblue}{RGB}{25,80,160}
+\definecolor{codegray}{RGB}{248,248,248}
+\definecolor{codecomment}{RGB}{100,120,100}
+\definecolor{darkred}{RGB}{160,30,30}
+\definecolor{darkgreen}{RGB}{20,120,60}
+
+\hypersetup{
+  colorlinks=true, linkcolor=codeblue,
+  urlcolor=codeblue, citecolor=darkred,
+  pdftitle={OpenJaw P1 Full-Jaw FEM Analysis},
+  pdfauthor={IKM Hiwi}
+}
+
+\definecolor{framecolor}{RGB}{200,200,200}
+\definecolor{bashbg}{RGB}{242,242,242}
+
+\lstset{
+  language=Python,
+  backgroundcolor=\color{codegray},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codeblue}\bfseries,
+  commentstyle=\color{codecomment}\itshape,
+  stringstyle=\color{darkred},
+  numbers=left, numberstyle=\tiny\color{gray},
+  numbersep=5pt,
+  breaklines=true,
+  frame=single, rulecolor=\color{framecolor},
+  captionpos=b,
+  showstringspaces=false
+}
+
+\lstdefinelanguage{bash}{
+  morekeywords={abaqus,python3,pdflatex,cd},
+  morecomment=[l]{\#},
+  morestring=[b]",
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{bashbg},
+  frame=single, rulecolor=\color{framecolor}
+}
+
+\pagestyle{headings}
+
+% ============================================================
+\begin{document}
+
+\begin{titlepage}
+  \vspace*{2cm}
+  \begin{center}
+    {\LARGE\bfseries OpenJaw Patient-1 Full-Jaw FEM Analysis}\\[0.8em]
+    {\large\color{codeblue}%
+      Hollow Crown Biofilm around Tooth~23\quad\&\quad%
+      Inter-proximal Slit Biofilm between Teeth~30 and~31}\\[0.6em]
+    {\large DI-Mapped Transversely Isotropic Material Model}\\[2em]
+    \rule{0.75\textwidth}{0.5pt}\\[1.5em]
+    {\large IKM Hiwi Project\enspace--\enspace Abaqus 2024\enspace--\enspace\today}\\[0.5em]
+    {\small Abaqus/Standard\,+\,Python\,3\,+\,\LaTeX}
+  \end{center}
+  \vfill
+  \tableofcontents
+\end{titlepage}
+
+% ============================================================
+\section{Overview}
+\label{sec:overview}
+
+This document gives a complete account of the methodology and results
+for the FEM analysis of dental biofilm modelled on real patient geometry
+from the \textbf{Open-Full-Jaw dataset}~\cite{gholamalizadeh2022open} (Patient~1, mandible).
+The analysis couples two upstream components:
+
+\begin{enumerate}[nosep]
+  \item A five-species oral-biofilm ODE model calibrated with TMCMC,
+        which yields a spatially resolved \emph{Dysbiotic Index} (DI) field
+        $\phi_\mathrm{DI}(\mathbf{x})$.
+  \item Abaqus/Standard structural FEM that maps DI to the local Young's
+        modulus via a transversely isotropic material model.
+\end{enumerate}
+
+Two anatomically realistic biofilm geometries are investigated:
+
+\begin{description}[nosep,leftmargin=1.8cm]
+  \item[Crown (T23)] A hollow annular ring of biofilm surrounding tooth~23
+        (upper-left first premolar), extruded over the full clinical crown height.
+  \item[Slit (T30--T31)] A thin inter-proximal biofilm slab in the gingival
+        pocket between teeth~30 and~31 (lower-left first and second molars).
+\end{description}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\linewidth]{openjaw1.png}
+  \caption{%
+    Patient-1 mandible surface mesh imported into Abaqus as an orphan-mesh part
+    (triangulated green surface, 476\,KB CAE).
+    The mesh was generated from CBCT data in the
+    Open-Full-Jaw dataset~\cite{gholamalizadeh2022open}.
+    Coordinate axes: $X$ (red), $Y$ (green), $Z$ (blue, superior direction).
+    Teeth~23, 30, and~31 are visible as the darker triangulated regions
+    on the occlusal surface.
+  }
+  \label{fig:openjaw1}
+\end{figure}
+
+All Python scripts are compatible with Abaqus's embedded CPython interpreter
+and require no external mesh libraries.
+
+% ============================================================
+\section{Pipeline Architecture}
+\label{sec:pipeline}
+
+The full analysis consists of five sequential stages:
+
+\begin{center}
+\fbox{\parbox{0.87\textwidth}{\small\ttfamily
+\textbf{Stage 1}\enspace\texttt{stl\_bbox.py}
+  \hfill STL files $\to$ \texttt{p1\_tooth\_bbox.json}\\[2pt]
+\textbf{Stage 2}\enspace\texttt{export\_for\_abaqus.py}
+  \hfill TMCMC results $\to$ \texttt{abaqus\_field\_dh\_3d.csv}\\[2pt]
+\textbf{Stage 3}\enspace\texttt{openjaw\_p1\_auto\_import.py}
+  \hfill STL $\to$ \texttt{OpenJaw\_P1\_auto.cae} (reference only)\\[2pt]
+\textbf{Stage 4a}\enspace\texttt{openjaw\_p1\_full\_assembly.py --case crown}
+  \hfill $\to$ \texttt{OJ\_Crown\_T23\_b050.odb}\\[2pt]
+\textbf{Stage 4b}\enspace\texttt{openjaw\_p1\_full\_assembly.py --case slit}
+  \hfill $\to$ \texttt{OJ\_Slit\_T3031\_b050.odb}\\[2pt]
+\textbf{Stage 5}\enspace\texttt{compare\_biofilm\_abaqus.py} + \texttt{plot\_oj\_comparison.py}
+  \hfill $\to$ figures
+}}
+\end{center}
+
+\subsection{File inventory}
+
+\begin{table}[H]
+\centering
+\caption{Key files in \texttt{Tmcmc202601/FEM/}.}
+\label{tab:files}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{>{\ttfamily}lp{9cm}}
+\toprule
+\normalfont File & Description \\
+\midrule
+stl\_bbox.py                  & Pure-Python STL bounding-box + 2-D convex-hull extractor. \\
+openjaw\_p1\_auto\_import.py  & Imports tooth/mandible STLs into Abaqus as orphan-mesh parts. \\
+openjaw\_p1\_biofilm\_solid.py& Per-tooth filled solid biofilm + DI mapping (simple solid). \\
+openjaw\_p1\_full\_assembly.py& Hollow ring (T23) + rectangular slit (T30--T31) + job run. \\
+export\_for\_abaqus.py        & Exports DI field from TMCMC results to CSV. \\
+compare\_biofilm\_abaqus.py   & Extracts $S_\text{Mises}$ at three depth fractions from an ODB. \\
+plot\_oj\_comparison.py       & Comparison figures from stress CSV. \\
+run\_aniso\_comparison.py     & Orchestrates full anisotropy-ratio sweep across all conditions.\\
+\midrule
+p1\_tooth\_bbox.json          & Bounding-box + cross-section polygon for T23, T30, T31. \\
+abaqus\_field\_dh\_3d.csv     & 3375-point DI field from TMCMC snapshot ($t=0.05$). \\
+oj\_crown\_slit\_stress.csv   & Extracted $S_\text{Mises}$ (3 depth fracs) per ODB. \\
+OJ\_Crown\_T23\_b050.odb      & Abaqus result: hollow crown, $\beta=0.5$. \\
+OJ\_Slit\_T3031\_b050.odb     & Abaqus result: inter-proximal slit, $\beta=0.5$. \\
+OpenJaw\_P1\_crown.cae        & Abaqus CAE for crown case. \\
+OpenJaw\_P1\_slit.cae         & Abaqus CAE for slit case. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Three-tooth and full-lower template models}
+
+In addition to the legacy per-case assemblies, two generic template models
+are provided for downstream analysis and rapid what-if studies:
+
+\begin{itemize}[nosep]
+  \item \textbf{Three-tooth template} (\texttt{openjaw\_p1\_auto\_import.py}):\\
+        imports the mandible and teeth~23, 30, and~31 from STL, attaches a
+        hollow crown biofilm around tooth~23 and an inter-proximal slit
+        biofilm between teeth~30 and~31, and saves
+        \texttt{OpenJaw\_P1\_auto\_withbiofilm.cae}. The script also creates
+        a job \texttt{OJ\_ThreeTooth\_WithBiofilm} with three steps
+        (\texttt{LOAD\_TEMPLATE}, \texttt{LOAD\_CROWN}, \texttt{LOAD\_SLIT})
+        and can optionally run it to generate \texttt{.inp} and \texttt{.odb}
+        files in a fully non-interactive workflow.
+
+  \item \textbf{All-lower template} (\texttt{openjaw\_p1\_all\_lower\_import.py}):\\
+        imports the mandible and all available lower teeth from the Patient-1
+        STL directory, uses the same biofilm constructions around tooth~23
+        and between teeth~30 and~31, and saves
+        \texttt{OpenJaw\_P1\_all\_lower\_withbiofilm.cae}. The corresponding
+        job \texttt{OJ\_AllLower\_WithBiofilm} uses the same step structure
+        and boundary-condition pattern as the three-tooth template, but on
+        the full lower dentition.
+\end{itemize}
+
+\subsubsection*{Boundary conditions in the template models}
+
+Both templates share a simple but physically interpretable boundary-condition
+scheme:
+
+\begin{itemize}[nosep]
+  \item \emph{Mandible fixation} (\texttt{LOAD\_TEMPLATE}): the inferior band
+        of the mandible orphan-mesh (faces within $5\%$ of the lowest $z$)
+        is clamped by a displacement boundary condition
+        ($u_x=u_y=u_z=0$), representing attachment to the surrounding
+        jaw tissue and skull.
+  \item \emph{Crown loading} (\texttt{LOAD\_CROWN}): the lower end of the
+        crown biofilm is fixed in all translational degrees of freedom,
+        while a uniform normal pressure of $p=1.0\ \text{MPa}$ is applied
+        to the upper end of the biofilm ring, mimicking a distributed
+        occlusal contact force.
+  \item \emph{Slit loading} (\texttt{LOAD\_SLIT}): the lower edge of the
+        inter-proximal slit biofilm is fixed, and the upper edge is loaded
+        by the same pressure $p=1.0\ \text{MPa}$ in the local normal
+        direction. This models a thin gingival pocket biofilm being
+        compressed between two neighbouring molars.
+\end{itemize}
+
+In both cases the biofilm is modelled with an effective Young's modulus
+of $E_\text{bio}=1.0{\times}10^9\ \text{Pa}$ and Poisson ratio
+$\nu_\text{bio}=0.3$, corresponding to a relatively soft, nearly
+incompressible material compared with enamel and dentine
+($E_\text{tooth}=1.0{\times}10^{10}\ \text{Pa}$).
+
+\subsubsection*{Representative displacements and reaction forces}
+
+To benchmark the mechanical response prior to full-jaw simulations,
+simplified single-biofilm test models were analysed:
+
+\begin{itemize}[nosep]
+  \item \texttt{dh\_crown\_v3.odb}: isolated crown biofilm ring.
+  \item \texttt{dh\_slit\_v3.odb}: isolated inter-proximal slit biofilm.
+\end{itemize}
+
+Post-processing with a small Python script (\texttt{analyze\_biofilm\_odb.py})
+shows the following indicative values at the end of the loading step:
+
+\begin{itemize}[nosep]
+  \item Crown biofilm: maximum von Mises stress
+        $S_\text{Mises} \approx 2.0\ \text{MPa}$, maximum displacement
+        $\lVert\mathbf{u}\rVert_\text{max} \approx 0.28\ \text{mm}$, and
+        total reaction force magnitude
+        $\lVert\mathbf{R}\rVert \approx 7.8\times10^{5}\ \text{N}$.
+  \item Slit biofilm: maximum von Mises stress
+        $S_\text{Mises} \approx 1.5\ \text{MPa}$, maximum displacement
+        $\lVert\mathbf{u}\rVert_\text{max} \approx 0.14\ \text{mm}$, and
+        total reaction force magnitude
+        $\lVert\mathbf{R}\rVert \approx 1.0\times10^{6}\ \text{N}$.
+\end{itemize}
+
+These numbers are not intended as direct clinical predictions, but they
+provide useful scales for expected strains ($\varepsilon\sim10^{-3}$) and
+for checking numerical consistency: the reaction forces are dominated by
+the direction of the applied pressure and are of the same order as the
+imposed surface traction multiplied by the loaded area.
+
+\subsubsection*{Qualitative comparison: three-tooth vs full-lower}
+
+When the same biofilm constructs are embedded into the three-tooth and
+all-lower templates, the surrounding teeth and bone redistribute the
+load away from the biofilm solids:
+
+\begin{itemize}[nosep]
+  \item In the three-tooth model the biofilm carries a larger fraction of
+        the applied load, leading to slightly higher peak stresses and
+        displacements, and a more localised deformation pattern.
+  \item In the full-lower model the additional teeth and bone provide
+        alternative load paths. The biofilm tends to show reduced peak
+        stresses and smoother displacement gradients, especially in the
+        slit case where the neighbouring molars are better represented.
+\end{itemize}
+
+These template models therefore bracket the expected range of mechanical
+responses: the three-tooth configuration emphasises local biofilm
+deformation, while the full-lower configuration captures global jaw
+stiffening and more realistic load sharing across the dentition.
+
+% ============================================================
+\section{Geometry Extraction (\texttt{stl\_bbox.py})}
+\label{sec:geometry}
+
+\subsection{Algorithm}
+
+The script reads binary or ASCII STL files and computes:
+\begin{itemize}[nosep]
+  \item Axis-aligned bounding box: $[\mathbf{x}_{\min},\mathbf{x}_{\max}]$,
+        centroid $\mathbf{c}$, and size $\mathbf{s}$.
+  \item 2-D cross-section polygon at mid-height ($z_\text{frac}=0.5$):
+        convex hull of vertices in a $\pm5\%$ height slab, resampled
+        to $N_\text{poly}=12$ equi-arc-length points by Graham-scan.
+\end{itemize}
+
+The JSON key for each tooth uses the file stem (no extension) to match
+Abaqus part names exactly.
+
+\begin{lstlisting}[language=bash,caption={Extracting bounding boxes and cross-section polygons.}]
+python3 stl_bbox.py \
+    external_tooth_models/OpenJaw_Dataset/Patient_1/Teeth/P1_Tooth_23.stl \
+    external_tooth_models/OpenJaw_Dataset/Patient_1/Teeth/P1_Tooth_30.stl \
+    external_tooth_models/OpenJaw_Dataset/Patient_1/Teeth/P1_Tooth_31.stl \
+    --out p1_tooth_bbox.json --poly-n 12 --z-fraction 0.5
+\end{lstlisting}
+
+\subsection{Patient-1 tooth geometry (numerical output)}
+
+All coordinates in mm, in the Open-Full-Jaw global frame~\cite{gholamalizadeh2022open}
+(origin at mandibular centroid).
+Figure~\ref{fig:openjaw1} shows the imported mandible mesh.
+
+\begin{table}[H]
+\centering
+\caption{Bounding-box data from \texttt{p1\_tooth\_bbox.json}.}
+\label{tab:bbox}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{lrrrrrr}
+\toprule
+Tooth & $c_x$ (mm) & $c_y$ (mm) & $c_z$ (mm) &
+       $s_x$ (mm) & $s_y$ (mm) & $s_z$ (mm) \\
+\midrule
+P1\_Tooth\_23 & $-69.11$ & $-41.56$ & $28.28$ & $6.38$ & $9.46$ & $19.46$ \\
+P1\_Tooth\_30 & $-40.24$ & $-63.90$ & $28.20$ & $13.07$ & $13.30$ & $20.06$ \\
+P1\_Tooth\_31 & $-36.04$ & $-75.68$ & $30.20$ & $14.12$ & $14.47$ & $18.94$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Key derived parameters for the crown biofilm (T23):
+\begin{align}
+  R_\text{inner} &= \tfrac{1}{2}\min(s_x,s_y) = \tfrac{1}{2}\min(6.38,9.46)
+    = 3.19\ \text{mm}, \\
+  t_\text{biofilm} &= f_\text{bio}\,R_\text{inner}
+    = 0.15 \times 3.19 = 0.48\ \text{mm}, \\
+  z_\text{range} &= [18.56,\ 38.01]\ \text{mm},\quad s_z = 19.46\ \text{mm}.
+\end{align}
+
+Key derived parameters for the inter-proximal slit (T30--T31):
+\begin{align}
+  \hat{n} &= (0.332,\ {-}0.930,\ 0.000)\quad\text{(contact-normal unit vector, T30}\to\text{T31)}, \\
+  \hat{t} &= (0.930,\ 0.332,\ 0.000)\quad\text{(tangent, buccal--lingual)}, \\
+  z_\text{slit} &= [\max(z_{\min}^{30},z_{\min}^{31}),\ \min(z_{\max}^{30},z_{\max}^{31})]
+    = [20.73,\ 38.23]\ \text{mm},\\
+  h_\text{slit} &= 17.50\ \text{mm}.
+\end{align}
+
+% ============================================================
+\section{DI Field Export (\texttt{export\_for\_abaqus.py})}
+\label{sec:di_field}
+
+The Dysbiotic Index (DI) field is extracted from the TMCMC biofilm simulation
+at the final time snapshot (snapshot index $-1$, $t=0.05$):
+
+\begin{lstlisting}[language=bash,caption={Exporting the DI field.}]
+python3 export_for_abaqus.py \
+    --results-dir _results_3d/dh_baseline \
+    --snapshot-index -1 \
+    --out-csv abaqus_field_dh_3d.csv
+\end{lstlisting}
+
+\textbf{Output:} 3375 rows, columns \texttt{x, y, z, phi\_pg, di, phi\_tot, r\_pg, t}.
+DI range at this snapshot: $[0,\ 0.025778]$,
+$\phi_\mathrm{DI,max} = 0.025778$ (used as \texttt{di\_scale}).
+
+% ============================================================
+\section{Abaqus Model Construction}
+\label{sec:model}
+
+\subsection{STL import (\texttt{openjaw\_p1\_auto\_import.py})}
+
+Tooth STLs are imported as TRI3 (S3 shell) orphan-mesh parts for
+visualisation and future contact analyses.
+These parts are \emph{not} included in the structural analysis models
+because Abaqus cannot assign a \texttt{HomogeneousSolidSection}
+(for C3D elements) to S3 shell elements.
+All positioning information needed for the biofilm solid is taken
+from \texttt{p1\_tooth\_bbox.json}.
+
+\begin{lstlisting}[language=bash,caption={Importing tooth STLs (reference only).}]
+abaqus cae noGUI=openjaw_p1_auto_import.py -- \
+    --stl-root external_tooth_models/OpenJaw_Dataset/Patient_1 \
+    --cae-out  OpenJaw_P1_auto.cae
+\end{lstlisting}
+
+\subsection{Crown biofilm hollow ring (T23)}
+
+The crown biofilm is a \emph{hollow annular ring} extruded along Z
+over the full tooth height $s_z = 19.46$\,mm.
+
+\begin{enumerate}[nosep,leftmargin=1.5cm]
+  \item \textbf{Inner polygon}: 12-point cross-section convex hull from JSON
+        (\texttt{--poly-from-json}).
+  \item \textbf{Outer polygon}: each inner point offset radially outward by
+        $t_\text{biofilm} = 0.48$\,mm from centroid $(c_x,c_y)$.
+  \item \textbf{Sketch}: both closed loops drawn in one \texttt{ConstrainedSketch};
+        Abaqus interprets the inner loop as a through-hole.
+  \item \textbf{Extrusion}: \texttt{BaseSolidExtrude(depth=19.46)} mm.
+  \item \textbf{Mesh}: global seed size ${\approx}0.29$\,mm $\to$ C3D8R hexahedra.
+  \item \textbf{Assembly Z-offset}: translate instance by
+        $z_{\min} = 18.56$\,mm to anatomical position.
+\end{enumerate}
+
+\begin{lstlisting}[language=bash,caption={Crown case command.}]
+abaqus cae noGUI=openjaw_p1_full_assembly.py -- \
+    --bbox-json p1_tooth_bbox.json \
+    --field-csv abaqus_field_dh_3d.csv \
+    --case crown --aniso-ratio 0.5 --poly-from-json \
+    --crown-job OJ_Crown_T23_b050 \
+    --cae-out   OpenJaw_P1_crown.cae
+\end{lstlisting}
+
+\subsection{Inter-proximal slit (T30--T31)}
+
+The slit is a \emph{rectangular box} aligned with the T30$\to$T31
+contact-normal vector:
+
+\begin{enumerate}[nosep,leftmargin=1.5cm]
+  \item \textbf{Cross-section} (XY plane):
+        half-depth $d/2 = 1.5$\,mm along $\hat{n}$;
+        half-width $w/2 \approx 6.54$\,mm along $\hat{t}$.
+  \item \textbf{Centre}: midpoint between T30 and T31 centroids
+        $(m_x, m_y) = (-38.14, -69.80)$\,mm.
+  \item \textbf{Extrusion}: \texttt{BaseSolidExtrude(depth=17.50)} mm.
+  \item \textbf{Mesh}: global seed size $1.0$\,mm $\to$ C3D8R hexahedra.
+  \item \textbf{Assembly Z-offset}: translate by $z_\text{lo} = 20.73$\,mm.
+\end{enumerate}
+
+\begin{lstlisting}[language=bash,caption={Slit case command.}]
+abaqus cae noGUI=openjaw_p1_full_assembly.py -- \
+    --bbox-json p1_tooth_bbox.json \
+    --field-csv abaqus_field_dh_3d.csv \
+    --case slit --aniso-ratio 0.5 \
+    --slit-job OJ_Slit_T3031_b050 \
+    --cae-out  OpenJaw_P1_slit.cae
+\end{lstlisting}
+
+% ============================================================
+\section{Material Model}
+\label{sec:material}
+
+\subsection{DI to stiffness mapping}
+
+The stiffness in the gradient direction is mapped from DI by:
+\begin{equation}
+  E_\text{stiff}(\mathrm{DI}) = E_{\max}\,(1-r)^n + E_{\min}\,r,
+  \qquad r = \mathrm{clip}\!\left(\frac{\mathrm{DI}}{\mathrm{DI}_\text{scale}},\,0,1\right),
+  \label{eq:E_di}
+\end{equation}
+with parameters listed in Table~\ref{tab:matparams}.
+
+\begin{table}[H]
+\centering
+\caption{Material model parameters.}
+\label{tab:matparams}
+\begin{tabular}{llll}
+\toprule
+Parameter & Symbol & Value & Unit \\
+\midrule
+Maximum Young's modulus & $E_{\max}$              & $10.0$ & GPa \\
+Minimum Young's modulus & $E_{\min}$              & $0.5$  & GPa \\
+Power-law exponent      & $n$                   & $2.0$  & --- \\
+DI normalisation scale  & $\mathrm{DI}_\text{scale}$ & $0.025778$ & --- \\
+Poisson's ratio         & $\nu$                 & $0.30$ & --- \\
+Anisotropy ratio        & $\beta$               & $0.5$  & --- \\
+Number of DI bins       & $N_\text{bin}$        & $20$   & --- \\
+Applied pressure        & $p$                   & $1.0$  & MPa \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Transverse isotropy}
+
+The biofilm material is transversely isotropic with $E_1 = E_\text{stiff}$
+in the gradient direction and $E_2 = E_3 = \beta\,E_\text{stiff}$
+in the transverse plane:
+\begin{equation}
+  (E_1,E_2,E_3,\nu_{12},\nu_{13},\nu_{23},G_{12},G_{13},G_{23})
+  =\bigl(E_s,E_t,E_t,\nu,\nu,\nu,G_s,G_s,G_t\bigr),
+\end{equation}
+\[
+  G_s = \frac{E_s}{2(1+\nu)},\quad G_t = \frac{E_t}{2(1+\nu)},\quad E_t = \beta E_s.
+\]
+$\beta = 1$ recovers isotropy.
+
+\subsection{Element-wise DI bin assignment}
+
+\paragraph{Crown (radial).}
+For each element centroid $(\bar x,\bar y)$:
+\begin{equation}
+  \rho = \sqrt{(\bar x - c_x)^2 + (\bar y - c_y)^2},\qquad
+  \rho_\text{norm} = \mathrm{clip}\!\left(\frac{\rho - R_\text{inner}}{t_\text{biofilm}},0,1\right).
+\end{equation}
+Nearest-neighbour lookup in the field CSV (along its $x$-axis, the depth
+coordinate of the biofilm model) maps $\rho_\text{norm}$ to a DI value
+$\to$ bin index.
+
+\paragraph{Slit (contact-normal projection).}
+\begin{equation}
+  d_n = \bigl|(\bar x - m_x)\,n_x + (\bar y - m_y)\,n_y\bigr|,\qquad
+  d_\text{norm} = \mathrm{clip}\!\left(\frac{d_n}{d/2},0,1\right),
+\end{equation}
+followed by the same field-CSV lookup.
+
+\subsection{Bin values ($\beta=0.5$, $\nu=0.30$)}
+
+\begin{table}[H]
+\centering\small
+\caption{Young's moduli per DI bin.}
+\label{tab:dibins}
+\begin{tabular}{rrrr|rrrr}
+\toprule
+Bin & $\bar{\mathrm{DI}}$ & $E_s$ (GPa) & $E_t$ (GPa) &
+Bin & $\bar{\mathrm{DI}}$ & $E_s$ (GPa) & $E_t$ (GPa) \\
+\midrule
+00 & 0.000644 & 9.501 & 4.751 & 10 & 0.013534 & 2.610 & 1.305 \\
+01 & 0.001933 & 8.559 & 4.279 & 11 & 0.014823 & 2.217 & 1.109 \\
+02 & 0.003222 & 7.677 & 3.839 & 12 & 0.016112 & 1.876 & 0.938 \\
+03 & 0.004511 & 6.851 & 3.426 & 13 & 0.017401 & 1.586 & 0.793 \\
+04 & 0.005800 & 6.082 & 3.041 & 14 & 0.018690 & 1.347 & 0.674 \\
+05 & 0.007089 & 5.367 & 2.684 & 15 & 0.019979 & 1.157 & 0.579 \\
+06 & 0.008378 & 4.709 & 2.354 & 16 & 0.021268 & 1.015 & 0.508 \\
+07 & 0.009667 & 4.104 & 2.052 & 17 & 0.022557 & 0.922 & 0.461 \\
+08 & 0.010956 & 3.552 & 1.776 & 18 & 0.023846 & 0.876 & 0.438 \\
+09 & 0.012245 & 3.055 & 1.527 & 19 & 0.025135 & 0.877 & 0.439 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{Boundary Conditions}
+\label{sec:bc}
+
+\begin{table}[H]
+\centering
+\caption{Boundary conditions for both cases.}
+\label{tab:bc}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{lllp{6.5cm}}
+\toprule
+Case & BC name & Location ($z$, mm) & Type \\
+\midrule
+Crown &
+  \texttt{FIX\_CROWN\_BOT} & $18.56$ (bottom) &
+  $u_1=u_2=u_3=0$, Initial step \\
+Crown &
+  \texttt{PRESS\_CROWN} & $38.02$ (top) &
+  Uniform pressure $p=1\,\text{MPa}$, \texttt{LOAD\_CROWN} step \\
+\midrule
+Slit &
+  \texttt{FIX\_SLIT\_BOT}  & $20.73$ (bottom) &
+  $u_1=u_2=u_3=0$, Initial step \\
+Slit &
+  \texttt{PRESS\_SLIT}     & $38.23$ (top) &
+  Uniform pressure $p=1\,\text{MPa}$, \texttt{LOAD\_SLIT} step \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Both use \texttt{Abaqus/Standard} static steps:
+\texttt{maxNumInc=100}, \texttt{initialInc=0.1}, \texttt{minInc=1e-5}.
+
+% ============================================================
+\section{Results}
+\label{sec:results}
+
+\subsection{Job completion}
+
+\begin{table}[H]
+\centering
+\caption{Abaqus job log (2026-02-22, JST).  Both jobs terminated \texttt{COMPLETED}.}
+\label{tab:jobs}
+\begin{tabular}{lllr}
+\toprule
+Job name & Start time & End time & ODB size \\
+\midrule
+\texttt{OJ\_Crown\_T23\_b050}  & 01:40:45 & 01:40:51 & 6.4 MB \\
+\texttt{OJ\_Slit\_T3031\_b050} & 01:41:10 & 01:41:13 & 0.85 MB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Note on earlier failure.}
+The first run of \texttt{OJ\_Crown\_T23\_b050} failed with
+\emph{``3590 elements have missing property definitions''}.
+Root cause: the T23 tooth orphan-mesh (TRI3/S3 shell elements)
+was being assigned a \texttt{HomogeneousSolidSection} (solid-only type)
+inside the analysis model, which Abaqus rejects.
+Fix: removed all \texttt{\_import\_stl\_part()} calls for T23, T30, T31
+from \texttt{openjaw\_p1\_full\_assembly.py}.
+The biofilm C3D8R solid elements were correctly assigned throughout.
+
+\subsection{Von Mises stress at three depth fractions}
+
+$S_\text{Mises}$ is probed at depth fractions $f\in\{0.0,\,0.5,\,1.0\}$
+by \texttt{compare\_biofilm\_abaqus.py}.
+For 3-D geometries the script selects the global X-axis as the depth
+direction (see limitations in Section~\ref{sec:future}).
+
+\begin{table}[H]
+\centering
+\caption{%
+  Von Mises stress (MPa) at depth fractions 0 (inner), 0.5 (mid), 1.0 (outer).
+  Applied pressure = 1.0 MPa.  $\beta=0.5$ unless stated.}
+\label{tab:smises}
+\renewcommand{\arraystretch}{1.08}
+\begin{tabular}{lrrr}
+\toprule
+ODB / geometry & $f=0.0$ (inner) & $f=0.5$ (mid) & $f=1.0$ (outer) \\
+\midrule
+\multicolumn{4}{l}{\textit{OpenJaw real-tooth geometries}} \\
+\texttt{OJ\_Crown\_T23\_b050} (hollow crown, $\beta=0.5$) & 0.981 & 0.993 & 1.001 \\
+\texttt{OJ\_Slit\_T3031\_b050} (slit, $\beta=0.5$)        & 1.082 & 0.800 & 1.082 \\
+\addlinespace
+\multicolumn{4}{l}{\textit{OpenJaw T23 solid biofilm --- anisotropy sweep}} \\
+\texttt{oj\_t23\_b100} ($\beta=1.0$, isotropic)            & 0.958 & 0.963 & 0.966 \\
+\texttt{oj\_t23\_b070} ($\beta=0.7$)                       & 0.958 & 0.963 & 0.966 \\
+\texttt{oj\_t23\_b050} ($\beta=0.5$)                       & 0.958 & 0.963 & 0.966 \\
+\texttt{oj\_t23\_b030} ($\beta=0.3$)                       & 0.958 & 0.963 & 0.966 \\
+\addlinespace
+\multicolumn{4}{l}{\textit{OpenJaw per-tooth solid, $\beta=0.5$}} \\
+\texttt{oj\_t30\_b050} (T30 solid)                         & 1.011 & 1.006 & 0.995 \\
+\texttt{oj\_t31\_b050} (T31 solid)                         & 1.014 & 1.008 & 0.994 \\
+\addlinespace
+\multicolumn{4}{l}{\textit{Idealized geometries, $\beta=0.5$}} \\
+\texttt{dh\_cube\_v3} (unit cube)                          & 0.806 & 0.624 & 0.984 \\
+\texttt{dh\_crown\_v3} (idealized crown)                   & 0.209 & 1.100 & 0.384 \\
+\texttt{dh\_slit\_v3} (idealized slit)                     & 0.896 & 1.046 & 0.551 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Discussion}
+
+\paragraph{Crown hollow biofilm.}
+$S_\text{Mises}$ is nearly uniform across the ring thickness
+($0.981\to1.001$\,MPa), close to the applied pressure.
+The dominant stress component is $S_{33}\approx-1$\,MPa (axial compression),
+confirming the biofilm column transmits load in the extrusion direction.
+The slight radial gradient (inner $<$ outer) reflects local bending
+at the inner edge.
+
+\paragraph{Inter-proximal slit.}
+The symmetric inner/outer stress (1.082\,MPa) with a depressed mid-value
+(0.800\,MPa) is consistent with uniform contact-normal pressure on both
+tooth-facing faces while the mid-plane is partially in shear.
+
+\paragraph{T23 anisotropy sweep.}
+The per-tooth solid biofilm shows negligible $\beta$-sensitivity
+($\Delta S_\text{Mises}<0.01$\,MPa across $\beta=0.3\ldots1.0$)
+because the probe nodes lie on the global X-axis (buccal--lingual),
+not the loading axis (Z).
+The DI bin assignments and material orientations are confirmed
+correct by inspection of the INP file.
+
+\paragraph{Idealized vs.\ real geometry.}
+The idealized unit-cube crown yields 0.21--0.38\,MPa, much lower
+than the real hollow crown (0.98--1.00\,MPa).
+This is expected: the idealized model uses 1\,mm$^3$ normalised
+dimensions, while the real geometry spans 19.46\,mm in height
+with a biofilm thickness of 0.48\,mm.
+
+% ============================================================
+\section{Figures}
+\label{sec:figures}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{_aniso_sweep/figures/fig_C2_geometry_comparison.png}
+  \caption{%
+    \textbf{C2: Geometry comparison.}
+    $S_\text{Mises}$ at inner surface ($f=0$, left) and outer surface ($f=1$, right)
+    for all 11 ODB variants at $\beta=0.5$, $p=1$\,MPa.
+    The horizontal dashed line marks the applied pressure.
+    Real-tooth hollow crown (teal) and slit (yellow-green) sit close to
+    1\,MPa throughout, while the idealized crown (orange) is substantially lower.
+  }
+  \label{fig:geom_comparison}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\linewidth]{_aniso_sweep/figures/fig_C2_beta_sweep_t23.png}
+  \caption{%
+    \textbf{C2: Anisotropy sweep for T23 solid biofilm.}
+    $S_\text{Mises}$ at inner (blue) and outer (orange) surfaces as a function
+    of $\beta$.  Minimal variation indicates that the global-X probe direction
+    does not align with the loading axis; the DI bin assignments are correct
+    (verified from the ODB).
+  }
+  \label{fig:beta_sweep}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\linewidth]{_aniso_sweep/figures/fig_C2_depth_gradient.png}
+  \caption{%
+    \textbf{C2: Depth gradient profiles.}
+    $S_\text{Mises}$ at $f\in\{0,0.5,1\}$ for real-tooth hollow geometries
+    (solid lines) vs.\ idealized geometries (dashed lines).
+    The hollow crown (teal) and slit (yellow-green) are nearly flat.
+    The idealized crown (orange) and slit (blue) show stronger gradients
+    due to unit-cube scaling and a different DI-mapping orientation.
+  }
+  \label{fig:depth_gradient}
+\end{figure}
+
+% ============================================================
+\section{Known Limitations and Future Work}
+\label{sec:future}
+
+\begin{enumerate}
+  \item \textbf{Probe-direction mismatch.}
+        \texttt{compare\_biofilm\_abaqus.py} uses the global X-axis as
+        depth for all 3-D geometries. For Z-loaded crown and slit models
+        this maps to the buccal--lingual direction, not the loading direction.
+        A geometry-aware probe (radial for crown, Z for slit) should be added.
+
+  \item \textbf{Single $\beta$ value.}
+        The hollow crown and slit have been run only at $\beta=0.5$.
+        A sweep $\beta\in\{0.3,0.5,0.7,1.0\}$ via \texttt{run\_aniso\_comparison.py}
+        is the immediate next step.
+
+  \item \textbf{Tooth--biofilm contact.}
+        The biofilm solid is positioned geometrically at the tooth location
+        but shares no tied or contact constraint with the tooth surface.
+        Adding a tied surface between the inner ring face and the tooth
+        surface (after remeshing the tooth in C3D elements) would
+        improve physical realism.
+
+  \item \textbf{Boundary condition realism.}
+        Fixed-bottom + uniform-top pressure is a first approximation.
+        Patient-specific occlusal loads and a periodontal-ligament layer
+        should be included in future models.
+
+  \item \textbf{Multi-case both.}
+        Running with \texttt{--case both} produces crown and slit in a
+        single Abaqus session but shares one CAE database, which may cause
+        step-name conflicts.  Running each case separately (as done here)
+        is recommended.
+\end{enumerate}
+
+% ============================================================
+\appendix
+\section{CLI Reference: \texttt{openjaw\_p1\_full\_assembly.py}}
+\label{app:cli}
+
+\begin{table}[H]
+\centering
+\caption{All command-line arguments.}
+\label{tab:cli}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{>{\ttfamily}llll}
+\toprule
+\normalfont Argument & Default & Type & Description \\
+\midrule
+--bbox-json   & \emph{required} & path  & JSON from \texttt{stl\_bbox.py} \\
+--field-csv   & \emph{required} & path  & DI field CSV \\
+--case        & both            & str   & \texttt{crown}, \texttt{slit}, or \texttt{both} \\
+--biofilm-frac& 0.15            & float & $t_\text{bio}/R_\text{inner}$ \\
+--pocket-depth& 3.0             & float & Slit depth in $\hat{n}$ direction (mm) \\
+--pocket-width& 2.0             & float & Slit width in $\hat{t}$ direction (mm) \\
+--aniso-ratio & 0.5             & float & $\beta = E_t/E_s$ \\
+--n-bins      & 20              & int   & Number of DI material bins \\
+--e-max       & 10e9            & float & $E_{\max}$ (Pa) \\
+--e-min       & 0.5e9           & float & $E_{\min}$ (Pa) \\
+--di-scale    & 0.025778        & float & DI normalisation ($\mathrm{DI}_\text{scale}$) \\
+--di-exponent & 2.0             & float & Power-law exponent $n$ \\
+--nu          & 0.30            & float & Poisson's ratio \\
+--pressure-mpa& 1.0             & float & Applied pressure (MPa) \\
+--poly-from-json & off          & flag  & Use 12-pt cross-section from bbox JSON \\
+--crown-job   & OJ\_Crown\_T23  & str   & Abaqus job name (crown) \\
+--slit-job    & OJ\_Slit\_T30T31& str   & Abaqus job name (slit) \\
+--cae-out     & OpenJaw\_P1\_assembly.cae & path & Output CAE path \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Full Reproduction Script}
+\label{app:reproduce}
+
+\begin{lstlisting}[language=bash,caption={Complete pipeline from Stage 1 to figures.}]
+#!/bin/bash
+# Run from: Tmcmc202601/FEM/
+ABAQUS=/home/nishioka/DassaultSystemes/SIMULIA/Commands/abaqus
+
+# Stage 1: bounding boxes + cross-section polygons
+python3 stl_bbox.py \
+    external_tooth_models/OpenJaw_Dataset/Patient_1/Teeth/P1_Tooth_23.stl \
+    external_tooth_models/OpenJaw_Dataset/Patient_1/Teeth/P1_Tooth_30.stl \
+    external_tooth_models/OpenJaw_Dataset/Patient_1/Teeth/P1_Tooth_31.stl \
+    --out p1_tooth_bbox.json --poly-n 12
+
+# Stage 2: DI field export
+python3 export_for_abaqus.py \
+    --results-dir _results_3d/dh_baseline \
+    --snapshot-index -1 --out-csv abaqus_field_dh_3d.csv
+
+# Stage 3: STL import to CAE (reference only)
+$ABAQUS cae noGUI=openjaw_p1_auto_import.py -- \
+    --stl-root external_tooth_models/OpenJaw_Dataset/Patient_1 \
+    --cae-out OpenJaw_P1_auto.cae
+
+# Stage 4a: hollow crown around T23
+$ABAQUS cae noGUI=openjaw_p1_full_assembly.py -- \
+    --bbox-json p1_tooth_bbox.json \
+    --field-csv abaqus_field_dh_3d.csv \
+    --case crown --aniso-ratio 0.5 --poly-from-json \
+    --crown-job OJ_Crown_T23_b050 \
+    --cae-out OpenJaw_P1_crown.cae
+
+# Stage 4b: inter-proximal slit T30-T31
+$ABAQUS cae noGUI=openjaw_p1_full_assembly.py -- \
+    --bbox-json p1_tooth_bbox.json \
+    --field-csv abaqus_field_dh_3d.csv \
+    --case slit --aniso-ratio 0.5 \
+    --slit-job OJ_Slit_T3031_b050 \
+    --cae-out OpenJaw_P1_slit.cae
+
+# Stage 5: extract S_Mises + plots
+$ABAQUS python compare_biofilm_abaqus.py \
+    oj_crown_slit_stress.csv \
+    OJ_Crown_T23_b050.odb OJ_Slit_T3031_b050.odb \
+    oj_t23_b100.odb oj_t23_b070.odb oj_t23_b050.odb oj_t23_b030.odb \
+    oj_t30_b050.odb oj_t31_b050.odb dh_cube_v3.odb dh_crown_v3.odb dh_slit_v3.odb
+
+python3 plot_oj_comparison.py
+pdflatex openjaw_openfulljaw.tex
+\end{lstlisting}
+
+% ============================================================
+\begin{thebibliography}{9}
+
+\bibitem{gholamalizadeh2022open}
+T.~Gholamalizadeh, F.~Moshfeghifar, Z.~Ferguson, T.~Schneider, D.~Panozzo,
+S.~Darkner, M.~Makaremi, F.~Chan, P.\,L.~S{\o}ndergaard, and K.~Erleben,
+``Open-Full-Jaw: An open-access dataset and pipeline for finite element models
+of human jaw,''
+\textit{Computer Methods and Programs in Biomedicine},
+vol.~224, p.~107009, 2022.
+
+\end{thebibliography}
+
+\end{document}
