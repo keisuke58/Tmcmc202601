@@ -1,0 +1,26 @@
+name: Sync Wiki
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'wiki/**'
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Push wiki pages to GitHub Wiki
+        uses: newrelic/wiki-sync-action@v1.0.1
+        with:
+          source: wiki
+          destination: wiki
+          token: ${{ secrets.GITHUB_TOKEN }}
+          gitAuthorName: github-actions[bot]
+          gitAuthorEmail: github-actions[bot]@users.noreply.github.com
