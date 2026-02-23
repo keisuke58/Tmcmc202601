@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data_5species
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install numpy scipy pandas
+
+      - name: Syntax check (py compile)
+        run: |
+          python -m py_compile core/nishioka_model.py
+          python -m py_compile core/tmcmc.py
+          python -m py_compile core/evaluator.py
+          python -m py_compile core/mcmc.py
+
+      - name: Import smoke test
+        run: |
+          python - <<'EOF'
+          import sys
+          sys.path.insert(0, ".")
+          from core.nishioka_model import INTERACTION_GRAPH_JSON, get_nishioka_mask
+          import numpy as np
+
+          # Interaction graph: 5 nodes, 5 active edges, 5 locked edges
+          assert len(INTERACTION_GRAPH_JSON["nodes"]) == 5
+          assert len(INTERACTION_GRAPH_JSON["active_edges"]) == 5
+          assert len(INTERACTION_GRAPH_JSON["locked_edges"]) == 5
+
+          # Mask: 5x5, 5 locked pairs (symmetric) → 15 active entries
+          mask = get_nishioka_mask()
+          assert mask.shape == (5, 5), f"Expected (5,5), got {mask.shape}"
+          assert mask.sum() == 15, f"Expected 15 active, got {mask.sum()}"
+
+          print("OK — nishioka_model smoke test passed")
+          EOF
