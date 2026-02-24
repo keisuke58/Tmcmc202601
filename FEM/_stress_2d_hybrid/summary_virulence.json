@@ -1,0 +1,38 @@
+{
+  "commensal_static": {
+    "condition": "commensal_static",
+    "e_model": "virulence",
+    "E_mean_pa": 858.6170129999998,
+    "eps_growth_max": 0.139880188,
+    "sigma_vm_max_pa": 132.4746375211724,
+    "sigma_vm_mean_pa": 14.543561719328455,
+    "u_max": 0.12048559893110074
+  },
+  "commensal_hobic": {
+    "condition": "commensal_hobic",
+    "e_model": "virulence",
+    "E_mean_pa": 967.5397129999997,
+    "eps_growth_max": 0.139866871,
+    "sigma_vm_max_pa": 149.26700177364958,
+    "sigma_vm_mean_pa": 16.386619073024843,
+    "u_max": 0.12047517585263656
+  },
+  "dysbiotic_static": {
+    "condition": "dysbiotic_static",
+    "e_model": "virulence",
+    "E_mean_pa": 999.9944170000003,
+    "eps_growth_max": 0.139902456,
+    "sigma_vm_max_pa": 154.3091710506398,
+    "sigma_vm_mean_pa": 16.941275943500486,
+    "u_max": 0.12050114903386065
+  },
+  "dysbiotic_hobic": {
+    "condition": "dysbiotic_hobic",
+    "e_model": "virulence",
+    "E_mean_pa": 966.0071840000004,
+    "eps_growth_max": 0.139956955,
+    "sigma_vm_max_pa": 149.10616871753146,
+    "sigma_vm_mean_pa": 16.370584480282105,
+    "u_max": 0.12052656568063717
+  }
+}

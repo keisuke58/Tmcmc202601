@@ -1,6 +1,6 @@
-# Tmcmc202601 — 5-Species Oral Biofilm: TMCMC + FEM Pipeline
+# Bayesian Identification of Interspecies Interaction Parameters in a 5-Species Oral Biofilm Model and Propagation of Posterior Uncertainty to 3D Finite Element Stress Analysis
 
-**5種口腔バイオフィルムのベイズパラメータ推定 (TMCMC) と 3D FEM 応力解析の統合パイプライン**
+**5種口腔バイオフィルム Hamilton ODE モデルにおける種間相互作用パラメータの TMCMC ベイズ同定と、事後分布の 3D FEM 応力解析への伝播**
 
 [![CI](https://github.com/keisuke58/Tmcmc202601/actions/workflows/ci.yml/badge.svg)](https://github.com/keisuke58/Tmcmc202601/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
@@ -13,8 +13,10 @@
 
 ## Table of Contents
 
+- [日本語要約](#日本語要約)
 - [Overview](#overview)
 - [Novelty & Contribution](#novelty--contribution)
+- [手法の概要 (Methodology)](#手法の概要-methodology)
 - [Repository Structure](#repository-structure)
 - [TMCMC: Bayesian Parameter Estimation](#tmcmc-bayesian-parameter-estimation)
 - [FEM: Stress Analysis Pipeline](#fem-stress-analysis-pipeline)
@@ -24,6 +26,37 @@
 - [Key References](#key-references)
 - [Contributing & GitHub](#contributing--github)
 - [Citation](#citation)
+
+---
+
+## 日本語要約
+
+### 背景と目的
+
+歯周病は、口腔バイオフィルム内の菌叢遷移（dysbiosis）— 健康関連菌（commensal）から病原性菌（dysbiotic）への群集レベルの移行 — によって駆動される。この遷移において、keystone pathogen である *Porphyromonas gingivalis* (Pg) の定着は、bridge organism（*Veillonella dispar*, *Fusobacterium nucleatum*）による促進に依存する。しかし従来研究では、(1) 種間相互作用の定量的な確率推定、(2) その不確かさの力学応答への伝播、が未解決であった。
+
+本研究では、Heine et al. (2025) の 5 種バイオフィルム in vitro 実験データ（4 条件 × 5 時間点）に対して、以下の 2 段階パイプラインを構築・実行する。
+
+### パイプライン概要
+
+1. **Stage 1 — TMCMC ベイズ推定**: Klempt et al. (2024) の Hamilton 原理に基づく 5 種 ODE モデル（20 パラメータ）に対し、TMCMC（逐次テンパリング MCMC）を適用。相互作用強度 $a_{ij}$ の事後分布 $p(\boldsymbol{\theta} \mid \mathcal{D})$ を 1000 サンプルとして取得する。Hill ゲート関数 $H(\varphi) = \varphi^n/(K^n + \varphi^n)$ により、bridge organism → Pg の非線形促進をモデル化。
+
+2. **Stage 2 — FEM 応力解析**: 事後サンプルから Hamilton ODE を積分し、空間的な種組成場 $\varphi_i(\mathbf{x})$ を構成。Shannon エントロピーベースの Dysbiotic Index (DI) を経由して空間変動ヤング率 $E(\mathbf{x})$ にマッピングし、Abaqus 3D FEM で von Mises 応力場と 90% 信用区間を算出する。
+
+### 主要結果
+
+| 指標 | 値 |
+|------|-----|
+| 全 4 条件の MAP RMSE | $< 0.075$ |
+| Pg RMSE 改善（bounds 制約導入後） | 0.435 → 0.103 (76% 削減) |
+| commensal vs dysbiotic の E_eff 比 | 909 Pa vs 33 Pa (28 倍差) |
+| 空間固有ひずみ勾配（唾液側/歯面側） | ~100 倍 |
+
+### 重要な知見
+
+- **DI（Shannon エントロピー）が最適な dysbiosis 指標**: Hamilton ODE では Pg 体積分率 $\varphi_\text{Pg}$ は全条件で低値 ($< 0.10$) に留まり条件間を区別できないが、DI は多様性の喪失を正しく検出し、commensal (DI ≈ 0.05) と dysbiotic (DI ≈ 0.84) を明確に分離する。
+- **Bridge organism の定量的寄与**: $a_{35}$ (Vd→Pg) の事前分布を [0, 30] → [0, 5] に物理的知見で制約するだけで、Pg RMSE が 4 倍改善。非物理的な大値推定が抑制される。
+- **事後不確かさの完全伝播**: TMCMC 事後分布 → ODE → DI → $E(\mathbf{x})$ → FEM の全チェーンで不確かさを伝播し、応力場の 90% 信用区間を構成。点推定のみの従来手法では不可能な定量的リスク評価を実現。
 
 ---
 
@@ -40,6 +73,10 @@ This project addresses two coupled questions:
 
 ### Pipeline
 
+![Pipeline overview](docs/overview_figs/fig1_pipeline.png)
+
+*Fig. 1 — Overall computational pipeline: experimental data → prior distribution → Hamilton ODE → likelihood evaluation → TMCMC inference → posterior output (MAP, 95% CI, convergence diagnostics).*
+
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {"primaryColor": "#f0f9ff", "edgeLabelBackground": "#ffffff", "fontSize": "14px"}}}%%
 flowchart LR
@@ -54,7 +91,7 @@ flowchart LR
     classDef out    fill:#ffe4e6,stroke:#e11d48,stroke-width:2px,color:#881337,font-weight:bold
 
     %% ── Input ──────────────────────────────────────────────────────────────
-    subgraph INPUT["📊  Input · Heine et al. 2025"]
+    subgraph INPUT["Input · Heine et al. 2025"]
         direction TB
         I1["4 conditions: Commensal / Dysbiotic × Static / HOBIC"]:::inp
         I2["5 species: So · An · Vd · Fn · Pg"]:::inp
@@ -62,7 +99,7 @@ flowchart LR
     end
 
     %% ── Stage 1: TMCMC ─────────────────────────────────────────────────────
-    subgraph TMCMC["🔬  Stage 1 · TMCMC Bayesian Inference"]
+    subgraph TMCMC["Stage 1 · TMCMC Bayesian Inference"]
         direction TB
         T1["Hamilton variational ODE · 20 free params"]:::tmcmc
         T1eq["$$\frac{d\varphi_i}{dt} = \varphi_i \Bigl( r_i - d_i\varphi_i + \sum_j a_{ij}\,H(\varphi_j) \Bigr)$$"]:::eq
@@ -73,7 +110,7 @@ flowchart LR
     end
 
     %% ── Stage 2: FEM ────────────────────────────────────────────────────────
-    subgraph FEM["🦷  Stage 2 · 3D FEM Stress Analysis"]
+    subgraph FEM["Stage 2 · 3D FEM Stress Analysis"]
         direction TB
         F1["Posterior ODE ensemble → spatial composition fields"]:::fem
         F2eq["$$\mathrm{DI}(\mathbf{x}) = 1 - \frac{H(\mathbf{x})}{\ln 5}, \quad H = -\sum_i \varphi_i \ln \varphi_i$$"]:::feq
@@ -84,7 +121,7 @@ flowchart LR
     end
 
     %% ── JAX-FEM sidechain ───────────────────────────────────────────────────
-    subgraph JAXFEM["🧪  JAX-FEM · Klempt 2024 Benchmark"]
+    subgraph JAXFEM["JAX-FEM · Klempt 2024 Benchmark"]
         direction TB
         J1["$$-D_c\,\Delta c + g\,\varphi_0(\mathbf{x})\,\frac{c}{k+c} = 0 \;\;\text{in } [0,1]^2$$"]:::jeq
         J2["Newton solver · 4 iterations"]:::jax
@@ -127,7 +164,7 @@ HOBIC (High-flow Open Biofilm Incubation Chamber) mimics oral shear forces that 
 
 ![Species interaction network](data_5species/interaction_network.png)
 
-*Fig. 1 — Inferred 5-species interaction network. Positive weights (blue) indicate facilitation; negative (red) indicate inhibition. Bridge species Vd and Fn mediate Pg colonisation.*
+*Fig. 2 — Inferred 5-species interaction network. Positive weights (blue) indicate facilitation; negative (red) indicate inhibition. Bridge species Vd and Fn mediate Pg colonisation.*
 
 ---
 
@@ -190,15 +227,94 @@ $$
 - 結果：唾液側 $\varepsilon \approx 0.14$（14% 体積膨張）、歯面側 $\varepsilon \approx 0.001$（栄養枯渇で成長停止）、空間勾配 **~100x**
 - この $\varepsilon(\mathbf{x})$ を熱膨張アナロジーとして Abaqus INP に入力 → 空間的に非均一な残留応力場を生成
 
+### DI (エントロピー) vs $\varphi_\text{Pg}$: dysbiosis 指標の比較
+
+本研究の重要な発見として、**DI（Shannon エントロピーベース）が $\varphi_\text{Pg}$（Pg 体積分率）より優れた dysbiosis 指標**であることを定量的に示した。
+
+- Hamilton ODE では、Pg は locked edges ($a_{15} = a_{25} = 0$) と Hill ゲート ($K = 0.05$) の制約により、全 4 条件で $\varphi_\text{Pg} < 0.10$ に留まる → **$\varphi_\text{Pg}$ では条件間の区別が不可能**
+- Dysbiotic 条件では So が支配的 ($\varphi_\text{So} = 0.944$) であり、Pg 支配ではない — **多様性の喪失**こそが dysbiosis の本質
+- DI モデルでは $E_\text{eff}$: commensal ≈ 909 Pa vs dysbiotic ≈ 33 Pa (**28 倍差**); $\varphi_\text{Pg}$ モデルでは全条件 ≈ 1000 Pa (区別不可)
+
+![3 model comparison](FEM/_multiscale_results/hybrid_3model_comparison.png)
+
+*Fig. 3 — DI (entropy) vs $\varphi_\text{Pg}$ (Hill sigmoid) vs Virulence (Pg+Fn weighted): 3 つの $E_\text{eff}$ モデルの比較。DI モデルのみが commensal/dysbiotic 条件間の弾性率差を正しく反映する。*
+
 ### 従来研究との比較
 
 | 観点 | 従来の研究 | 本研究 |
 |------|-----------|--------|
 | 種間相互作用の推定 | 相関解析・定性的記述 | **Hamilton ODE + TMCMC による事後分布推定** |
+| dysbiosis 指標 | $\varphi_\text{Pg}$ (病原菌体積分率) | **DI (Shannon entropy): ecosystem-level indicator** |
 | 力学解析の材料入力 | 均一定数（文献値） | **$\mathrm{DI}(\mathbf{x})$ に基づく空間変動構成則** |
 | 不確かさの扱い | 点推定（感度解析のみ） | **事後分布の順伝播 → $\sigma_{\text{Mises}}$ の credible interval** |
 | スケール連成 | 単一スケール | **ODE (0D) → 反応拡散 PDE (1D/2D) → FEM (3D)** |
 | 固有ひずみ | 均一または未考慮 | **栄養場依存の空間非一様固有ひずみ** |
+
+---
+
+## 手法の概要 (Methodology)
+
+### Stage 1: TMCMC ベイズパラメータ推定
+
+#### 支配方程式 — Hamilton 変分 ODE
+
+Klempt et al. (2024) に基づく 5 種口腔バイオフィルムの成長ダイナミクス：
+
+$$
+\frac{d\varphi_i}{dt} = \varphi_i \left( r_i - d_i \varphi_i + \sum_{j \neq i} a_{ij} H(\varphi_j) \right), \quad i = 1, \ldots, 5
+$$
+
+ここで $\varphi_i$ は種 $i$ の体積分率、$r_i$ は内在成長率、$d_i$ は自己抑制率、$a_{ij}$ は種間相互作用係数。Hill ゲート関数 $H(\varphi) = \varphi^n / (K^n + \varphi^n)$ は閾値的な相互作用（低密度では効果なし → 一定密度以上で飽和的促進/抑制）をモデル化する。$K = 0.05$, $n = 4$ は固定。
+
+#### 推定アルゴリズム — TMCMC
+
+- **事前分布**: 各パラメータに一様分布 $\theta_k \sim U(l_k, u_k)$。bounds は物理的知見に基づき設定（e.g., $a_{35} \in [0, 5]$, $a_{45} \in [0, 5]$）
+- **尤度関数**: 重み付きガウス尤度。Pg に対する重み $\lambda_\text{Pg} = 2.0$、後期時点の重み $\lambda_\text{late} = 1.5$ を導入し、keystone pathogen の fitting を優先
+- **逐次テンパリング**: $\beta_0 = 0 \to \beta_M = 1$ のスケジュールで prior → posterior へ段階的に移行。各ステージで MH-MCMC により粒子を更新
+- **出力**: MAP 推定値 $\hat{\boldsymbol{\theta}}_\text{MAP}$、事後平均 $\hat{\boldsymbol{\theta}}_\text{MEAN}$、$N = 1000$ の事後サンプル。収束診断に ESS、$\hat{R}$ を使用
+
+#### パラメータ空間 (20 dims)
+
+| カテゴリ | パラメータ | 個数 |
+|---------|-----------|------|
+| 内在成長率 | $r_1, \ldots, r_5$ | 5 |
+| 自己抑制率 | $d_1, \ldots, d_5$ | 5 |
+| 種間相互作用 | $a_{ij}$ (selected pairs) | 10 |
+
+主要な相互作用: $a_{35}$ (Vd→Pg, $\theta_{18}$), $a_{45}$ (Fn→Pg, $\theta_{19}$), $a_{23}$ (So→An, $\theta_{12}$)
+
+### Stage 2: FEM 応力解析
+
+#### Dysbiotic Index (DI) の定義
+
+Shannon エントロピー $H(\mathbf{x}) = -\sum_i \varphi_i \ln \varphi_i$ を 5 種の最大エントロピー $\ln 5$ で正規化：
+
+$$
+\mathrm{DI}(\mathbf{x}) = 1 - \frac{H(\mathbf{x})}{\ln 5}
+$$
+
+- DI = 0: 完全均等分配（maximal diversity, healthy）
+- DI = 1: 単一種支配（no diversity, dysbiotic）
+
+#### DI → 弾性率マッピング
+
+$$
+E(\mathbf{x}) = E_{\max}(1 - r)^n + E_{\min} \cdot r, \quad r = \mathrm{clamp}\!\left(\frac{\mathrm{DI}}{s}, 0, 1\right)
+$$
+
+$E_\text{max}$: 健全バイオフィルム剛性、$E_\text{min}$: 病的バイオフィルム剛性、$s$: DI スケールパラメータ。
+
+#### FEM 解析
+
+- **幾何**: Open-Full-Jaw (Gholamalizadeh et al. 2022) の患者固有下顎歯モデル
+- **メッシュ**: fTetWild による四面体メッシュ (C3D4)
+- **材料**: DI 依存の空間変動等方弾性体
+- **荷重**: 1 MPa 均一圧縮; NLGEOM 有効
+- **不確かさ伝播**: $N$ 個の事後サンプルそれぞれで ODE → DI → $E$ → FEM を実行し、応力場の percentile (p05/p50/p95) から 90% CI を構成
+
+### マルチスケール連成 (0D → 1D/2D → 3D)
+
+TMCMC 事後 MAP パラメータから 0D ODE を積分して種組成を取得し、1D/2D 反応拡散 PDE（Monod 型栄養消費 + Fick 拡散）と連成。栄養場 $c(\mathbf{x})$ に依存した空間非一様な成長固有ひずみ $\varepsilon(\mathbf{x}) = \alpha_\text{Monod}(\mathbf{x}) / 3$ を導出し、熱膨張アナロジーとして Abaqus に入力する。
 
 ---
 
@@ -218,13 +334,17 @@ Tmcmc202601/
 │   ├── jax_fem_reaction_diffusion_demo.py  # JAX-FEM Klempt 2024 demo
 │   ├── jax_pure_reaction_diffusion_demo.py # Pure JAX PDE demo (egg morphology)
 │   ├── jax_hamilton_*.py   # Hamilton PDE demos (0D / 1D)
+│   ├── multiscale_coupling_1d.py  # 0D+1D multiscale pipeline
+│   ├── multiscale_coupling_2d.py  # 2D reaction-diffusion extension
+│   ├── generate_hybrid_macro_csv.py  # Hybrid DI × spatial eigenstrain
+│   ├── generate_abaqus_eigenstrain.py # Abaqus INP with thermal eigenstrain
 │   ├── JAXFEM/             # JAX-based FEM modules
-│   ├── klempt2024_gap_analysis.md  # Gap analysis vs Klempt (2024)
 │   ├── FEM_README.md       # Detailed FEM pipeline documentation
 │   └── _*/                 # Output directories (results, sweeps, plots)
 │
 ├── tmcmc/                  # Core TMCMC library
 ├── docs/                   # LaTeX reports and slides
+├── wiki/                   # Extended documentation (TMCMC guide, FEM pipeline, etc.)
 ├── run_bridge_sweep.py     # Parameter sweep runner
 ├── analyze_sweep_results.py
 └── PROJECT_SUMMARY.md      # Full progress summary (JP)
@@ -239,7 +359,7 @@ Tmcmc202601/
 - **ODE system**: 5-species Hamilton principle biofilm (20 parameters)
 - **Inference**: Transitional Markov Chain Monte Carlo (TMCMC)
 - **Prior**: Uniform with physiologically motivated bounds
-- **Hill gate**: interaction nonlinearity ($K_{\text{hill}}$, $n_{\text{hill}}$ fixed)
+- **Hill gate**: interaction nonlinearity ($K_{\text{hill}} = 0.05$, $n_{\text{hill}} = 4$, fixed)
 
 ### Key Parameters
 
@@ -262,25 +382,35 @@ MAP RMSE per species:
 | *P. gingivalis* | 0.0191 | 0.0169 | 0.0645 | 0.0562 |
 | **Total MAP RMSE** | **0.0547** | **0.0632** | **0.0538** | **0.0746** |
 
-Run directories: `_runs/Commensal_Static_20260208_002100`, `_runs/Commensal_HOBIC_20260208_002100`, `_runs/Dysbiotic_Static_20260207_203752`, `_runs/Dysbiotic_HOBIC_20260208_002100`
+### Prior Bounds の効果 — Mild-Weight 版の改善
+
+$a_{35}$ (Vd→Pg) の事前分布 bounds を [0, 30] → [0, 5] に絞り、likelihood weighting ($\lambda_\text{Pg} = 2.0$, $\lambda_\text{late} = 1.5$) を導入した mild-weight 版との比較 (Dysbiotic HOBIC):
+
+| 指標 | Original bounds | Mild-weight | 変化 |
+|------|:-:|:-:|:-:|
+| $a_{35}$ (MAP) | 17.3 (非物理的) | **3.56** | 物理的妥当値 |
+| Pg RMSE | 0.413 | **0.103** | **75% 改善** |
+| Total RMSE | 0.223 | **0.156** | **30% 改善** |
+| ESS | — | 200–300 | 良好な収束 |
+| $\hat{R}$ | — | ≈ 1.0 | 混合良好 |
 
 ### MAP Posterior Fit — Dysbiotic HOBIC (Target Condition)
 
-![MAP fit Dysbiotic HOBIC](data_5species/_runs/Dysbiotic_HOBIC_20260208_002100/figures/TSM_simulation_Dysbiotic_HOBIC_MAP_Fit_with_data.png)
+![MAP fit Dysbiotic HOBIC](data_5species/main/_runs/baseline_original_bounds/figures/TSM_simulation_Dysbiotic_HOBIC_MAP_Fit_with_data.png)
 
-*Fig. 2 — MAP estimate vs. measured data (Dysbiotic HOBIC). Solid lines: model trajectory; markers: in vitro measurements (Heine et al. 2025). The Pg "surge" driven by bridge organisms is well-captured.*
+*Fig. 4 — MAP estimate vs. measured data (Dysbiotic HOBIC). Solid lines: model trajectory; markers: in vitro measurements (Heine et al. 2025). The Pg "surge" driven by bridge organisms is well-captured.*
 
 ### Posterior Predictive Uncertainty
 
-![Posterior band Dysbiotic HOBIC](data_5species/_runs/Dysbiotic_HOBIC_20260208_002100/figures/posterior_predictive_Dysbiotic_HOBIC_PosteriorBand.png)
+![Posterior band Dysbiotic HOBIC](data_5species/main/_runs/baseline_original_bounds/figures/posterior_predictive_Dysbiotic_HOBIC_PosteriorBand.png)
 
-*Fig. 3 — Posterior predictive band (Dysbiotic HOBIC). Shaded region: 90% credible interval from 1000 posterior samples. The uncertainty is tightest for the dominant commensal species (So, An) and widest for the bridge organisms.*
+*Fig. 5 — Posterior predictive band (Dysbiotic HOBIC). Shaded region: 90% credible interval from 1000 posterior samples. The uncertainty is tightest for the dominant commensal species (So, An) and widest for the bridge organisms.*
 
 ### Interaction Heatmap
 
-![Interaction heatmap Dysbiotic HOBIC](data_5species/_runs/Dysbiotic_HOBIC_20260208_002100/figures/pub_interaction_heatmap_Dysbiotic_HOBIC.png)
+![Interaction heatmap Dysbiotic HOBIC](data_5species/docs/paper_comprehensive_figs/Dysbiotic_HOBIC_Fig_A01_interaction_matrix_heatmap.png)
 
-*Fig. 4 — Inferred interaction matrix (Dysbiotic HOBIC). Rows = influenced species, columns = influencing species. Large positive $a_{35}$ (Vd→Pg) and $a_{45}$ (Fn→Pg) quantify bridge-mediated dysbiosis.*
+*Fig. 6 — Inferred interaction matrix (Dysbiotic HOBIC). Rows = influenced species, columns = influencing species. Large positive $a_{35}$ (Vd→Pg) and $a_{45}$ (Fn→Pg) quantify bridge-mediated dysbiosis.*
 
 ---
 
@@ -340,19 +470,31 @@ Displacement (not stress) discriminates conditions under pressure-controlled BC.
 
 ![Pg 3D overview all conditions](FEM/_results_3d/panel_pg_overview_4conditions.png)
 
-*Fig. 5 — Spatial distribution of P. gingivalis ($\varphi_{\text{Pg}}$) across all 4 experimental conditions, 3D tooth model. The dysbiotic HOBIC condition (bottom-right) shows highest Pg penetration depth into the biofilm.*
+*Fig. 7 — Spatial distribution of P. gingivalis ($\varphi_{\text{Pg}}$) across all 4 experimental conditions, 3D tooth model. The dysbiotic HOBIC condition (bottom-right) shows highest Pg penetration depth into the biofilm.*
 
 ### Dysbiotic Index — Cross-Condition Comparison
 
-![DI cross-condition](FEM/_di_credible/fig_di_cross_condition.png)
+![DI cross-condition](FEM/figures/CompFig2_di_histogram.png)
 
-*Fig. 6 — Dysbiotic Index (DI) depth profiles with 90% credible intervals across all 4 conditions. Higher DI values indicate more dysbiotic community composition.*
+*Fig. 8 — Dysbiotic Index (DI) field distribution across all 4 conditions (3375 spatial points per condition). Left: DI histogram with dashed medians; Right: DI boxplot per condition. DH-baseline shows the lowest median DI (most dysbiotic cascade), while the balanced commensal conditions show higher DI spread.*
 
 ### Posterior Stress Uncertainty
 
 ![Stress violin](FEM/_posterior_uncertainty/Fig1_stress_violin.png)
 
-*Fig. 7 — Posterior uncertainty in von Mises stress across the 4 experimental conditions. Uncertainty is propagated from TMCMC posterior samples through the $\mathrm{DI} \to E$ mapping into Abaqus FEM.*
+*Fig. 9 — Posterior uncertainty in von Mises stress across the 4 experimental conditions. Uncertainty is propagated from TMCMC posterior samples through the $\mathrm{DI} \to E$ mapping into Abaqus FEM.*
+
+### 2D Hybrid Stress — Cross-Condition Comparison (DI Model)
+
+![2D stress comparison](FEM/_stress_2d_hybrid/hybrid_stress_comparison_di.png)
+
+*Fig. 10 — 2D FEM stress fields (DI model) for all 4 conditions. Top: von Mises stress contour maps; Bottom: depth-dependent stress profiles. The DI-based material model yields condition-specific mechanical responses.*
+
+### Species Competition Analysis
+
+![Species competition](FEM/_multiscale_results/species_competition_analysis.png)
+
+*Fig. 11 — 6-panel species competition analysis. (a) Steady-state composition: dysbiotic conditions are So-dominated, not Pg-dominated. (b) Interaction network. (c) DI vs $\varphi_\text{Pg}$ scatter: DI discriminates conditions while $\varphi_\text{Pg}$ does not. (d) $E_\text{eff}$ comparison. (e) ODE trajectory. (f) Prestress comparison.*
 
 ### JAX-FEM Demos (Klempt 2024 benchmark)
 
@@ -373,7 +515,7 @@ $$
 
 ## Multiscale Micro→Macro Coupling
 
-> **Added 2026-02-24** — bridges the 0D/1D ODE ecology model with spatially non-uniform eigenstrain fields for Abaqus.
+> Bridges the 0D/1D ODE ecology model with spatially non-uniform eigenstrain fields for Abaqus.
 
 ### Concept
 
@@ -410,7 +552,13 @@ $$
 \varepsilon_{\text{growth}}(\mathbf{x}) = \frac{\alpha_{\text{Monod}}(\mathbf{x})}{3}
 $$
 
-### Key Numerical Results (2026-02-24)
+### Hybrid DI Comparison — 0D vs 1D
+
+![Hybrid DI comparison](FEM/_multiscale_results/hybrid_di_comparison.png)
+
+*Fig. 12 — Left: DI comparison between 0D ODE (condition-specific) and 1D PDE (spatial mean). 0D DI clearly separates commensal (≈ 0.05) from dysbiotic (≈ 0.84), while 1D diffusion homogenises species composition. Right: Condition-specific elastic modulus — commensal ≈ 909 Pa vs dysbiotic ≈ 33 Pa (28x difference).*
+
+### Key Numerical Results
 
 | Quantity | Commensal | Dysbiotic | Ratio |
 |----------|:---------:|:---------:|:-----:|
@@ -428,9 +576,11 @@ $$
 | File | Purpose |
 |------|---------|
 | `FEM/multiscale_coupling_1d.py` | Full 0D+1D pipeline → $\alpha_{\text{Monod}}(\mathbf{x})$ CSV |
+| `FEM/multiscale_coupling_2d.py` | 2D reaction-diffusion extension |
 | `FEM/generate_hybrid_macro_csv.py` | Hybrid: 0D DI scalar $\times$ 1D spatial $\alpha$ |
 | `FEM/generate_abaqus_eigenstrain.py` | T3D2 bar INP with thermal eigenstrain |
 | `FEM/generate_pipeline_summary.py` | 9-panel summary figure |
+| `FEM/plot_species_competition.py` | 6-panel species competition analysis |
 
 ### Quick Run
 
@@ -514,6 +664,7 @@ python biofilm_conformal_tet.py \
 
 ### Microbiology & Experimental Data
 - **Heine et al. (2025)**: Original paper describing 5-species oral biofilm interaction network (Fig. 4C); source of in vitro data used for TMCMC calibration
+- **Hajishengallis & Lamont (2012)**: Polymicrobial synergy and dysbiosis (PSD) model — conceptual framework for keystone pathogen hypothesis
 
 ### Bayesian Inference
 - **Ching & Chen (2007)**: Transitional Markov Chain Monte Carlo (TMCMC) algorithm
@@ -549,10 +700,12 @@ If you use this code or data in your research, please cite:
 ```bibtex
 @software{nishioka2026tmcmc,
   author    = {Nishioka, Keisuke},
-  title     = {Tmcmc202601: 5-Species Oral Biofilm TMCMC + FEM Pipeline},
+  title     = {Bayesian Identification of Interspecies Interaction Parameters
+               in a 5-Species Oral Biofilm Model and Propagation of Posterior
+               Uncertainty to 3D Finite Element Stress Analysis},
   year      = {2026},
   url       = {https://github.com/keisuke58/Tmcmc202601},
-  note      = {Keio University / IKM Leibniz Universität Hannover}
+  note      = {Keio University / IKM Leibniz Universit\"at Hannover}
 }
 ```
 
@@ -562,4 +715,4 @@ See also [CITATION.cff](CITATION.cff) for machine-readable citation metadata.
 
 ## Author
 
-Nishioka — Keio University / IKM Leibniz Universität Hannover, 2026
+Nishioka, Keisuke — Keio University / IKM Leibniz Universität Hannover, 2026
