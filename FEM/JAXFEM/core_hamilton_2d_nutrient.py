@@ -828,7 +828,9 @@ def make_initial_state_2d_biofilm(cfg, biofilm_mask):
 # Full coupled simulation
 # ---------------------------------------------------------------------------
 
-def run_simulation_coupled(theta, cfg, biofilm_mask=None, n_sub_c=30):
+def run_simulation_coupled(theta, cfg, biofilm_mask=None, n_sub_c=30,
+                           reaction_fn=None, nutrient_fn=None,
+                           c_hamilton_scale=1.0):
     """
     Run 2D Hamilton + nutrient with two-way coupling.
 
@@ -847,6 +849,12 @@ def run_simulation_coupled(theta, cfg, biofilm_mask=None, n_sub_c=30):
     cfg   : Config2D
     biofilm_mask : (Nx, Ny) or None
     n_sub_c : int  nutrient PDE sub-steps for CFL stability
+    reaction_fn : pre-compiled reaction step (reuse across conditions)
+    nutrient_fn : pre-compiled nutrient step (reuse across conditions)
+    c_hamilton_scale : float
+        Scale factor for nutrient → Hamilton coupling.
+        Nutrient PDE gives c ∈ [0, 1], but Hamilton model was calibrated
+        with c = 100.  Set c_hamilton_scale = 100 to match.
     """
     A, b_diag = theta_to_matrices(jnp.asarray(theta, dtype=jnp.float64))
     active_mask = jnp.ones(5, dtype=jnp.int64)
@@ -864,8 +872,8 @@ def run_simulation_coupled(theta, cfg, biofilm_mask=None, n_sub_c=30):
         "active_mask": active_mask,
     }
 
-    _reaction_c = _make_reaction_step_c(cfg.n_react_sub, cfg.newton_iters)
-    _nutrient_stable = _make_nutrient_step_stable(n_sub_c)
+    _reaction_c = reaction_fn or _make_reaction_step_c(cfg.n_react_sub, cfg.newton_iters)
+    _nutrient_stable = nutrient_fn or _make_nutrient_step_stable(n_sub_c)
 
     D_eff = jnp.array(cfg.D_eff)
     D_c = cfg.D_c
@@ -890,14 +898,18 @@ def run_simulation_coupled(theta, cfg, biofilm_mask=None, n_sub_c=30):
     print(f"  2D Coupled Hamilton+Nutrient  |  Nx={Nx} Ny={Ny}")
     print(f"  dt_h={cfg.dt_h:.1e}  n_sub={cfg.n_react_sub}  n_macro={cfg.n_macro}")
     print(f"  D_c={D_c}  k_M={k_M}  n_sub_c={n_sub_c}")
+    print(f"  c_hamilton_scale={c_hamilton_scale}")
     print(f"  biofilm={'egg-shape' if biofilm_mask is not None else 'full-domain'}")
     print(f"{'='*65}")
+
+    _c_scale = float(c_hamilton_scale)
 
     for step in range(1, cfg.n_macro + 1):
         t = step * dt_macro
 
         # (1) Reaction with nutrient coupling
-        c_flat = c.reshape(Nx * Ny)
+        # Scale c from PDE units [0,1] to Hamilton units [0, c_scale]
+        c_flat = c.reshape(Nx * Ny) * _c_scale
         G = _reaction_c(G, c_flat, params)
 
         # (2) Species diffusion (explicit Euler, Neumann BCs)

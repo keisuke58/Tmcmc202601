@@ -56,6 +56,8 @@ import os
 import sys
 import time
 
+import gc
+import subprocess
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -81,6 +83,8 @@ from JAXFEM.core_hamilton_2d_nutrient import (
     run_simulation_coupled,
     compute_di_field,
     compute_alpha_monod,
+    _make_reaction_step_c,
+    _make_nutrient_step_stable,
 )
 from material_models import compute_E_di, E_MAX_PA, E_MIN_PA, DI_SCALE
 
@@ -126,15 +130,18 @@ K_ALPHA   = 0.05     # growth-eigenstrain coupling
 L_BIOFILM = 0.2      # biofilm thickness [mm] for scale conversion
 
 # ── シミュレーション設定 ─────────────────────────────────────────────────────
-# Default: Nx=Ny=20, n_macro=200, T*=2.0
-# Production: increase n_macro for longer simulation
-NX = 20
-NY = 20
-N_MACRO    = 200
+# T* = N_MACRO × N_REACT × DT_H  (species dynamics need T*≥10 to develop)
+NX = 12
+NY = 12
+N_MACRO    = 1000     # → T* = 1000 × 10 × 1e-3 = 10.0
 N_REACT    = 10       # reaction sub-steps per macro
 DT_H       = 1e-3    # Hamilton time step
-N_SUB_C    = 30       # nutrient PDE sub-steps (CFL stability)
-SAVE_EVERY = 20       # save snapshot every N macro steps
+N_SUB_C    = 20       # nutrient PDE sub-steps (CFL stability)
+SAVE_EVERY = 100      # save snapshot every N macro steps
+
+# Hamilton coupling scale: nutrient PDE gives c ∈ [0,1], but Hamilton model
+# was calibrated with c = 100.0.  Scale c_pde → c_hamilton = c_pde * C_SCALE.
+C_HAMILTON_SCALE = 100.0
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -190,10 +197,13 @@ def solve_0d_reference(theta_np: np.ndarray) -> dict:
 
     g0 = make_initial_state(1, active_mask)[0]
 
-    def body(g, _):
-        return newton_step(g, params), g
+    @jax.jit
+    def solve_0d_inner(g0_inner, params_inner):
+        def body(g, _):
+            return newton_step(g, params_inner), g
+        return jax.lax.scan(body, g0_inner, jnp.arange(2500))
 
-    _, g_traj = jax.lax.scan(jax.jit(body), g0, jnp.arange(2500))
+    _, g_traj = solve_0d_inner(g0, params)
     phi_final = np.array(g_traj[-1, 0:5])
 
     phi_sum = phi_final.sum()
@@ -214,7 +224,8 @@ def solve_0d_reference(theta_np: np.ndarray) -> dict:
 # 2D シミュレーション実行
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run_2d(theta: np.ndarray, condition_label: str) -> dict:
+def run_2d(theta: np.ndarray, condition_label: str,
+           reaction_fn=None, nutrient_fn=None) -> dict:
     """1条件の 2D Hamilton + nutrient PDE シミュレーションを実行する。"""
     cfg = Config2D(
         Nx=NX, Ny=NY,
@@ -249,6 +260,9 @@ def run_2d(theta: np.ndarray, condition_label: str) -> dict:
         theta, cfg,
         biofilm_mask=mask,
         n_sub_c=N_SUB_C,
+        reaction_fn=reaction_fn,
+        nutrient_fn=nutrient_fn,
+        c_hamilton_scale=C_HAMILTON_SCALE,
     )
 
     elapsed = time.time() - t0
@@ -666,70 +680,165 @@ def print_summary(results: dict, ref_0d: dict):
 # メイン
 # ─────────────────────────────────────────────────────────────────────────────
 
+def run_single_condition(ckey: str):
+    """1条件をサブプロセス内で実行し、NPZ + ref_0d JSON を保存する。"""
+    os.makedirs(OUT_DIR, exist_ok=True)
+    info = CONDITIONS[ckey]
+    print(f"\n── {info['label']} ({info['run']}) ──")
+
+    # 1. Load TMCMC MAP theta
+    theta = load_theta(ckey)
+    print(f"  θ[18]=a35={theta[18]:.4f}  θ[19]=a45={theta[19]:.4f}")
+
+    # 2. 0D reference
+    print("  [0D] Computing reference composition...", flush=True)
+    r0d = solve_0d_reference(theta)
+    print(f"  [0D] DI_0D={r0d['di_0d']:.4f}  φ_Pg={r0d['phi_final'][4]:.4f}")
+
+    # Save 0D reference
+    ref_path = os.path.join(OUT_DIR, f"ref_0d_{ckey}.json")
+    with open(ref_path, "w") as f:
+        json.dump({
+            "phi_final": r0d["phi_final"].tolist(),
+            "di_0d": r0d["di_0d"],
+            "phi_total": r0d["phi_total"],
+        }, f)
+
+    # 3. 2D coupled simulation (JIT functions compiled fresh in this process)
+    _reaction_fn = _make_reaction_step_c(N_REACT, 6)
+    _nutrient_fn = _make_nutrient_step_stable(N_SUB_C)
+    res = run_2d(theta, info["label"],
+                 reaction_fn=_reaction_fn, nutrient_fn=_nutrient_fn)
+
+    # 4. Save raw data
+    npz_path = os.path.join(OUT_DIR, f"2d_fields_{ckey}.npz")
+    np.savez_compressed(
+        npz_path,
+        phi_final=res["phi_final"],
+        c_final=res["c_final"],
+        di_final=res["di_final"],
+        E_final=res["E_final"],
+        alpha_monod=res["alpha_monod"],
+        biofilm_mask=res["biofilm_mask"],
+    )
+    print(f"  Data saved: {npz_path}")
+
+    # 5. Save summary stats as JSON (for parent process)
+    stats_path = os.path.join(OUT_DIR, f"stats_{ckey}.json")
+    with open(stats_path, "w") as f:
+        json.dump({
+            "di_mean": res["di_mean"],
+            "di_std": res["di_std"],
+            "di_min": res["di_min"],
+            "di_max": res["di_max"],
+            "E_mean": res["E_mean"],
+            "c_min_bf": res["c_min_bf"],
+            "c_mean_bf": res["c_mean_bf"],
+            "phi_Pg_mean": res["phi_Pg_mean"],
+            "elapsed_s": res["elapsed_s"],
+        }, f, indent=2)
+    print(f"  Stats saved: {stats_path}")
+
+
+def load_condition_results(ckey: str) -> dict | None:
+    """サブプロセスが保存した NPZ + JSON を読み込む。"""
+    npz_path = os.path.join(OUT_DIR, f"2d_fields_{ckey}.npz")
+    stats_path = os.path.join(OUT_DIR, f"stats_{ckey}.json")
+    ref_path = os.path.join(OUT_DIR, f"ref_0d_{ckey}.json")
+
+    if not os.path.isfile(npz_path) or not os.path.isfile(stats_path):
+        return None
+
+    data = np.load(npz_path)
+    with open(stats_path) as f:
+        stats = json.load(f)
+    ref_0d = None
+    if os.path.isfile(ref_path):
+        with open(ref_path) as f:
+            ref_0d = json.load(f)
+
+    return {
+        "phi_final": data["phi_final"],
+        "c_final": data["c_final"],
+        "di_final": data["di_final"],
+        "E_final": data["E_final"],
+        "alpha_monod": data["alpha_monod"],
+        "biofilm_mask": data["biofilm_mask"],
+        **stats,
+        "ref_0d": ref_0d,
+    }
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
 
+    # ── サブプロセスモード: --single <ckey> ──
+    if len(sys.argv) >= 3 and sys.argv[1] == "--single":
+        ckey = sys.argv[2]
+        if ckey not in CONDITIONS:
+            print(f"ERROR: Unknown condition '{ckey}'. "
+                  f"Available: {list(CONDITIONS.keys())}")
+            sys.exit(1)
+        run_single_condition(ckey)
+        return
+
+    # ── メインモード: 各条件をサブプロセスで順次実行 ──
     print()
     print("=" * 85)
     print("  multiscale_coupling_2d.py")
     print("  2D Hamilton + Nutrient PDE — Overcoming 1D Diffusion Homogenization")
     print(f"  Output: {OUT_DIR}")
+    print("  Mode: subprocess isolation (fresh memory per condition)")
     print("=" * 85)
 
-    results = {}
-    ref_0d  = {}
+    python_exe = sys.executable
+    this_script = os.path.abspath(__file__)
+    completed = []
 
     for ckey in CONDITIONS:
         info = CONDITIONS[ckey]
-        print()
-        print(f"── {info['label']} ({info['run']}) ──")
+        print(f"\n{'='*65}")
+        print(f"  Launching subprocess: {info['label']} ({ckey})")
+        print(f"{'='*65}")
 
-        # 1. Load TMCMC MAP theta
-        try:
-            theta = load_theta(ckey)
-        except FileNotFoundError as e:
-            print(f"  SKIP: {e}")
-            continue
-        print(f"  θ[18]=a35={theta[18]:.4f}  θ[19]=a45={theta[19]:.4f}")
-
-        # 2. 0D reference (for comparison)
-        print("  [0D] Computing reference composition...", flush=True)
-        r0d = solve_0d_reference(theta)
-        ref_0d[ckey] = r0d
-        print(f"  [0D] DI_0D={r0d['di_0d']:.4f}  φ_Pg={r0d['phi_final'][4]:.4f}")
-
-        # 3. 2D coupled simulation
-        res = run_2d(theta, info["label"])
-        results[ckey] = res
-
-        # 4. Save raw data
-        npz_path = os.path.join(OUT_DIR, f"2d_fields_{ckey}.npz")
-        np.savez_compressed(
-            npz_path,
-            phi_final=res["phi_final"],
-            c_final=res["c_final"],
-            di_final=res["di_final"],
-            E_final=res["E_final"],
-            alpha_monod=res["alpha_monod"],
-            biofilm_mask=res["biofilm_mask"],
+        ret = subprocess.run(
+            [python_exe, this_script, "--single", ckey],
+            timeout=1800,  # 30 min max per condition
         )
-        print(f"  Data saved: {npz_path}")
+        if ret.returncode != 0:
+            print(f"  WARNING: {ckey} failed (exit code {ret.returncode})")
+        else:
+            completed.append(ckey)
+            print(f"  OK: {ckey}")
+
+    # ── 結果を読み込んで図を生成 ──
+    results = {}
+    ref_0d = {}
+    for ckey in completed:
+        res = load_condition_results(ckey)
+        if res is None:
+            print(f"  WARNING: Could not load results for {ckey}")
+            continue
+        r0d = res.pop("ref_0d", None)
+        results[ckey] = res
+        if r0d is not None:
+            ref_0d[ckey] = r0d
 
     if not results:
         print("ERROR: No results. Check TMCMC run directories.")
         sys.exit(1)
 
-    # 5. Summary
+    # Summary
     print_summary(results, ref_0d)
 
-    # 6. Figures
+    # Figures
     print("  Generating comparison figures...")
     plot_2d_fields(results, OUT_DIR)
     plot_di_comparison(results, OUT_DIR)
     plot_species_spatial(results, OUT_DIR)
     plot_1d_vs_2d(results, OUT_DIR)
 
-    # 7. Save summary JSON
+    # Save summary JSON
     summary = {}
     for ckey, res in results.items():
         summary[ckey] = {
@@ -750,7 +859,8 @@ def main():
 
     print()
     print("=" * 85)
-    print(f"  Complete! Output: {OUT_DIR}")
+    print(f"  Complete! {len(results)}/{len(CONDITIONS)} conditions")
+    print(f"  Output: {OUT_DIR}")
     print("=" * 85)
 
 

@@ -1,0 +1,38 @@
+{
+  "commensal_static": {
+    "condition": "commensal_static",
+    "e_model": "di",
+    "E_mean_pa": 909.0766260000004,
+    "eps_growth_max": 0.139880188,
+    "sigma_vm_max_pa": 140.25997002728633,
+    "sigma_vm_mean_pa": 15.398264671737945,
+    "u_max": 0.12048559893112269
+  },
+  "commensal_hobic": {
+    "condition": "commensal_hobic",
+    "e_model": "di",
+    "E_mean_pa": 890.0881890000004,
+    "eps_growth_max": 0.139866871,
+    "sigma_vm_max_pa": 137.3181829138322,
+    "sigma_vm_mean_pa": 15.074870724757027,
+    "u_max": 0.12047517585267009
+  },
+  "dysbiotic_static": {
+    "condition": "dysbiotic_static",
+    "e_model": "di",
+    "E_mean_pa": 32.3422534,
+    "eps_growth_max": 0.139902456,
+    "sigma_vm_max_pa": 4.990734175332239,
+    "sigma_vm_mean_pa": 0.5479220985331154,
+    "u_max": 0.12050114903386912
+  },
+  "dysbiotic_hobic": {
+    "condition": "dysbiotic_hobic",
+    "e_model": "di",
+    "E_mean_pa": 705.0981910000003,
+    "eps_growth_max": 0.139956955,
+    "sigma_vm_max_pa": 108.83406621715703,
+    "sigma_vm_mean_pa": 11.94905140856364,
+    "u_max": 0.12052656568059998
+  }
+}
