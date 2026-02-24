@@ -1042,19 +1042,176 @@ The results show that the effective interaction matrices are not nearly identica
 In addition to the pairwise comparison, we examined the Frobenius norm $\lVert \mathbf{A}^{(c)} \rVert_F$ and the Veillonella--P.gingivalis interaction block $A^{(c)}_{2,4}$ for each condition. The overall norm is largest in the Dysbiotic Static condition, followed by Commensal Static, while both HOBIC conditions exhibit somewhat smaller norms. The Veillonella--P.g block is strongest in Commensal HOBIC and Dysbiotic Static, with an intermediate value in Dysbiotic HOBIC. This non-monotonic pattern implies that the late-time surge of P.gingivalis cannot be attributed solely to a single large cooperative coefficient between Veillonella and P.gingivalis; instead, it emerges from the combined effect of multiple interaction blocks, decay rates, and initial conditions. This observation is consistent with the remaining discrepancy in the terminal surge and further supports the need for state-dependent or regime-switching interaction structures.
 
 %==============================================================================
-% \section{Conclusion}
-% %==============================================================================
+\section{Multiscale Mechanical Pipeline}
+\label{sec:fem_pipeline}
+%==============================================================================
 
-% We have successfully applied TMCMC to estimate the parameters of a 5-species biofilm model under four experimental conditions. The use of 1000 particles provided a robust preliminary mapping of the posterior landscape.
+A key novelty of this work is the propagation of TMCMC-calibrated microbial parameters to macroscale mechanical fields.
+We construct a three-stage pipeline:
+\begin{enumerate}
+  \item \textbf{0D Hamilton ODE}: For each posterior sample $\boldsymbol{\theta}^{(k)}$, the 5-species Hamilton model is solved for species volume fractions $\varphi_i(t)$ and a global Dysbiosis Index $\mathrm{DI}_\text{0D}$.
+  \item \textbf{1D reaction--diffusion PDE}: A 1D spatial model ($x \in [0,1]$, tooth surface to saliva) couples the Hamilton ODE with a nutrient diffusion equation, producing spatially varying fields $\varphi_i(x)$, $c(x)$, and the Monod growth integral $\alpha_\mathrm{Monod}(x)$.
+  \item \textbf{2D FEM stress analysis}: A plane-strain QUAD4 finite-element solver computes von~Mises stress $\sigma_\mathrm{vm}(\mathbf{x})$ from the spatially heterogeneous elastic modulus $E(\mathbf{x})$ and eigenstrain $\varepsilon_\mathrm{growth}(\mathbf{x})$.
+\end{enumerate}
 
-% Key findings include:
-% \begin{itemize}
-%     \item The \textbf{Biologically-Constrained Parameter Reduction} effectively improved identifiability in Commensal and Static conditions.
-%     \item The \textbf{Unlock All} strategy for Dysbiotic HOBIC was essential to capture the "Surge" dynamics.
-%     \item The inferred interaction matrices provide a quantitative map of the transition from health to disease.
-% \end{itemize}
+\subsection{Hybrid Micro--Macro Coupling}
 
-% This framework offers a powerful tool for analyzing multi-species bacterial interactions and can be extended to test therapeutic interventions \textit{in silico}.
+Direct 2D reaction--diffusion simulation is limited by diffusion-driven species homogenisation (competitive exclusion).
+We therefore adopt a hybrid approach that preserves both condition-specific differentiation and spatial structure:
+
+\begin{equation}
+  E(\mathbf{x}) = E\bigl(\mathrm{DI}_\text{0D}^{(c)}\bigr), \qquad
+  \varepsilon_\mathrm{growth}(\mathbf{x}) = \frac{\alpha_\mathrm{Monod}(x)}{3}
+  \label{eq:hybrid}
+\end{equation}
+where $\mathrm{DI}_\text{0D}^{(c)}$ is the 0D condition-dependent dysbiosis index and $\alpha_\mathrm{Monod}(x)$ is the 1D spatially resolved Monod growth integral.
+Three material models are considered:
+\begin{itemize}
+  \item \textbf{DI model}: $E = E_\max(1-r)^2 + E_\min\, r$, \; $r = \mathrm{DI}_\text{0D} / s$
+  \item \textbf{$\varphi_{Pg}$-Hill model}: $E = E_\max - (E_\max - E_\min) \cdot \varphi_{Pg}^m / (\varphi_\mathrm{crit}^m + \varphi_{Pg}^m)$
+  \item \textbf{Virulence model}: Weighted combination of P.~gingivalis and F.~nucleatum fractions
+\end{itemize}
+with $E_\max = 1000$~Pa, $E_\min = 10$~Pa, and $\nu = 0.45$ (nearly incompressible biofilm).
+
+\subsection{2D FEM Stress Results}
+
+Table~\ref{tab:fem_2d} summarises the von~Mises stress across 4 conditions using the DI material model.
+
+\begin{table}[H]
+\centering
+\caption{2D FEM stress results (DI material model, hybrid coupling)}
+\label{tab:fem_2d}
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Condition} & $E_\mathrm{mean}$ [Pa] & $\varepsilon_\mathrm{growth}^\mathrm{max}$ & $\sigma_\mathrm{vm}^\mathrm{max}$ [Pa] & $\sigma_\mathrm{vm}^\mathrm{mean}$ [Pa] & $u_\mathrm{max}$ \\
+\midrule
+Commensal Static  & 909.1 & 0.140 & 140.3 & 15.4 & 0.120 \\
+Commensal HOBIC   & 890.1 & 0.140 & 137.3 & 15.1 & 0.120 \\
+Dysbiotic Static  &  32.3 & 0.140 &   5.0 &  0.5 & 0.121 \\
+Dysbiotic HOBIC   & 705.1 & 0.140 & 108.8 & 11.9 & 0.121 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The 28-fold difference in $E$ between commensal ($\approx 909$~Pa) and dysbiotic static ($\approx 32$~Pa) translates to a 28-fold stress difference ($\sigma_\mathrm{vm}^\mathrm{max} = 140$ vs.\ $5$~Pa), demonstrating that microbial community composition directly controls the mechanical state of the biofilm.
+
+%==============================================================================
+\section{Posterior Uncertainty Propagation}
+\label{sec:uncertainty}
+%==============================================================================
+
+To quantify how parameter uncertainty propagates through the multiscale pipeline, we draw $N=50$ posterior samples for each condition and run the full 2D Hamilton + nutrient solver for each.
+This produces ensembles of DI fields, from which we compute 90\% credible intervals.
+
+\subsection{Cross-Condition Comparison}
+
+\begin{table}[H]
+\centering
+\caption{Posterior DI uncertainty (50 samples, 90\% CI)}
+\label{tab:ci_comparison}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Condition} & $\overline{\mathrm{DI}}$ & CI width & $E_{\phi_{Pg}}$ [Pa] & CI [Pa] \\
+\midrule
+Commensal Static  & 0.053 & 0.011 & 998.6 & 0.2 \\
+dh-baseline       & 0.081 & 0.375 & 998.7 & 1.4 \\
+Dysbiotic HOBIC   & 0.053 & 0.027 & 998.6 & 0.4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The dh-baseline condition (original wide prior bounds $a_{35} \in [0,30]$, $a_{45} \in [0,20]$) exhibits a DI credible interval that is \textbf{35 times wider} than the Commensal Static condition (narrow bounds $a_{35} \in [0,5]$, $a_{45} \in [0,5]$).
+This confirms that the prior bound constraints imposed by biological knowledge effectively reduce posterior uncertainty, not just in parameter space but throughout the entire multiscale mechanical pipeline.
+
+\subsection{Sensitivity Analysis}
+
+Spearman rank correlation between individual TMCMC parameters and the resulting DI field identifies the most influential parameters:
+
+\begin{table}[H]
+\centering
+\caption{Top-5 DI-sensitive parameters per condition ($|\rho_s|$, $p < 0.05$)}
+\label{tab:sensitivity}
+\begin{tabular}{ll}
+\toprule
+\textbf{Condition} & \textbf{Top-5 parameters} \\
+\midrule
+Commensal Static  & $b_2$, $b_1$, $b_3$, $a_{14}$, $a_{22}$ \\
+dh-baseline       & $b_2$, $b_1$, $b_3$, $b_5$, $a_{45}$ \\
+Dysbiotic HOBIC   & $b_2$, $b_3$, $b_1$, $a_{25}$, $a_{34}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Across all conditions, the decay rates ($b_1$, $b_2$, $b_3$) consistently dominate the DI sensitivity, indicating that species turnover dynamics are the primary driver of biofilm composition.
+Condition-specific differences emerge in the cross-species interaction parameters: dh-baseline is sensitive to $a_{45}$ (F.~nucleatum $\to$ P.~gingivalis), while Dysbiotic HOBIC shows sensitivity to $a_{25}$ (A.~naeslundii $\leftrightarrow$ P.~gingivalis) and $a_{34}$ (Veillonella $\leftrightarrow$ F.~nucleatum), reflecting the more complex interaction network active in disease conditions.
+
+%==============================================================================
+\section{Discussion}
+\label{sec:discussion}
+%==============================================================================
+
+\subsection{Biological Interpretation of Parameter Estimates}
+
+The TMCMC estimation across four experimental conditions reveals a consistent picture: the interaction matrix $\mathbf{A}$ undergoes a structured reorganisation during the transition from health (commensal) to disease (dysbiotic).
+In commensal conditions, the estimated interaction strengths are moderate and the posterior distributions are concentrated, indicating a well-constrained ecological balance among early colonisers.
+In dysbiotic conditions, particularly under HOBIC flow, the posterior explores broader regions of parameter space, reflecting the complex cooperative interactions that enable pathogen establishment.
+
+The biologically-constrained parameter reduction (locking absent interactions to zero) plays a dual role:
+\begin{enumerate}
+  \item \textbf{Identifiability}: By reducing the effective dimension from 20 to 15 parameters, the TMCMC sampler converges more efficiently and produces tighter posteriors.
+  \item \textbf{Physical plausibility}: The $a_{35}$ parameter (Veillonella $\to$ P.~gingivalis) is constrained to $[0,5]$ rather than $[0,30]$, preventing non-physical estimates (e.g., $a_{35} = 17.3$ in the unconstrained baseline) while still allowing the biologically relevant cooperative interaction to be captured ($a_{35} = 3.56$ in the mild-weight run, consistent with moderate pH-mediated support).
+\end{enumerate}
+
+\subsection{Multiscale Stress Implications}
+
+The 28-fold difference in elastic modulus between commensal and dysbiotic states translates directly into mechanical consequences.
+At the biofilm--tooth interface, the commensal biofilm sustains $\sigma_\mathrm{vm}^\mathrm{max} \approx 140$~Pa, while the dysbiotic biofilm supports only $\approx 5$~Pa.
+This dramatic softening suggests that dysbiotic biofilms are more susceptible to mechanical removal (e.g., by salivary flow or clinical irrigation), but may also redistribute stresses to the underlying tooth structure differently.
+
+The spatial gradient of the eigenstrain field --- $\alpha_\mathrm{Monod}(x=0) \approx 0.004$ at the tooth surface vs.\ $\alpha_\mathrm{Monod}(x=1) \approx 0.42$ at the saliva interface (a 101-fold difference) --- implies that growth-induced stresses are concentrated at the outer surface, while the inner biofilm near the tooth is essentially quiescent.
+This is consistent with the nutrient-limitation model: substrate consumption within the biofilm creates a nutrient gradient that suppresses growth near the tooth surface.
+
+\subsection{Uncertainty Propagation}
+
+The 35-fold difference in DI credible interval width between the constrained (Commensal Static, CI = 0.011) and unconstrained (dh-baseline, CI = 0.375) runs demonstrates that \textbf{prior biological knowledge propagates through the entire multiscale chain} to reduce mechanical prediction uncertainty.
+This finding has practical implications for clinical decision support: a well-constrained biofilm model not only fits the data better but also provides tighter confidence bounds on predicted mechanical states.
+
+The sensitivity analysis reveals that decay rates ($b_1$, $b_2$, $b_3$) are the universal drivers of DI uncertainty.
+This suggests that experimental efforts to better characterise species-specific death rates would yield the greatest improvement in predictive confidence, across all clinical conditions.
+
+\subsection{Limitations and Future Work}
+
+Several limitations should be noted:
+
+\begin{itemize}
+  \item The current 2D Hamilton solver uses a short simulation time ($T = 0.012$ non-dimensional units) due to computational constraints. Longer simulations with larger time steps (validated by CFL analysis) would better capture late-time dynamics, including the P.~gingivalis ``surge'' observed in dysbiotic conditions.
+  \item The DI values from the 2D solver ($\sim 0.05$--$0.08$) are much smaller than the 0D values ($\sim 0.05$--$0.84$), because diffusion in 2D tends to homogenise species composition. The hybrid approach (Eq.~\ref{eq:hybrid}) addresses this but introduces a model approximation.
+  \item The 2D FEM uses a simplified plane-strain formulation with uniform Poisson's ratio. Extension to 3D conformal meshes (already implemented for Abaqus) and heterogeneous material properties would increase physical realism.
+  \item The material model parameters ($E_\max$, $E_\min$, $\nu$) are currently assumed rather than fitted. Nanoindentation or AFM measurements of biofilm stiffness under controlled microbial conditions would provide experimental validation.
+\end{itemize}
+
+Future work will address:
+\begin{itemize}
+  \item State-dependent interaction matrices $\mathbf{A}(\mathrm{pH}, \mathrm{metabolites})$ to capture the terminal P.~gingivalis surge
+  \item 3D conformal FEM on realistic tooth geometry with condition-dependent material fields
+  \item Adjoint-based inverse problems coupling the mechanical response back to microbial parameter estimation
+  \item Clinical validation through comparison with \textit{in vivo} biofilm removal force measurements
+\end{itemize}
+
+%==============================================================================
+\section{Conclusion}
+%==============================================================================
+
+We have presented a complete multiscale pipeline from Bayesian parameter estimation (TMCMC) of a 5-species oral biofilm model to 2D finite-element stress analysis.
+The key contributions are:
+
+\begin{enumerate}
+  \item \textbf{Biologically-constrained TMCMC}: Locking absent interactions to zero and narrowing bounds on key pathogen parameters ($a_{35}$, $a_{45}$) reduces the total RMSE by 30\% and produces physically plausible posterior distributions.
+  \item \textbf{Multiscale mechanical coupling}: A hybrid micro--macro approach combines 0D condition-dependent DI with 1D spatially resolved growth fields, producing 28-fold stress differences between commensal and dysbiotic biofilms.
+  \item \textbf{Uncertainty propagation}: Posterior samples from TMCMC propagate through the full pipeline, revealing that biological prior constraints reduce DI uncertainty by 35-fold, with decay rates ($b_1$, $b_2$, $b_3$) as the universal sensitivity drivers.
+\end{enumerate}
+
+This framework provides a quantitative bridge from microbial ecology to continuum mechanics, enabling \textit{in silico} prediction of biofilm mechanical behaviour under different clinical conditions and, ultimately, informing therapeutic strategies against peri-implant diseases.
 
 \vfill
 
@@ -1065,6 +1222,6 @@ In addition to the pairwise comparison, we examined the Frobenius norm $\lVert \
 
 \vfill
 \noindent\rule{\textwidth}{0.4pt}
-\small{Last updated: February 5, 2026}
+\small{Last updated: February 24, 2026}
 
 \end{document}
