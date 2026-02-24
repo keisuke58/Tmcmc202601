@@ -95,25 +95,25 @@ OUT_DIR = os.path.join(_HERE, "_multiscale_results")
 # ── TMCMC 最良ラン (2026-02-08, 1000 particles) の MAP パラメータ ──────────────
 CONDITIONS = {
     "commensal_static": {
-        "run": "Commensal_Static_20260208_002100",
+        "run": "commensal_static",
         "color": "#1f77b4",
         "label": "Commensal Static",
         "linestyle": "-",
     },
     "commensal_hobic": {
-        "run": "Commensal_HOBIC_20260208_002100",
+        "run": "commensal_hobic",
         "color": "#2ca02c",
         "label": "Commensal HOBIC",
         "linestyle": "--",
     },
     "dysbiotic_static": {
-        "run": "Dysbiotic_Static_20260207_203752",
+        "run": "dysbiotic_static",
         "color": "#ff7f0e",
         "label": "Dysbiotic Static",
         "linestyle": "-.",
     },
     "dysbiotic_hobic": {
-        "run": "Dysbiotic_HOBIC_20260208_002100",
+        "run": "dh_baseline",
         "color": "#d62728",
         "label": "Dysbiotic HOBIC",
         "linestyle": ":",
