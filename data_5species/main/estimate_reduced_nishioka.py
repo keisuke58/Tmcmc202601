@@ -1888,6 +1888,18 @@ def run_estimation(
     logger.info(f"Reduced parameter space to {len(active_indices)} parameters: {active_indices}")
 
     
+    # Override specific bounds if requested (e.g. --override-bounds "18:0:3,19:0:3")
+    if args.override_bounds:
+        for spec in args.override_bounds.split(","):
+            parts = spec.strip().split(":")
+            if len(parts) == 3:
+                idx, lo, hi = int(parts[0]), float(parts[1]), float(parts[2])
+                if idx not in LOCKED_INDICES:
+                    logger.info(f"Override bounds: index {idx} -> [{lo}, {hi}]")
+                    prior_bounds[idx] = (lo, hi)
+                else:
+                    logger.warning(f"Cannot override bounds for locked index {idx}, skipping")
+
     # Widen M1 priors if requested
     if args.widen_m1_priors:
         logger.info("Widening M1 priors (indices 0-4) to [0.0, 10.0]")
@@ -2172,6 +2184,9 @@ Examples:
     parser.add_argument("--prior-decay-max", type=float, default=None,
                         help="Maximum value for decay parameters b1-b5 (indices 3,4,8,9,15). "
                              "Use smaller values (e.g., 1.0) if model over-predicts decline.")
+    parser.add_argument("--override-bounds", type=str, default=None,
+                        help="Override specific parameter bounds. Format: 'idx:lo:hi,...' "
+                             "e.g. '18:0:3,19:0:3' sets a35 and a45 bounds to [0,3].")
 
     # TMCMC options
     parser.add_argument("--n-particles", type=int, default=500, help="Number of particles")
