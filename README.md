@@ -24,6 +24,9 @@
 - [Quick Start](#quick-start)
 - [Environment](#environment)
 - [Key References](#key-references)
+- [Limitations & Known Constraints](#limitations--known-constraints)
+- [Future Work / Roadmap](#future-work--roadmap)
+- [Data Preprocessing](#data-preprocessing)
 - [Contributing & GitHub](#contributing--github)
 - [Citation](#citation)
 
@@ -394,6 +397,22 @@ $a_{35}$ (Vd→Pg) の事前分布 bounds を [0, 30] → [0, 5] に絞り、lik
 | ESS | — | 200–300 | 良好な収束 |
 | $\hat{R}$ | — | ≈ 1.0 | 混合良好 |
 
+### $a_{35}$ 感度スイープ — Prior Bounds [0, 5] の根拠
+
+$a_{35} \in [0, 25]$ を 51 点で掃引し、Pg abundance・DI・栄養枯渇 $c_\text{min}$ の応答を評価した。
+
+![a35 sweep](FEM/klempt2024_results/a35_sweep/fig1_a35_sweep_overview.png)
+
+*Fig. — $a_{35}$ sensitivity sweep (Dysbiotic Static MAP). $a_{35} > 5$ で Pg 量・DI がサチュレーション → bounds [0, 5] で十分に応答域をカバーでき、非物理的な大値推定を防止。*
+
+### TMCMC → FEM 感度: θ バリアント間の応力差
+
+TMCMC 推定精度の力学的影響を定量評価。mild-weight ($a_{35} = 3.56$) は dh-old ($a_{35} = 21.4$) に対し基材 $\sigma_\text{Mises}$ を **−1.9%** 低下させる。パラメータ推定の改善が FEM 応力予測に直結する。
+
+![theta variant comparison](FEM/_material_sweep/figures/fig_A3_theta_comparison_improved.png)
+
+*Fig. — θ variant → von Mises stress comparison. Left: substrate; Right: surface. mild-weight (green) reduces substrate stress vs dh-old (red).*
+
 ### MAP Posterior Fit — Dysbiotic HOBIC (Target Condition)
 
 ![MAP fit Dysbiotic HOBIC](data_5species/main/_runs/baseline_original_bounds/figures/TSM_simulation_Dysbiotic_HOBIC_MAP_Fit_with_data.png)
@@ -582,6 +601,18 @@ $$
 | `FEM/generate_pipeline_summary.py` | 9-panel summary figure |
 | `FEM/plot_species_competition.py` | 6-panel species competition analysis |
 
+### 1D vs 2D 拡散モデルの比較
+
+1D モデルでは Fick 拡散が種組成を均質化し、空間的な DI 変化がほぼ消失する（DI ≈ 0 everywhere）。これは 1D の本質的限界であり、**条件間差異は 0D ODE の DI_0D から取得**して Hybrid アプローチ（0D DI × 1D spatial α）で補完する。
+
+2D モデル（`FEM/multiscale_coupling_2d.py`）は Klempt (2024) の卵型バイオフィルム形態を用いた 2D 反応拡散 PDE に拡張し、以下の改善を提供する：
+
+- 2D 栄養場 $c(x,y)$: バイオフィルム内部の栄養枯渇がリアルに再現
+- 空間的に非等方な $\alpha_\text{Monod}(x,y)$: 1D の直線勾配 → 2D の卵型勾配
+- バイオフィルム‐バルク境界の影響: 幾何形状が成長パターンを支配
+
+> **設計判断**: 条件間差異の識別には 0D DI が不可欠（1D/2D 拡散は均質化するため）。空間構造は栄養場 $c(\mathbf{x})$ が支配し、1D/2D 拡散モデルの主な寄与は $\alpha_\text{Monod}(\mathbf{x})$ の空間プロファイルにある。
+
 ### Quick Run
 
 ```bash
@@ -690,6 +721,75 @@ A smoke-test workflow (`.github/workflows/ci.yml`) runs on every push / pull req
 
 - Syntax check on `core/` modules (`py_compile`)
 - Import test: verifies `INTERACTION_GRAPH_JSON` structure and Nishioka interaction mask
+
+---
+
+## Limitations & Known Constraints
+
+### モデルの制約
+
+| 制約 | 詳細 | 影響 |
+|------|------|------|
+| **1D 拡散の均質化** | 1D Fick 拡散は種組成を空間的に均質化し、DI の空間変化を消失させる | Hybrid アプローチ（0D DI × 1D spatial α）で補完 |
+| **$\varphi_\text{Pg}$ の低値** | Hamilton ODE + Hill gate ($K = 0.05$) により全条件で $\varphi_\text{Pg} < 0.10$ | $\varphi_\text{Pg}$ を stiffness 指標に使えない → DI 採用の根拠 |
+| **異方性の微小さ** | TMCMC posterior から得られる弾性異方性比 $E_1/E_3$ ≈ 1.01–1.03 | 等方モデルで十分; 将来の CZM では重要になる可能性 |
+| **In vitro 限定** | 実験データは 5 種 in vitro biofilm (Heine et al. 2025) に基づく | In vivo の栄養環境・免疫応答・多種菌叢を含まない |
+| **単一患者幾何** | FEM は Open-Full-Jaw Patient 1 の下顎歯のみ | 患者間変動の評価は未実施 |
+| **Hill gate パラメータ固定** | $K = 0.05$, $n = 4$ は TMCMC 推定対象外（固定値） | $K$, $n$ の不確かさは伝播されない |
+
+### 計算コスト
+
+- TMCMC (1000 particles, 8 stages, 4 conditions): 約 **90 h** (single node)
+- FEM posterior ensemble (100 samples × 4 conditions): 約 **4 h** (Abaqus HPC)
+- Multiscale pipeline (0D+1D, 4 conditions): 約 **2 min** (CPU, JAX)
+
+---
+
+## Future Work / Roadmap
+
+### 短期（〜3ヶ月）
+
+- [ ] **2D 反応拡散の完全統合**: `multiscale_coupling_2d.py` の出力を Abaqus INP に自動入力、2D 空間場の FEM 比較
+- [ ] **CZM (Cohesive Zone Model)**: バイオフィルム‐基材界面の剥離力学; $\varepsilon_\text{growth}$ を CZM の損傷パラメータに連携
+- [ ] **Hill gate $K$, $n$ の同時推定**: 現在固定の Hill パラメータを TMCMC 推定対象に追加（22 dims）
+- [ ] **Patient 間比較**: Open-Full-Jaw の複数患者（P1–P17）で FEM 解析を実施
+
+### 中期（3〜6ヶ月）
+
+- [ ] **JAX adjoint 逆問題**: `jaxfem_adjoint_poc.py` を full-scale に拡張; 応力計測データから $a_{ij}$ を逆推定
+- [ ] **生理的荷重条件**: 1 MPa 均一圧縮 → 咬合力分布（realistic bite force）への置換
+- [ ] **in vivo データへの適用**: 16S rRNA シーケンシングデータとの統合
+
+### 長期ビジョン
+
+- [ ] **3D 反応拡散 FEM 連成**: JAX-FEM による 3D 栄養拡散 → 空間組成 → 応力の完全連成
+- [ ] **Digital twin**: 患者固有パラメータ + リアルタイム推定 → 治療介入のシミュレーション
+
+---
+
+## Data Preprocessing
+
+### CFU/mL → 正規化体積分率 $\varphi_i$
+
+Heine et al. (2025) の実験データは Colony Forming Units per mL (CFU/mL) で計測される。TMCMC の入力として、以下の前処理を適用：
+
+$$
+\varphi_i(t) = \frac{X_i(t)}{\sum_{j=1}^{5} X_j(t)}, \quad X_i = \text{CFU/mL for species } i
+$$
+
+- 全 5 種の CFU を合計で正規化 → 体積分率 $\varphi_i \in [0, 1]$, $\sum_i \varphi_i = 1$
+- 対数スケールの CFU 変動を線形スケールの $\varphi$ に変換
+- 時間点: $t = \{0, 2, 6, 24, 48\}$ h（5 data points per condition per species）
+- 4 条件 × 5 種 × 5 時間点 = **100 data points** を同時フィッティング
+
+### 実験データの配置
+
+```
+data_5species/model_config/
+├── prior_bounds.json          # Current bounds (mild-weight)
+├── prior_bounds_original.json # Original wide bounds (backup)
+└── prior_bounds_narrow.json   # Narrow exploration bounds
+```
 
 ---
 
