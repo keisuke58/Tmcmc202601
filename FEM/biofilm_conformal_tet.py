@@ -898,13 +898,6 @@ def parse_args():
                    help="Base directory for DI credible interval npy data (default: _di_credible)")
     p.add_argument("--neo-hookean", action="store_true", dest="neo_hookean",
                    help="Use Neo-Hookean hyperelastic material instead of linear elastic")
-    p.add_argument("--growth-eigenstrain-field", default=None, dest="growth_eigenstrain_field",
-                   metavar="CSV",
-                   help=("Path to alpha_field_1d.csv from JAXFEM/extract_alpha_field_1d.py. "
-                         "Assigns spatially varying growth eigenstrain α(x) based on depth in "
-                         "biofilm (x=0: tooth surface, x=1: outer surface). "
-                         "Column format: x_norm,x_mm,c_final,phi_total_final,alpha_x_monod,eps_growth_x_monod. "
-                         "Takes precedence over --growth-eigenstrain when provided."))
     return p.parse_args()
 
 
@@ -1070,36 +1063,6 @@ def main():
                 print("    SPATIAL eigenstrain from _di_credible/%s" % cond)
                 print("    DI_mean=%.5g  T_mean=%.5g  T_min=%.5g  T_max=%.5g" % (
                     di_mean, T_nodes.mean(), T_nodes.min(), T_nodes.max()))
-
-    # 1D α(x) field from JAXFEM Hamilton+nutrient simulation (Option D Step 2)
-    if args.growth_eigenstrain_field:
-        alpha_data = np.loadtxt(args.growth_eigenstrain_field, delimiter=',', skiprows=1)
-        # CSV columns: x_norm, x_mm, c_final, phi_total_final, alpha_x_monod, eps_growth_x_monod
-        x_norm_csv = alpha_data[:, 0]   # normalized depth [0=tooth, 1=fluid]
-        alpha_csv  = alpha_data[:, 4]   # alpha_x_monod = k_α ∫ φ·c/(k+c) dt
-
-        # Map each node to its normalized depth via layer index
-        # nodes are stacked as [layer_0 (V), layer_1 (V), ..., layer_n_layers (V)]
-        V_inner    = verts_inner.shape[0]
-        N_nodes    = nodes.shape[0]
-        node_layer = np.arange(N_nodes) // V_inner          # layer index [0, n_layers]
-        depth_norm = node_layer.astype(float) / args.n_layers  # normalized ∈ [0, 1]
-
-        # Interpolate α(depth) for each node, then convert to thermal T = α/3
-        alpha_node = np.interp(depth_norm, x_norm_csv, alpha_csv)
-        T_nodes    = alpha_node / 3.0   # thermal analogy: eps_growth per direction
-
-        # Set alpha_eff to the mean so INP header is informative
-        alpha_eff  = float(alpha_node.mean())
-
-        print("[7c] Growth eigenstrain from 1D field (Option D):")
-        print("     file  : %s" % args.growth_eigenstrain_field)
-        print("     α(x)  : min=%.5g  mean=%.5g  max=%.5g" % (
-            alpha_node.min(), alpha_node.mean(), alpha_node.max()))
-        print("     T(x)  : min=%.5g  mean=%.5g  max=%.5g" % (
-            T_nodes.min(), T_nodes.mean(), T_nodes.max()))
-        print("     Spatial variation: max/mean = %.3f" % (
-            alpha_node.max() / (alpha_node.mean() + 1e-12)))
 
     # ── Step 8: Write INP ─────────────────────────────────────────────────────
     print("[8] Writing Abaqus INP ...")

@@ -56,10 +56,10 @@ _SWEEP_BASE = _HERE / "_sweep_results"
 sys.path.insert(0, str(_HERE))
 
 CONDITION_RUNS = {
-    "dh_baseline":      _RUNS_ROOT / "sweep_pg_20260217_081459" / "dh_baseline",
-    "commensal_static": _RUNS_ROOT / "Commensal_Static_20260208_002100",
-    "commensal_hobic":  _RUNS_ROOT / "Commensal_HOBIC_20260208_002100",
-    "dysbiotic_static": _RUNS_ROOT / "Dysbiotic_Static_20260207_203752",
+    "dh_baseline":      _RUNS_ROOT / "dh_baseline",
+    "commensal_static": _RUNS_ROOT / "commensal_static",
+    "commensal_hobic":  _RUNS_ROOT / "commensal_hobic",
+    "dysbiotic_static": _RUNS_ROOT / "dysbiotic_static",
 }
 
 _PARAM_KEYS = [
@@ -403,21 +403,22 @@ def main():
     ap = argparse.ArgumentParser(
         description="Automated parameter sweep")
     ap.add_argument("--conditions", nargs="+",
-                    default=["dh_baseline", "commensal_static"])
+                    default=["dh_baseline", "commensal_static",
+                             "commensal_hobic", "dysbiotic_static"])
     ap.add_argument("--k-hill", nargs="+", type=float,
-                    default=[0.01, 0.02, 0.05, 0.10, 0.20])
+                    default=[0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.50])
     ap.add_argument("--n-hill", nargs="+", type=float,
-                    default=[2.0, 4.0, 6.0])
+                    default=[1.0, 2.0, 3.0, 4.0, 6.0, 8.0])
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--resume", default=None,
                     help="Resume sweep from directory")
     # Simulation config
     ap.add_argument("--nx", type=int, default=20)
     ap.add_argument("--ny", type=int, default=20)
-    ap.add_argument("--n-macro", type=int, default=100)
+    ap.add_argument("--n-macro", type=int, default=500)
     ap.add_argument("--n-react-sub", type=int, default=20)
     ap.add_argument("--dt-h", type=float, default=1e-5)
-    ap.add_argument("--save-every", type=int, default=10)
+    ap.add_argument("--save-every", type=int, default=50)
 
     args = ap.parse_args()
 
