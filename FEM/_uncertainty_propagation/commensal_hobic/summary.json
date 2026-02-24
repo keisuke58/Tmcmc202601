@@ -1,0 +1,13 @@
+{
+  "condition": "commensal_hobic",
+  "n_samples": 50,
+  "di_mean_global": 0.04699268444090804,
+  "di_ci_width": 0.001384173477057789,
+  "eeff_mean_gpa": 0.5,
+  "eeff_ci_width_gpa": 0.0,
+  "epg_mean_pa": 998.5158449206559,
+  "epg_ci_width_pa": 0.009836255549567739,
+  "evir_mean_pa": 997.9474063867476,
+  "evir_ci_width_pa": 0.013105766589360144,
+  "timing_s": 2471.5
+}
