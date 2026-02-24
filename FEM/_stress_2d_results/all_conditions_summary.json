@@ -1,0 +1,42 @@
+{
+  "dh_baseline": {
+    "condition": "dh_baseline",
+    "DI_mean": 0.04855904147483296,
+    "DI_max": 0.05244412105683571,
+    "E_min_pa": 998.3903515061544,
+    "sigma_vm_max_pa": 5.566145051380124,
+    "sigma_vm_mean_pa": 0.763679993895066,
+    "eps_growth_max": 0.0035658440636863607,
+    "timing_s": 52.2
+  },
+  "commensal_static": {
+    "condition": "commensal_static",
+    "DI_mean": 0.04741472293120656,
+    "DI_max": 0.05133046078245673,
+    "E_min_pa": 998.3762306920322,
+    "sigma_vm_max_pa": 5.585561445183092,
+    "sigma_vm_mean_pa": 0.7661578208586658,
+    "eps_growth_max": 0.003578071965000316,
+    "timing_s": 52.8
+  },
+  "commensal_hobic": {
+    "condition": "commensal_hobic",
+    "DI_mean": 0.04697207796756706,
+    "DI_max": 0.051435927605335,
+    "E_min_pa": 998.4188533033116,
+    "sigma_vm_max_pa": 5.611940728970307,
+    "sigma_vm_mean_pa": 0.770358171718069,
+    "eps_growth_max": 0.003591597048614715,
+    "timing_s": 54.1
+  },
+  "dysbiotic_static": {
+    "condition": "dysbiotic_static",
+    "DI_mean": 0.048920855715995595,
+    "DI_max": 0.05292312398290511,
+    "E_min_pa": 998.4183393809101,
+    "sigma_vm_max_pa": 5.594032885490462,
+    "sigma_vm_mean_pa": 0.7679136112095916,
+    "eps_growth_max": 0.0035810578076552724,
+    "timing_s": 51.5
+  }
+}
