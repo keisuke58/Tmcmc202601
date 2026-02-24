@@ -44,15 +44,23 @@ from pathlib import Path
 import numpy as np
 
 _HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(_HERE))
+
+try:
+    from material_models import compute_E_phi_pg, compute_E_virulence
+except ImportError:
+    compute_E_phi_pg = None
+    compute_E_virulence = None
+
 _TMCMC_ROOT = _HERE.parent
 _RUNS_ROOT = _TMCMC_ROOT / "data_5species" / "_runs"
 _OUT_BASE = _HERE / "_uncertainty_propagation"
 
-sys.path.insert(0, str(_HERE))
-
 CONDITION_RUNS = {
-    "dh_baseline":      _RUNS_ROOT / "sweep_pg_20260217_081459" / "dh_baseline",
-    "commensal_static": _RUNS_ROOT / "Commensal_Static_20260208_002100",
+    "dh_baseline":      _RUNS_ROOT / "dh_baseline",
+    "commensal_static": _RUNS_ROOT / "commensal_static",
+    "commensal_hobic":  _RUNS_ROOT / "commensal_hobic",
+    "dysbiotic_static": _RUNS_ROOT / "dysbiotic_static",
 }
 
 E_MAX = 10.0e9; E_MIN = 0.5e9; DI_SCALE = 0.025778; DI_EXP = 2.0
@@ -71,7 +79,11 @@ def di_to_eeff(di):
 
 
 def load_posterior_samples(run_dir, n_samples, seed=42):
-    """Load N posterior samples from TMCMC run."""
+    """Load N posterior samples from TMCMC run.
+
+    Falls back to generating perturbations around theta_MAP if samples.npy
+    is not available.
+    """
     samples_path = run_dir / "samples.npy"
     if samples_path.exists():
         all_samples = np.load(samples_path)
@@ -79,6 +91,25 @@ def load_posterior_samples(run_dir, n_samples, seed=42):
         idx = rng.choice(len(all_samples), size=min(n_samples, len(all_samples)),
                         replace=False)
         return all_samples[idx]
+
+    # Fallback: generate samples around theta_MAP
+    theta_path = run_dir / "theta_MAP.json"
+    if theta_path.exists():
+        import json as _json
+        with open(theta_path) as f:
+            d = _json.load(f)
+        if "theta_full" in d:
+            theta_map = np.array(d["theta_full"], dtype=np.float64)
+        elif "theta_sub" in d:
+            theta_map = np.array(d["theta_sub"], dtype=np.float64)
+        else:
+            theta_map = np.array([d[k] for k in PARAM_NAMES], dtype=np.float64)
+        rng = np.random.default_rng(seed)
+        scale = np.maximum(np.abs(theta_map) * 0.1, 0.01)
+        samples = theta_map[None, :] + rng.normal(0, scale, size=(n_samples, len(theta_map)))
+        print(f"  [INFO] Generated {n_samples} perturbation samples around theta_MAP")
+        return samples
+
     return None
 
 
@@ -102,10 +133,16 @@ def run_single_sample(theta, cfg_dict):
     phi_snaps = np.array(result["phi_snaps"])
     c_snaps = np.array(result["c_snaps"])
     di = compute_di_from_phi(phi_snaps[-1])
+    # phi_final: (5, Nx, Ny) -> (Nx, Ny, 5) for material_models API
+    phi_final_nxy5 = phi_snaps[-1].transpose(1, 2, 0)
+    e_phi_pg = compute_E_phi_pg(phi_final_nxy5)        # (Nx, Ny) [Pa]
+    e_virulence = compute_E_virulence(phi_final_nxy5)   # (Nx, Ny) [Pa]
     return {
         "phi_snaps": phi_snaps,
         "c_snaps": c_snaps,
         "di": di,
+        "e_phi_pg": e_phi_pg,
+        "e_virulence": e_virulence,
         "di_mean": float(np.mean(di)),
         "di_max": float(np.max(di)),
         "phi_pg_max": float(np.max(phi_snaps[-1][4])),
@@ -149,6 +186,8 @@ def run_condition(condition, args):
 
     # Run samples
     di_fields = []
+    e_phi_pg_fields = []
+    e_virulence_fields = []
     sample_metas = []
     t0 = time.perf_counter()
 
@@ -162,6 +201,27 @@ def run_condition(condition, args):
             if di_path.exists():
                 di = np.load(di_path)
                 di_fields.append(di)
+                # Load or recompute E_phi_pg / E_virulence from phi_snaps
+                epg_path = sample_dir / "e_phi_pg.npy"
+                evir_path = sample_dir / "e_virulence.npy"
+                if epg_path.exists() and evir_path.exists():
+                    e_phi_pg_fields.append(np.load(epg_path))
+                    e_virulence_fields.append(np.load(evir_path))
+                else:
+                    phi_path = sample_dir / "phi_snaps.npy"
+                    if phi_path.exists():
+                        phi_snaps = np.load(phi_path)
+                        phi_final_nxy5 = phi_snaps[-1].transpose(1, 2, 0)
+                        epg = compute_E_phi_pg(phi_final_nxy5)
+                        evir = compute_E_virulence(phi_final_nxy5)
+                        np.save(epg_path, epg)
+                        np.save(evir_path, evir)
+                        e_phi_pg_fields.append(epg)
+                        e_virulence_fields.append(evir)
+                    else:
+                        # fallback: zeros (will not happen in practice)
+                        e_phi_pg_fields.append(np.full_like(di, np.nan))
+                        e_virulence_fields.append(np.full_like(di, np.nan))
                 meta_path = sample_dir / "meta.json"
                 if meta_path.exists():
                     with open(meta_path) as f:
@@ -179,7 +239,11 @@ def run_condition(condition, args):
         try:
             result = run_single_sample(theta, cfg_dict)
             di_fields.append(result["di"])
+            e_phi_pg_fields.append(result["e_phi_pg"])
+            e_virulence_fields.append(result["e_virulence"])
             np.save(sample_dir / "di_field.npy", result["di"])
+            np.save(sample_dir / "e_phi_pg.npy", result["e_phi_pg"])
+            np.save(sample_dir / "e_virulence.npy", result["e_virulence"])
             np.save(sample_dir / "phi_snaps.npy", result["phi_snaps"])
 
             meta = {
@@ -212,11 +276,24 @@ def run_condition(condition, args):
     di_p50 = np.percentile(di_arr, 50, axis=0)
     di_p95 = np.percentile(di_arr, 95, axis=0)
 
-    # E_eff credible bands
+    # E_eff credible bands (DI-based)
     eeff_arr = di_to_eeff(di_arr) * 1e-9  # GPa
     eeff_mean = np.mean(eeff_arr, axis=0)
     eeff_p05 = np.percentile(eeff_arr, 5, axis=0)
     eeff_p95 = np.percentile(eeff_arr, 95, axis=0)
+
+    # E_phi_pg credible bands (Pg-based Hill sigmoid)
+    epg_arr = np.array(e_phi_pg_fields)  # (N, Nx, Ny) [Pa]
+    epg_arr_gpa = epg_arr * 1e-9  # NOT used; keep in Pa for this model
+    epg_mean = np.mean(epg_arr, axis=0)
+    epg_p05 = np.percentile(epg_arr, 5, axis=0)
+    epg_p95 = np.percentile(epg_arr, 95, axis=0)
+
+    # E_virulence credible bands (Pg+Fn weighted)
+    evir_arr = np.array(e_virulence_fields)  # (N, Nx, Ny) [Pa]
+    evir_mean = np.mean(evir_arr, axis=0)
+    evir_p05 = np.percentile(evir_arr, 5, axis=0)
+    evir_p95 = np.percentile(evir_arr, 95, axis=0)
 
     # Save aggregated
     np.save(agg_dir / "di_mean.npy", di_mean)
@@ -226,6 +303,12 @@ def run_condition(condition, args):
     np.save(agg_dir / "eeff_mean.npy", eeff_mean)
     np.save(agg_dir / "eeff_p05.npy", eeff_p05)
     np.save(agg_dir / "eeff_p95.npy", eeff_p95)
+    np.save(agg_dir / "epg_mean.npy", epg_mean)
+    np.save(agg_dir / "epg_p05.npy", epg_p05)
+    np.save(agg_dir / "epg_p95.npy", epg_p95)
+    np.save(agg_dir / "evir_mean.npy", evir_mean)
+    np.save(agg_dir / "evir_p05.npy", evir_p05)
+    np.save(agg_dir / "evir_p95.npy", evir_p95)
 
     # Sensitivity indices (first-order, variance-based)
     sensitivity = compute_sensitivity(samples[:len(di_fields)], di_arr)
@@ -241,19 +324,28 @@ def run_condition(condition, args):
         "di_ci_width": float(np.mean(di_p95 - di_p05)),
         "eeff_mean_gpa": float(np.mean(eeff_mean)),
         "eeff_ci_width_gpa": float(np.mean(eeff_p95 - eeff_p05)),
+        "epg_mean_pa": float(np.mean(epg_mean)),
+        "epg_ci_width_pa": float(np.mean(epg_p95 - epg_p05)),
+        "evir_mean_pa": float(np.mean(evir_mean)),
+        "evir_ci_width_pa": float(np.mean(evir_p95 - evir_p05)),
         "timing_s": round(total_time, 1),
     }
     with (out_dir / "summary.json").open("w") as f:
         json.dump(summary, f, indent=2)
 
     # Generate figures
-    _plot_uncertainty_bands(di_arr, eeff_arr, fig_dir, condition)
+    _plot_uncertainty_bands(di_arr, eeff_arr, epg_arr, evir_arr,
+                           fig_dir, condition)
     _plot_sensitivity(sensitivity, fig_dir, condition)
 
     print(f"\n  DI mean: {np.mean(di_mean):.6f}")
     print(f"  DI 90% CI width: {np.mean(di_p95 - di_p05):.6f}")
-    print(f"  E_eff mean: {np.mean(eeff_mean):.4f} GPa")
-    print(f"  E_eff 90% CI width: {np.mean(eeff_p95 - eeff_p05):.4f} GPa")
+    print(f"  E_eff (DI) mean: {np.mean(eeff_mean):.4f} GPa")
+    print(f"  E_eff (DI) 90% CI width: {np.mean(eeff_p95 - eeff_p05):.4f} GPa")
+    print(f"  E_phi_pg mean: {np.mean(epg_mean):.1f} Pa")
+    print(f"  E_phi_pg 90% CI width: {np.mean(epg_p95 - epg_p05):.1f} Pa")
+    print(f"  E_virulence mean: {np.mean(evir_mean):.1f} Pa")
+    print(f"  E_virulence 90% CI width: {np.mean(evir_p95 - evir_p05):.1f} Pa")
     print(f"  Total time: {total_time:.0f}s")
 
     return summary
@@ -295,15 +387,16 @@ def compute_sensitivity(theta_samples, di_arr):
     return sensitivity
 
 
-def _plot_uncertainty_bands(di_arr, eeff_arr, fig_dir, condition):
-    """Plot DI and E_eff uncertainty bands."""
+def _plot_uncertainty_bands(di_arr, eeff_arr, epg_arr, evir_arr,
+                           fig_dir, condition):
+    """Plot DI, E_eff (DI), E_phi_pg, and E_virulence uncertainty bands."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(3, 2, figsize=(14, 15))
 
-    # Panel 1: DI mean with CI (spatial)
+    # Panel (a): DI mean with CI (spatial)
     ax = axes[0, 0]
     di_mean = np.mean(di_arr, axis=0)
     im = ax.imshow(di_mean.T, origin="lower", cmap="RdYlGn_r",
@@ -311,14 +404,14 @@ def _plot_uncertainty_bands(di_arr, eeff_arr, fig_dir, condition):
     plt.colorbar(im, ax=ax, label="DI mean")
     ax.set_title("(a) DI Mean Field", fontsize=12)
 
-    # Panel 2: DI CI width
+    # Panel (b): DI CI width
     ax = axes[0, 1]
     di_ci = np.percentile(di_arr, 95, axis=0) - np.percentile(di_arr, 5, axis=0)
     im = ax.imshow(di_ci.T, origin="lower", cmap="hot", aspect="equal")
     plt.colorbar(im, ax=ax, label="DI 90% CI width")
     ax.set_title("(b) DI Uncertainty Width", fontsize=12)
 
-    # Panel 3: DI histogram with CI
+    # Panel (c): DI histogram with CI
     ax = axes[1, 0]
     di_means = np.mean(di_arr.reshape(len(di_arr), -1), axis=1)
     ax.hist(di_means, bins=20, color="#2ca02c", alpha=0.7, density=True)
@@ -333,7 +426,7 @@ def _plot_uncertainty_bands(di_arr, eeff_arr, fig_dir, condition):
     ax.set_title("(c) DI Mean Distribution", fontsize=12)
     ax.legend(fontsize=8)
 
-    # Panel 4: E_eff histogram with CI
+    # Panel (d): E_eff (DI-based) histogram with CI
     ax = axes[1, 1]
     eeff_means = np.mean(eeff_arr.reshape(len(eeff_arr), -1), axis=1)
     ax.hist(eeff_means, bins=20, color="#d62728", alpha=0.7, density=True)
@@ -341,14 +434,44 @@ def _plot_uncertainty_bands(di_arr, eeff_arr, fig_dir, condition):
               label=f"mean={np.mean(eeff_means):.2f} GPa")
     ax.axvline(np.percentile(eeff_means, 5), color="r", ls=":")
     ax.axvline(np.percentile(eeff_means, 95), color="r", ls=":")
-    ax.set_xlabel("$E_{eff}$ [GPa] (spatial mean)", fontsize=11)
+    ax.set_xlabel("$E_{eff}$ (DI) [GPa] (spatial mean)", fontsize=11)
     ax.set_ylabel("Density", fontsize=11)
-    ax.set_title("(d) E_eff Distribution", fontsize=12)
+    ax.set_title("(d) $E_{eff}$ (DI-based) Distribution", fontsize=12)
+    ax.legend(fontsize=8)
+
+    # Panel (e): E_phi_pg histogram with CI
+    ax = axes[2, 0]
+    epg_means = np.mean(epg_arr.reshape(len(epg_arr), -1), axis=1)
+    ax.hist(epg_means, bins=20, color="#9467bd", alpha=0.7, density=True)
+    ax.axvline(np.mean(epg_means), color="k", ls="--", lw=2,
+              label=f"mean={np.mean(epg_means):.1f} Pa")
+    ax.axvline(np.percentile(epg_means, 5), color="r", ls=":",
+              label=f"5%={np.percentile(epg_means, 5):.1f}")
+    ax.axvline(np.percentile(epg_means, 95), color="r", ls=":",
+              label=f"95%={np.percentile(epg_means, 95):.1f}")
+    ax.set_xlabel("$E_{\\phi_{Pg}}$ [Pa] (spatial mean)", fontsize=11)
+    ax.set_ylabel("Density", fontsize=11)
+    ax.set_title("(e) $E_{\\phi_{Pg}}$ (Pg Hill) Distribution", fontsize=12)
+    ax.legend(fontsize=8)
+
+    # Panel (f): E_virulence histogram with CI
+    ax = axes[2, 1]
+    evir_means = np.mean(evir_arr.reshape(len(evir_arr), -1), axis=1)
+    ax.hist(evir_means, bins=20, color="#8c564b", alpha=0.7, density=True)
+    ax.axvline(np.mean(evir_means), color="k", ls="--", lw=2,
+              label=f"mean={np.mean(evir_means):.1f} Pa")
+    ax.axvline(np.percentile(evir_means, 5), color="r", ls=":",
+              label=f"5%={np.percentile(evir_means, 5):.1f}")
+    ax.axvline(np.percentile(evir_means, 95), color="r", ls=":",
+              label=f"95%={np.percentile(evir_means, 95):.1f}")
+    ax.set_xlabel("$E_{vir}$ [Pa] (spatial mean)", fontsize=11)
+    ax.set_ylabel("Density", fontsize=11)
+    ax.set_title("(f) $E_{vir}$ (Pg+Fn) Distribution", fontsize=12)
     ax.legend(fontsize=8)
 
     fig.suptitle(f"Uncertainty Propagation: {condition} (N={len(di_arr)})",
                  fontsize=14, weight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
     out = fig_dir / "uncertainty_bands.png"
     fig.savefig(out, dpi=200)
     plt.close(fig)
@@ -414,8 +537,8 @@ def main():
     ap = argparse.ArgumentParser(
         description="Posterior uncertainty propagation")
     ap.add_argument("--conditions", nargs="+",
-                    default=["dh_baseline", "commensal_static"])
-    ap.add_argument("--n-samples", type=int, default=20)
+                    default=["dh_baseline"])
+    ap.add_argument("--n-samples", type=int, default=50)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--plot-only", action="store_true")
     ap.add_argument("--force", action="store_true",
@@ -460,8 +583,12 @@ def main():
                 print(f"  {cond}:")
                 print(f"    DI mean: {r['di_mean_global']:.6f} "
                       f"(CI width: {r['di_ci_width']:.6f})")
-                print(f"    E_eff: {r['eeff_mean_gpa']:.4f} GPa "
+                print(f"    E_eff (DI): {r['eeff_mean_gpa']:.4f} GPa "
                       f"(CI width: {r['eeff_ci_width_gpa']:.4f})")
+                print(f"    E_phi_pg: {r['epg_mean_pa']:.1f} Pa "
+                      f"(CI width: {r['epg_ci_width_pa']:.1f})")
+                print(f"    E_virulence: {r['evir_mean_pa']:.1f} Pa "
+                      f"(CI width: {r['evir_ci_width_pa']:.1f})")
         print(f"{'='*60}")
 
 
