@@ -197,14 +197,13 @@ def solve_0d_reference(theta_np: np.ndarray) -> dict:
 
     g0 = make_initial_state(1, active_mask)[0]
 
-    @jax.jit
-    def solve_0d_inner(g0_inner, params_inner):
-        def body(g, _):
-            return newton_step(g, params_inner), g
-        return jax.lax.scan(body, g0_inner, jnp.arange(2500))
-
-    _, g_traj = solve_0d_inner(g0, params)
-    phi_final = np.array(g_traj[-1, 0:5])
+    # Use JIT for Newton step, but Python loop (not lax.scan)
+    # to avoid LLVM compilation issues
+    _newton_jit = jax.jit(newton_step)
+    g = g0
+    for _ in range(2500):
+        g = _newton_jit(g, params)
+    phi_final = np.array(g[0:5])
 
     phi_sum = phi_final.sum()
     p = phi_final / max(phi_sum, 1e-12)
@@ -801,9 +800,17 @@ def main():
         print(f"  Launching subprocess: {info['label']} ({ckey})")
         print(f"{'='*65}")
 
+        env = os.environ.copy()
+        env["OMP_NUM_THREADS"] = "1"
+        env["TF_NUM_INTRAOP_THREADS"] = "1"
+        env["XLA_FLAGS"] = (
+            "--xla_cpu_multi_thread_eigen=false "
+            "--xla_force_host_platform_device_count=1"
+        )
         ret = subprocess.run(
             [python_exe, this_script, "--single", ckey],
             timeout=1800,  # 30 min max per condition
+            env=env,
         )
         if ret.returncode != 0:
             print(f"  WARNING: {ckey} failed (exit code {ret.returncode})")
