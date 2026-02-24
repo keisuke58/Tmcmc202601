@@ -177,6 +177,7 @@ class TMCMCResult:
     timing_breakdown_s: Optional[Dict[str, float]] = None  # e.g., {"tsm_s":..., "fom_s":..., "tmcmc_overhead_s":...}
     likelihood_health: Optional[Dict[str, int]] = None  # Likelihood/TSM health counters
     stage_summary: Optional[List[Dict[str, Any]]] = None  # Per-stage summary rows (for CSV export)
+    log_evidence: float = 0.0  # Log model evidence: log p(y|M) = sum log S_j (Ching & Chen 2007)
 
 
 def reflect_into_bounds(x: float, low: float, high: float) -> float:
@@ -502,6 +503,7 @@ def run_TMCMC(
     rom_error_pre_history = []
     rom_error_history = []
     acc_rate_history = []  # Acceptance rate per stage
+    log_evidence = 0.0  # ★ Accumulate log model evidence (Ching & Chen 2007, Eq. 5)
     theta_MAP_posterior_history = []  # ★ Track posterior MAP at each stage (for final MAP selection)
     stage_summary: List[Dict[str, Any]] = []  # ★ Per-stage summary rows (exportable)
     
@@ -619,6 +621,12 @@ def run_TMCMC(
             debug_logger.log_warning("Weight sum issue. Using uniform.")
             w = np.ones(n_particles) / n_particles
         else:
+            # ★ Accumulate log model evidence: log S_j = log(w_sum/N) + shift
+            # where shift = max((beta_next - beta) * logL) was subtracted for numerical stability
+            log_shift = float(np.max((beta_next - beta) * logL))
+            log_Sj = np.log(w_sum) - np.log(n_particles) + log_shift
+            if np.isfinite(log_Sj):
+                log_evidence += log_Sj
             w /= w_sum
 
         # Diagnostics: actual ESS from the weights we will *actually* resample with.
@@ -1501,6 +1509,7 @@ def run_TMCMC(
     
     debug_logger.log_info(f"✅ TMCMC complete! Final β={beta:.4f}", force=True)
     debug_logger.log_info(f"🎯 MAP ({map_source}): {theta_MAP}", force=True)
+    debug_logger.log_info(f"📊 Log model evidence: {log_evidence:.4f}", force=True)
     
     # ★ Slack notification: TMCMC complete (add to thread if available)
     if SLACK_ENABLED and model_name:
@@ -1582,6 +1591,7 @@ def run_TMCMC(
         timing_breakdown_s=timing_breakdown_s,
         likelihood_health=likelihood_health,
         stage_summary=stage_summary if stage_summary else None,
+        log_evidence=log_evidence,
     )
 
 
