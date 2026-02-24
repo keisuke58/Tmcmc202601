@@ -44,27 +44,37 @@ Notes
 """
 
 from __future__ import print_function, division
-import sys
-import os
-import json
 import argparse
+import json
+import logging
+import os
 import subprocess
+import sys
+from typing import Tuple
 
 import numpy as np
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-_HERE        = os.path.dirname(os.path.abspath(__file__))
-_RESULTS_3D  = os.path.join(_HERE, "_results_3d")
-_RUNS_ROOT   = os.path.join(os.path.dirname(_HERE),
-                            "data_5species", "_runs",
-                            "sweep_pg_20260217_081459")
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_RESULTS_3D = os.path.join(_HERE, "_results_3d")
+_RUNS_ROOT = os.path.join(
+    os.path.dirname(_HERE),
+    "data_5species", "_runs",
+    "sweep_pg_20260217_081459",
+)
 
 ASSEMBLY_SCRIPT = os.path.join(_HERE, "biofilm_3tooth_assembly.py")
-ABAQUS_CMD      = "/home/nishioka/DassaultSystemes/SIMULIA/Commands/abaqus"
+# Abaqus command: use ABAQUS_CMD env var or fallback to common install path
+ABAQUS_CMD = os.environ.get(
+    "ABAQUS_CMD",
+    "/home/nishioka/DassaultSystemes/SIMULIA/Commands/abaqus",
+)
+
+logger = logging.getLogger(__name__)
 
 # ── DI computation (mirrors export_for_abaqus.py) ─────────────────────────────
 
-def _compute_di(phi_all):
+def _compute_di(phi_all: np.ndarray) -> np.ndarray:
     """
     Compute Dysbiotic Index per spatial node.
 
@@ -86,27 +96,26 @@ def _compute_di(phi_all):
 
 # ── Discover available conditions ─────────────────────────────────────────────
 
-def list_conditions():
-    """Print available conditions from TMCMC sweep and 3-D simulation directories."""
-    print("\n[TMCMC sweep conditions]  (%s)" % _RUNS_ROOT)
+def list_conditions() -> None:
+    """Log available conditions from TMCMC sweep and 3-D simulation directories."""
+    logger.info("[TMCMC sweep conditions]  (%s)", _RUNS_ROOT)
     if os.path.isdir(_RUNS_ROOT):
         for name in sorted(os.listdir(_RUNS_ROOT)):
             theta_path = os.path.join(_RUNS_ROOT, name, "theta_MAP.json")
             marker = "✓ theta_MAP.json" if os.path.isfile(theta_path) else "(no theta_MAP)"
-            print("  %-40s  %s" % (name, marker))
+            logger.info("  %-40s  %s", name, marker)
     else:
-        print("  (directory not found: %s)" % _RUNS_ROOT)
+        logger.warning("Directory not found: %s", _RUNS_ROOT)
 
-    print("\n[3-D simulation results]  (%s)" % _RESULTS_3D)
+    logger.info("[3-D simulation results]  (%s)", _RESULTS_3D)
     if os.path.isdir(_RESULTS_3D):
         for name in sorted(os.listdir(_RESULTS_3D)):
             snaps = os.path.join(_RESULTS_3D, name, "snapshots_phi.npy")
             if os.path.isfile(snaps):
                 phi = np.load(snaps)
-                print("  %-35s  n_snapshots=%d  shape=%s" % (
-                    name, phi.shape[0], str(phi.shape)))
+                logger.info("  %-35s  n_snapshots=%d  shape=%s", name, phi.shape[0], phi.shape)
     else:
-        print("  (directory not found: %s)" % _RESULTS_3D)
+        logger.warning("Directory not found: %s", _RESULTS_3D)
 
 
 # ── Load theta_MAP ────────────────────────────────────────────────────────────
@@ -135,7 +144,7 @@ def load_theta_map(condition):
 
 # ── Export DI field CSV ───────────────────────────────────────────────────────
 
-def export_di_field(condition, snapshot_index, out_csv):
+def export_di_field(condition: str, snapshot_index: int, out_csv: str) -> None:
     """
     Read 3-D simulation snapshots for *condition* and write a DI field CSV.
 
@@ -177,7 +186,7 @@ def export_di_field(condition, snapshot_index, out_csv):
     t_val    = float(snaps_t[idx])
 
     ndim = phi_at_t.ndim - 1     # spatial dims: 1, 2, or 3
-    print("  Shape: %s  t=%.5f  ndim=%d" % (str(phi_at_t.shape), t_val, ndim))
+    logger.info("Shape: %s  t=%.5f  ndim=%d", phi_at_t.shape, t_val, ndim)
 
     if ndim == 3:
         # (5, Nx, Ny, Nz) → (Nx, Ny, Nz, 5)
@@ -218,8 +227,7 @@ def export_di_field(condition, snapshot_index, out_csv):
         xx, yy = np.meshgrid(x[:Nx], y[:Ny], indexing="ij")
         zz = np.zeros_like(xx)   # collapse z to 0 for 3D INP compatibility
 
-        print("  Writing 2D→3D DI field (z=0): %d × %d = %d points" % (
-            Nx, Ny, Nx * Ny))
+        logger.info("Writing 2D→3D DI field (z=0): %d × %d = %d points", Nx, Ny, Nx * Ny)
         with open(out_csv, "w") as f:
             f.write("# condition=%s, snapshot_index=%d, t=%.6e (2D expanded to 3D)\n" % (
                 condition, idx, t_val))
@@ -262,9 +270,11 @@ def export_di_field(condition, snapshot_index, out_csv):
 
     # Summary statistics
     di_flat = di.ravel()
-    print("  DI stats: min=%.4f  mean=%.4f  median=%.4f  max=%.4f" % (
-        di_flat.min(), di_flat.mean(), float(np.median(di_flat)), di_flat.max()))
-    print("  Written: %s  (%.1f KB)" % (out_csv, os.path.getsize(out_csv) / 1024))
+    logger.info(
+        "DI stats: min=%.4f  mean=%.4f  median=%.4f  max=%.4f",
+        di_flat.min(), di_flat.mean(), float(np.median(di_flat)), di_flat.max(),
+    )
+    logger.info("Written: %s  (%.1f KB)", out_csv, os.path.getsize(out_csv) / 1024)
 
 
 # ── Summarise MAP parameters ───────────────────────────────────────────────────
@@ -291,7 +301,7 @@ def print_theta_summary(theta, source_path):
 
 # ── Regenerate INP ────────────────────────────────────────────────────────────
 
-def regen_inp(di_csv, condition, dry_run=False):
+def regen_inp(di_csv: str, condition: str, dry_run: bool = False) -> str:
     """Call biofilm_3tooth_assembly.py with the new DI CSV."""
     inp_name = "biofilm_3tooth_%s.inp" % condition
     out_path = os.path.join(_HERE, inp_name)
@@ -301,18 +311,16 @@ def regen_inp(di_csv, condition, dry_run=False):
         "--out",    out_path,
         "--n-bins", "20",
     ]
-    print("\n  Command: %s" % " ".join(cmd))
+    logger.info("Command: %s", " ".join(cmd))
     if dry_run:
-        print("  [DRY RUN] Not executing.")
+        logger.info("[DRY RUN] Not executing.")
         return out_path
     result = subprocess.run(cmd, capture_output=False, cwd=_HERE)
     if result.returncode != 0:
-        print("  ERROR: assembly script returned code %d" % result.returncode)
+        logger.error("Assembly script returned code %d", result.returncode)
     else:
-        print("  INP written: %s" % out_path)
-        print("  Next step:")
-        print("    abaqus job=BioFilm3T_%s input=%s cpus=4 interactive" % (
-            condition, inp_name))
+        logger.info("INP written: %s", out_path)
+        logger.info("Next: abaqus job=BioFilm3T_%s input=%s cpus=4 interactive", condition, inp_name)
     return out_path
 
 
@@ -337,6 +345,7 @@ def parse_args():
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     args = parse_args()
 
     if args.list:
@@ -344,26 +353,21 @@ def main():
         return
 
     condition = args.condition
-    snap      = args.snapshot
+    snap = args.snapshot
 
-    print("=" * 62)
-    print("  tmcmc_to_fem_coupling.py")
-    print("  condition  : %s" % condition)
-    print("  snapshot   : %d" % snap)
-    print("=" * 62)
+    logger.info("tmcmc_to_fem_coupling | condition=%s snapshot=%d", condition, snap)
 
     # 1. Load MAP parameters
-    print("\n[1/3] Loading TMCMC MAP parameters ...")
+    logger.info("[1/3] Loading TMCMC MAP parameters ...")
     try:
         theta, theta_path = load_theta_map(condition)
-        print_theta_summary(theta, theta_path)
+        _log_theta_summary(theta, theta_path)
     except FileNotFoundError as e:
-        print("  WARNING: %s" % e)
-        print("  Proceeding with DI field export only (theta not required).")
+        logger.warning("%s – proceeding with DI export only", e)
         theta = None
 
     # 2. Export DI field
-    print("\n[2/3] Exporting DI field from 3-D simulation ...")
+    logger.info("[2/3] Exporting DI field from 3-D simulation ...")
     if args.out_csv:
         out_csv = args.out_csv
     else:
@@ -374,22 +378,19 @@ def main():
     try:
         export_di_field(condition, snap, out_csv)
     except FileNotFoundError as e:
-        print("  ERROR: %s" % e)
+        logger.error("%s", e)
         sys.exit(1)
 
     # 3. Optionally regenerate INP
     if args.regen_inp:
-        print("\n[3/3] Regenerating biofilm_3tooth_%s.inp ..." % condition)
+        logger.info("[3/3] Regenerating biofilm_3tooth_%s.inp ...", condition)
         regen_inp(out_csv, condition, dry_run=args.dry_run)
     else:
-        print("\n[3/3] DI field export complete.")
-        print("  To regenerate INP with this field:")
-        print("    python3 tmcmc_to_fem_coupling.py --condition %s --snapshot %d --regen-inp" % (
-            condition, snap))
-        print("  Or pass manually to assembly:")
-        print("    python3 biofilm_3tooth_assembly.py --di-csv %s" % out_csv)
+        logger.info("[3/3] DI field export complete.")
+        logger.info("To regenerate INP: python3 tmcmc_to_fem_coupling.py --condition %s --snapshot %d --regen-inp", condition, snap)
+        logger.info("Or: python3 biofilm_3tooth_assembly.py --di-csv %s", out_csv)
 
-    print("\nDone.")
+    logger.info("Done.")
 
 
 if __name__ == "__main__":
