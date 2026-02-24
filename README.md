@@ -35,16 +35,7 @@ Periodontal disease is driven by **dysbiosis** — a community-level shift from 
 
 This project addresses two coupled questions:
 
-1. **Ecology**: How do species interaction strengths (*a*ᵢⱼ) differ between commensal and dysbiotic oral communities, and across cultivation methods (Static vs. HOBIC)?
-2. **Mechanics**: How does the inferred community composition alter the effective stiffness and stress distribution in periodontal tissue?
-
-### Pipeline
-
-Periodontal disease is driven by **dysbiosis** — a community-level shift from a health-associated (commensal) microbiome to a disease-associated one dominated by the keystone pathogen *Porphyromonas gingivalis* (Pg). This shift is enabled by **bridge organisms**: *Veillonella dispar* (Vd) facilitates Pg via lactate cross-feeding and pH modulation, and *Fusobacterium nucleatum* (Fn) provides structural coaggregation scaffolding. Quantifying these ecological interactions is essential to understanding how dysbiosis develops.
-
-This project addresses two coupled questions:
-
-1. **Ecology**: How do species interaction strengths (*a*ᵢⱼ) differ between commensal and dysbiotic oral communities, and across cultivation methods (Static vs. HOBIC)?
+1. **Ecology**: How do species interaction strengths $a_{ij}$ differ between commensal and dysbiotic oral communities, and across cultivation methods (Static vs. HOBIC)?
 2. **Mechanics**: How does the inferred community composition alter the effective stiffness and stress distribution in periodontal tissue?
 
 ### Pipeline
@@ -55,77 +46,60 @@ flowchart LR
 
     classDef inp    fill:#dbeafe,stroke:#3b82f6,stroke-width:2px,color:#1e3a5f
     classDef tmcmc  fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef eq     fill:#bbf7d0,stroke:#16a34a,stroke-width:1px,color:#14532d
     classDef fem    fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
+    classDef feq    fill:#fef3c7,stroke:#ca8a04,stroke-width:1px,color:#713f12
     classDef jax    fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#4a1d96
+    classDef jeq    fill:#ede9fe,stroke:#9333ea,stroke-width:1px,color:#4a1d96
     classDef out    fill:#ffe4e6,stroke:#e11d48,stroke-width:2px,color:#881337,font-weight:bold
 
     %% ── Input ──────────────────────────────────────────────────────────────
     subgraph INPUT["📊  Input  ·  Heine et al. 2025"]
         direction TB
         I1["4 experimental conditions\nCommensal / Dysbiotic  ×  Static / HOBIC"]:::inp
-        I2["5 species\nSo · An · Vd(bridge) · Fn(bridge) · Pg(pathogen)"]:::inp
-        I3["5 time points  ·  0 → 48 h\nIn vitro longitudinal  CFU/mL"]:::inp
+        I2["5 species\nSo · An · Vd · Fn · Pg"]:::inp
+        I3["5 time points  ·  0 → 48 h\nIn vitro CFU/mL"]:::inp
     end
 
     %% ── Stage 1: TMCMC ─────────────────────────────────────────────────────
     subgraph TMCMC["🔬  Stage 1  ·  TMCMC Bayesian Inference"]
         direction TB
-        T1["Hamilton variational ODE  ·  20 free params\ndφᵢ/dt = φᵢ · (rᵢ − dᵢφᵢ + Σⱼ aᵢⱼ · H(φⱼ))\nHill gate  H = φⁿ/(Kⁿ+φⁿ)  ·  K=0.05, n=4 fixed"]:::tmcmc
-        T2["Sequential tempering  β : 0 → 1\nAdaptive Δβ via  CoV(wᵢ) = 1\nMH-MCMC resample + local random walk"]:::tmcmc
-        T3["Output per condition\nθ_MAP  ·  θ_MEAN  ·  N=1000 posterior samples\nRMSE(MAP) < 0.075 across all 4 conditions"]:::tmcmc
-        T1 --> T2 --> T3
+        T1["Hamilton variational ODE · 20 free params"]:::tmcmc
+        T1eq["$$\frac{d\varphi_i}{dt} = \varphi_i \Bigl( r_i - d_i\varphi_i + \sum_j a_{ij}\,H(\varphi_j) \Bigr)$$"]:::eq
+        T1hill["$$H(\varphi) = \frac{\varphi^n}{K^n + \varphi^n}, \quad K{=}0.05,\; n{=}4$$"]:::eq
+        T2["Sequential tempering\n$$\beta : 0 \to 1$$\nMH-MCMC + local random walk"]:::tmcmc
+        T3["$$\hat{\boldsymbol{\theta}}_{\text{MAP}},\; \hat{\boldsymbol{\theta}}_{\text{MEAN}},\; N{=}1000 \text{ posterior samples}$$"]:::tmcmc
+        T1 --- T1eq --- T1hill --> T2 --> T3
     end
 
     %% ── Stage 2: FEM ────────────────────────────────────────────────────────
     subgraph FEM["🦷  Stage 2  ·  3D FEM Stress Analysis"]
         direction TB
-        F1["Posterior ODE ensemble\n→ spatial composition fields  φᵢ(x)"]:::fem
-        F2["Dysbiotic Index\nDI(x) = 1 − H(x) / log(5)\nH = −Σᵢ φᵢ log φᵢ  Shannon entropy"]:::fem
-        F3["Power-law stiffness mapping\nr(x) = clamp(DI/s, 0, 1)  ·  s = 0.025778\nE(x) = E_max·(1−r)² + E_min·r\nsubstrate: E_max=10 GPa  ·  biofilm: 100 Pa"]:::fem
-        F4["Abaqus 3D  ·  NLGEOM enabled\nOpen-Full-Jaw  patient teeth P1_23 / 30 / 31\n→ S_Mises  ·  U_max  ·  90% credible band"]:::fem
-        F1 --> F2 --> F3 --> F4
+        F1["Posterior ODE ensemble\n→ spatial composition fields"]:::fem
+        F2eq["$$\mathrm{DI}(\mathbf{x}) = 1 - \frac{H(\mathbf{x})}{\ln 5}, \quad H = -\sum_i \varphi_i \ln \varphi_i$$"]:::feq
+        F3eq["$$E(\mathbf{x}) = E_{\max}(1-r)^n + E_{\min}\,r, \quad r = \mathrm{clamp}\!\left(\tfrac{\mathrm{DI}}{s},0,1\right)$$"]:::feq
+        F4["Abaqus 3D · NLGEOM\nOpen-Full-Jaw P1_23 / 30 / 31\n$$\to \sigma_{\text{Mises}},\; U_{\max},\; 90\%\;\text{CI}$$"]:::fem
+        F1 --> F2eq --> F3eq --> F4
     end
 
     %% ── JAX-FEM sidechain ───────────────────────────────────────────────────
     subgraph JAXFEM["🧪  JAX-FEM  ·  Klempt 2024 Benchmark"]
         direction TB
-        J1["Steady-state nutrient transport PDE\n−D_c·Δc + g·φ₀(x)·c/(k+c) = 0  in [0,1]²\nDirichlet BC:  c = 1  on  ∂Ω"]:::jax
-        J2["Newton solver  ·  4 iterations\nThiele modulus ≈ 4  (diffusion-limited)\nc_min ≈ 0.31  inside biofilm\nautodiff:  ∂loss/∂D_c  via JAX AD"]:::jax
+        J1["$$-D_c\,\Delta c + g\,\varphi_0(\mathbf{x})\,\frac{c}{k+c} = 0 \quad \text{in } [0,1]^2$$"]:::jeq
+        J2["Newton solver · 4 iterations\n$$c_{\min} \approx 0.31,\quad \partial(\text{loss})/\partial D_c \text{ via JAX AD}$$"]:::jax
         J1 --> J2
     end
 
     %% ── Outputs ─────────────────────────────────────────────────────────────
-    RFEM["MAP RMSE < 0.075\nU_max: 0.027–0.029 mm\nDI discriminates 4 conditions"]:::out
-    RJAX["c_min ≈ 0.31  (benchmark)\n∂c/∂D_c  via adjoint AD"]:::out
+    RFEM["$$\text{RMSE} < 0.075, \quad U_{\max}: 0.027\text{–}0.029 \text{ mm}$$"]:::out
+    RJAX["$$c_{\min} \approx 0.31 \;\text{(benchmark)}$$"]:::out
 
     %% ── Edges ───────────────────────────────────────────────────────────────
     INPUT  -->|"CFU/mL time-series\n4 × 5 × 5"| TMCMC
     TMCMC  -->|"posterior samples\n1000 × 20 params"| FEM
-    TMCMC  -->|"φ₀(x) field\nbiofilm morphology"| JAXFEM
+    TMCMC  -->|"biofilm morphology"| JAXFEM
     FEM    --> RFEM
     JAXFEM --> RJAX
-```
- In vitro longitudinal data (4 conditions × 5 species × 5 time points)
-           │   Commensal/Dysbiotic × Static/HOBIC  [Heine et al. 2025]
-           ▼
- ┌─────────────────────────────────────┐
- │  Stage 1 — TMCMC Bayesian Inference │
- │                                     │
- │  Hamilton ODE  (5-species, 20 θ)    │
- │  p(θ|data) via sequential tempering │
- │  → θ_MAP, θ_MEAN, posterior samples │
- └────────────────┬────────────────────┘
-                  │  posterior samples per condition
-                  ▼
- ┌─────────────────────────────────────┐
- │  Stage 2 — 3D FEM Stress Analysis   │
- │                                     │
- │  φᵢ(x) composition fields           │
- │  → Dysbiotic Index  DI(x)           │
- │  → E(DI) power-law mapping          │
- │  → Abaqus 3D FEM                    │
- │  → S_Mises, U  (substrate / EPS)    │
- └─────────────────────────────────────┘
 ```
 
 ### Four Experimental Conditions
@@ -163,56 +137,65 @@ HOBIC (High-flow Open Biofilm Incubation Chamber) mimics oral shear forces that 
 
 歯周病の発症機序において、commensal → dysbiotic への菌叢遷移（polymicrobial synergy and dysbiosis; PSD モデル [Hajishengallis & Lamont 2012]）が鍵を握る。しかし既存研究には以下の 2 つのギャップがある：
 
-1. **種間相互作用の定量化が不十分** — 16S rRNA シーケンシングや共培養実験は「菌 A–B 間に相関がある」という定性的知見に留まり、相互作用強度 *a*ᵢⱼ の事後分布を推定した研究はない
+1. **種間相互作用の定量化が不十分** — 16S rRNA シーケンシングや共培養実験は「菌 A–B 間に相関がある」という定性的知見に留まり、相互作用強度 $a_{ij}$ の事後分布を推定した研究はない
 2. **微生物生態と組織力学の断絶** — バイオフィルムの構成論的モデル（e.g., Klempt et al. 2024）と歯周組織の FEM 解析は別々に発展してきたが、**推定パラメータの不確かさを力学応答まで伝播するフレームワーク**は存在しない
 
 ### 4 つの新規性
 
 #### 1. Hamilton 変分 ODE + TMCMC による種間相互作用の確率的同定
 
-Klempt et al. (2024) の Hamilton 原理に基づく 5 種バイオフィルム ODE に対し、TMCMC（Ching & Chen 2007）による逐次テンパリングベイズ推定を適用。20 パラメータの同時事後分布を取得する。
+Klempt et al. (2024) の Hamilton 原理に基づく 5 種バイオフィルム ODE に対し、TMCMC (Ching & Chen 2007) による逐次テンパリングベイズ推定を適用。20 パラメータの同時事後分布 $p(\boldsymbol{\theta} \mid \mathcal{D})$ を取得する。
 
-- **Hill ゲート** H(φ) = φⁿ/(Kⁿ+φⁿ) による非線形相互作用の導入で、bridge organism（Vd, Fn）→ keystone pathogen（Pg）の促進機構をモデル化
-- MAP 推定値だけでなく **N=1000 の事後サンプル** を保持 → 下流の全解析に不確かさを伝播
-- 4 条件（Commensal/Dysbiotic × Static/HOBIC）すべてで MAP RMSE < 0.075 を達成
+- **Hill ゲート** $H(\varphi) = \varphi^n / (K^n + \varphi^n)$ による非線形相互作用の導入で、bridge organism（Vd, Fn）→ keystone pathogen（Pg）の促進機構をモデル化
+- MAP 推定値だけでなく $N = 1000$ の事後サンプルを保持 → 下流の全解析に不確かさを伝播
+- 4 条件（Commensal/Dysbiotic × Static/HOBIC）すべてで MAP RMSE $< 0.075$ を達成
 
 #### 2. 微生物生態 → 組織力学のエンドツーエンドパイプライン
 
-```
-In vitro CFU データ (Heine et al. 2025)
-  → TMCMC: θ_MAP, {θ⁽ⁱ⁾}ᵢ₌₁ᴺ  (20-dim 事後分布)
-    → Hamilton ODE → 空間菌組成場 φᵢ(x)
-      → Dysbiotic Index: DI(x) = 1 − H(x)/ln 5
-        → 構成則マッピング: E(x) = E_max(1−r)² + E_min·r
-          → Abaqus 3D FEM (Open-Full-Jaw patient mesh)
-            → σ_Mises(x), U(x) + 90% credible band
-```
+$$
+\underbrace{\text{In vitro CFU data}}_{\text{Heine et al. 2025}}
+\;\xrightarrow{\text{TMCMC}}\;
+\hat{\boldsymbol{\theta}}_{\text{MAP}},\;\{\boldsymbol{\theta}^{(i)}\}_{i=1}^{N}
+\;\xrightarrow{\text{Hamilton ODE}}\;
+\varphi_i(\mathbf{x})
+\;\xrightarrow{\text{DI}}\;
+E(\mathbf{x})
+\;\xrightarrow{\text{Abaqus 3D FEM}}\;
+\sigma_{\text{Mises}}(\mathbf{x}),\;\mathbf{U}(\mathbf{x}) \pm \text{90\% CI}
+$$
 
 CFU 計測値から応力場の信用区間まで**単一の自動化パイプライン**で接続する点が、従来の単一スケール研究との本質的な違いである。
 
 #### 3. 事後分布の FEM への完全伝播（End-to-End Uncertainty Propagation）
 
-TMCMC 事後サンプル {θ⁽ⁱ⁾} を ODE → DI → E(x) → FEM に順伝播し、応力場の **90% credible interval** を構成する。決定論的最適化（NLS 等）では点推定しか得られず、この定量的不確かさ評価は不可能である。具体的には：
+TMCMC 事後サンプル $\{\boldsymbol{\theta}^{(i)}\}$ を ODE → DI → $E(\mathbf{x})$ → FEM に順伝播し、応力場の **90% credible interval** を構成する。決定論的最適化（NLS 等）では点推定しか得られず、この定量的不確かさ評価は不可能である。具体的には：
 
 - DI フィールドの条件間差異を信用区間付きで議論可能
 - von Mises 応力の分散が最も大きい空間領域を同定 → 実験デザインへのフィードバック
 
 #### 4. 栄養場–菌組成の空間連成によるマルチスケール固有ひずみ場
 
-Hamilton ODE を反応拡散 PDE（Monod 型消費項 + Fick 拡散）と連成し、**栄養場 c(x) に依存した空間非一様な成長固有ひずみ** ε(x) を導出する。
+Hamilton ODE を反応拡散 PDE（Monod 型消費項 + Fick 拡散）と連成し、**栄養場 $c(\mathbf{x})$ に依存した空間非一様な成長固有ひずみ** $\varepsilon(\mathbf{x})$ を導出する。
 
-- Monod 活性: α(x) = k_α ∫₀ᵀ φ_total · c/(k+c) dt → 固有ひずみ ε = α/3
-- 結果：唾液側 ε ≈ 0.14（14% 体積膨張）、歯面側 ε ≈ 0.001（栄養枯渇で成長停止）、空間勾配 **~100×**
-- この ε(x) を熱膨張アナロジーとして Abaqus INP に入力 → 空間的に非均一な残留応力場を生成
+- Monod 活性:
+
+$$
+\alpha(\mathbf{x}) = k_\alpha \int_0^{T} \varphi_{\text{total}} \cdot \frac{c}{k + c}\,\mathrm{d}t
+\quad\Longrightarrow\quad
+\varepsilon = \frac{\alpha}{3}
+$$
+
+- 結果：唾液側 $\varepsilon \approx 0.14$（14% 体積膨張）、歯面側 $\varepsilon \approx 0.001$（栄養枯渇で成長停止）、空間勾配 **~100x**
+- この $\varepsilon(\mathbf{x})$ を熱膨張アナロジーとして Abaqus INP に入力 → 空間的に非均一な残留応力場を生成
 
 ### 従来研究との比較
 
 | 観点 | 従来の研究 | 本研究 |
 |------|-----------|--------|
 | 種間相互作用の推定 | 相関解析・定性的記述 | **Hamilton ODE + TMCMC による事後分布推定** |
-| 力学解析の材料入力 | 均一定数（文献値） | **DI(x) に基づく空間変動構成則** |
-| 不確かさの扱い | 点推定（感度解析のみ） | **事後分布の順伝播 → 応力の credible interval** |
-| スケール連成 | 単一スケール | **ODE（0D）→ 反応拡散 PDE（1D/2D）→ FEM（3D）** |
+| 力学解析の材料入力 | 均一定数（文献値） | **$\mathrm{DI}(\mathbf{x})$ に基づく空間変動構成則** |
+| 不確かさの扱い | 点推定（感度解析のみ） | **事後分布の順伝播 → $\sigma_{\text{Mises}}$ の credible interval** |
+| スケール連成 | 単一スケール | **ODE (0D) → 反応拡散 PDE (1D/2D) → FEM (3D)** |
 | 固有ひずみ | 均一または未考慮 | **栄養場依存の空間非一様固有ひずみ** |
 
 ---
@@ -254,15 +237,15 @@ Tmcmc202601/
 - **ODE system**: 5-species Hamilton principle biofilm (20 parameters)
 - **Inference**: Transitional Markov Chain Monte Carlo (TMCMC)
 - **Prior**: Uniform with physiologically motivated bounds
-- **Hill gate**: interaction nonlinearity (K_hill, n_hill fixed)
+- **Hill gate**: interaction nonlinearity ($K_{\text{hill}}$, $n_{\text{hill}}$ fixed)
 
 ### Key Parameters
 
 | Index | Symbol | Meaning |
 |-------|--------|---------|
-| θ[18] | a₃₅ | *V. dispar* → *P. gingivalis* facilitation |
-| θ[19] | a₄₅ | *F. nucleatum* → *P. gingivalis* facilitation |
-| θ[12] | a₂₃ | *S. oralis* → *A. naeslundii* cross-feeding |
+| $\theta_{18}$ | $a_{35}$ | *V. dispar* → *P. gingivalis* facilitation |
+| $\theta_{19}$ | $a_{45}$ | *F. nucleatum* → *P. gingivalis* facilitation |
+| $\theta_{12}$ | $a_{23}$ | *S. oralis* → *A. naeslundii* cross-feeding |
 
 ### Best Runs — All 4 Conditions (2026-02-08, 1000 particles, ~90 h)
 
@@ -295,7 +278,7 @@ Run directories: `_runs/Commensal_Static_20260208_002100`, `_runs/Commensal_HOBI
 
 ![Interaction heatmap Dysbiotic HOBIC](data_5species/_runs/Dysbiotic_HOBIC_20260208_002100/figures/pub_interaction_heatmap_Dysbiotic_HOBIC.png)
 
-*Fig. 4 — Inferred interaction matrix (Dysbiotic HOBIC). Rows = influenced species, columns = influencing species. Large positive a₃₅ (Vd→Pg) and a₄₅ (Fn→Pg) quantify bridge-mediated dysbiosis.*
+*Fig. 4 — Inferred interaction matrix (Dysbiotic HOBIC). Rows = influenced species, columns = influencing species. Large positive $a_{35}$ (Vd→Pg) and $a_{45}$ (Fn→Pg) quantify bridge-mediated dysbiosis.*
 
 ---
 
@@ -312,38 +295,50 @@ Patient-specific lower-jaw (mandible) STL meshes are taken from the **Open-Full-
 
 ### Dysbiotic Index → Stiffness Mapping
 
-```
-DI(x) = 1 − H(x) / log(5)         H = Shannon entropy of species mix
-r(x)  = clamp(DI(x) / s, 0, 1)    s = 0.025778
-E(x)  = E_max · (1−r)ⁿ + E_min · r
-```
+$$
+H(\mathbf{x}) = -\sum_{i} \varphi_i \log \varphi_i
+\qquad\text{(Shannon entropy)}
+$$
 
-Default: E_max = 10 GPa (commensal), E_min = 0.5 GPa (dysbiotic), n = 2
+$$
+\mathrm{DI}(\mathbf{x}) = 1 - \frac{H(\mathbf{x})}{\ln 5}
+$$
+
+$$
+r(\mathbf{x}) = \mathrm{clamp}\!\left(\frac{\mathrm{DI}(\mathbf{x})}{s},\; 0,\; 1\right),
+\quad s = 0.025778
+$$
+
+$$
+E(\mathbf{x}) = E_{\max}\,(1 - r)^n + E_{\min}\,r
+$$
+
+Default: $E_{\max} = 10\;\text{GPa}$ (commensal), $E_{\min} = 0.5\;\text{GPa}$ (dysbiotic), $n = 2$
 
 ### Analysis Modes
 
 | Mode | Scale | Purpose |
 |------|-------|---------|
-| `--mode substrate` | GPa | Dental substrate effective stiffness; S_Mises is primary metric |
-| `--mode biofilm` | Pa | EPS matrix (Klempt 2024); U_max is primary metric |
+| `--mode substrate` | GPa | Dental substrate effective stiffness; $\sigma_{\text{Mises}}$ is primary metric |
+| `--mode biofilm` | Pa | EPS matrix (Klempt 2024); $U_{\max}$ is primary metric |
 | `--neo-hookean` | Pa | Neo-Hookean hyperelastic for large strains (biofilm mode) |
 
 ### Biofilm Mode Results (4 conditions, NLGEOM, 2026-02-23)
 
-| Condition | DI_mean | E_mean (Pa) | U_max (mm) |
+| Condition | $\overline{\mathrm{DI}}$ | $\bar{E}$ (Pa) | $U_{\max}$ (mm) |
 |-----------|---------|------------|------------|
 | dh_baseline | 0.00852 | 451 | 0.0267 |
 | dysbiotic_static | 0.00950 | 403 | 0.0286 |
 | commensal_static | 0.00971 | 392 | 0.0290 |
 | commensal_hobic | 0.00990 | 383 | **0.0294** (+10%) |
 
-→ Displacement (not stress) discriminates conditions under pressure-controlled BC.
+Displacement (not stress) discriminates conditions under pressure-controlled BC.
 
 ### 3D Composition Fields — Pg Overview (All 4 Conditions)
 
 ![Pg 3D overview all conditions](FEM/_results_3d/panel_pg_overview_4conditions.png)
 
-*Fig. 5 — Spatial distribution of P. gingivalis (φ_Pg) across all 4 experimental conditions, 3D tooth model. The dysbiotic HOBIC condition (bottom-right) shows highest Pg penetration depth into the biofilm.*
+*Fig. 5 — Spatial distribution of P. gingivalis ($\varphi_{\text{Pg}}$) across all 4 experimental conditions, 3D tooth model. The dysbiotic HOBIC condition (bottom-right) shows highest Pg penetration depth into the biofilm.*
 
 ### Dysbiotic Index — Cross-Condition Comparison
 
@@ -355,21 +350,22 @@ Default: E_max = 10 GPa (commensal), E_min = 0.5 GPa (dysbiotic), n = 2
 
 ![Stress violin](FEM/_posterior_uncertainty/Fig1_stress_violin.png)
 
-*Fig. 7 — Posterior uncertainty in von Mises stress across the 4 experimental conditions. Uncertainty is propagated from TMCMC posterior samples through the DI→E mapping into Abaqus FEM.*
+*Fig. 7 — Posterior uncertainty in von Mises stress across the 4 experimental conditions. Uncertainty is propagated from TMCMC posterior samples through the $\mathrm{DI} \to E$ mapping into Abaqus FEM.*
 
 ### JAX-FEM Demos (Klempt 2024 benchmark)
 
 `FEM/jax_fem_reaction_diffusion_demo.py` implements the steady-state nutrient transport PDE from Klempt et al. (2024):
 
-```
-−D_c Δc + g φ₀(x) c/(k+c) = 0    in Ω = [0,1]²
-c = 1                               on ∂Ω
-```
+$$
+-D_c\,\Delta c + g\,\varphi_0(\mathbf{x})\,\frac{c}{k + c} = 0
+\quad\text{in}\;\Omega = [0,1]^2,
+\qquad c = 1 \;\text{on}\;\partial\Omega
+$$
 
-- Egg-shaped biofilm morphology φ₀ (Klempt 2024 Fig. 1): ax=0.35, ay=0.25, skew=0.3
-- Thiele modulus ~4 (diffusion-limited regime)
-- Result: c_min ≈ 0.31 inside biofilm; Newton converges in 4 iterations
-- Full JAX autodiff: ∂(loss)/∂D_c demonstrated
+- Egg-shaped biofilm morphology $\varphi_0$ (Klempt 2024 Fig. 1): $a_x = 0.35$, $a_y = 0.25$, skew $= 0.3$
+- Thiele modulus $\approx 4$ (diffusion-limited regime)
+- Result: $c_{\min} \approx 0.31$ inside biofilm; Newton converges in 4 iterations
+- Full JAX autodiff: $\partial(\text{loss})/\partial D_c$ demonstrated
 
 ---
 
@@ -379,47 +375,55 @@ c = 1                               on ∂Ω
 
 ### Concept
 
-The TMCMC posterior gives a *mean-field* community composition θ. The multiscale pipeline turns this into a **spatially varying growth eigenstrain** ε(x) that can be imported into any FEM solver:
+The TMCMC posterior gives a *mean-field* community composition $\boldsymbol{\theta}$. The multiscale pipeline turns this into a **spatially varying growth eigenstrain** $\varepsilon(\mathbf{x})$ that can be imported into any FEM solver:
 
+```mermaid
+flowchart TB
+    classDef tmcmc  fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef ode    fill:#dbeafe,stroke:#3b82f6,stroke-width:2px,color:#1e3a5f
+    classDef bridge fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
+    classDef abaqus fill:#ffe4e6,stroke:#e11d48,stroke-width:2px,color:#881337
+
+    A["$$\hat{\boldsymbol{\theta}}_{\text{MAP}} \;\text{(TMCMC)}$$"]:::tmcmc
+    B["0D JAX ODE\n$$T^*{=}25,\; n{=}2500$$\n$$\mathrm{DI}_{\text{0D}}$$: commensal ≈ 0.05, dysbiotic ≈ 0.84"]:::ode
+    C["1D Hamilton + Nutrient PDE\n$$N{=}30,\; T^*{=}20$$\n$$\to c(\mathbf{x},T),\; \varphi_i(\mathbf{x},T)$$"]:::ode
+    D["$$\alpha_{\text{Monod}}(\mathbf{x}) = k_\alpha \int_0^T \varphi_{\text{total}}\,\frac{c}{k+c}\,dt$$"]:::bridge
+    D2["$$\varepsilon_{\text{growth}}(\mathbf{x}) = \frac{\alpha_{\text{Monod}}(\mathbf{x})}{3}$$"]:::bridge
+    E["Abaqus T3D2 bar INP\nspatially non-uniform eigenstrain field"]:::abaqus
+
+    A --> B
+    A --> C
+    C --> D --> D2 --> E
 ```
-TMCMC θ_MAP
-    │
-    ├─► 0D JAX ODE (T*=25, n=2500 steps)
-    │       → DI_0D     commensal≈0.05,  dysbiotic≈0.84  (17× difference)
-    │       → α_0D      condition-specific activity scalar
-    │
-    └─► 1D Hamilton + Nutrient PDE (N=30 nodes, T*=20)
-            → c(x,T)    nutrient field  (decays from saliva→tooth surface)
-            → φᵢ(x,T)   species profiles
-            │
-            ▼
-        α_Monod(x) = k_α ∫ φ_total · c/(k+c) dt     [KEY spatial bridge]
-        ε_growth(x) = α_Monod(x) / 3                  [volumetric eigenstrain]
-            │
-            ▼
-        Abaqus T3D2 bar element INP
-        → spatially non-uniform thermal-analogy eigenstrain field
-```
+
+The key spatial bridge is the **Monod growth integral**:
+
+$$
+\alpha_{\text{Monod}}(\mathbf{x})
+= k_\alpha \int_0^{T} \varphi_{\text{total}}(\mathbf{x},t)\;\frac{c(\mathbf{x},t)}{k + c(\mathbf{x},t)}\,\mathrm{d}t,
+\qquad
+\varepsilon_{\text{growth}}(\mathbf{x}) = \frac{\alpha_{\text{Monod}}(\mathbf{x})}{3}
+$$
 
 ### Key Numerical Results (2026-02-24)
 
 | Quantity | Commensal | Dysbiotic | Ratio |
 |----------|:---------:|:---------:|:-----:|
-| DI_0D | 0.047 | 0.845 | **18×** |
-| α_Monod at tooth surface (x=0) | 0.004 | 0.004 | ≈1× |
-| α_Monod at saliva side (x=1) | 0.420 | 0.420 | ≈1× |
-| Spatial gradient (x=1 / x=0) | **101×** | **101×** | — |
-| ε_growth at x=1 | 0.14 (14%) | 0.14 (14%) | — |
-| E_eff (Pa, from DI) | **~909** | **~33** | **28×** |
+| $\mathrm{DI}_{\text{0D}}$ | 0.047 | 0.845 | **18x** |
+| $\alpha_{\text{Monod}}$ at tooth surface ($x = 0$) | 0.004 | 0.004 | $\approx 1$ |
+| $\alpha_{\text{Monod}}$ at saliva side ($x = 1$) | 0.420 | 0.420 | $\approx 1$ |
+| Spatial gradient ($x{=}1$ / $x{=}0$) | **101x** | **101x** | — |
+| $\varepsilon_{\text{growth}}$ at $x = 1$ | 0.14 (14%) | 0.14 (14%) | — |
+| $E_{\text{eff}}$ (Pa, from DI) | **~909** | **~33** | **28x** |
 
-> The spatial gradient in ε_growth is driven by nutrient depletion c(x): the biofilm interior (tooth surface, x=0) is nutrient-starved and barely grows, while the saliva-exposed outer layer (x=1) grows at 14% volumetric strain.
+> The spatial gradient in $\varepsilon_{\text{growth}}$ is driven by nutrient depletion $c(\mathbf{x})$: the biofilm interior (tooth surface, $x = 0$) is nutrient-starved and barely grows, while the saliva-exposed outer layer ($x = 1$) grows at 14% volumetric strain.
 
 ### Implementation Files
 
 | File | Purpose |
 |------|---------|
-| `FEM/multiscale_coupling_1d.py` | Full 0D+1D pipeline → α_Monod(x) CSV |
-| `FEM/generate_hybrid_macro_csv.py` | Hybrid: 0D DI scalar × 1D spatial α |
+| `FEM/multiscale_coupling_1d.py` | Full 0D+1D pipeline → $\alpha_{\text{Monod}}(\mathbf{x})$ CSV |
+| `FEM/generate_hybrid_macro_csv.py` | Hybrid: 0D DI scalar $\times$ 1D spatial $\alpha$ |
 | `FEM/generate_abaqus_eigenstrain.py` | T3D2 bar INP with thermal eigenstrain |
 | `FEM/generate_pipeline_summary.py` | 9-panel summary figure |
 
@@ -500,7 +504,7 @@ python biofilm_conformal_tet.py \
 - **Klempt, Soleimani, Wriggers, Junker (2024)**: *A Hamilton principle-based model for diffusion-driven biofilm growth*, Biomech Model Mechanobiol 23:2091–2113. [DOI](https://doi.org/10.1007/s10237-024-01883-x)
 - **Junker & Balzani (2021)**: Extended Hamilton principle for dissipative continua (thermodynamic framework underlying the ODE model)
 - **Soleimani et al. (2016, 2019)**: Periodontal ligament FEM with GPa-scale effective stiffness
-- **Billings et al. (2015)**: EPS matrix stiffness E ≈ 10 Pa (biofilm mode reference)
+- **Billings et al. (2015)**: EPS matrix stiffness $E \approx 10\;\text{Pa}$ (biofilm mode reference)
 - **Fritsch, Geisler et al. (2025)**: Bayesian model updating for biofilm constitutive parameters under hybrid uncertainties
 
 ### Microbiology & Experimental Data
