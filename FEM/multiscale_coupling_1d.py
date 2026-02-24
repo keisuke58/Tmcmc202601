@@ -146,11 +146,14 @@ DT_H       = 1e-3  # Hamilton タイムステップ (0D ODE の dt=0.01 より�
 # スケール変換
 L_BIOFILM_MM = 0.2  # バイオフィルム厚さ [mm] (Abaqus biofilm mode と一致)
 
-# マクロ材料パラメータ (E(DI) 冪乗則)
+# マクロ材料パラメータ (material_models.py に集約、互換性のため残す)
 E_MAX_PA = 1000.0   # E_max [Pa] (EPS-rich commensal)
 E_MIN_PA = 10.0     # E_min [Pa] (Klempt 2024 cite)
 DI_SCALE = 0.025778  # DI スケール係数 (aggregate_di_credible.py より)
 N_POWER  = 2.0       # 冪乗則指数
+
+# φ_Pg / Virulence モデル (material_models.py)
+from material_models import compute_E_phi_pg, compute_E_virulence
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -341,6 +344,10 @@ def run_micro_simulation(theta: np.ndarray, condition_label: str) -> dict:
     E_Pa   = compute_E_DI(di)
     eps_gr = alpha_monod / 3.0   # 栄養制限型を主固有ひずみとして使用
 
+    # φ_Pg / Virulence ベース E(x) (メカニズムベース)
+    E_phi_pg = compute_E_phi_pg(phi_final)
+    E_vir    = compute_E_virulence(phi_final)
+
     # ── スケール変換: 正規化 x → 物理深さ [mm] ───────────────────────────────
     x_norm   = np.linspace(0.0, 1.0, N_NODES)
     depth_mm = x_norm * L_BIOFILM_MM
@@ -355,7 +362,10 @@ def run_micro_simulation(theta: np.ndarray, condition_label: str) -> dict:
         "alpha_monod": alpha_monod,        # (B) 栄養制限型 α_Monod(x) [空間非一様]
         "eps_growth":  eps_gr,             # = alpha_monod / 3
         "di":          di,
-        "E_Pa":        E_Pa,
+        "E_Pa":        E_Pa,               # DI-based (legacy)
+        "E_phi_pg":    E_phi_pg,           # φ_Pg-based (mechanism)
+        "E_virulence": E_vir,              # Pg+Fn weighted (mechanism)
+        "phi_Pg":      phi_final[:, 4],    # P. gingivalis fraction
         "t_end_Tstar": float(t_axis[-1]),
         "elapsed_s":   elapsed,
     }
@@ -390,7 +400,7 @@ def export_macro_csv(result: dict, condition_key: str) -> str:
         "# alpha_monod: nutrient-limited k_alpha*int(phi_total*c/(k+c) dt) [KEY]\n"
         "depth_mm,depth_norm,"
         "phi_So,phi_An,phi_Vd,phi_Fn,phi_Pg,"
-        "phi_total,c,DI,alpha,alpha_monod,eps_growth,E_Pa\n"
+        "phi_total,c,DI,alpha,alpha_monod,eps_growth,E_Pa,E_phi_pg,E_virulence\n"
     )
 
     rows = []
@@ -406,6 +416,8 @@ def export_macro_csv(result: dict, condition_key: str) -> str:
             f",{result['alpha_monod'][k]:.8e}"
             f",{result['eps_growth'][k]:.8e}"
             f",{result['E_Pa'][k]:.8e}"
+            f",{result['E_phi_pg'][k]:.8e}"
+            f",{result['E_virulence'][k]:.8e}"
         )
         rows.append(row)
 
@@ -509,21 +521,27 @@ def plot_multiscale_comparison(results: dict[str, dict]) -> str:
     ax_alpha2.tick_params(axis="y", labelcolor="gray")
     ax_alpha2.set_ylim(bottom=0)
 
-    # ── Panel 4: DI + E ────────────────────────────────────────────────────────
+    # ── Panel 4: φ_Pg + E comparison ────────────────────────────────────────────
     ax_di.set_xlabel("Depth from tooth surface [mm]")
-    ax_di.set_ylabel("Dysbiotic Index DI(x)")
-    ax_di.set_title("(d) Dysbiotic Index and local stiffness E(DI)")
+    ax_di.set_ylabel(r"$\varphi_\mathrm{Pg}$")
+    ax_di.set_title(r"(d) E: $\varphi_\mathrm{Pg}$-based (solid) vs DI-based (dotted)")
     ax_di.set_xlim([0, L_BIOFILM_MM])
-    ax_di.set_ylim([0, 1.0])
     ax_di.legend(fontsize=8, loc="upper right")
     ax_di.grid(alpha=0.3)
+    for ckey, res in results.items():
+        ax_di.plot(res["depth_mm"], res["phi_Pg"],
+                   color=CONDITIONS[ckey]["color"],
+                   ls=CONDITIONS[ckey]["linestyle"],
+                   lw=1.2, alpha=0.7)
+    ax_di.set_ylim(bottom=0)
     ax_e = ax_di.twinx()
     for ckey, res in results.items():
+        c = CONDITIONS[ckey]["color"]
+        ax_e.plot(res["depth_mm"], res["E_phi_pg"],
+                  color=c, ls="-", lw=1.5, alpha=0.6)
         ax_e.plot(res["depth_mm"], res["E_Pa"],
-                  color=CONDITIONS[ckey]["color"],
-                  ls=CONDITIONS[ckey]["linestyle"],
-                  lw=0.8, alpha=0.5)
-    ax_e.set_ylabel("E(DI) [Pa]", color="gray", fontsize=8)
+                  color=c, ls=":", lw=0.8, alpha=0.4)
+    ax_e.set_ylabel("E [Pa]  (solid=φ_Pg, dotted=DI)", color="gray", fontsize=8)
     ax_e.tick_params(axis="y", labelcolor="gray")
     ax_e.set_ylim([0, E_MAX_PA * 1.05])
 
