@@ -828,7 +828,8 @@ def make_initial_state_2d_biofilm(cfg, biofilm_mask):
 # Full coupled simulation
 # ---------------------------------------------------------------------------
 
-def run_simulation_coupled(theta, cfg, biofilm_mask=None, n_sub_c=30):
+def run_simulation_coupled(theta, cfg, biofilm_mask=None, n_sub_c=30,
+                           reaction_fn=None, nutrient_fn=None):
     """
     Run 2D Hamilton + nutrient with two-way coupling.
 
@@ -847,6 +848,8 @@ def run_simulation_coupled(theta, cfg, biofilm_mask=None, n_sub_c=30):
     cfg   : Config2D
     biofilm_mask : (Nx, Ny) or None
     n_sub_c : int  nutrient PDE sub-steps for CFL stability
+    reaction_fn : pre-compiled reaction step (reuse across conditions)
+    nutrient_fn : pre-compiled nutrient step (reuse across conditions)
     """
     A, b_diag = theta_to_matrices(jnp.asarray(theta, dtype=jnp.float64))
     active_mask = jnp.ones(5, dtype=jnp.int64)
@@ -864,8 +867,8 @@ def run_simulation_coupled(theta, cfg, biofilm_mask=None, n_sub_c=30):
         "active_mask": active_mask,
     }
 
-    _reaction_c = _make_reaction_step_c(cfg.n_react_sub, cfg.newton_iters)
-    _nutrient_stable = _make_nutrient_step_stable(n_sub_c)
+    _reaction_c = reaction_fn or _make_reaction_step_c(cfg.n_react_sub, cfg.newton_iters)
+    _nutrient_stable = nutrient_fn or _make_nutrient_step_stable(n_sub_c)
 
     D_eff = jnp.array(cfg.D_eff)
     D_c = cfg.D_c

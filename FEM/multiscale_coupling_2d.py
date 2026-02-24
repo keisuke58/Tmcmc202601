@@ -81,6 +81,8 @@ from JAXFEM.core_hamilton_2d_nutrient import (
     run_simulation_coupled,
     compute_di_field,
     compute_alpha_monod,
+    _make_reaction_step_c,
+    _make_nutrient_step_stable,
 )
 from material_models import compute_E_di, E_MAX_PA, E_MIN_PA, DI_SCALE
 
@@ -128,12 +130,12 @@ L_BIOFILM = 0.2      # biofilm thickness [mm] for scale conversion
 # ── シミュレーション設定 ─────────────────────────────────────────────────────
 # Default: Nx=Ny=20, n_macro=200, T*=2.0
 # Production: increase n_macro for longer simulation
-NX = 20
-NY = 20
-N_MACRO    = 200
+NX = 15
+NY = 15
+N_MACRO    = 100
 N_REACT    = 10       # reaction sub-steps per macro
 DT_H       = 1e-3    # Hamilton time step
-N_SUB_C    = 30       # nutrient PDE sub-steps (CFL stability)
+N_SUB_C    = 20       # nutrient PDE sub-steps (CFL stability)
 SAVE_EVERY = 20       # save snapshot every N macro steps
 
 
@@ -214,7 +216,8 @@ def solve_0d_reference(theta_np: np.ndarray) -> dict:
 # 2D シミュレーション実行
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run_2d(theta: np.ndarray, condition_label: str) -> dict:
+def run_2d(theta: np.ndarray, condition_label: str,
+           reaction_fn=None, nutrient_fn=None) -> dict:
     """1条件の 2D Hamilton + nutrient PDE シミュレーションを実行する。"""
     cfg = Config2D(
         Nx=NX, Ny=NY,
@@ -249,6 +252,8 @@ def run_2d(theta: np.ndarray, condition_label: str) -> dict:
         theta, cfg,
         biofilm_mask=mask,
         n_sub_c=N_SUB_C,
+        reaction_fn=reaction_fn,
+        nutrient_fn=nutrient_fn,
     )
 
     elapsed = time.time() - t0
@@ -679,6 +684,12 @@ def main():
     results = {}
     ref_0d  = {}
 
+    # Pre-compile JIT functions ONCE (avoids XLA symbol overflow)
+    print("  Pre-compiling JIT functions...")
+    _reaction_fn = _make_reaction_step_c(N_REACT, 6)
+    _nutrient_fn = _make_nutrient_step_stable(N_SUB_C)
+    print("  JIT functions ready.")
+
     for ckey in CONDITIONS:
         info = CONDITIONS[ckey]
         print()
@@ -699,7 +710,8 @@ def main():
         print(f"  [0D] DI_0D={r0d['di_0d']:.4f}  φ_Pg={r0d['phi_final'][4]:.4f}")
 
         # 3. 2D coupled simulation
-        res = run_2d(theta, info["label"])
+        res = run_2d(theta, info["label"],
+                     reaction_fn=_reaction_fn, nutrient_fn=_nutrient_fn)
         results[ckey] = res
 
         # 4. Save raw data
