@@ -78,6 +78,21 @@ def compute_di_jax(phi):
     return 1.0 - H / jnp.log(5.0)
 
 
+def phi_pg_to_eeff_jax(phi, e_max=E_MAX, e_min=E_MIN,
+                        phi_crit=0.05, hill_m=4.0):
+    """φ_Pg → E(φ_Pg) Hill sigmoid (JAX differentiable, mechanism-based).
+
+    Maps P. gingivalis abundance directly to effective stiffness via a
+    Hill-type sigmoid, bypassing the entropy-based DI entirely.
+    When φ_Pg >> φ_crit the biofilm is soft (E → E_MIN);
+    when φ_Pg << φ_crit the biofilm is stiff (E → E_MAX).
+    """
+    phi_pg = phi[..., 4]  # P. gingivalis = species index 4
+    xm = jnp.power(jnp.clip(phi_pg / phi_crit, 0.0, None), hill_m)
+    sig = xm / (1.0 + xm)
+    return e_max - (e_max - e_min) * sig
+
+
 def build_forward_0d(K_hill=0.05, n_hill=4.0, n_steps=500, dt=0.01):
     """Build a simplified 0D forward model: theta → phi_final → DI → E_eff.
 
@@ -175,8 +190,10 @@ def run_inverse_poc(args):
     _TMCMC_ROOT = _HERE.parent
     _RUNS_ROOT = _TMCMC_ROOT / "data_5species" / "_runs"
     COND_RUNS = {
-        "dh_baseline": _RUNS_ROOT / "sweep_pg_20260217_081459" / "dh_baseline",
-        "commensal_static": _RUNS_ROOT / "Commensal_Static_20260208_002100",
+        "dh_baseline": _RUNS_ROOT / "dh_baseline",
+        "commensal_static": _RUNS_ROOT / "commensal_static",
+        "commensal_hobic": _RUNS_ROOT / "commensal_hobic",
+        "dysbiotic_static": _RUNS_ROOT / "dysbiotic_static",
     }
 
     target_cond = args.target_condition
@@ -207,8 +224,11 @@ def run_inverse_poc(args):
     # Compute target E_eff
     print("\n[1/3] Computing target E_eff...")
     e_target, phi_target, di_target = forward_fn(theta_target)
+    e_target_pg = phi_pg_to_eeff_jax(phi_target)
     print(f"  Target DI: {float(di_target):.6f}")
-    print(f"  Target E_eff: {float(e_target)*1e-9:.4f} GPa")
+    print(f"  Target E_eff (DI model):   {float(e_target)*1e-9:.4f} GPa")
+    print(f"  Target E_eff (φ_Pg model): {float(e_target_pg)*1e-9:.4f} GPa")
+    print(f"  Target φ_Pg: {float(phi_target[4]):.6f}")
     print(f"  Target phi: {[f'{float(p):.4f}' for p in phi_target]}")
 
     # Initialize from perturbed theta
@@ -218,38 +238,53 @@ def run_inverse_poc(args):
     theta_init = jnp.clip(theta_init, -1.0, 10.0)
 
     e_init, phi_init, di_init = forward_fn(theta_init)
+    e_init_pg = phi_pg_to_eeff_jax(phi_init)
     print(f"\n  Initial DI: {float(di_init):.6f}")
-    print(f"  Initial E_eff: {float(e_init)*1e-9:.4f} GPa")
+    print(f"  Initial E_eff (DI model):   {float(e_init)*1e-9:.4f} GPa")
+    print(f"  Initial E_eff (φ_Pg model): {float(e_init_pg)*1e-9:.4f} GPa")
 
-    # Loss function: use DI + phi as target (E_eff saturates for DI > DI_SCALE)
+    # Loss function: DI + per-species composition + Pg emphasis
+    # Species weights: Pg (idx 4) gets 3x weight
+    species_w = jnp.array([1.0, 1.0, 1.0, 1.0, 3.0])
+
     def loss_fn(theta):
         e_eff, phi, di = forward_fn(theta)
-        # Multi-objective: DI match + species composition match
+        # DI match
         loss_di = (di - di_target)**2 / (di_target**2 + 1e-12)
-        loss_phi = jnp.sum((phi - phi_target)**2) / jnp.sum(phi_target**2 + 1e-12)
-        return loss_di + 0.5 * loss_phi
+        # Per-species weighted composition match
+        diff2 = (phi - phi_target)**2 * species_w
+        loss_phi = jnp.sum(diff2) / jnp.sum(phi_target**2 * species_w + 1e-12)
+        # L2 regularization (mild, prevents runaway)
+        loss_reg = 1e-4 * jnp.sum(theta**2)
+        return loss_di + 0.5 * loss_phi + loss_reg
 
     # Gradient via autodiff
     grad_fn = jax.jit(jax.grad(loss_fn))
     loss_jit = jax.jit(loss_fn)
 
-    # Adam optimizer
-    lr = args.lr
+    # Adam optimizer with cosine LR schedule
+    lr_base = args.lr
     n_iters = 50 if args.quick else args.n_iters
 
-    print(f"\n[2/3] Running gradient descent (Adam, lr={lr}, {n_iters} iters)...")
+    print(f"\n[2/3] Running gradient descent (Adam, lr={lr_base}, {n_iters} iters, "
+          f"cosine schedule)...")
     t_start = time.perf_counter()
 
-    # Manual Adam
+    # Manual Adam with cosine annealing
     theta = theta_init.copy()
     m = jnp.zeros_like(theta)
     v = jnp.zeros_like(theta)
     beta1, beta2, eps_adam = 0.9, 0.999, 1e-8
+    lr_min = lr_base * 0.01
 
     history = []
     for i in range(n_iters):
         loss = float(loss_jit(theta))
         g = grad_fn(theta)
+
+        # Cosine annealing LR
+        lr = lr_min + 0.5 * (lr_base - lr_min) * (
+            1 + float(jnp.cos(jnp.pi * i / n_iters)))
 
         m = beta1 * m + (1 - beta1) * g
         v = beta2 * v + (1 - beta2) * g**2
@@ -264,24 +299,32 @@ def run_inverse_poc(args):
             "di": float(di_cur),
             "e_eff_gpa": float(e_cur) * 1e-9,
             "grad_norm": float(jnp.linalg.norm(g)),
+            "lr": lr,
         })
 
         if (i+1) % max(1, n_iters//10) == 0 or i == 0:
             print(f"  iter {i+1:4d}: loss={loss:.6e}, "
                   f"DI={float(di_cur):.6f}, "
                   f"E={float(e_cur)*1e-9:.4f} GPa, "
-                  f"|grad|={float(jnp.linalg.norm(g)):.4e}")
+                  f"|grad|={float(jnp.linalg.norm(g)):.4e}, "
+                  f"lr={lr:.5f}")
 
     dt = time.perf_counter() - t_start
 
     # Final result
     e_final, phi_final, di_final = forward_fn(theta)
+    e_final_pg = phi_pg_to_eeff_jax(phi_final)
     theta_err = float(jnp.linalg.norm(theta - theta_target) / jnp.linalg.norm(theta_target))
 
     print(f"\n[3/3] Results:")
     print(f"  Time: {dt:.1f}s ({dt/n_iters*1000:.1f} ms/iter)")
     print(f"  Final DI: {float(di_final):.6f} (target: {float(di_target):.6f})")
-    print(f"  Final E_eff: {float(e_final)*1e-9:.4f} GPa (target: {float(e_target)*1e-9:.4f})")
+    print(f"  Final E_eff (DI model):   {float(e_final)*1e-9:.4f} GPa "
+          f"(target: {float(e_target)*1e-9:.4f})")
+    print(f"  Final E_eff (φ_Pg model): {float(e_final_pg)*1e-9:.4f} GPa "
+          f"(target: {float(e_target_pg)*1e-9:.4f})")
+    print(f"  Final φ_Pg: {float(phi_final[4]):.6f} "
+          f"(target: {float(phi_target[4]):.6f})")
     print(f"  Relative theta error: {theta_err:.4f} ({theta_err*100:.1f}%)")
     print(f"  Final loss: {history[-1]['loss']:.6e}")
 
@@ -313,8 +356,12 @@ def run_inverse_poc(args):
         "n_steps_ode": n_steps,
         "target_di": float(di_target),
         "target_e_eff_gpa": float(e_target) * 1e-9,
+        "target_e_eff_phi_pg_gpa": float(e_target_pg) * 1e-9,
+        "target_phi_pg": float(phi_target[4]),
         "final_di": float(di_final),
         "final_e_eff_gpa": float(e_final) * 1e-9,
+        "final_e_eff_phi_pg_gpa": float(e_final_pg) * 1e-9,
+        "final_phi_pg": float(phi_final[4]),
         "theta_rel_error": theta_err,
         "final_loss": history[-1]["loss"],
         "timing_s": round(dt, 1),
@@ -388,12 +435,13 @@ def _plot_convergence(history, out_dir, di_target, e_target_gpa):
 def main():
     ap = argparse.ArgumentParser(
         description="JAX-FEM adjoint inverse problem PoC")
-    ap.add_argument("--target-condition", default="commensal_static",
-                    choices=["dh_baseline", "commensal_static"])
+    ap.add_argument("--target-condition", default="dh_baseline",
+                    choices=["dh_baseline", "commensal_static",
+                             "commensal_hobic", "dysbiotic_static"])
     ap.add_argument("--k-hill", type=float, default=0.05)
     ap.add_argument("--n-hill", type=float, default=4.0)
     ap.add_argument("--lr", type=float, default=0.01)
-    ap.add_argument("--n-iters", type=int, default=200)
+    ap.add_argument("--n-iters", type=int, default=500)
     ap.add_argument("--quick", action="store_true")
     args = ap.parse_args()
 
