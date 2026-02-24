@@ -102,10 +102,10 @@ flowchart LR
     subgraph TMCMC["Stage 1 · TMCMC Bayesian Inference"]
         direction TB
         T1["Hamilton variational ODE · 20 free params"]:::tmcmc
-        T1eq["$$\frac{d\varphi_i}{dt} = \varphi_i \Bigl( r_i - d_i\varphi_i + \sum_j a_{ij}\,H(\varphi_j) \Bigr)$$"]:::eq
-        T1hill["$$H(\varphi) = \frac{\varphi^n}{K^n + \varphi^n}, \quad K{=}0.05,\; n{=}4$$"]:::eq
-        T2["$$\text{Sequential tempering } \beta : 0 \to 1 \text{ · MH-MCMC}$$"]:::tmcmc
-        T3["$$\hat{\boldsymbol{\theta}}_{\text{MAP}},\; \hat{\boldsymbol{\theta}}_{\text{MEAN}},\; N{=}1000 \text{ posterior samples}$$"]:::tmcmc
+        T1eq["dφi/dt = φi(ri − di·φi + Σj aij·H(φj))"]:::eq
+        T1hill["H(φ) = φⁿ/(Kⁿ+φⁿ), K=0.05, n=4"]:::eq
+        T2["Sequential tempering β: 0→1 · MH-MCMC"]:::tmcmc
+        T3["θ_MAP, θ_MEAN, N=1000 posterior samples"]:::tmcmc
         T1 --- T1eq --- T1hill --> T2 --> T3
     end
 
@@ -113,25 +113,25 @@ flowchart LR
     subgraph FEM["Stage 2 · 3D FEM Stress Analysis"]
         direction TB
         F1["Posterior ODE ensemble → spatial composition fields"]:::fem
-        F2eq["$$\mathrm{DI}(\mathbf{x}) = 1 - \frac{H(\mathbf{x})}{\ln 5}, \quad H = -\sum_i \varphi_i \ln \varphi_i$$"]:::feq
-        F3eq["$$E(\mathbf{x}) = E_{\max}(1{-}r)^n + E_{\min}\,r, \quad r = \mathrm{clamp}\!\left(\tfrac{\mathrm{DI}}{s},0,1\right)$$"]:::feq
+        F2eq["DI(x) = 1 − H(x)/ln5, H = −Σi φi·ln(φi)"]:::feq
+        F3eq["E(x) = Emax·(1−r)ⁿ + Emin·r, r = clamp(DI/s, 0, 1)"]:::feq
         F4["Abaqus 3D · NLGEOM · Open-Full-Jaw"]:::fem
-        F4out["$$\to \sigma_{\text{Mises}},\; U_{\max},\; 90\%\;\text{CI}$$"]:::feq
+        F4out["→ σ_Mises, U_max, 90% CI"]:::feq
         F1 --> F2eq --> F3eq --> F4 --- F4out
     end
 
     %% ── JAX-FEM sidechain ───────────────────────────────────────────────────
     subgraph JAXFEM["JAX-FEM · Klempt 2024 Benchmark"]
         direction TB
-        J1["$$-D_c\,\Delta c + g\,\varphi_0(\mathbf{x})\,\frac{c}{k+c} = 0 \;\;\text{in } [0,1]^2$$"]:::jeq
+        J1["−Dc·Δc + g·φ₀(x)·c/(k+c) = 0 in Ω"]:::jeq
         J2["Newton solver · 4 iterations"]:::jax
-        J2eq["$$c_{\min} \approx 0.31, \quad \partial(\text{loss})/\partial D_c \text{ via JAX AD}$$"]:::jeq
+        J2eq["c_min ≈ 0.31, ∂(loss)/∂Dc via JAX AD"]:::jeq
         J1 --> J2 --- J2eq
     end
 
     %% ── Outputs ─────────────────────────────────────────────────────────────
-    RFEM["$$\text{RMSE} < 0.075, \quad U_{\max}\!: 0.027\text{–}0.029 \text{ mm}$$"]:::out
-    RJAX["$$c_{\min} \approx 0.31 \;\text{(benchmark)}$$"]:::out
+    RFEM["RMSE < 0.075, U_max: 0.027–0.029 mm"]:::out
+    RJAX["c_min ≈ 0.31 (benchmark)"]:::out
 
     %% ── Edges ───────────────────────────────────────────────────────────────
     INPUT  --> TMCMC
@@ -529,13 +529,13 @@ flowchart TB
     classDef bridge fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
     classDef abaqus fill:#ffe4e6,stroke:#e11d48,stroke-width:2px,color:#881337
 
-    A["$$\hat{\boldsymbol{\theta}}_{\text{MAP}} \;\text{(TMCMC)}$$"]:::tmcmc
+    A["θ_MAP (TMCMC)"]:::tmcmc
     B["0D JAX ODE"]:::ode
-    Beq["$$\mathrm{DI}_{\text{0D}}\!:\; \text{commensal} \approx 0.05,\; \text{dysbiotic} \approx 0.84$$"]:::oeq
+    Beq["DI_0D: commensal ≈ 0.05, dysbiotic ≈ 0.84"]:::oeq
     C["1D Hamilton + Nutrient PDE"]:::ode
-    Ceq["$$\to c(\mathbf{x},T),\; \varphi_i(\mathbf{x},T)$$"]:::oeq
-    D["$$\alpha_{\text{Monod}}(\mathbf{x}) = k_\alpha \int_0^T \varphi_{\text{total}}\,\frac{c}{k+c}\,dt$$"]:::bridge
-    D2["$$\varepsilon_{\text{growth}}(\mathbf{x}) = \frac{\alpha_{\text{Monod}}(\mathbf{x})}{3}$$"]:::bridge
+    Ceq["→ c(x,T), φi(x,T)"]:::oeq
+    D["α_Monod(x) = kα ∫ φ_total · c/(k+c) dt"]:::bridge
+    D2["ε_growth(x) = α_Monod(x) / 3"]:::bridge
     E["Abaqus T3D2 bar INP · spatially non-uniform eigenstrain"]:::abaqus
 
     A --> B --- Beq
