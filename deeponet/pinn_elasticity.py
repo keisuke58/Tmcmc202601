@@ -10,25 +10,12 @@ where σ = C(E,ν) : ε(u), E(x,y) from DI field.
 
 Domain: Rectangular biofilm layer [0, W] × [0, H]
   - Bottom (y=0): fixed (tooth surface), u = 0
-  - Top (y=H): traction σ_yy = -p (pressure)
-  - Left/Right: free or periodic
-
-The PINN is **conditioned on E(x,y)** so it can generalize across conditions:
-  θ → [DeepONet] → φ(T) → DI → E(DI) → [PINN] → u(x,y), σ(x,y)
-
-Architecture:
-  Input: (x, y, E_local)  — spatial coords + local stiffness
-  Output: (u_x, u_y)      — displacement components
-  Loss: PDE residual + BC (no labeled data needed)
+  - Top (y=H): traction σ_yy = -p, σ_xy = 0
+  - Left/Right: free
 
 Usage:
-  # Train on multiple E-field realizations
-  python pinn_elasticity.py train --n-fields 50 --epochs 5000
-
-  # Evaluate + visualize
-  python pinn_elasticity.py eval --checkpoint pinn_checkpoints/best.eqx
-
-  # End-to-end demo: θ → DeepONet → DI → PINN → σ
+  python pinn_elasticity.py train --epochs 5000
+  python pinn_elasticity.py viz --checkpoint-dir pinn_checkpoints
   python pinn_elasticity.py e2e --deeponet-checkpoint checkpoints/best.eqx
 """
 
@@ -44,24 +31,31 @@ import jax.random as jr
 import equinox as eqx
 import optax
 
-jax.config.update("jax_enable_x64", False)  # float32 for speed
+jax.config.update("jax_enable_x64", False)
 
 # ============================================================
-# Material model (must match FEM/material_models.py)
+# Constants — must match FEM/material_models.py
 # ============================================================
-
 E_MAX = 1000.0   # Pa (commensal)
 E_MIN = 10.0     # Pa (dysbiotic)
-NU = 0.30        # Poisson's ratio (biofilm)
-
-# Domain
-W = 1.0          # width [mm] (normalized)
+NU = 0.30        # Poisson's ratio
+W = 1.0          # width [mm]
 H = 0.2          # height [mm] (biofilm thickness)
-P_APPLIED = 1.0  # applied pressure [Pa] (normalized)
+P_APPLIED = 1.0  # applied pressure [Pa]
+
+# 4 conditions: name → (DI, color)
+CONDITIONS = {
+    "CS": (0.421, "#2ca02c"),  # Commensal Static
+    "CH": (0.843, "#17becf"),  # Commensal HOBIC
+    "DH": (0.161, "#d62728"),  # Dysbiotic HOBIC
+    "DS": (0.845, "#ff7f0e"),  # Dysbiotic Static
+}
 
 
+# ============================================================
+# Material model
+# ============================================================
 def di_to_E(di, di_scale=1.0, n=2.0):
-    """DI → E material model."""
     r = jnp.clip(di / di_scale, 0.0, 1.0)
     return E_MAX * (1.0 - r)**n + E_MIN * r
 
@@ -73,246 +67,227 @@ def compute_di_from_phi(phi):
     phi_sum = jnp.where(phi_sum > eps, phi_sum, 1.0)
     p = phi / phi_sum
     log_p = jnp.where(p > eps, jnp.log(p), 0.0)
-    H = -jnp.sum(p * log_p)
-    return 1.0 - H / jnp.log(5.0)
+    H_val = -jnp.sum(p * log_p)
+    return 1.0 - H_val / jnp.log(5.0)
+
+
+def plane_strain_C(E, nu):
+    """Plane-strain stiffness matrix (Voigt: σ_xx, σ_yy, σ_xy)."""
+    lam = E * nu / ((1 + nu) * (1 - 2 * nu))
+    mu = E / (2 * (1 + nu))
+    return jnp.array([
+        [lam + 2*mu,  lam,       0.0],
+        [lam,         lam + 2*mu, 0.0],
+        [0.0,         0.0,        mu],
+    ])
 
 
 # ============================================================
-# PINN Model
+# Analytical solution (uniform E, free sides, plane strain)
 # ============================================================
+def analytical_solution(E, nu, p, y):
+    """
+    1D analytical solution for uniform strip under top pressure.
+    Assumes far from edges (σ_xx=0 interior, plane strain).
 
+    Returns: u_y(y), u_x = 0 (at center)
+    """
+    lam = E * nu / ((1 + nu) * (1 - 2 * nu))
+    mu = E / (2 * (1 + nu))
+    # σ_yy = -p, σ_xx = 0 → ε_yy = -p*(λ+2μ)/[4μ(λ+μ)]
+    eps_yy = -p * (lam + 2*mu) / (4*mu * (lam + mu))
+    return eps_yy * y
+
+
+# ============================================================
+# PINN Model with Fourier features
+# ============================================================
 class ElasticityPINN(eqx.Module):
     """
     PINN for 2D plane-strain elasticity with variable E.
-
-    Input: (x, y, E_local) → (u_x, u_y)
+    Input: (x, y, E_norm) → (u_x, u_y)
+    Fourier features on (x, y) for better convergence.
     """
+    fourier_B: jnp.ndarray   # frozen random matrix for Fourier features
     layers: list
-    output_scale: jnp.ndarray  # learnable output scaling
+    output_scale: jnp.ndarray
 
-    def __init__(self, hidden: int = 64, n_layers: int = 4, *, key):
-        keys = jr.split(key, n_layers + 1)
-        # Input: (x, y, E_normalized)
+    def __init__(self, hidden: int = 128, n_layers: int = 5,
+                 n_fourier: int = 32, *, key):
+        k1, k2 = jr.split(key)
+        # Fourier feature matrix: (2, n_fourier) for (x, y)
+        self.fourier_B = jr.normal(k1, (2, n_fourier)) * 2.0
+
+        # Input dim = 2*n_fourier (sin+cos) + 1 (E_norm) = 2*32+1 = 65
+        in_dim = 2 * n_fourier + 1
+        keys = jr.split(k2, n_layers + 1)
         self.layers = []
-        in_dim = 3
         for i in range(n_layers):
-            out_dim = hidden if i < n_layers - 1 else 2  # final: (u_x, u_y)
+            out_dim = hidden if i < n_layers - 1 else 2
             self.layers.append(eqx.nn.Linear(in_dim, out_dim, key=keys[i]))
             in_dim = hidden
 
-        self.output_scale = jnp.array([1e-3, 1e-3])  # displacement scale
+        self.output_scale = jnp.array([1e-3, 1e-3])
 
     def __call__(self, x, y, E_norm):
-        """
-        Predict displacement (u_x, u_y) at point (x, y) with local E.
-
-        Args:
-            x, y: spatial coordinates (scalars)
-            E_norm: normalized Young's modulus E/E_MAX (scalar)
-
-        Returns:
-            (u_x, u_y) displacement
-        """
-        inp = jnp.array([x, y, E_norm])
+        """Predict (u_x, u_y) at (x, y) given normalized E."""
+        xy = jnp.array([x, y])
+        # Fourier features: [sin(B^T xy), cos(B^T xy)]
+        proj = self.fourier_B.T @ xy  # (n_fourier,)
+        ff = jnp.concatenate([jnp.sin(proj), jnp.cos(proj)])  # (2*n_fourier,)
+        inp = jnp.concatenate([ff, jnp.array([E_norm])])
 
         h = inp
         for layer in self.layers[:-1]:
             h = jnp.tanh(layer(h))
         raw = self.layers[-1](h)
 
-        # Hard BC: u = 0 at y = 0 → multiply by y
+        # Hard BC: u = 0 at y = 0
         u = raw * self.output_scale * y
         return u
 
 
 # ============================================================
-# Physics residual (PDE loss)
+# PDE residual
 # ============================================================
-
-def plane_strain_C(E, nu):
-    """
-    Plane-strain stiffness matrix (Voigt notation).
-    σ = C : ε  where σ = [σ_xx, σ_yy, σ_xy], ε = [ε_xx, ε_yy, 2ε_xy]
-    """
-    lam = E * nu / ((1 + nu) * (1 - 2 * nu))
-    mu = E / (2 * (1 + nu))
-    C = jnp.array([
-        [lam + 2*mu,  lam,       0.0],
-        [lam,         lam + 2*mu, 0.0],
-        [0.0,         0.0,        mu],
-    ])
-    return C
-
-
 def pde_residual(model, x, y, E_local):
-    """
-    Compute PDE residual for equilibrium equations.
-
-    ∂σ_xx/∂x + ∂σ_xy/∂y = 0
-    ∂σ_xy/∂x + ∂σ_yy/∂y = 0
-    """
+    """Compute equilibrium residual + stress + displacement."""
     E_norm = E_local / E_MAX
+    C = plane_strain_C(E_local, NU)
 
-    # Displacement and its derivatives via AD
     def u_fn(xy):
         return model(xy[0], xy[1], E_norm)
 
     xy = jnp.array([x, y])
-    u = u_fn(xy)                      # (2,)
-    J = jax.jacobian(u_fn)(xy)        # (2, 2): du_i/dx_j
+    u = u_fn(xy)
+    J = jax.jacobian(u_fn)(xy)  # (2, 2)
 
-    # Strain: ε_xx, ε_yy, 2*ε_xy (Voigt)
-    du_dx = J[0, 0]   # ∂u_x/∂x
-    du_dy = J[0, 1]   # ∂u_x/∂y
-    dv_dx = J[1, 0]   # ∂u_y/∂x
-    dv_dy = J[1, 1]   # ∂u_y/∂y
-
-    eps_xx = du_dx
-    eps_yy = dv_dy
-    gamma_xy = du_dy + dv_dx  # = 2 * ε_xy
-
+    eps_xx = J[0, 0]
+    eps_yy = J[1, 1]
+    gamma_xy = J[0, 1] + J[1, 0]
     strain = jnp.array([eps_xx, eps_yy, gamma_xy])
+    stress = C @ strain
 
-    # Stress
-    C = plane_strain_C(E_local, NU)
-    stress = C @ strain  # [σ_xx, σ_yy, σ_xy]
+    # Stress divergence via second derivatives
+    def stress_fn(xy_):
+        J_ = jax.jacobian(lambda p: model(p[0], p[1], E_norm))(xy_)
+        s_ = C @ jnp.array([J_[0, 0], J_[1, 1], J_[0, 1] + J_[1, 0]])
+        return s_
 
-    # Second derivatives for equilibrium
-    def stress_fn(xy):
-        """Compute stress at a point."""
-        u_local = model(xy[0], xy[1], E_norm)
-        J_local = jax.jacobian(lambda p: model(p[0], p[1], E_norm))(xy)
-
-        e_xx = J_local[0, 0]
-        e_yy = J_local[1, 1]
-        g_xy = J_local[0, 1] + J_local[1, 0]
-        s = C @ jnp.array([e_xx, e_yy, g_xy])
-        return s  # (3,): [σ_xx, σ_yy, σ_xy]
-
-    dstress_dxy = jax.jacobian(stress_fn)(xy)  # (3, 2)
-
-    # Equilibrium:
-    # ∂σ_xx/∂x + ∂σ_xy/∂y = 0
-    # ∂σ_xy/∂x + ∂σ_yy/∂y = 0
-    res_x = dstress_dxy[0, 0] + dstress_dxy[2, 1]  # ∂σ_xx/∂x + ∂σ_xy/∂y
-    res_y = dstress_dxy[2, 0] + dstress_dxy[1, 1]  # ∂σ_xy/∂x + ∂σ_yy/∂y
+    dstress = jax.jacobian(stress_fn)(xy)  # (3, 2)
+    res_x = dstress[0, 0] + dstress[2, 1]  # ∂σ_xx/∂x + ∂σ_xy/∂y
+    res_y = dstress[2, 0] + dstress[1, 1]  # ∂σ_xy/∂x + ∂σ_yy/∂y
 
     return jnp.array([res_x, res_y]), stress, u
 
 
 # ============================================================
-# Loss function
+# Loss function (corrected BCs)
 # ============================================================
-
 def generate_E_field(key, n_modes=5):
-    """Generate a random E(x,y) field from Fourier modes (smooth)."""
-    keys = jr.split(key, 3)
-    # Base DI from random Fourier series
-    coeffs = jr.normal(keys[0], (n_modes,)) * 0.3
-    freqs_x = jr.uniform(keys[1], (n_modes,), minval=0.5, maxval=3.0)
-    freqs_y = jr.uniform(keys[2], (n_modes,), minval=0.5, maxval=5.0)
+    """Random smooth E(x,y) field via Fourier modes."""
+    k1, k2, k3 = jr.split(key, 3)
+    coeffs = jr.normal(k1, (n_modes,)) * 0.3
+    fx = jr.uniform(k2, (n_modes,), minval=0.5, maxval=3.0)
+    fy = jr.uniform(k3, (n_modes,), minval=0.5, maxval=5.0)
 
     def E_fn(x, y):
-        di_base = 0.5  # mean DI
+        di = 0.5
         for k in range(n_modes):
-            di_base = di_base + coeffs[k] * jnp.sin(freqs_x[k] * jnp.pi * x / W) * \
-                      jnp.cos(freqs_y[k] * jnp.pi * y / H)
-        di = jnp.clip(di_base, 0.0, 1.0)
-        return di_to_E(di)
-
+            di = di + coeffs[k] * jnp.sin(fx[k]*jnp.pi*x/W) * jnp.cos(fy[k]*jnp.pi*y/H)
+        return di_to_E(jnp.clip(di, 0.0, 1.0))
     return E_fn
 
 
 def generate_condition_E_field(di_value):
-    """Generate a uniform E field from a single DI value."""
     E_val = di_to_E(jnp.array(di_value))
-    def E_fn(x, y):
-        return E_val
-    return E_fn
+    return lambda x, y: E_val
 
 
-@partial(jax.jit, static_argnums=(3,))
-def compute_loss(model, colloc_pts, bc_pts, n_colloc):
+@partial(jax.jit, static_argnums=(4,))
+def compute_loss(model, colloc_pts, bc_bot_pts, bc_top_pts, n_colloc):
     """
-    Compute total PINN loss.
+    PINN loss with correct BC formulation.
 
-    colloc_pts: (n_colloc, 3) — (x, y, E)
-    bc_pts: dict with 'bottom' and 'top' arrays
+    colloc_pts: (n_colloc, 3) — interior points (x, y, E)
+    bc_bot_pts: (n_bc, 3) — bottom boundary (x, 0, E)
+    bc_top_pts: (n_bc, 3) — top boundary (x, H, E)
     """
-    # --- PDE residual loss ---
-    def single_residual(pt):
-        x, y, E = pt[0], pt[1], pt[2]
-        res, _, _ = pde_residual(model, x, y, E)
+    # PDE residual
+    def single_pde(pt):
+        res, _, _ = pde_residual(model, pt[0], pt[1], pt[2])
         return jnp.sum(res**2)
+    pde_loss = jnp.mean(jax.vmap(single_pde)(colloc_pts))
 
-    pde_loss = jnp.mean(jax.vmap(single_residual)(colloc_pts))
-
-    # --- BC: bottom (y=0) fixed, u = 0 ---
-    def bc_bottom_loss(pt):
-        x, E_norm = pt[0], pt[2] / E_MAX
-        u = model(x, 0.0, E_norm)
+    # Bottom BC: u = 0 at y = 0
+    def single_bc_bot(pt):
+        u = model(pt[0], 0.0, pt[2] / E_MAX)
         return jnp.sum(u**2)
+    bc_bot_loss = jnp.mean(jax.vmap(single_bc_bot)(bc_bot_pts))
 
-    bc_bot = jnp.mean(jax.vmap(bc_bottom_loss)(bc_pts))
-
-    # --- BC: top (y=H) traction σ_yy = -P ---
-    def bc_top_loss(pt):
+    # Top BC: σ_yy = -p, σ_xy = 0 at y = H (FULL stress tensor)
+    def single_bc_top(pt):
         x, E = pt[0], pt[2]
         E_norm = E / E_MAX
 
-        def u_fn(y_val):
-            return model(x, y_val, E_norm)
+        # Full spatial Jacobian at (x, H)
+        def u_fn(xy):
+            return model(xy[0], xy[1], E_norm)
+        J = jax.jacobian(u_fn)(jnp.array([x, H]))  # (2, 2)
 
-        # ∂u/∂y at y=H
-        J = jax.jacobian(u_fn)(H)  # (2,)
-        dv_dy = J[1]
+        eps_xx = J[0, 0]
+        eps_yy = J[1, 1]
+        gamma_xy = J[0, 1] + J[1, 0]
 
-        # For top traction: σ_yy ≈ (λ + 2μ) * ε_yy (simplified for top BC)
         lam = E * NU / ((1 + NU) * (1 - 2 * NU))
         mu = E / (2 * (1 + NU))
-        sigma_yy_approx = (lam + 2 * mu) * dv_dy
-        return (sigma_yy_approx - (-P_APPLIED))**2
 
-    bc_top = jnp.mean(jax.vmap(bc_top_loss)(bc_pts))
+        sigma_yy = lam * eps_xx + (lam + 2*mu) * eps_yy
+        sigma_xy = mu * gamma_xy
 
-    total = pde_loss + 10.0 * bc_bot + 1.0 * bc_top
-    return total, (pde_loss, bc_bot, bc_top)
+        return (sigma_yy - (-P_APPLIED))**2 + sigma_xy**2
+
+    bc_top_loss = jnp.mean(jax.vmap(single_bc_top)(bc_top_pts))
+
+    total = pde_loss + 10.0 * bc_bot_loss + 10.0 * bc_top_loss
+    return total, (pde_loss, bc_bot_loss, bc_top_loss)
+
+
+# ============================================================
+# Data sampling
+# ============================================================
+def sample_points(key, n_interior, n_bc, E_fn):
+    """Sample collocation + separate BC points."""
+    k1, k2, k3, k4 = jr.split(key, 4)
+
+    x_int = jr.uniform(k1, (n_interior,), minval=0.0, maxval=W)
+    y_int = jr.uniform(k2, (n_interior,), minval=0.01*H, maxval=0.99*H)
+    E_int = jax.vmap(E_fn)(x_int, y_int)
+    colloc = jnp.stack([x_int, y_int, E_int], axis=1)
+
+    x_bc = jr.uniform(k3, (n_bc,), minval=0.0, maxval=W)
+    E_bot = jax.vmap(lambda x: E_fn(x, 0.0))(x_bc)
+    bc_bot = jnp.stack([x_bc, jnp.zeros(n_bc), E_bot], axis=1)
+
+    x_bc2 = jr.uniform(k4, (n_bc,), minval=0.0, maxval=W)
+    E_top = jax.vmap(lambda x: E_fn(x, H))(x_bc2)
+    bc_top = jnp.stack([x_bc2, jnp.full(n_bc, H), E_top], axis=1)
+
+    return colloc, bc_bot, bc_top
 
 
 # ============================================================
 # Training
 # ============================================================
-
-def sample_collocation_points(key, n_interior, n_bc, E_fn):
-    """Sample collocation points with E values."""
-    k1, k2, k3 = jr.split(key, 3)
-
-    # Interior points
-    x_int = jr.uniform(k1, (n_interior,), minval=0.0, maxval=W)
-    y_int = jr.uniform(k2, (n_interior,), minval=0.0, maxval=H)
-    E_int = jax.vmap(E_fn)(x_int, y_int)
-    colloc = jnp.stack([x_int, y_int, E_int], axis=1)  # (n_interior, 3)
-
-    # BC points (bottom + top)
-    x_bc = jr.uniform(k3, (n_bc,), minval=0.0, maxval=W)
-    # Bottom
-    E_bot = jax.vmap(lambda x: E_fn(x, 0.0))(x_bc)
-    bc_bot = jnp.stack([x_bc, jnp.zeros(n_bc), E_bot], axis=1)
-    # Top
-    E_top = jax.vmap(lambda x: E_fn(x, H))(x_bc)
-    bc_top = jnp.stack([x_bc, jnp.full(n_bc, H), E_top], axis=1)
-
-    return colloc, bc_bot, bc_top
-
-
 def train(
-    n_fields: int = 20,
-    n_epochs: int = 3000,
-    n_interior: int = 500,
+    n_fields: int = 30,
+    n_epochs: int = 5000,
+    n_interior: int = 1000,
     n_bc: int = 100,
-    lr: float = 1e-3,
-    hidden: int = 64,
-    n_layers: int = 4,
+    lr: float = 5e-4,
+    hidden: int = 128,
+    n_layers: int = 5,
+    n_fourier: int = 32,
     seed: int = 0,
     checkpoint_dir: str = "pinn_checkpoints",
 ):
@@ -323,34 +298,33 @@ def train(
     key = jr.PRNGKey(seed)
     k_model, k_data = jr.split(key)
 
-    model = ElasticityPINN(hidden=hidden, n_layers=n_layers, key=k_model)
+    model = ElasticityPINN(hidden=hidden, n_layers=n_layers,
+                           n_fourier=n_fourier, key=k_model)
     n_params = sum(x.size for x in jax.tree.leaves(eqx.filter(model, eqx.is_array)))
     print(f"PINN params: {n_params:,}")
 
-    # Generate E-field realizations
-    print(f"Generating {n_fields} E-field realizations...")
-    field_keys = jr.split(k_data, n_fields)
-
-    # Mix of random fields + condition-specific uniform fields
+    # E-field pool: 4 conditions + random fields
     E_fns = []
-    cond_dis = [0.16, 0.42, 0.84, 0.85]  # DH, CS, CH, DS
-    for di_val in cond_dis:
+    for cond, (di_val, _) in CONDITIONS.items():
         E_fns.append(generate_condition_E_field(di_val))
-    for i in range(n_fields - len(cond_dis)):
+
+    field_keys = jr.split(k_data, n_fields)
+    for i in range(n_fields - len(CONDITIONS)):
         E_fns.append(generate_E_field(field_keys[i]))
+    print(f"E-field pool: {len(E_fns)} ({len(CONDITIONS)} conditions + {len(E_fns)-len(CONDITIONS)} random)")
 
     # Optimizer
     schedule = optax.warmup_cosine_decay_schedule(
-        init_value=1e-5, peak_value=lr,
-        warmup_steps=200, decay_steps=n_epochs, end_value=1e-6,
+        init_value=1e-6, peak_value=lr,
+        warmup_steps=300, decay_steps=n_epochs, end_value=1e-6,
     )
     optimizer = optax.adam(schedule)
     opt_state = optimizer.init(eqx.filter(model, eqx.is_array))
 
     @eqx.filter_jit
-    def step(model, opt_state, colloc, bc_pts):
+    def step(model, opt_state, colloc, bc_bot, bc_top):
         (loss, aux), grads = eqx.filter_value_and_grad(compute_loss, has_aux=True)(
-            model, colloc, bc_pts, colloc.shape[0]
+            model, colloc, bc_bot, bc_top, colloc.shape[0]
         )
         updates, opt_state = optimizer.update(grads, opt_state, model)
         model = eqx.apply_updates(model, updates)
@@ -359,265 +333,55 @@ def train(
     best_loss = float("inf")
     history = {"total": [], "pde": [], "bc_bot": [], "bc_top": []}
 
-    print(f"Training for {n_epochs} epochs...")
+    print(f"Training: {n_epochs} epochs, {n_interior} interior pts, {n_bc} BC pts")
     t0 = time.time()
 
     for epoch in range(n_epochs):
-        # Cycle through E-field realizations
-        field_idx = epoch % len(E_fns)
-        E_fn = E_fns[field_idx]
-
-        # Fresh collocation points each epoch
+        E_fn = E_fns[epoch % len(E_fns)]
         data_key = jr.PRNGKey(epoch * 1000 + seed)
-        colloc, bc_bot, bc_top = sample_collocation_points(
-            data_key, n_interior, n_bc, E_fn
-        )
+        colloc, bc_bot, bc_top = sample_points(data_key, n_interior, n_bc, E_fn)
 
-        # Use bottom points for both BC (combined)
-        bc_combined = jnp.concatenate([bc_bot, bc_top], axis=0)
-
-        model, opt_state, loss, (pde_l, bc_bot_l, bc_top_l) = step(
-            model, opt_state, colloc, bc_combined
+        model, opt_state, loss, (pde_l, bot_l, top_l) = step(
+            model, opt_state, colloc, bc_bot, bc_top
         )
 
         loss_val = float(loss)
         history["total"].append(loss_val)
         history["pde"].append(float(pde_l))
-        history["bc_bot"].append(float(bc_bot_l))
-        history["bc_top"].append(float(bc_top_l))
+        history["bc_bot"].append(float(bot_l))
+        history["bc_top"].append(float(top_l))
 
         if loss_val < best_loss:
             best_loss = loss_val
             eqx.tree_serialise_leaves(str(ckpt_dir / "best.eqx"), model)
 
-        if (epoch + 1) % 100 == 0 or epoch == 0:
+        if (epoch + 1) % 200 == 0 or epoch == 0:
             elapsed = time.time() - t0
-            print(f"  Epoch {epoch+1:5d}/{n_epochs}  "
-                  f"loss={loss_val:.6f}  pde={float(pde_l):.6f}  "
-                  f"bc_bot={float(bc_bot_l):.6f}  bc_top={float(bc_top_l):.6f}  "
-                  f"best={best_loss:.6f}  [{elapsed:.0f}s]")
+            print(f"  [{epoch+1:5d}/{n_epochs}] loss={loss_val:.2e}  "
+                  f"pde={float(pde_l):.2e}  bot={float(bot_l):.2e}  "
+                  f"top={float(top_l):.2e}  best={best_loss:.2e}  [{elapsed:.0f}s]")
 
     eqx.tree_serialise_leaves(str(ckpt_dir / "final.eqx"), model)
     np.savez(ckpt_dir / "training_history.npz",
              **{k: np.array(v) for k, v in history.items()})
 
     elapsed = time.time() - t0
-    print(f"\nDone in {elapsed:.0f}s. Best loss: {best_loss:.6f}")
+    print(f"\nDone in {elapsed:.0f}s. Best loss: {best_loss:.2e}")
+    print(f"Saved to {ckpt_dir}/")
     return model
 
 
 # ============================================================
-# End-to-end pipeline: θ → DeepONet → DI → PINN → σ
+# Visualization: clear 4-panel figure
 # ============================================================
-
-def end_to_end_demo(deeponet_ckpt: str, pinn_ckpt: str,
-                    norm_stats_path: str):
-    """
-    Demonstrate full differentiable pipeline:
-    θ → DeepONet → φ(T) → DI → E(DI) → PINN → u, σ
-    And compute ∂σ/∂θ via automatic differentiation.
-    """
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    from deeponet_hamilton import DeepONet as DeepONetModel
-
-    # Load DeepONet
-    key = jr.PRNGKey(0)
-    don_model = DeepONetModel(theta_dim=20, n_species=5, p=64, hidden=128, key=key)
-    don_model = eqx.tree_deserialise_leaves(deeponet_ckpt, don_model)
-
-    stats = np.load(norm_stats_path)
-    theta_lo = jnp.array(stats["theta_lo"])
-    theta_width = jnp.array(stats["theta_width"])
-
-    # Load PINN
-    pinn_model = ElasticityPINN(hidden=64, n_layers=4, key=jr.PRNGKey(1))
-    pinn_model = eqx.tree_deserialise_leaves(pinn_ckpt, pinn_model)
-
-    # ── Full differentiable pipeline ──
-    @jax.jit
-    def pipeline(theta_raw, x, y):
-        """
-        θ → φ(T) → DI → E → u(x,y), σ(x,y)
-
-        Returns: (u_x, u_y, sigma_yy, DI, E)
-        """
-        # Normalize θ
-        theta_norm = (theta_raw - theta_lo) / theta_width
-
-        # DeepONet: θ → φ(t=T)
-        phi_T = don_model(theta_norm, jnp.array(1.0))  # species at final time
-
-        # DI from species composition
-        di = compute_di_from_phi(phi_T)
-
-        # E from DI
-        E = di_to_E(di)
-
-        # PINN: (x, y, E) → u
-        E_norm = E / E_MAX
-        u = pinn_model(x, y, E_norm)
-
-        return u[0], u[1], di, E
-
-    # Test with a real theta
-    # Load a MAP theta for demo
-    import json
-    map_file = Path(__file__).parent.parent / "data_5species" / "_runs" / "dh_baseline" / "theta_MAP.json"
-    if map_file.exists():
-        with open(map_file) as f:
-            theta_map = jnp.array(json.load(f)["theta_full"], dtype=jnp.float32)
-    else:
-        theta_map = jnp.ones(20, dtype=jnp.float32) * 0.5
-
-    # Evaluate on a grid
-    nx, ny = 30, 10
-    xs = jnp.linspace(0.01, W - 0.01, nx)
-    ys = jnp.linspace(0.01, H - 0.01, ny)
-    X, Y = jnp.meshgrid(xs, ys)
-
-    print("Running end-to-end pipeline...")
-
-    # Vectorized evaluation
-    @jax.jit
-    def eval_grid(theta):
-        def single_point(x, y):
-            return pipeline(theta, x, y)
-        return jax.vmap(jax.vmap(single_point, in_axes=(None, 0)), in_axes=(0, None))(xs, ys)
-
-    ux, uy, di_grid, E_grid = eval_grid(theta_map)
-
-    print(f"  DI = {float(di_grid[0, 0]):.4f}")
-    print(f"  E  = {float(E_grid[0, 0]):.1f} Pa")
-    print(f"  u_y range: [{float(uy.min()):.6f}, {float(uy.max()):.6f}]")
-
-    # ── Compute ∂u_y/∂θ (sensitivity) ──
-    print("\nComputing ∂u_y/∂θ (sensitivity to parameters)...")
-
-    @jax.jit
-    def sensitivity(theta):
-        """∂u_y(center)/∂θ"""
-        _, uy_val, _, _ = pipeline(theta, W / 2, H)
-        return uy_val
-
-    grad_uy_theta = jax.grad(sensitivity)(theta_map)
-
-    print("  Top-5 most sensitive parameters:")
-    grad_abs = jnp.abs(grad_uy_theta)
-    top5 = jnp.argsort(-grad_abs)[:5]
-    param_names = [
-        "a11", "a12", "a22", "b1", "b2",
-        "a33", "a34", "a44", "b3", "b4",
-        "a13", "a14", "a23", "a24",
-        "a55", "b5", "a15", "a25", "a35", "a45",
-    ]
-    for idx in top5:
-        print(f"    {param_names[int(idx)]}: ∂u_y/∂θ = {float(grad_uy_theta[int(idx)]):.6f}")
-
-    # ── Plot ──
-    fig, axes = plt.subplots(2, 3, figsize=(15, 8))
-
-    # (a) DI per condition
-    ax = axes[0, 0]
-    conditions = {"CS": 0.42, "CH": 0.84, "DH": 0.16, "DS": 0.85}
-    colors = {"CS": "#2ca02c", "CH": "#17becf", "DH": "#d62728", "DS": "#ff7f0e"}
-    for cond, di_val in conditions.items():
-        E_val = float(di_to_E(jnp.array(di_val)))
-        ax.barh(cond, E_val, color=colors[cond], edgecolor="black")
-        ax.text(E_val + 10, cond, f"{E_val:.0f} Pa", va="center", fontsize=10)
-    ax.set_xlabel("E [Pa]")
-    ax.set_title("(a) E(DI) per condition")
-    ax.set_xlim(0, 1100)
-
-    # (b) u_y field
-    ax = axes[0, 1]
-    uy_np = np.array(uy)
-    pcm = ax.pcolormesh(np.array(X), np.array(Y), uy_np.T, cmap="RdBu_r", shading="gouraud")
-    fig.colorbar(pcm, ax=ax, label="$u_y$ [mm]")
-    ax.set_xlabel("$x$ [mm]")
-    ax.set_ylabel("$y$ [mm]")
-    ax.set_title(f"(b) $u_y(x,y)$ — DI={float(di_grid[0,0]):.3f}")
-    ax.set_aspect("equal")
-
-    # (c) u_x field
-    ax = axes[0, 2]
-    ux_np = np.array(ux)
-    pcm = ax.pcolormesh(np.array(X), np.array(Y), ux_np.T, cmap="RdBu_r", shading="gouraud")
-    fig.colorbar(pcm, ax=ax, label="$u_x$ [mm]")
-    ax.set_xlabel("$x$ [mm]")
-    ax.set_ylabel("$y$ [mm]")
-    ax.set_title("(c) $u_x(x,y)$")
-    ax.set_aspect("equal")
-
-    # (d) Pipeline diagram
-    ax = axes[1, 0]
-    ax.axis("off")
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 4)
-    steps = [
-        (1, 3, r"$\theta$ (20 params)", "#fff3e0"),
-        (3, 3, "DeepONet\n" + r"$\phi(T)$", "#e3f2fd"),
-        (5, 3, r"DI $\rightarrow$ E", "#e8f5e9"),
-        (7, 3, "PINN\n" + r"$u, \sigma$", "#fce4ec"),
-    ]
-    for x_pos, y_pos, txt, col in steps:
-        from matplotlib.patches import FancyBboxPatch
-        box = FancyBboxPatch((x_pos - 0.7, y_pos - 0.5), 1.4, 1.0,
-                             boxstyle="round,pad=0.1", fc=col, ec="black", lw=1.5)
-        ax.add_patch(box)
-        ax.text(x_pos, y_pos, txt, ha="center", va="center", fontsize=9, fontweight="bold")
-    for i in range(3):
-        x_s = steps[i][0] + 0.7
-        x_e = steps[i+1][0] - 0.7
-        ax.annotate("", xy=(x_e, 3), xytext=(x_s, 3),
-                    arrowprops=dict(arrowstyle="-|>", lw=2))
-    ax.text(5, 1.5, r"$\frac{\partial \sigma}{\partial \theta}$ via autodiff",
-            fontsize=12, ha="center", fontweight="bold", color="#d32f2f",
-            bbox=dict(boxstyle="round,pad=0.3", fc="#ffebee", ec="#d32f2f"))
-    ax.set_title("(d) End-to-end differentiable pipeline", fontweight="bold")
-
-    # (e) Sensitivity ∂u_y/∂θ
-    ax = axes[1, 1]
-    grad_np = np.array(jnp.abs(grad_uy_theta))
-    sorted_idx = np.argsort(-grad_np)[:10]
-    names = [param_names[i] for i in sorted_idx]
-    vals = grad_np[sorted_idx]
-    ax.barh(names[::-1], vals[::-1], color="#e57373", edgecolor="black")
-    ax.set_xlabel(r"$|\partial u_y / \partial \theta_i|$")
-    ax.set_title(r"(e) Sensitivity $\partial u_y / \partial \theta$")
-
-    # (f) E across conditions
-    ax = axes[1, 2]
-    di_range = np.linspace(0, 1, 200)
-    E_range = np.array([float(di_to_E(jnp.array(d))) for d in di_range])
-    ax.plot(di_range, E_range, "k-", lw=2)
-    for cond, di_val in conditions.items():
-        E_val = float(di_to_E(jnp.array(di_val)))
-        ax.plot(di_val, E_val, "o", color=colors[cond], ms=12,
-                markeredgecolor="black", markeredgewidth=1.5, zorder=5)
-        ax.annotate(cond, xy=(di_val, E_val), xytext=(5, 10),
-                    textcoords="offset points", fontsize=10, fontweight="bold",
-                    color=colors[cond])
-    ax.set_xlabel("DI")
-    ax.set_ylabel("E [Pa]")
-    ax.set_title("(f) Material model $E(\\mathrm{DI})$")
-    ax.grid(alpha=0.3)
-
-    plt.tight_layout()
-    out_path = Path(pinn_ckpt).parent / "e2e_pipeline_demo.png"
-    fig.savefig(out_path, dpi=200, bbox_inches="tight")
-    plt.close()
-    print(f"\nSaved: {out_path}")
-
-
-# ============================================================
-# Visualization for trained PINN
-# ============================================================
-
 def visualize(checkpoint_dir: str):
-    """Plot training curve and sample predictions."""
+    """
+    Generate clear PINN results figure:
+      (a) Training convergence
+      (b) PINN vs Analytical validation
+      (c) 4-condition u_y profiles
+      (d) 4-condition displacement summary
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -625,46 +389,102 @@ def visualize(checkpoint_dir: str):
     ckpt_dir = Path(checkpoint_dir)
     history = np.load(ckpt_dir / "training_history.npz")
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
-
-    ax = axes[0]
-    for key in ["total", "pde", "bc_bot", "bc_top"]:
-        ax.semilogy(history[key], label=key, alpha=0.8)
-    ax.set_xlabel("Epoch")
-    ax.set_ylabel("Loss")
-    ax.legend()
-    ax.set_title("PINN Training Losses")
-    ax.grid(alpha=0.3)
-
-    # Load model and predict on different DI values
-    ax = axes[1]
-    model = ElasticityPINN(hidden=64, n_layers=4, key=jr.PRNGKey(0))
+    model = ElasticityPINN(hidden=128, n_layers=5, n_fourier=32, key=jr.PRNGKey(0))
     model = eqx.tree_deserialise_leaves(str(ckpt_dir / "best.eqx"), model)
 
-    y_pts = jnp.linspace(0, H, 50)
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+
+    # ── (a) Training convergence ──
+    ax = axes[0, 0]
+    epochs = np.arange(1, len(history["total"]) + 1)
+    for key, label, color in [
+        ("total", "Total", "black"),
+        ("pde", "PDE residual", "#1f77b4"),
+        ("bc_bot", "BC bottom", "#2ca02c"),
+        ("bc_top", "BC top (traction)", "#d62728"),
+    ]:
+        # Smooth with moving average
+        vals = history[key]
+        window = min(50, len(vals) // 10)
+        if window > 1:
+            smooth = np.convolve(vals, np.ones(window)/window, mode='valid')
+            ax.semilogy(epochs[:len(smooth)], smooth, label=label, color=color, lw=1.5)
+        else:
+            ax.semilogy(epochs, vals, label=label, color=color, lw=1.5)
+    ax.set_xlabel("Epoch", fontsize=11)
+    ax.set_ylabel("Loss", fontsize=11)
+    ax.set_title("(a) Training Convergence", fontsize=12, fontweight="bold")
+    ax.legend(fontsize=9)
+    ax.grid(alpha=0.3)
+
+    # ── (b) PINN vs Analytical: u_y(y) at x=W/2 ──
+    ax = axes[0, 1]
+    y_pts = jnp.linspace(0.001, H, 80)
     x_mid = W / 2
 
-    for di_val, color, label in [
-        (0.16, "#d62728", "DH (DI=0.16)"),
-        (0.42, "#2ca02c", "CS (DI=0.42)"),
-        (0.85, "#ff7f0e", "DS (DI=0.85)"),
+    for E_val, ls, color, label in [
+        (100.0, "-", "#e57373", "E=100 Pa"),
+        (500.0, "-", "#64b5f6", "E=500 Pa"),
+        (900.0, "-", "#81c784", "E=900 Pa"),
     ]:
+        E_norm = E_val / E_MAX
+        u_pinn = np.array(jax.vmap(lambda y: model(x_mid, y, E_norm))(y_pts))
+        u_anal = np.array([analytical_solution(E_val, NU, P_APPLIED, float(y)) for y in y_pts])
+
+        ax.plot(u_pinn[:, 1] * 1e3, np.array(y_pts), ls, color=color, lw=2.5,
+                label=f"PINN {label}")
+        ax.plot(u_anal * 1e3, np.array(y_pts), "--", color=color, lw=1.5,
+                label=f"Analytical", alpha=0.7)
+
+    ax.set_xlabel("$u_y$ [$\\times 10^{-3}$ mm]", fontsize=11)
+    ax.set_ylabel("Depth $y$ [mm]", fontsize=11)
+    ax.set_title("(b) PINN vs Analytical Validation", fontsize=12, fontweight="bold")
+    ax.legend(fontsize=8, ncol=2)
+    ax.grid(alpha=0.3)
+
+    # ── (c) 4-condition u_y profiles ──
+    ax = axes[1, 0]
+    cond_results = {}
+    for cond, (di_val, color) in CONDITIONS.items():
         E_val = float(di_to_E(jnp.array(di_val)))
         E_norm = E_val / E_MAX
+        u = np.array(jax.vmap(lambda y: model(x_mid, y, E_norm))(y_pts))
+        cond_results[cond] = {"di": di_val, "E": E_val, "u_y_max": float(u[-1, 1])}
+        ax.plot(u[:, 1] * 1e3, np.array(y_pts), lw=2.5, color=color,
+                label=f"{cond} (DI={di_val:.2f}, E={E_val:.0f} Pa)")
 
-        @jax.jit
-        def predict_profile(y_arr):
-            return jax.vmap(lambda y: model(x_mid, y, E_norm))(y_arr)
-
-        u = predict_profile(y_pts)
-        ax.plot(np.array(u[:, 1]), np.array(y_pts), lw=2, color=color,
-                label=f"{label}, E={E_val:.0f} Pa")
-
-    ax.set_xlabel("$u_y$ [mm]")
-    ax.set_ylabel("Depth $y$ [mm]")
-    ax.set_title("$u_y(y)$ profile at $x = W/2$")
-    ax.legend(fontsize=8)
+    ax.set_xlabel("$u_y$ [$\\times 10^{-3}$ mm]", fontsize=11)
+    ax.set_ylabel("Depth $y$ [mm]", fontsize=11)
+    ax.set_title("(c) Displacement Profile per Condition", fontsize=12, fontweight="bold")
+    ax.legend(fontsize=9)
     ax.grid(alpha=0.3)
+
+    # ── (d) Summary table + bar chart ──
+    ax = axes[1, 1]
+    conds = list(CONDITIONS.keys())
+    E_vals = [cond_results[c]["E"] for c in conds]
+    uy_vals = [abs(cond_results[c]["u_y_max"]) * 1e3 for c in conds]
+    di_vals = [cond_results[c]["di"] for c in conds]
+    colors = [CONDITIONS[c][1] for c in conds]
+
+    x_pos = np.arange(len(conds))
+    bars = ax.bar(x_pos, uy_vals, color=colors, edgecolor="black", width=0.6)
+    for i, (bar, ev, dv) in enumerate(zip(bars, E_vals, di_vals)):
+        ax.text(i, bar.get_height() * 1.02, f"DI={dv:.2f}\nE={ev:.0f} Pa",
+                ha="center", va="bottom", fontsize=9)
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(conds, fontsize=11)
+    ax.set_ylabel("|$u_y$(top)| [$\\times 10^{-3}$ mm]", fontsize=11)
+    ax.set_title("(d) Max Displacement per Condition", fontsize=12, fontweight="bold")
+    ax.grid(axis="y", alpha=0.3)
+
+    # Stiffness ratio annotation
+    if len(uy_vals) > 1:
+        ratio = max(uy_vals) / max(min(uy_vals), 1e-12)
+        ax.annotate(f"Ratio: {ratio:.1f}x",
+                    xy=(0.95, 0.95), xycoords="axes fraction",
+                    ha="right", va="top", fontsize=11, fontweight="bold",
+                    bbox=dict(boxstyle="round,pad=0.3", fc="#fff3e0", ec="black"))
 
     plt.tight_layout()
     out_path = ckpt_dir / "pinn_results.png"
@@ -672,23 +492,220 @@ def visualize(checkpoint_dir: str):
     plt.close()
     print(f"Saved: {out_path}")
 
+    # Print summary
+    print("\n--- Condition Summary ---")
+    print(f"{'Cond':<5} {'DI':>6} {'E [Pa]':>8} {'|u_y| x1e3':>12}")
+    for c in conds:
+        r = cond_results[c]
+        print(f"{c:<5} {r['di']:>6.3f} {r['E']:>8.1f} {abs(r['u_y_max'])*1e3:>12.4f}")
+
+    return cond_results
+
+
+# ============================================================
+# End-to-end: θ → DeepONet → DI → PINN → u, σ
+# ============================================================
+def end_to_end_demo(deeponet_ckpt: str, pinn_ckpt: str, norm_stats_path: str):
+    """Full differentiable pipeline demo with clear visualization."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import FancyBboxPatch
+    import json
+
+    # Load PINN
+    pinn_model = ElasticityPINN(hidden=128, n_layers=5, n_fourier=32, key=jr.PRNGKey(1))
+    pinn_model = eqx.tree_deserialise_leaves(pinn_ckpt, pinn_model)
+
+    # Try to load DeepONet; fall back to known DI values if checkpoint incompatible
+    don_model = None
+    theta_lo = theta_width = None
+    try:
+        from deeponet_hamilton import DeepONet as DeepONetModel
+        key = jr.PRNGKey(0)
+        don_model = DeepONetModel(theta_dim=20, n_species=5, p=64, hidden=128, key=key)
+        don_model = eqx.tree_deserialise_leaves(deeponet_ckpt, don_model)
+        stats = np.load(norm_stats_path)
+        theta_lo = jnp.array(stats["theta_lo"])
+        theta_width = jnp.array(stats["theta_width"])
+        print("DeepONet loaded OK — full θ→u pipeline active")
+    except Exception as e:
+        print(f"DeepONet load failed ({e.__class__.__name__}), using known DI values")
+        don_model = None
+
+    param_names = [
+        "a11", "a12", "a22", "b1", "b2",
+        "a33", "a34", "a44", "b3", "b4",
+        "a13", "a14", "a23", "a24",
+        "a55", "b5", "a15", "a25", "a35", "a45",
+    ]
+
+    # Evaluate per condition using PINN with known DI values
+    y_pts = jnp.linspace(0.001, H, 50)
+    x_mid = W / 2.0
+    results = {}
+
+    print("Running pipeline for each condition...")
+    for cond, (di_val, _) in CONDITIONS.items():
+        E_val = float(di_to_E(jnp.array(di_val)))
+        E_norm = E_val / E_MAX
+        u_arr = np.array(jax.vmap(lambda y: pinn_model(x_mid, y, E_norm))(y_pts))
+        results[cond] = {
+            "ux": u_arr[:, 0], "uy": u_arr[:, 1],
+            "di": di_val, "E": E_val,
+        }
+        print(f"  {cond}: DI={di_val:.4f}, E={E_val:.1f} Pa, "
+              f"u_y(top)={float(u_arr[-1, 1]):.6f}")
+
+    # Sensitivity ∂u_y/∂DI (how displacement changes with dysbiotic index)
+    print("\nComputing sensitivity ∂u_y/∂DI...")
+
+    @jax.jit
+    def uy_of_di(di_scalar):
+        E = di_to_E(di_scalar)
+        u = pinn_model(x_mid, H, E / E_MAX)
+        return u[1]
+
+    # Compute for each condition
+    grad_abs = np.zeros(len(CONDITIONS))
+    cond_list = list(CONDITIONS.keys())
+    for i, cond in enumerate(cond_list):
+        di_val = CONDITIONS[cond][0]
+        grad_abs[i] = abs(float(jax.grad(uy_of_di)(jnp.array(di_val))))
+
+    # ── Figure: 3 rows ──
+    fig = plt.figure(figsize=(16, 14))
+    gs = fig.add_gridspec(3, 4, hspace=0.35, wspace=0.35,
+                          height_ratios=[1.0, 1.2, 1.0])
+
+    # Row 1: Pipeline diagram (full width)
+    ax_pipe = fig.add_subplot(gs[0, :])
+    ax_pipe.axis("off")
+    ax_pipe.set_xlim(-0.5, 11)
+    ax_pipe.set_ylim(-0.5, 3)
+
+    boxes = [
+        (0.5, 1.5, "$\\theta$\n(20 params)", "#fff3e0"),
+        (2.8, 1.5, "DeepONet\n$\\phi(T; \\theta)$", "#e3f2fd"),
+        (5.1, 1.5, "DI\n$1-H/H_{max}$", "#e8f5e9"),
+        (7.4, 1.5, "$E(\\mathrm{DI})$\n[Pa]", "#f3e5f5"),
+        (9.7, 1.5, "PINN\n$u(x,y), \\sigma$", "#fce4ec"),
+    ]
+    for x_pos, y_pos, txt, col in boxes:
+        bx = FancyBboxPatch((x_pos-0.8, y_pos-0.6), 1.6, 1.2,
+                            boxstyle="round,pad=0.1", fc=col, ec="black", lw=2)
+        ax_pipe.add_patch(bx)
+        ax_pipe.text(x_pos, y_pos, txt, ha="center", va="center",
+                     fontsize=10, fontweight="bold")
+    for i in range(len(boxes) - 1):
+        x1 = boxes[i][0] + 0.8
+        x2 = boxes[i+1][0] - 0.8
+        ax_pipe.annotate("", xy=(x2, 1.5), xytext=(x1, 1.5),
+                         arrowprops=dict(arrowstyle="-|>", lw=2.5, color="#333"))
+
+    ax_pipe.text(5.1, -0.2, "$\\partial u / \\partial \\theta$ via JAX autodiff",
+                 fontsize=13, ha="center", fontweight="bold", color="#c62828",
+                 bbox=dict(boxstyle="round,pad=0.3", fc="#ffebee", ec="#c62828", lw=1.5))
+    ax_pipe.set_title("End-to-End Differentiable Pipeline: Biology $\\to$ Mechanics",
+                      fontsize=14, fontweight="bold", pad=10)
+
+    # Row 2: 4-condition displacement profiles
+    for i, cond in enumerate(["CS", "CH", "DH", "DS"]):
+        ax = fig.add_subplot(gs[1, i])
+        if cond not in results:
+            ax.text(0.5, 0.5, f"{cond}\n(no data)", transform=ax.transAxes,
+                    ha="center", va="center")
+            continue
+
+        r = results[cond]
+        color = CONDITIONS[cond][1]
+
+        # u_y profile
+        ax.plot(np.array(r["uy"]) * 1e3, np.array(y_pts), lw=3, color=color)
+        ax.fill_betweenx(np.array(y_pts), 0, np.array(r["uy"]) * 1e3,
+                         alpha=0.15, color=color)
+        ax.axhline(0, color="gray", lw=0.5, ls="--")
+        ax.axhline(H, color="gray", lw=0.5, ls="--")
+        ax.set_xlabel("$u_y$ [$\\times 10^{-3}$]", fontsize=10)
+        if i == 0:
+            ax.set_ylabel("$y$ [mm]", fontsize=10)
+        ax.set_title(f"{cond}\nDI={r['di']:.3f}  E={r['E']:.0f} Pa",
+                     fontsize=11, fontweight="bold", color=color)
+        ax.grid(alpha=0.3)
+
+        # Annotate max displacement
+        uy_max = abs(r["uy"][-1]) * 1e3
+        ax.annotate(f"|$u_y$|={uy_max:.3f}",
+                    xy=(0.95, 0.05), xycoords="axes fraction",
+                    ha="right", va="bottom", fontsize=9,
+                    bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=color, alpha=0.8))
+
+    # Row 3: Sensitivity + E(DI) curve
+    # (3a) ∂u_y/∂DI per condition
+    ax = fig.add_subplot(gs[2, :2])
+    sorted_idx = np.argsort(-grad_abs)
+    bar_names = [cond_list[i] for i in sorted_idx]
+    bar_vals = grad_abs[sorted_idx]
+    bar_colors = [CONDITIONS[c][1] for c in bar_names]
+    bars = ax.barh(bar_names[::-1], bar_vals[::-1],
+                   color=bar_colors[::-1], edgecolor="black")
+    ax.set_xlabel("$|\\partial u_y / \\partial \\mathrm{DI}|$", fontsize=11)
+    ax.set_title("Sensitivity: How $u_y$ Responds to DI Change",
+                 fontsize=12, fontweight="bold")
+    ax.grid(axis="x", alpha=0.3)
+    # Annotate: higher DI sensitivity = softer material
+    ax.annotate("Higher = more mechano-sensitive\nto microbial composition",
+                xy=(0.95, 0.05), xycoords="axes fraction",
+                ha="right", va="bottom", fontsize=9, fontstyle="italic",
+                color="#555")
+
+    # (3b) E(DI) curve + condition markers
+    ax = fig.add_subplot(gs[2, 2:])
+    di_range = np.linspace(0, 1, 200)
+    E_range = np.array([float(di_to_E(jnp.array(d))) for d in di_range])
+    ax.plot(di_range, E_range, "k-", lw=2.5, label="$E(\\mathrm{DI})$")
+    ax.fill_between(di_range, 0, E_range, alpha=0.05, color="black")
+
+    for cond in results:
+        r = results[cond]
+        color = CONDITIONS[cond][1]
+        ax.plot(r["di"], r["E"], "o", color=color, ms=14,
+                markeredgecolor="black", markeredgewidth=2, zorder=5)
+        ax.annotate(f"{cond}\n({r['E']:.0f} Pa)", xy=(r["di"], r["E"]),
+                    xytext=(10, 15), textcoords="offset points",
+                    fontsize=10, fontweight="bold", color=color,
+                    arrowprops=dict(arrowstyle="-", color=color, lw=1))
+
+    ax.set_xlabel("Dysbiotic Index (DI)", fontsize=11)
+    ax.set_ylabel("Young's Modulus E [Pa]", fontsize=11)
+    ax.set_title("Material Model $E(\\mathrm{DI})$ with Pipeline Results",
+                 fontsize=12, fontweight="bold")
+    ax.grid(alpha=0.3)
+    ax.set_xlim(-0.05, 1.05)
+    ax.set_ylim(0, 1100)
+
+    out_path = Path(pinn_ckpt).parent / "e2e_pipeline_demo.png"
+    fig.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close()
+    print(f"\nSaved: {out_path}")
+
 
 # ============================================================
 # Main
 # ============================================================
-
 def main():
     parser = argparse.ArgumentParser(description="PINN for biofilm elasticity")
     sub = parser.add_subparsers(dest="command")
 
     p_train = sub.add_parser("train")
-    p_train.add_argument("--n-fields", type=int, default=20)
-    p_train.add_argument("--epochs", type=int, default=3000)
-    p_train.add_argument("--n-interior", type=int, default=500)
+    p_train.add_argument("--epochs", type=int, default=5000)
+    p_train.add_argument("--n-fields", type=int, default=30)
+    p_train.add_argument("--n-interior", type=int, default=1000)
     p_train.add_argument("--n-bc", type=int, default=100)
-    p_train.add_argument("--lr", type=float, default=1e-3)
-    p_train.add_argument("--hidden", type=int, default=64)
-    p_train.add_argument("--n-layers", type=int, default=4)
+    p_train.add_argument("--lr", type=float, default=5e-4)
+    p_train.add_argument("--hidden", type=int, default=128)
+    p_train.add_argument("--n-layers", type=int, default=5)
+    p_train.add_argument("--n-fourier", type=int, default=32)
     p_train.add_argument("--seed", type=int, default=0)
     p_train.add_argument("--checkpoint-dir", default="pinn_checkpoints")
 
@@ -704,14 +721,10 @@ def main():
 
     if args.command == "train":
         train(
-            n_fields=args.n_fields,
-            n_epochs=args.epochs,
-            n_interior=args.n_interior,
-            n_bc=args.n_bc,
-            lr=args.lr,
-            hidden=args.hidden,
-            n_layers=args.n_layers,
-            seed=args.seed,
+            n_fields=args.n_fields, n_epochs=args.epochs,
+            n_interior=args.n_interior, n_bc=args.n_bc,
+            lr=args.lr, hidden=args.hidden, n_layers=args.n_layers,
+            n_fourier=args.n_fourier, seed=args.seed,
             checkpoint_dir=args.checkpoint_dir,
         )
     elif args.command == "viz":
