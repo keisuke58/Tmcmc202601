@@ -598,6 +598,348 @@ def compute_alpha_monod(phi_snaps, c_snaps, t_snaps, k_alpha=0.05, k_monod=1.0):
 
 
 # ---------------------------------------------------------------------------
+# Nutrient-coupled Hamilton reaction (two-way coupling: c <-> phi)
+# ---------------------------------------------------------------------------
+
+def residual_c(g_new, g_prev, c_node, params):
+    """
+    Hamilton PDE residual with local nutrient concentration c_node.
+
+    Same as residual() but c_node (scalar) replaces params["c"].
+    This creates two-way coupling: nutrient affects species interactions.
+
+    In the original model, params["c"] = 100.0 (Hamilton coupling constant).
+    Here, c_node = local nutrient concentration (0-1), so interactions
+    weaken in nutrient-depleted regions.
+    """
+    dt = params["dt_h"]
+    Kp1 = params["Kp1"]
+    Eta = params["Eta"]
+    EtaPhi = params["EtaPhi"]
+    alpha = params["alpha"]
+    K_hill = params["K_hill"]
+    n_hill = params["n_hill"]
+    A = params["A"]
+    b_diag = params["b_diag"]
+    active_mask = params["active_mask"]
+    eps = 1e-12
+
+    phi_new = g_new[0:5]
+    phi0_new = g_new[5]
+    psi_new = g_new[6:11]
+    gamma_new = g_new[11]
+    phi_old = g_prev[0:5]
+    phi0_old = g_prev[5]
+    psi_old = g_prev[6:11]
+
+    phidot = (phi_new - phi_old) / dt
+    phi0dot = (phi0_new - phi0_old) / dt
+    psidot = (psi_new - psi_old) / dt
+
+    Ia = A @ (phi_new * psi_new)
+
+    # Hill gate for P.gingivalis (species 4)
+    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (
+        active_mask[4] == 1
+    ).astype(jnp.float64)
+    fn = jnp.maximum(phi_new[3] * psi_new[3], 0.0)
+    num = fn**n_hill
+    den = K_hill**n_hill + num
+    factor = jnp.where(den > eps, num / den, 0.0) * hill_mask
+    Ia = Ia.at[4].set(Ia[4] * factor)
+
+    Q = jnp.zeros(12, dtype=jnp.float64)
+
+    def body_i_phi(carry, i):
+        Q_local = carry
+        active = active_mask[i] == 1
+        def active_branch():
+            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / (
+                (phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3
+            )
+            t2 = (1.0 / Eta[i]) * (
+                gamma_new
+                + (EtaPhi[i] + Eta[i] * psi_new[i] ** 2) * phidot[i]
+                + Eta[i] * phi_new[i] * psi_new[i] * psidot[i]
+            )
+            t3 = (c_node / Eta[i]) * psi_new[i] * Ia[i]
+            return Q_local.at[i].set(t1 + t2 - t3)
+        def inactive_branch():
+            return Q_local.at[i].set(phi_new[i])
+        return jax.lax.cond(active, active_branch, inactive_branch), None
+
+    Q, _ = jax.lax.scan(body_i_phi, Q, jnp.arange(5))
+    Q = Q.at[5].set(
+        gamma_new
+        + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new ** 3)
+        + phi0dot
+    )
+
+    def body_i_psi(carry, i):
+        Q_local = carry
+        active = active_mask[i] == 1
+        def active_branch():
+            t1 = (-2.0 * Kp1) / (
+                (psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3
+            ) - (2.0 * Kp1) / (
+                (psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2
+            )
+            t2 = (b_diag[i] * alpha / Eta[i]) * psi_new[i]
+            t3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i] ** 2 * psidot[i]
+            t4 = (c_node / Eta[i]) * phi_new[i] * Ia[i]
+            return Q_local.at[6 + i].set(t1 + t2 + t3 - t4)
+        def inactive_branch():
+            return Q_local.at[6 + i].set(psi_new[i])
+        return jax.lax.cond(active, active_branch, inactive_branch), None
+
+    Q, _ = jax.lax.scan(body_i_psi, Q, jnp.arange(5))
+    Q = Q.at[11].set(jnp.sum(phi_new) + phi0_new - 1.0)
+    return Q
+
+
+def _make_newton_step_c_vmap(n_iters):
+    """Create jitted vmapped Newton step with nutrient coupling.
+
+    Vmaps over (g_prev, c_node) with shared params.
+    """
+    def newton_step_c(g_prev, c_node, params):
+        active_mask = params["active_mask"]
+
+        def body(carry, _):
+            g = carry
+            g = clip_state(g, active_mask)
+            def F(gg):
+                return residual_c(gg, g_prev, c_node, params)
+            Q = F(g)
+            J = jax.jacfwd(F)(g)
+            delta = jnp.linalg.solve(J, -Q)
+            g_next = g + delta
+            g_next = clip_state(g_next, active_mask)
+            return g_next, None
+
+        g0 = clip_state(g_prev, active_mask)
+        g_final, _ = jax.lax.scan(body, g0, jnp.arange(n_iters))
+        return g_final
+
+    return jax.jit(jax.vmap(newton_step_c, in_axes=(0, 0, None)))
+
+
+def _make_reaction_step_c(n_sub, n_iters):
+    """Create reaction step with nutrient coupling.
+
+    c_flat stays constant during reaction sub-steps (only updated
+    in the nutrient PDE step).
+    """
+    _newton_c_vmap = _make_newton_step_c_vmap(n_iters)
+
+    def reaction_step_c(G, c_flat, params):
+        def body(G_local, _):
+            return _newton_c_vmap(G_local, c_flat, params), None
+        G_final, _ = jax.lax.scan(body, G, jnp.arange(n_sub))
+        return G_final
+
+    return reaction_step_c
+
+
+# ---------------------------------------------------------------------------
+# CFL-stable nutrient PDE step (with sub-stepping)
+# ---------------------------------------------------------------------------
+
+def _nutrient_sub_step(c, phi_2d, D_c, k_M, g_cons, c_bc, dx, dy, dt_sub):
+    """Single explicit Euler step for nutrient c(x,y)."""
+    lap_c = laplacian_2d_dirichlet(c, dx, dy, c_bc)
+    phi_total_w = jnp.sum(phi_2d * g_cons[None, None, :], axis=-1)
+    monod = c / (k_M + c)
+    consumption = phi_total_w * monod
+    c_new = c + dt_sub * (D_c * lap_c - consumption)
+    return jnp.clip(c_new, 0.0, c_bc)
+
+
+def _make_nutrient_step_stable(n_sub_c):
+    """Create CFL-stable nutrient step with n_sub_c sub-steps."""
+    def step(c, phi_2d, D_c, k_M, g_cons, c_bc, dx, dy, dt_macro):
+        dt_sub = dt_macro / n_sub_c
+        def body(c_local, _):
+            return _nutrient_sub_step(
+                c_local, phi_2d, D_c, k_M, g_cons, c_bc, dx, dy, dt_sub
+            ), None
+        c_final, _ = jax.lax.scan(body, c, jnp.arange(n_sub_c))
+        return c_final
+    return step
+
+
+# ---------------------------------------------------------------------------
+# Biofilm geometry
+# ---------------------------------------------------------------------------
+
+def egg_shape_mask(Nx, Ny, Lx=1.0, Ly=1.0,
+                   ax=0.35, ay=0.25, cx=0.5, cy=0.5,
+                   skew=0.3, eps=0.1):
+    """Klempt 2024 egg-shaped biofilm indicator phi_biofilm(x,y) in [0,1]."""
+    x = np.linspace(0, Lx, Nx)
+    y = np.linspace(0, Ly, Ny)
+    X, Y = np.meshgrid(x, y, indexing="ij")
+    xn = (X - cx * Lx) / (ax * Lx)
+    yn = (Y - cy * Ly + skew * (X - cx * Lx) ** 2) / (ay * Ly)
+    r2 = xn ** 2 + yn ** 2
+    return 0.5 * (1.0 - np.tanh((r2 - 1.0) / eps))
+
+
+def make_initial_state_2d_biofilm(cfg, biofilm_mask):
+    """Build initial Hamilton state with egg-shaped biofilm geometry.
+
+    Species are initialized ONLY inside the biofilm region.
+    Outside: phi=0, phi0=1 (void), psi=eps (inactive).
+    """
+    Nx, Ny = cfg.Nx, cfg.Ny
+    active_mask = jnp.ones(5, dtype=jnp.int64)
+    mask = jnp.array(biofilm_mask)
+
+    G_2d = jnp.zeros((Nx, Ny, 12), dtype=jnp.float64)
+
+    # Base composition (inside biofilm only)
+    phi_base = jnp.array([0.12, 0.12, 0.08, 0.05, 0.02])
+    for i in range(5):
+        G_2d = G_2d.at[:, :, i].set(phi_base[i] * mask)
+
+    # Normalize: sum(phi) < 1
+    phi_sum = jnp.sum(G_2d[:, :, :5], axis=-1)
+    scale = jnp.where(phi_sum > 0.999, 0.999 / phi_sum, 1.0)
+    G_2d = G_2d.at[:, :, :5].set(G_2d[:, :, :5] * scale[:, :, None])
+
+    # phi_0 = 1 - sum(phi)
+    G_2d = G_2d.at[:, :, 5].set(1.0 - jnp.sum(G_2d[:, :, :5], axis=-1))
+
+    # psi: active inside biofilm, inactive outside
+    for i in range(5):
+        psi_val = jnp.where(mask > 0.5, 0.999, 1e-10)
+        G_2d = G_2d.at[:, :, 6 + i].set(psi_val)
+
+    # gamma = 0
+    G_2d = G_2d.at[:, :, 11].set(0.0)
+
+    G_flat = G_2d.reshape(Nx * Ny, 12)
+    c = jnp.ones((Nx, Ny), dtype=jnp.float64) * cfg.c_boundary
+
+    return G_flat, c
+
+
+# ---------------------------------------------------------------------------
+# Full coupled simulation
+# ---------------------------------------------------------------------------
+
+def run_simulation_coupled(theta, cfg, biofilm_mask=None, n_sub_c=30):
+    """
+    Run 2D Hamilton + nutrient with two-way coupling.
+
+    Key difference from run_simulation():
+      The local nutrient concentration c(x,y) modulates the Hamilton
+      interaction strength, creating a two-way coupling:
+        c -> phi (nutrient affects species interactions)
+        phi -> c (species consume nutrients)
+
+    With biofilm_mask: species are confined to the biofilm region,
+    creating spatially heterogeneous composition (unlike 1D).
+
+    Parameters
+    ----------
+    theta : array (20,)
+    cfg   : Config2D
+    biofilm_mask : (Nx, Ny) or None
+    n_sub_c : int  nutrient PDE sub-steps for CFL stability
+    """
+    A, b_diag = theta_to_matrices(jnp.asarray(theta, dtype=jnp.float64))
+    active_mask = jnp.ones(5, dtype=jnp.int64)
+
+    params = {
+        "dt_h": cfg.dt_h,
+        "Kp1": cfg.Kp1,
+        "Eta": jnp.ones(5),
+        "EtaPhi": jnp.ones(5),
+        "alpha": cfg.alpha,
+        "K_hill": jnp.array(cfg.K_hill),
+        "n_hill": jnp.array(cfg.n_hill),
+        "A": A,
+        "b_diag": b_diag,
+        "active_mask": active_mask,
+    }
+
+    _reaction_c = _make_reaction_step_c(cfg.n_react_sub, cfg.newton_iters)
+    _nutrient_stable = _make_nutrient_step_stable(n_sub_c)
+
+    D_eff = jnp.array(cfg.D_eff)
+    D_c = cfg.D_c
+    k_M = cfg.k_monod
+    g_cons = jnp.array(cfg.g_consumption)
+    c_bc = cfg.c_boundary
+    dt_macro = cfg.dt_macro
+    Nx, Ny = cfg.Nx, cfg.Ny
+
+    if biofilm_mask is not None:
+        G, c = make_initial_state_2d_biofilm(cfg, biofilm_mask)
+        mask_jax = jnp.array(biofilm_mask)
+    else:
+        G, c = make_initial_state_2d(cfg)
+        mask_jax = None
+
+    phi_snaps = [np.asarray(G.reshape(Nx, Ny, 12)[:, :, :5].transpose(2, 0, 1))]
+    c_snaps = [np.asarray(c)]
+    t_snaps = [0.0]
+
+    print(f"\n{'='*65}")
+    print(f"  2D Coupled Hamilton+Nutrient  |  Nx={Nx} Ny={Ny}")
+    print(f"  dt_h={cfg.dt_h:.1e}  n_sub={cfg.n_react_sub}  n_macro={cfg.n_macro}")
+    print(f"  D_c={D_c}  k_M={k_M}  n_sub_c={n_sub_c}")
+    print(f"  biofilm={'egg-shape' if biofilm_mask is not None else 'full-domain'}")
+    print(f"{'='*65}")
+
+    for step in range(1, cfg.n_macro + 1):
+        t = step * dt_macro
+
+        # (1) Reaction with nutrient coupling
+        c_flat = c.reshape(Nx * Ny)
+        G = _reaction_c(G, c_flat, params)
+
+        # (2) Species diffusion (explicit Euler, Neumann BCs)
+        phi_2d = G.reshape(Nx, Ny, 12)[:, :, :5]
+        phi_2d = diffusion_step_species_2d(phi_2d, D_eff, dt_macro, cfg.dx, cfg.dy)
+
+        # Apply biofilm mask (zero species outside biofilm)
+        if mask_jax is not None:
+            phi_2d = phi_2d * mask_jax[:, :, None]
+
+        # Write back to G
+        G_2d = G.reshape(Nx, Ny, 12)
+        G_2d = G_2d.at[:, :, :5].set(phi_2d)
+        G_2d = G_2d.at[:, :, 5].set(1.0 - jnp.sum(phi_2d, axis=-1))
+        G = G_2d.reshape(Nx * Ny, 12)
+
+        # (3) Nutrient PDE (CFL-stable sub-stepping)
+        c = _nutrient_stable(c, phi_2d, D_c, k_M, g_cons, c_bc, cfg.dx, cfg.dy, dt_macro)
+
+        # Save snapshot
+        if step % cfg.save_every == 0 or step == cfg.n_macro:
+            phi_snap = np.asarray(phi_2d.transpose(2, 0, 1))
+            phi_snaps.append(phi_snap)
+            c_snaps.append(np.asarray(c))
+            t_snaps.append(float(t))
+
+            phi_mean = jnp.mean(phi_2d, axis=(0, 1))
+            c_mean = float(jnp.mean(c))
+            bar = ", ".join(f"{float(v):.4f}" for v in phi_mean)
+            print(
+                f"  [{100*step/cfg.n_macro:5.1f}%] t={t:.5f}  "
+                f"phi_mean=[{bar}]  c_mean={c_mean:.4f}"
+            )
+
+    return {
+        "phi_snaps": np.array(phi_snaps),
+        "c_snaps": np.array(c_snaps),
+        "t_snaps": np.array(t_snaps),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Standalone demo
 # ---------------------------------------------------------------------------
 

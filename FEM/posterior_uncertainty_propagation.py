@@ -278,6 +278,16 @@ def run_condition(condition, args):
             done_flag.touch()
 
             print(f" DI={result['di_mean']:.4f}, {time.perf_counter()-tk:.1f}s")
+
+            # Free JAX compilation cache to prevent memory leak
+            try:
+                import jax
+                jax.clear_caches()
+            except Exception:
+                pass
+            import gc
+            gc.collect()
+
         except Exception as e:
             print(f" ERROR: {e}")
             continue
