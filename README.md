@@ -46,53 +46,58 @@ flowchart LR
 
     classDef inp    fill:#dbeafe,stroke:#3b82f6,stroke-width:2px,color:#1e3a5f
     classDef tmcmc  fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef eq     fill:#bbf7d0,stroke:#16a34a,stroke-width:1px,color:#14532d
     classDef fem    fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
+    classDef feq    fill:#fef3c7,stroke:#ca8a04,stroke-width:1px,color:#713f12
     classDef jax    fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#4a1d96
+    classDef jeq    fill:#ede9fe,stroke:#9333ea,stroke-width:1px,color:#4a1d96
     classDef out    fill:#ffe4e6,stroke:#e11d48,stroke-width:2px,color:#881337,font-weight:bold
 
     %% ── Input ──────────────────────────────────────────────────────────────
     subgraph INPUT["📊  Input  ·  Heine et al. 2025"]
         direction TB
         I1["4 experimental conditions\nCommensal / Dysbiotic  ×  Static / HOBIC"]:::inp
-        I2["5 species\nSo · An · Vd(bridge) · Fn(bridge) · Pg(pathogen)"]:::inp
-        I3["5 time points  ·  0 → 48 h\nIn vitro longitudinal  CFU/mL"]:::inp
+        I2["5 species\nSo · An · Vd · Fn · Pg"]:::inp
+        I3["5 time points  ·  0 → 48 h\nIn vitro CFU/mL"]:::inp
     end
 
     %% ── Stage 1: TMCMC ─────────────────────────────────────────────────────
     subgraph TMCMC["🔬  Stage 1  ·  TMCMC Bayesian Inference"]
         direction TB
-        T1["Hamilton variational ODE  ·  20 free params\ndφᵢ/dt = φᵢ · (rᵢ − dᵢφᵢ + Σⱼ aᵢⱼ · H(φⱼ))\nHill gate  H = φⁿ/(Kⁿ+φⁿ)  ·  K=0.05, n=4 fixed"]:::tmcmc
-        T2["Sequential tempering  β : 0 → 1\nAdaptive Δβ via  CoV(wᵢ) = 1\nMH-MCMC resample + local random walk"]:::tmcmc
-        T3["Output per condition\nθ_MAP  ·  θ_MEAN  ·  N=1000 posterior samples\nRMSE(MAP) < 0.075 across all 4 conditions"]:::tmcmc
-        T1 --> T2 --> T3
+        T1["Hamilton variational ODE · 20 free params"]:::tmcmc
+        T1eq["$$\frac{d\varphi_i}{dt} = \varphi_i \Bigl( r_i - d_i\varphi_i + \sum_j a_{ij}\,H(\varphi_j) \Bigr)$$"]:::eq
+        T1hill["$$H(\varphi) = \frac{\varphi^n}{K^n + \varphi^n}, \quad K{=}0.05,\; n{=}4$$"]:::eq
+        T2["Sequential tempering\n$$\beta : 0 \to 1$$\nMH-MCMC + local random walk"]:::tmcmc
+        T3["$$\hat{\boldsymbol{\theta}}_{\text{MAP}},\; \hat{\boldsymbol{\theta}}_{\text{MEAN}},\; N{=}1000 \text{ posterior samples}$$"]:::tmcmc
+        T1 --- T1eq --- T1hill --> T2 --> T3
     end
 
     %% ── Stage 2: FEM ────────────────────────────────────────────────────────
     subgraph FEM["🦷  Stage 2  ·  3D FEM Stress Analysis"]
         direction TB
-        F1["Posterior ODE ensemble\n→ spatial composition fields  φᵢ(x)"]:::fem
-        F2["Dysbiotic Index\nDI(x) = 1 − H(x) / log(5)\nH = −Σᵢ φᵢ log φᵢ  Shannon entropy"]:::fem
-        F3["Power-law stiffness mapping\nr(x) = clamp(DI/s, 0, 1)  ·  s = 0.025778\nE(x) = E_max·(1−r)² + E_min·r\nsubstrate: E_max=10 GPa  ·  biofilm: 100 Pa"]:::fem
-        F4["Abaqus 3D  ·  NLGEOM enabled\nOpen-Full-Jaw  patient teeth P1_23 / 30 / 31\n→ S_Mises  ·  U_max  ·  90% credible band"]:::fem
-        F1 --> F2 --> F3 --> F4
+        F1["Posterior ODE ensemble\n→ spatial composition fields"]:::fem
+        F2eq["$$\mathrm{DI}(\mathbf{x}) = 1 - \frac{H(\mathbf{x})}{\ln 5}, \quad H = -\sum_i \varphi_i \ln \varphi_i$$"]:::feq
+        F3eq["$$E(\mathbf{x}) = E_{\max}(1-r)^n + E_{\min}\,r, \quad r = \mathrm{clamp}\!\left(\tfrac{\mathrm{DI}}{s},0,1\right)$$"]:::feq
+        F4["Abaqus 3D · NLGEOM\nOpen-Full-Jaw P1_23 / 30 / 31\n$$\to \sigma_{\text{Mises}},\; U_{\max},\; 90\%\;\text{CI}$$"]:::fem
+        F1 --> F2eq --> F3eq --> F4
     end
 
     %% ── JAX-FEM sidechain ───────────────────────────────────────────────────
     subgraph JAXFEM["🧪  JAX-FEM  ·  Klempt 2024 Benchmark"]
         direction TB
-        J1["Steady-state nutrient transport PDE\n−D_c·Δc + g·φ₀(x)·c/(k+c) = 0  in [0,1]²\nDirichlet BC:  c = 1  on  ∂Ω"]:::jax
-        J2["Newton solver  ·  4 iterations\nThiele modulus ≈ 4  (diffusion-limited)\nc_min ≈ 0.31  inside biofilm\nautodiff:  ∂loss/∂D_c  via JAX AD"]:::jax
+        J1["$$-D_c\,\Delta c + g\,\varphi_0(\mathbf{x})\,\frac{c}{k+c} = 0 \quad \text{in } [0,1]^2$$"]:::jeq
+        J2["Newton solver · 4 iterations\n$$c_{\min} \approx 0.31,\quad \partial(\text{loss})/\partial D_c \text{ via JAX AD}$$"]:::jax
         J1 --> J2
     end
 
     %% ── Outputs ─────────────────────────────────────────────────────────────
-    RFEM["MAP RMSE < 0.075\nU_max: 0.027–0.029 mm\nDI discriminates 4 conditions"]:::out
-    RJAX["c_min ≈ 0.31  (benchmark)\n∂c/∂D_c  via adjoint AD"]:::out
+    RFEM["$$\text{RMSE} < 0.075, \quad U_{\max}: 0.027\text{–}0.029 \text{ mm}$$"]:::out
+    RJAX["$$c_{\min} \approx 0.31 \;\text{(benchmark)}$$"]:::out
 
     %% ── Edges ───────────────────────────────────────────────────────────────
     INPUT  -->|"CFU/mL time-series\n4 × 5 × 5"| TMCMC
     TMCMC  -->|"posterior samples\n1000 × 20 params"| FEM
-    TMCMC  -->|"φ₀(x) field\nbiofilm morphology"| JAXFEM
+    TMCMC  -->|"biofilm morphology"| JAXFEM
     FEM    --> RFEM
     JAXFEM --> RJAX
 ```
@@ -379,16 +384,16 @@ flowchart TB
     classDef bridge fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
     classDef abaqus fill:#ffe4e6,stroke:#e11d48,stroke-width:2px,color:#881337
 
-    A["TMCMC  θ_MAP"]:::tmcmc
-    B["0D JAX ODE  (T*=25, n=2500)\n→ DI_0D: commensal≈0.05, dysbiotic≈0.84\n→ α_0D: condition-specific scalar"]:::ode
-    C["1D Hamilton + Nutrient PDE  (N=30, T*=20)\n→ c(x,T): nutrient field\n→ φᵢ(x,T): species profiles"]:::ode
-    D["α_Monod(x) = k_α ∫ φ_total · c/(k+c) dt\nε_growth(x) = α_Monod(x) / 3"]:::bridge
+    A["$$\hat{\boldsymbol{\theta}}_{\text{MAP}} \;\text{(TMCMC)}$$"]:::tmcmc
+    B["0D JAX ODE\n$$T^*{=}25,\; n{=}2500$$\n$$\mathrm{DI}_{\text{0D}}$$: commensal ≈ 0.05, dysbiotic ≈ 0.84"]:::ode
+    C["1D Hamilton + Nutrient PDE\n$$N{=}30,\; T^*{=}20$$\n$$\to c(\mathbf{x},T),\; \varphi_i(\mathbf{x},T)$$"]:::ode
+    D["$$\alpha_{\text{Monod}}(\mathbf{x}) = k_\alpha \int_0^T \varphi_{\text{total}}\,\frac{c}{k+c}\,dt$$"]:::bridge
+    D2["$$\varepsilon_{\text{growth}}(\mathbf{x}) = \frac{\alpha_{\text{Monod}}(\mathbf{x})}{3}$$"]:::bridge
     E["Abaqus T3D2 bar INP\nspatially non-uniform eigenstrain field"]:::abaqus
 
     A --> B
     A --> C
-    C --> D
-    D --> E
+    C --> D --> D2 --> E
 ```
 
 The key spatial bridge is the **Monod growth integral**:
