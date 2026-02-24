@@ -396,17 +396,38 @@ def read_di_csv(path):
 # 7. DI BIN ASSIGNMENT PER TET
 # ============================================================================
 
-def assign_di_bins(tet_layers, n_layers, xs_field, di_vals_field,
-                   n_bins, di_scale, di_exp, e_max, e_min):
+def assign_di_bins(
+    tet_layers: np.ndarray,
+    n_layers: int,
+    xs_field: np.ndarray,
+    di_vals_field: np.ndarray,
+    n_bins: int,
+    di_scale: float,
+    di_exp: float,
+    e_max: float,
+    e_min: float,
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Assign each tet to a DI material bin based on its layer depth.
 
     Depth rho_norm = (layer + 0.5) / n_layers  (centroid of the layer)
     Map rho_norm → x_query in [x_min, x_max] of DI field → nearest DI value → bin.
 
-    Returns:
-        tet_bins : (N_tets,) int – bin index (0..n_bins-1)
-        bin_E_stiff : (n_bins,) float – stiffness per bin (dominant direction)
+    Assumptions (3D mapping)
+    -------------------------
+    The DI field CSV may contain (x, y, z, di) for a 3D grid, but this function
+    uses only the x-coordinate (depth axis, perpendicular to substratum) for
+    mapping. This assumes DI varies primarily with depth; lateral (y, z)
+    variation is collapsed. For conformal tet mesh around a tooth STL, the
+    layer index approximates depth from the inner (tooth) surface. See
+    methods_supplement_fem.md § 6 and FEM_README.md for full pipeline docs.
+
+    Returns
+    -------
+    tet_bins : (N_tets,) int
+        Bin index (0..n_bins-1) per tetrahedron.
+    bin_E_stiff : (n_bins,) float
+        Stiffness per bin (dominant direction), E(DI) = E_max*(1-r)^n + E_min*r.
     """
     x_min = xs_field.min() if len(xs_field) else 0.0
     x_max = xs_field.max() if len(xs_field) else 1.0
@@ -861,7 +882,8 @@ def parse_args():
     p.add_argument("--n-bins",      type=int,   default=20,  help="DI material bins")
     p.add_argument("--e-max",       type=float, default=10e9)
     p.add_argument("--e-min",       type=float, default=0.5e9)
-    p.add_argument("--di-scale",    type=float, default=0.025778)
+    p.add_argument("--di-scale",    type=float, default=DI_SCALE_DEFAULT,
+                    help="DI normalization scale (default from material_models)")
     p.add_argument("--di-exp",      type=float, default=2.0)
     p.add_argument("--nu",          type=float, default=0.30)
     p.add_argument("--aniso-ratio", type=float, default=0.5)
