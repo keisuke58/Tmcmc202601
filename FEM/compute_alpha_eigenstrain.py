@@ -153,7 +153,11 @@ def compute_alpha_final(run_dir, k_alpha=0.05, dt=0.01, maxtimestep=2500, verbos
         dt=dt, maxtimestep=maxtimestep,
         phi_init=0.01, use_numba=True
     )
-    t_arr, g_arr = solver.solve(theta)
+    # Check if run_deterministic exists, otherwise try solve
+    if hasattr(solver, "run_deterministic"):
+        t_arr, g_arr = solver.run_deterministic(theta)
+    else:
+        t_arr, g_arr = solver.solve(theta)
 
     # Total biofilm volume fraction: sum of phi_1..phi_5 (indices 0..4)
     phi_total = np.sum(g_arr[:, 0:5], axis=1)

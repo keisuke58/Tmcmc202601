@@ -69,8 +69,12 @@ FEM/
 │       material_sweep/     A: material sensitivity jobs
 │       old_field_csv/      Legacy field CSVs / PNGs
 │
+├── ── Tests ───────────────────────────────────────────────────────────────
+│   tests/test_di_e_mapping.py   Unit tests for DI and E(DI) (pytest)
+│
 ├── ── Reports ─────────────────────────────────────────────────────────────
 │   FEM_README.md           This file
+│   methods_supplement_fem.md  DI time point, E(DI) physics, TMCMC→Monod
 │   fem_report.pdf/.tex     Earlier isotropic FEM report
 │   abaqus_implementation_report.pdf/.tex  Abaqus scripting report
 │   docs/
@@ -295,6 +299,17 @@ python run_czm3d_sweep.py --plot-only
 | Pressure | 1.0 MPa | Applied compressive load |
 
 ---
+
+## Environment
+
+| Variable | Description |
+|----------|-------------|
+| `ABAQUS_CMD` | Path to Abaqus command (default: `/home/nishioka/.../abaqus`) |
+
+Used by `tmcmc_to_fem_coupling.py` when invoking assembly. Set for your install:
+```bash
+export ABAQUS_CMD=/path/to/abaqus
+```
 
 ## Abaqus API Notes
 

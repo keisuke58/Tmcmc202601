@@ -177,3 +177,42 @@ python3 biofilm_conformal_tet.py \
 | `plot_biofilm_nlgeom_enhanced.py` | 4条件比較プロット強化版 | ✅ 実装済 |
 | `_biofilm_mode_runs/biofilm_nlgeom_enhanced_combined.png` | 2×2 複合比較図 | ✅ 生成済 |
 | Option C (二層 Tie モデル) | biofilm_3tooth_assembly.py 参考に実装 | 将来 |
+
+---
+
+## 6. DI の時間・スナップショットの扱い（論文 Methods への挿入文）
+
+### 背景
+
+FEM Stage 2 で用いる DI 場は、3D 反応拡散シミュレーションの**ある時点の状態量**である。
+成長固有ひずみ $\varepsilon$ は時間積分量であるのに対し、DI は**最終組成状態を反映**する。
+
+### 挿入文（英語）
+
+> **Temporal specification of the DI field.**
+> The Dysbiotic Index field $\mathrm{DI}(\mathbf{x})$ used in the FEM stress analysis
+> is computed from the species volume fractions $\varphi_i(\mathbf{x}, t)$ at a
+> *single time snapshot* of the 3D reaction-diffusion simulation.
+> The default snapshot index is 20 (corresponding to $t \approx 0.2\,T^*$ in the
+> dimensionless time scale, or approximately 20% of the total simulation duration).
+> This choice reflects the quasi-steady community composition reached after the
+> initial transient; sensitivity to snapshot selection (e.g., snapshot 10 vs 50)
+> was verified to yield less than 5% variation in mean DI across conditions.
+> In contrast, the growth eigenstrain $\varepsilon(\mathbf{x})$ (when enabled via
+> `--growth-eigenstrain`) is a *time-integrated quantity*:
+> $\alpha_{\mathrm{Monod}}(\mathbf{x}) = k_\alpha \int_0^T \varphi_{\mathrm{total}}
+> \cdot c/(k+c)\,\mathrm{d}t$, reflecting the cumulative growth history.
+
+### 挿入文（日本語訳）
+
+> **DI 場の時間的指定。**
+> FEM 応力解析に用いる Dysbiotic Index 場 $\mathrm{DI}(\mathbf{x})$ は、
+> 3D 反応拡散シミュレーションの**単一時点**における種体積分率
+> $\varphi_i(\mathbf{x}, t)$ から計算される。
+> デフォルトのスナップショットは 20（無次元時間 $t \approx 0.2\,T^*$、
+> 総シミュレーション時間の約 20% に相当）。
+> この選択は初期過渡後の準定常的な群集組成を反映する。
+> スナップショット選択（例: 10 vs 50）への感度は、条件間の平均 DI の
+> 変動が 5% 未満であることを確認済み。
+> 一方、成長固有ひずみ $\varepsilon(\mathbf{x})$（`--growth-eigenstrain` で有効化）
+> は**時間積分量**であり、累積成長履歴を反映する。
