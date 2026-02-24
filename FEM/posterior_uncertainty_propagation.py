@@ -58,10 +58,9 @@ _OUT_BASE = _HERE / "_uncertainty_propagation"
 
 CONDITION_RUNS = {
     "dh_baseline":      _RUNS_ROOT / "dh_baseline",
-    "commensal_static": _RUNS_ROOT / "Commensal_Static_20260208_002100",
-    "commensal_hobic":  _RUNS_ROOT / "Commensal_HOBIC_20260208_002100",
-    "dysbiotic_static": _RUNS_ROOT / "Dysbiotic_Static_20260207_203752",
-    "dysbiotic_hobic":  _RUNS_ROOT / "Dysbiotic_HOBIC_20260208_002100",
+    "commensal_static": _RUNS_ROOT / "commensal_static",
+    "commensal_hobic":  _RUNS_ROOT / "commensal_hobic",
+    "dysbiotic_static": _RUNS_ROOT / "dysbiotic_static",
 }
 
 E_MAX = 10.0e9; E_MIN = 0.5e9; DI_SCALE = 0.025778; DI_EXP = 2.0
