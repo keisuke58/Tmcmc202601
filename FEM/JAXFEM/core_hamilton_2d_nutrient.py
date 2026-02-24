@@ -729,14 +729,16 @@ def _make_reaction_step_c(n_sub, n_iters):
 
     c_flat stays constant during reaction sub-steps (only updated
     in the nutrient PDE step).
+
+    Uses a Python loop (not lax.scan) to call the JIT-compiled
+    Newton solver. This avoids cumulative LLVM compilation issues.
     """
     _newton_c_vmap = _make_newton_step_c_vmap(n_iters)
 
     def reaction_step_c(G, c_flat, params):
-        def body(G_local, _):
-            return _newton_c_vmap(G_local, c_flat, params), None
-        G_final, _ = jax.lax.scan(body, G, jnp.arange(n_sub))
-        return G_final
+        for _ in range(n_sub):
+            G = _newton_c_vmap(G, c_flat, params)
+        return G
 
     return reaction_step_c
 
@@ -756,15 +758,41 @@ def _nutrient_sub_step(c, phi_2d, D_c, k_M, g_cons, c_bc, dx, dy, dt_sub):
 
 
 def _make_nutrient_step_stable(n_sub_c):
-    """Create CFL-stable nutrient step with n_sub_c sub-steps."""
+    """CFL-stable nutrient step with n_sub_c sub-steps.
+
+    Uses **pure NumPy** to avoid extra JAX/LLVM compilation.
+    The nutrient PDE is a simple 2D diffusion-reaction that doesn't
+    benefit from JIT — and avoids LLVM memory issues during long runs.
+    """
     def step(c, phi_2d, D_c, k_M, g_cons, c_bc, dx, dy, dt_macro):
-        dt_sub = dt_macro / n_sub_c
-        def body(c_local, _):
-            return _nutrient_sub_step(
-                c_local, phi_2d, D_c, k_M, g_cons, c_bc, dx, dy, dt_sub
-            ), None
-        c_final, _ = jax.lax.scan(body, c, jnp.arange(n_sub_c))
-        return c_final
+        dt_sub = float(dt_macro / n_sub_c)
+        c_np = np.asarray(c, dtype=np.float64)
+        phi_np = np.asarray(phi_2d, dtype=np.float64)  # (Nx, Ny, 5)
+        g_np = np.asarray(g_cons, dtype=np.float64)     # (5,)
+        D = float(D_c)
+        kM = float(k_M)
+        cb = float(c_bc)
+        dx2 = float(dx * dx)
+        dy2 = float(dy * dy)
+
+        # Precompute weighted phi_total (constant during nutrient sub-steps)
+        phi_total_w = np.sum(phi_np * g_np[None, None, :], axis=-1)  # (Nx, Ny)
+
+        for _ in range(n_sub_c):
+            # Laplacian with Dirichlet BC (c_bc on all walls)
+            c_pad = np.pad(c_np, 1, mode="constant", constant_values=cb)
+            lap = (
+                (c_pad[:-2, 1:-1] + c_pad[2:, 1:-1] - 2.0 * c_pad[1:-1, 1:-1]) / dx2
+                + (c_pad[1:-1, :-2] + c_pad[1:-1, 2:] - 2.0 * c_pad[1:-1, 1:-1]) / dy2
+            )
+            # Monod consumption
+            monod = c_np / (kM + c_np)
+            consumption = phi_total_w * monod
+
+            c_np = c_np + dt_sub * (D * lap - consumption)
+            c_np = np.clip(c_np, 0.0, cb)
+
+        return jnp.array(c_np)
     return step
 
 
