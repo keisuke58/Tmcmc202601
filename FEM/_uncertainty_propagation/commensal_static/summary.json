@@ -1,0 +1,13 @@
+{
+  "condition": "commensal_static",
+  "n_samples": 50,
+  "di_mean_global": 0.05281152311802414,
+  "di_ci_width": 0.010765032067984652,
+  "eeff_mean_gpa": 0.5,
+  "eeff_ci_width_gpa": 0.0,
+  "epg_mean_pa": 998.5696371439449,
+  "epg_ci_width_pa": 0.1632489098379824,
+  "evir_mean_pa": 998.0112813297376,
+  "evir_ci_width_pa": 0.21631919183308013,
+  "timing_s": 2281.7
+}
