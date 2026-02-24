@@ -1,0 +1,44 @@
+# ===== Abaqus =====
+*.odb
+*.odb_f
+*.lck
+*.com
+*.msg
+*.dat
+*.sta
+*.prt
+*.sim
+*.stt
+*.mdl
+*.res
+*.abq
+*.pac
+*.sel
+*.023
+*.jnl
+abaqus.rpy*
+abaqus_acis.log
+
+# ===== Large generated data =====
+*.odb.gz
+*.tar.gz
+
+# ===== Python =====
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# ===== Job markers =====
+*.flag
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Logs =====
+*.log
+!docs/**/*.log
+
+# ===== Backup directory (synced to Google Drive) =====
+_backup/
