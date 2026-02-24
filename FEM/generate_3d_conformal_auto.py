@@ -26,6 +26,7 @@ Usage
 """
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -73,6 +74,17 @@ def load_theta(path):
         return np.array([d[k] for k in _PARAM_KEYS], dtype=np.float64)
 
 
+def compute_0d_di(theta_np, K_hill=0.05, n_hill=4.0, n_steps=2500, dt=0.01):
+    """Run 0D Hamilton ODE to get condition-specific DI_0D.
+
+    Returns dict with di_0d, phi_final, E_di (Pa).
+    """
+    from generate_hybrid_macro_csv import solve_0d_composition
+    result = solve_0d_composition(theta_np, n_steps=n_steps, dt=dt)
+    print(f"  0D DI = {result['di_0d']:.4f}, E_di = {result['E_di']:.1f} Pa")
+    return result
+
+
 def run_fem_2d(theta, condition, cfg_override=None):
     """Run 2D Hamilton+nutrient and return DI field data."""
     from JAXFEM.core_hamilton_2d_nutrient import run_simulation, Config2D
@@ -85,11 +97,27 @@ def run_fem_2d(theta, condition, cfg_override=None):
     return result, cfg
 
 
-def export_di_csv(result, cfg, out_csv):
-    """Export DI field to CSV from 2D simulation results."""
+def compute_hybrid_di(di_2d, di_0d):
+    """Combine 0D DI (condition scale) with 2D DI (spatial pattern).
+
+    Hybrid DI(x,y) = DI_0D * (DI_2D(x,y) / mean(DI_2D))
+    This preserves:
+      - condition-specific magnitude from 0D ODE
+      - spatial variation pattern from 2D PDE
+    """
+    di_2d_mean = float(np.mean(di_2d))
+    if di_2d_mean < 1e-12:
+        return np.full_like(di_2d, di_0d)
+    return di_0d * (di_2d / di_2d_mean)
+
+
+def export_di_csv(result, cfg, out_csv, di_0d=None):
+    """Export DI field to CSV from 2D simulation results.
+
+    If di_0d is provided, apply Hybrid scaling (0D scale * 2D pattern).
+    """
     phi_snaps = result["phi_snaps"]
     c_snaps = result["c_snaps"]
-    t_snaps = result["t_snaps"]
 
     phi_final = phi_snaps[-1]  # (5, Nx, Ny)
     c_final = c_snaps[-1]      # (Nx, Ny)
@@ -97,7 +125,7 @@ def export_di_csv(result, cfg, out_csv):
     x = np.linspace(0, cfg.Lx, Nx)
     y = np.linspace(0, cfg.Ly, Ny)
 
-    # Compute DI
+    # Compute raw 2D DI
     phi_t = phi_final.transpose(1, 2, 0)  # (Nx, Ny, 5)
     phi_sum = phi_t.sum(axis=-1)
     phi_sum_safe = np.where(phi_sum > 0, phi_sum, 1.0)
@@ -105,7 +133,15 @@ def export_di_csv(result, cfg, out_csv):
     with np.errstate(divide="ignore", invalid="ignore"):
         log_p = np.where(p > 0, np.log(p), 0.0)
     H = -(p * log_p).sum(axis=-1)
-    di = 1.0 - H / np.log(5.0)
+    di_raw = 1.0 - H / np.log(5.0)
+
+    # Apply Hybrid scaling if 0D DI provided
+    if di_0d is not None:
+        di = compute_hybrid_di(di_raw, di_0d)
+        print(f"  Hybrid DI: 0D={di_0d:.4f}, 2D mean={np.mean(di_raw):.4f} "
+              f"→ hybrid mean={np.mean(di):.4f}")
+    else:
+        di = di_raw
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     with open(out_csv, "w") as f:
@@ -224,10 +260,15 @@ def run_condition(condition, args):
                        dt_h=args.dt_h, save_every=args.save_every,
                        K_hill=args.k_hill, n_hill=args.n_hill)
 
+    # Step 0: 0D Hamilton ODE → condition-specific DI_0D
+    print("\n[0/3] 0D Hamilton ODE → DI_0D...")
+    ode_result = compute_0d_di(theta, K_hill=args.k_hill, n_hill=args.n_hill)
+    di_0d = ode_result["di_0d"]
+
     print("\n[1/3] 2D Hamilton + Nutrient PDE...")
     result, cfg = run_fem_2d(theta, condition, cfg)
     di_csv = out_dir / "di_field_2d.csv"
-    di = export_di_csv(result, cfg, di_csv)
+    di = export_di_csv(result, cfg, di_csv, di_0d=di_0d)
 
     # Save numpy arrays
     np.save(out_dir / "phi_snaps.npy", np.array(result["phi_snaps"]))
@@ -273,6 +314,8 @@ def run_condition(condition, args):
         "n_macro": cfg.n_macro,
         "K_hill": cfg.K_hill,
         "n_hill": cfg.n_hill,
+        "di_0d": di_0d,
+        "E_di_Pa": ode_result["E_di"],
         "di_stats": {
             "mean": float(np.mean(di)),
             "max": float(np.max(di)),
@@ -313,9 +356,12 @@ def main():
     ap.add_argument("--thickness", type=float, default=0.5)
     ap.add_argument("--n-layers", type=int, default=8)
     ap.add_argument("--n-bins", type=int, default=20)
-    ap.add_argument("--e-max", type=float, default=10e9)
-    ap.add_argument("--e-min", type=float, default=0.5e9)
-    ap.add_argument("--di-scale", type=float, default=0.025778)
+    ap.add_argument("--e-max", type=float, default=1000.0,
+                    help="E_healthy [Pa] (default: 1000 Pa)")
+    ap.add_argument("--e-min", type=float, default=10.0,
+                    help="E_degraded [Pa] (default: 10 Pa)")
+    ap.add_argument("--di-scale", type=float, default=1.0,
+                    help="DI normalization (default: 1.0 for Hybrid DI)")
     ap.add_argument("--di-exp", type=float, default=2.0)
     ap.add_argument("--nu", type=float, default=0.30)
     ap.add_argument("--pressure", type=float, default=1.0e6)
