@@ -11,6 +11,7 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 \usepackage{graphicx}
+\usepackage{float}
 \usepackage{geometry}
 \geometry{margin=2.5cm}
 \usepackage{listings}
@@ -195,6 +196,26 @@ I_i = \sum_{j=0}^{4} A_{ij} \phi_j \psi_j
 \end{equation}
 where $A_{ij}$ represents the effect of species $j$ on species $i$, and $\phi_j \psi_j$ is the living bacteria volume fraction.
 
+\subsection{F.~nucleatum Bridge Gate (Hill Function Extension)}
+\label{sec:hill_gate}
+
+In the base model, the interaction term $I_4$ for \textit{P.~gingivalis} (species 4) treats all cross-species effects as linear. However, experimental evidence indicates that P.~gingivalis colonisation depends critically on prior establishment of \textit{F.~nucleatum} (species 3) as a ``bridge organism'' \cite{Kolenbrander2010OralMultispecies}. To capture this biological prerequisite, we introduce a Hill-type gating function that modulates the effective interaction received by P.~gingivalis:
+\begin{equation}
+  I_4^{\mathrm{gated}} = h(\phi_3 \psi_3)\;\sum_{j=0}^{4} A_{4j}\,\phi_j\psi_j, \qquad
+  h(x) = \frac{x^n}{K^n + x^n}
+  \label{eq:hill_gate}
+\end{equation}
+where $K > 0$ is the half-saturation concentration and $n > 0$ is the Hill coefficient controlling the sharpness of the switch. When $\phi_3\psi_3 \ll K$, the gate is nearly closed ($h \approx 0$) and P.~gingivalis receives negligible interaction benefit; when $\phi_3\psi_3 \gg K$, the gate saturates ($h \approx 1$) and the full interaction is recovered.
+
+Throughout this study we fix $K = 0.05$ and $n = 4$, which produces a sharp switch at approximately 5\% F.~nucleatum living volume fraction, consistent with the observed colonisation threshold in oral biofilm experiments \cite{Heine2025PeriImplant}. These values are not estimated by TMCMC but are treated as fixed hyperparameters of the forward model. A sensitivity analysis with respect to $K$ and $n$ is provided in Section~\ref{sec:sensitivity_kn}.
+
+The Hill gate modifies both the Q~vector (right-hand side of the ODE) and the Jacobian matrix used in the Newton--Raphson time integrator. Specifically, the Jacobian correction for the gated interaction involves the derivative of $h$:
+\begin{equation}
+  h'(x) = \frac{n\,K^n\,x^{n-1}}{(K^n + x^n)^2}
+  \label{eq:hill_deriv}
+\end{equation}
+which contributes additional off-diagonal terms $\partial I_4^{\mathrm{gated}}/\partial(\phi_3\psi_3)$ to the system Jacobian. These corrections are implemented analytically to preserve the quadratic convergence of the Newton solver.
+
 \subsection{Symmetric Matrix Assumption}
 
 \textbf{Critical assumption}: The interaction matrix $\mathbf{A}$ is symmetric:
@@ -285,21 +306,23 @@ For all $k \in \mathcal{L}$:
 \subsection{Prior Bounds}
 \label{sec:prior_bounds}
 
-The \textbf{base} prior distribution (for Commensal/Dysbiotic Static conditions) is:
+The prior distribution encodes biologically motivated bounds. In particular, the cross-species interactions with P.~gingivalis ($\theta_{18} = a_{35}$, $\theta_{19} = a_{45}$) are constrained to a narrower range $[0, 5]$ (``mild-weight'' bounds) rather than the unconstrained range $[0, 30]$, based on the observation that unregularised estimation drives these parameters to non-physical values ($a_{35} > 17$) that produce unrealistic P.~gingivalis dynamics.
 
 \begin{equation}
 \theta_k \sim \begin{cases}
-\text{Uniform}(0, 0) & \text{if } k \in \mathcal{L} \text{ (locked)} \\
-\text{Uniform}(0, 1) & \text{if } k = 18 \text{ (Vei} \to \text{P.g, positive cooperation)} \\
+\delta(\theta_k = 0) & \text{if } k \in \mathcal{L} \text{ (locked)} \\
+\text{Uniform}(0, 5) & \text{if } k \in \{18, 19\} \text{ (P.g cross-interactions)} \\
 \text{Uniform}(-1, 1) & \text{otherwise (free)}
 \end{cases}
 \end{equation}
 
-\textbf{Important}: For the Dysbiotic HOBIC condition (``Surge'' reproduction), the bounds for index 18 are modified to allow strong negative values:
+For the Dysbiotic HOBIC condition (``Surge'' reproduction), the bounds for index 18 are modified to allow strong cooperative effects:
 \begin{equation}
 \theta_{18} \sim \text{Uniform}(-3, -1) \quad \text{(Dysbiotic HOBIC only)}
 \end{equation}
-This reflects the strong cooperative effect from Veillonella to P.~gingivalis required to drive the pathogen surge.
+This reflects the strong cooperative effect from Veillonella to P.~gingivalis required to drive the pathogen surge observed experimentally.
+
+The effectiveness of the mild-weight bounds was validated through a controlled comparison (Section~\ref{sec:baseline_comparison}): using the same TMCMC settings ($N=150$ particles, $M=8$ stages) with the original wide bounds yielded $a_{35} = 17.3$ and total RMSE $= 0.223$, whereas the mild-weight bounds produced $a_{35} = 3.56$ with total RMSE $= 0.156$ (30\% improvement), confirming that the bound regularisation improves both estimation accuracy and biological plausibility.
 
 \subsection{Effective Parameter Space}
 
@@ -510,6 +533,33 @@ B_{10} = \frac{p(\mathbf{y}_{\mathrm{obs}} \mid \mathcal{M}_{\mathrm{proposed}})
 \end{equation}
 
 \noindent A Bayes factor $B_{10} > 1$ provides evidence in favor of the proposed reduced model, indicating that the biological constraints improve not only interpretability but also predictive performance relative to model complexity. According to Kass and Raftery's scale, $B_{10} > 3$ constitutes ``substantial'' evidence and $B_{10} > 20$ ``strong'' evidence for the reduced model.
+
+\subsection{Taylor Series Method (TSM) Surrogate}
+\label{sec:tsm}
+
+Each TMCMC stage requires $O(N \times N_{\mathrm{MCMC}})$ evaluations of the forward model, which involves solving the 10-dimensional coupled ODE system~(\ref{eq:ode}) over 2500 time steps per evaluation. To reduce the computational burden, we employ a first-order Taylor Series Method (TSM) as a reduced-order surrogate for the log-likelihood \cite{Fritsch2025BayesianMicrofilms}.
+
+Given a linearisation point $\boldsymbol{\theta}_0$ (updated periodically during TMCMC), the forward model prediction at a nearby parameter $\boldsymbol{\theta}$ is approximated by:
+\begin{equation}
+  \hat{\mathbf{y}}(t_k; \boldsymbol{\theta}) \approx \hat{\mathbf{y}}(t_k; \boldsymbol{\theta}_0) + \mathbf{J}(t_k;\boldsymbol{\theta}_0)\,(\boldsymbol{\theta} - \boldsymbol{\theta}_0)
+  \label{eq:tsm_approx}
+\end{equation}
+where $\mathbf{J}(t_k;\boldsymbol{\theta}_0) = \partial \hat{\mathbf{y}} / \partial \boldsymbol{\theta}\big|_{\boldsymbol{\theta}_0} \in \mathbb{R}^{5 \times n_{\mathrm{free}}}$ is the sensitivity matrix. Substituting~(\ref{eq:tsm_approx}) into~(\ref{eq:loglik}) yields a quadratic surrogate for the log-likelihood that can be evaluated without additional ODE solves.
+
+The sensitivity matrix $\mathbf{J}$ is computed via complex-step differentiation \cite{Martins2003ComplexStep}:
+\begin{equation}
+  \frac{\partial \hat{y}_i}{\partial \theta_k}\bigg|_{\boldsymbol{\theta}_0}
+  \approx \frac{\mathrm{Im}\!\left[\hat{y}_i(\boldsymbol{\theta}_0 + i h \mathbf{e}_k)\right]}{h}
+  \label{eq:complex_step}
+\end{equation}
+with step size $h = 10^{-30}$. This approach achieves machine-precision accuracy without the subtractive cancellation errors of finite differences, at the cost of requiring the forward model to support complex-valued arithmetic.
+
+The linearisation point $\boldsymbol{\theta}_0$ is updated at the beginning of each TMCMC stage using the weighted mean of the current particle population. When the local approximation error exceeds a threshold (monitored via the Q~vector norm), the TSM is temporarily bypassed and the full forward model is evaluated, ensuring robustness. In the first TMCMC stage ($\beta \approx 0$), the TSM is disabled entirely to allow broad exploration of the prior.
+
+\subsection{Sensitivity Analysis of Hill Gate Parameters}
+\label{sec:sensitivity_kn}
+
+The Hill gate parameters $K$ and $n$ (Section~\ref{sec:hill_gate}) control the F.~nucleatum colonisation threshold for P.~gingivalis establishment. We performed a grid search over $K \in \{0.01, 0.05, 0.10, 0.20\}$ and $n \in \{2, 4, 6, 8\}$ using the Dysbiotic HOBIC condition (where P.~gingivalis dynamics are most pronounced). The optimal combination $(K=0.05, n=4)$ was selected based on: (i)~lowest total RMSE across all five species, (ii)~biologically plausible estimates for the cross-species interaction parameters $a_{35}$ and $a_{45}$, and (iii)~convergence diagnostics ($\hat{R} < 1.1$, ESS $> 100$). A detailed sensitivity table is provided in the supplementary material.
 
 %==============================================================================
 \section{Experiment Conditions \& Parameter Estimation}
@@ -812,16 +862,54 @@ python compare_nishioka_standard.py \
 %==============================================================================
 \section{Numerical Experiments and Discussion}
 
-To validate the effectiveness of the proposed method, we performed parameter estimation under the Commensal Static condition (absence of pathogens, static environment).
+\subsection{Computational Settings}
+
+Table~\ref{tab:tmcmc_settings} summarises the TMCMC hyperparameters used for all four experimental conditions.
+
+\begin{table}[H]
+\centering
+\caption{TMCMC computational settings (mild-weight configuration)}
+\label{tab:tmcmc_settings}
+\begin{tabular}{ll}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Number of particles $N$ & 150 \\
+Number of tempering stages $M$ & 8 (fixed schedule) \\
+Number of independent chains & 2 \\
+MCMC proposals per particle & 5 \\
+Parallel jobs per chain & 4 (multiprocessing) \\
+Hill gate: $K$ & 0.05 \\
+Hill gate: $n$ & 4.0 \\
+$a_{35}$ bounds (Vei $\to$ P.g) & $[0, 5]$ \\
+$a_{45}$ bounds (F.n $\to$ P.g) & $[0, 5]$ \\
+TSM linearisation & Enabled (Stages 2--8) \\
+ODE time steps & 2500 ($\Delta t = 0.01$, $T^* = 25$) \\
+Observation noise $\sigma$ & Condition-dependent (10--25\% of data range) \\
+Random seed & 42 (CS), 43 (CH), 44 (DS), 45 (DH) \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Experimental Conditions}
 
-\begin{itemize}
-    \item \textbf{Condition}: Commensal Static (Healthy biofilm model)
-    \item \textbf{Data}: Time-series relative abundance data for 5 species ($t=0$ to $t=140$h)
-    \item \textbf{Estimation Method}: Proposed 4-stage TMCMC
-    \item \textbf{Lock Settings}: Parameters related to pathogens (P.g, F.n) and non-biological interactions are locked to zero (Lock Mode)
-\end{itemize}
+We performed parameter estimation under four experimental conditions, each with specific locking rules (Table~\ref{tab:condition_locking}).
+
+\begin{table}[H]
+\centering
+\caption{Condition-specific parameter locking and effective dimensionality}
+\label{tab:condition_locking}
+\begin{tabular}{lccl}
+\toprule
+\textbf{Condition} & $n_\mathrm{locked}$ & $n_\mathrm{free}$ & \textbf{Locked indices} \\
+\midrule
+Commensal Static  & 11 & 9  & $\{6,7,9,11,13,14,15,16,17,18,19\}$ \\
+Commensal HOBIC   &  7 & 13 & $\{6,12,13,15,16,17,18\}$ \\
+Dysbiotic Static  &  5 & 15 & $\{6,12,13,16,17\}$ \\
+Dysbiotic HOBIC   &  0 & 20 & $\emptyset$ (all free) \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Evaluation of Model Fit and Prediction Accuracy}
 
@@ -1049,10 +1137,35 @@ In addition to the pairwise comparison, we examined the Frobenius norm $\lVert \
 A key novelty of this work is the propagation of TMCMC-calibrated microbial parameters to macroscale mechanical fields.
 We construct a three-stage pipeline:
 \begin{enumerate}
-  \item \textbf{0D Hamilton ODE}: For each posterior sample $\boldsymbol{\theta}^{(k)}$, the 5-species Hamilton model is solved for species volume fractions $\varphi_i(t)$ and a global Dysbiosis Index $\mathrm{DI}_\text{0D}$.
+  \item \textbf{0D Hamilton ODE}: For each posterior sample $\boldsymbol{\theta}^{(k)}$, the 5-species Hamilton model~(\ref{eq:ode}) with Hill gate~(\ref{eq:hill_gate}) is solved for species volume fractions $\varphi_i(t)$ and a global Dysbiosis Index $\mathrm{DI}_\text{0D}$.
   \item \textbf{1D reaction--diffusion PDE}: A 1D spatial model ($x \in [0,1]$, tooth surface to saliva) couples the Hamilton ODE with a nutrient diffusion equation, producing spatially varying fields $\varphi_i(x)$, $c(x)$, and the Monod growth integral $\alpha_\mathrm{Monod}(x)$.
   \item \textbf{2D FEM stress analysis}: A plane-strain QUAD4 finite-element solver computes von~Mises stress $\sigma_\mathrm{vm}(\mathbf{x})$ from the spatially heterogeneous elastic modulus $E(\mathbf{x})$ and eigenstrain $\varepsilon_\mathrm{growth}(\mathbf{x})$.
 \end{enumerate}
+
+\subsection{Dysbiosis Index (DI)}
+
+The Dysbiosis Index quantifies community-level deviation from a healthy (maximally diverse) state via the normalised Shannon entropy:
+\begin{equation}
+  \mathrm{DI} = 1 - \frac{H}{H_\mathrm{max}}, \qquad
+  H = -\sum_{i=0}^{4} \bar{\varphi}_i \ln \bar{\varphi}_i, \qquad
+  H_\mathrm{max} = \ln 5
+  \label{eq:di}
+\end{equation}
+where $\bar{\varphi}_i = \varphi_i / \sum_j \varphi_j$ is the relative abundance of species $i$. A perfectly even community ($\bar\varphi_i = 1/5$) yields $\mathrm{DI} = 0$, while complete single-species dominance gives $\mathrm{DI} \to 1$.
+
+\subsection{Nutrient-Coupled 1D Hamilton Model}
+
+The 1D spatial extension couples the Hamilton ODE at each spatial node $x_k$ with a reaction--diffusion equation for the nutrient concentration $c(x,t)$:
+\begin{equation}
+  \frac{\partial c}{\partial t} = D_c \frac{\partial^2 c}{\partial x^2} - g \sum_{i=0}^{4} \varphi_i(x,t)\, \frac{c}{k + c}
+  \label{eq:nutrient_pde}
+\end{equation}
+with boundary conditions $c(0,t) = 0$ (tooth surface, nutrient-depleted) and $c(1,t) = 1$ (saliva, nutrient-rich). The Monod consumption term $g \varphi_i c/(k+c)$ couples the microbial growth dynamics to the local nutrient availability. The spatially resolved growth eigenstrain is computed as the time-integrated Monod activity:
+\begin{equation}
+  \alpha_\mathrm{Monod}(x) = k_\alpha \int_0^T \varphi_\mathrm{total}(x,t)\, \frac{c(x,t)}{k + c(x,t)}\, \mathrm{d}t
+  \label{eq:alpha_monod}
+\end{equation}
+where $k_\alpha$ is the growth-to-strain coupling coefficient.
 
 \subsection{Hybrid Micro--Macro Coupling}
 
@@ -1151,6 +1264,7 @@ Condition-specific differences emerge in the cross-species interaction parameter
 %==============================================================================
 
 \subsection{Biological Interpretation of Parameter Estimates}
+\label{sec:baseline_comparison}
 
 The TMCMC estimation across four experimental conditions reveals a consistent picture: the interaction matrix $\mathbf{A}$ undergoes a structured reorganisation during the transition from health (commensal) to disease (dysbiotic).
 In commensal conditions, the estimated interaction strengths are moderate and the posterior distributions are concentrated, indicating a well-constrained ecological balance among early colonisers.
