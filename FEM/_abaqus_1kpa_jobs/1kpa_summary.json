@@ -1,0 +1,45 @@
+{
+  "pressure_Pa": 1000,
+  "pressure_MPa": 0.001,
+  "loading": "brushing (~1 kPa)",
+  "conditions": {
+    "commensal_static": {
+      "E_bio_Pa": 909.1,
+      "E_bio_MPa": 0.000908,
+      "mises_max_MPa": 0.0452,
+      "mises_mean_MPa": 0.0017,
+      "U_max_mm": 0.4391,
+      "U_mean_mm": 0.1907
+    },
+    "commensal_hobic": {
+      "E_bio_Pa": 890.1,
+      "E_bio_MPa": 0.00089,
+      "mises_max_MPa": 0.0452,
+      "mises_mean_MPa": 0.0017,
+      "U_max_mm": 0.4483,
+      "U_mean_mm": 0.1947
+    },
+    "dh_baseline": {
+      "E_bio_Pa": 705.1,
+      "E_bio_MPa": 0.000705,
+      "mises_max_MPa": 0.0452,
+      "mises_mean_MPa": 0.0017,
+      "U_max_mm": 0.5671,
+      "U_mean_mm": 0.2463
+    },
+    "dysbiotic_static": {
+      "E_bio_Pa": 32.3,
+      "E_bio_MPa": 3.08e-05,
+      "mises_max_MPa": 0.0452,
+      "mises_mean_MPa": 0.0017,
+      "U_max_mm": 12.9297,
+      "U_mean_mm": 5.6161
+    }
+  },
+  "notes": [
+    "Linear elastic (nlgeom=NO) -> U scales exactly as 1/E",
+    "Ratio dysb/comm = 29.4x (same as 1 MPa version)",
+    "Mises stress identical across conditions (dentin-dominated)",
+    "Mises scaled 1/1000 from 1 MPa: 45.2 MPa -> 0.0452 MPa = 45.2 kPa"
+  ]
+}
