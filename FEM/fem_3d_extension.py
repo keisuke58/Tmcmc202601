@@ -32,8 +32,13 @@ Usage
       --n-macro 100 --n-react-sub 50 \\
       --out-dir _results_3d/dh_baseline
 """
-import argparse, json, sys, time
+import argparse
+import json
+import logging
+import sys
+import time
 from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 import scipy.sparse as sp
@@ -51,7 +56,9 @@ try:
     _HAVE_MODEL = True
 except ImportError:
     _HAVE_MODEL = False
-    HAS_NUMBA   = False
+    HAS_NUMBA = False
+
+logger = logging.getLogger(__name__)
 
 
 # ── Numba reaction kernel (identical to 2D, just more nodes) ─────────────────
@@ -194,8 +201,10 @@ class FEM3DBiofilm:
         self._active   = np.ones(5, dtype=np.int64)
 
         N_nodes = Nx * Ny * Nz
-        print(f"Assembling 3D Laplacian ({Nx}×{Ny}×{Nz} = {N_nodes} nodes) "
-              f"and factorising ... ", end="", flush=True)
+        logger.info(
+            "Assembling 3D Laplacian (%d×%d×%d = %d nodes) and factorising ...",
+            Nx, Ny, Nz, N_nodes,
+        )
         I_sp = sp.eye(N_nodes, format="csr")
         self._solvers = []
         self._solvers_half = []
@@ -237,8 +246,8 @@ class FEM3DBiofilm:
                 )
                 self.use_numba = True
             except Exception as exc:
-                print(f"  [warn] Numba warm-up failed: {exc}")
-        print(f"Using Numba parallel: {self.use_numba}")
+                logger.warning("Numba warm-up failed: %s", exc)
+        logger.info("Using Numba parallel: %s", self.use_numba)
 
     # ── initial conditions ────────────────────────────────────────────────────
     def _make_G0(self) -> np.ndarray:
@@ -326,15 +335,13 @@ class FEM3DBiofilm:
         snaps_phi = [G[:, :, :, :5].transpose(3, 0, 1, 2).copy()]  # (5,Nx,Ny,Nz)
         snaps_t   = [0.0]
 
-        print(f"\n{'='*65}")
-        print(f"3D FEM Biofilm  |  condition = {self.condition!r}")
-        print(f"  Grid   : {self.Nx}×{self.Ny}×{self.Nz}  ({self.Nx*self.Ny*self.Nz} nodes)")
-        print(f"  Domain : Lx={self.Lx:.2f}  Ly={self.Ly:.2f}  Lz={self.Lz:.2f}")
-        print(f"  dt_h   : {self.dt_h:.1e}  |  n_sub={self.n_react_sub}")
-        print(f"  dt_mac : {self.dt_macro:.1e}  |  n_mac={self.n_macro}")
-        print(f"  t_tot  : {self.t_total:.4f}  |  solver={self.solver_type}")
-        print(f"  D_eff  : {self.D_eff}")
-        print(f"{'='*65}\n")
+        logger.info(
+            "3D FEM Biofilm | condition=%r | Grid %d×%d×%d (%d nodes) | "
+            "Lx=%.2f Ly=%.2f Lz=%.2f | dt_h=%.1e n_sub=%d | solver=%s",
+            self.condition, self.Nx, self.Ny, self.Nz,
+            self.Nx * self.Ny * self.Nz, self.Lx, self.Ly, self.Lz,
+            self.dt_h, self.n_react_sub, self.solver_type,
+        )
 
         t0 = time.perf_counter()
         for step in range(1, self.n_macro + 1):
@@ -349,10 +356,12 @@ class FEM3DBiofilm:
             if step % self.save_every == 0 or step == self.n_macro:
                 snaps_phi.append(G[:, :, :, :5].transpose(3, 0, 1, 2).copy())
                 snaps_t.append(t)
-                pm  = G[:, :, :, :5].mean(axis=(0, 1, 2))
+                pm = G[:, :, :, :5].mean(axis=(0, 1, 2))
                 bar = "[" + ", ".join(f"{v:.3f}" for v in pm) + "]"
-                print(f"  [{100*step/self.n_macro:5.1f}%] t={t:.4f}  φ̄={bar}  "
-                      f"elapsed={time.perf_counter()-t0:.1f}s")
+                logger.info(
+                    "[%5.1f%%] t=%.4f φ̄=%s elapsed=%.1fs",
+                    100 * step / self.n_macro, t, bar, time.perf_counter() - t0,
+                )
 
         elapsed = time.perf_counter() - t0
         print(f"\nDone in {elapsed:.1f}s  |  {len(snaps_phi)} snapshots")
@@ -366,7 +375,7 @@ class FEM3DBiofilm:
         np.save(out_dir / "mesh_y.npy",        self.y_mesh)
         np.save(out_dir / "mesh_z.npy",        self.z_mesh)
         np.save(out_dir / "theta_MAP.npy",     self.theta)
-        print(f"Saved to: {out_dir}")
+        logger.info("Saved to: %s", out_dir)
 
 
 def run_posterior_fem_3d(
@@ -395,10 +404,10 @@ def run_posterior_fem_3d(
     theta_map_path = run_dir / "theta_MAP.json"
     samples_path   = run_dir / "samples.npy"
     if not theta_map_path.exists():
-        print(f"[error] theta_MAP.json not found in {run_dir}")
+        logger.error("theta_MAP.json not found in %s", run_dir)
         return
     if not samples_path.exists():
-        print(f"[error] samples.npy not found in {run_dir}")
+        logger.error("samples.npy not found in %s", run_dir)
         return
 
     with open(theta_map_path) as f:
@@ -435,12 +444,10 @@ def run_posterior_fem_3d(
     with open(out_path / "meta.json", "w") as f:
         json.dump(meta, f, indent=2)
 
-    print(f"\n{'='*65}")
-    print(f"Posterior FEM 3D  |  condition={condition!r}")
-    print(f"  TMCMC run : {run_dir}")
-    print(f"  Samples   : {n_use} / {n_total}  (seed={seed})")
-    print(f"  Output    : {out_path}")
-    print(f"{'='*65}")
+    logger.info(
+        "Posterior FEM 3D | condition=%r | TMCMC=%s | samples=%d/%d | out=%s",
+        condition, run_dir, n_use, n_total, out_path,
+    )
 
     phibar_list = []
     depth_list  = []
@@ -452,7 +459,7 @@ def run_posterior_fem_3d(
 
         # ── resume: reload already-finished sample ─────────────────────────
         if done_flag.exists():
-            print(f"  [resume] {enum_k+1}/{n_use} (pool_idx={idx})")
+            logger.info("Resume sample %d/%d (pool_idx=%d)", enum_k + 1, n_use, idx)
             phi_mean  = np.load(sample_dir / "phibar.npy")
             depth_arr = np.load(sample_dir / "depth_pg.npy")
             if t_ref is None:
@@ -472,7 +479,7 @@ def run_posterior_fem_3d(
             print(f"  [skip] sample {enum_k} – unexpected shape {theta_sample.shape}")
             continue
 
-        print(f"\n  --- sample {enum_k+1}/{n_use} (pool_idx={idx}) ---")
+        logger.info("Sample %d/%d (pool_idx=%d)", enum_k + 1, n_use, idx)
         sim = FEM3DBiofilm(
             theta_curr,
             Nx=nx, Ny=ny, Nz=nz,
@@ -539,7 +546,7 @@ def run_posterior_fem_3d(
     with open(out_path / "meta.json", "w") as f:
         json.dump(meta, f, indent=2)
 
-    print(f"\n[done] Posterior FEM ({len(phibar_list)} samples) → {out_path}")
+    logger.info("Posterior FEM done: %d samples → %s", len(phibar_list), out_path)
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -569,6 +576,10 @@ def _load_theta(path: str) -> np.ndarray:
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s: %(message)s",
+    )
     ap = argparse.ArgumentParser(description="3D FEM biofilm simulation")
     ap.add_argument("--theta-json",  default=_DEFAULT_THETA)
     ap.add_argument("--condition",   default="unknown")

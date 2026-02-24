@@ -706,6 +706,23 @@ python biofilm_conformal_tet.py \
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
+### Repository Documents
+
+| Document | Description |
+|----------|-------------|
+| [README.md](README.md) | Project overview, results, methodology |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
+| [LICENSE](LICENSE) | MIT License |
+| [CITATION.cff](CITATION.cff) | Machine-readable citation metadata |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Code design & module dependencies |
+| [REPRODUCIBILITY.md](REPRODUCIBILITY.md) | Full reproduction guide |
+| [SECURITY.md](SECURITY.md) | Security policy |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Contributor Covenant |
+| [Makefile](Makefile) | One-command build targets (`make help`) |
+
+### GitHub Resources
+
 | Resource | Link |
 |----------|------|
 | **Issues** — bug reports, feature requests | [github.com/…/issues](https://github.com/keisuke58/Tmcmc202601/issues) |
