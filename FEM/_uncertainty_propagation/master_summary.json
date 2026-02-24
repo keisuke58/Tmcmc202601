@@ -1,4 +1,17 @@
 {
+  "commensal_hobic": {
+    "condition": "commensal_hobic",
+    "n_samples": 50,
+    "di_mean_global": 0.04699268444090804,
+    "di_ci_width": 0.001384173477057789,
+    "eeff_mean_gpa": 0.5,
+    "eeff_ci_width_gpa": 0.0,
+    "epg_mean_pa": 998.5158449206559,
+    "epg_ci_width_pa": 0.009836255549567739,
+    "evir_mean_pa": 997.9474063867476,
+    "evir_ci_width_pa": 0.013105766589360144,
+    "timing_s": 2471.5
+  },
   "commensal_static": {
     "condition": "commensal_static",
     "n_samples": 50,
@@ -37,5 +50,18 @@
     "evir_mean_pa": 998.0167074696927,
     "evir_ci_width_pa": 0.5718993810233326,
     "timing_s": 2472.3
+  },
+  "dysbiotic_static": {
+    "condition": "dysbiotic_static",
+    "n_samples": 50,
+    "di_mean_global": 0.04894254487376024,
+    "di_ci_width": 0.0012232816225722853,
+    "eeff_mean_gpa": 0.5,
+    "eeff_ci_width_gpa": 0.0,
+    "epg_mean_pa": 998.5281122195333,
+    "epg_ci_width_pa": 0.01304089064420083,
+    "evir_mean_pa": 997.9581622431625,
+    "evir_ci_width_pa": 0.016010483860032423,
+    "timing_s": 2470.5
   }
 }
