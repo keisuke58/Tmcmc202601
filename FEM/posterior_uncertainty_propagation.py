@@ -61,6 +61,7 @@ CONDITION_RUNS = {
     "commensal_static": _RUNS_ROOT / "commensal_static",
     "commensal_hobic":  _RUNS_ROOT / "commensal_hobic",
     "dysbiotic_static": _RUNS_ROOT / "dysbiotic_static",
+    "baseline_original_bounds": _TMCMC_ROOT / "data_5species" / "main" / "_runs" / "baseline_original_bounds",
 }
 
 E_MAX = 10.0e9; E_MIN = 0.5e9; DI_SCALE = 0.025778; DI_EXP = 2.0
@@ -196,9 +197,26 @@ def run_condition(condition, args):
         done_flag = sample_dir / "done.flag"
 
         if done_flag.exists() and not args.force:
+            # Validate grid size matches
+            meta_path = sample_dir / "meta.json"
+            if meta_path.exists():
+                with open(meta_path) as f:
+                    cached_meta = json.load(f)
+                cached_nx = cached_meta.get("nx", -1)
+                cached_ny = cached_meta.get("ny", -1)
+                if (cached_nx, cached_ny) != (-1, -1) and (cached_nx, cached_ny) != (args.nx, args.ny):
+                    print(f"  [{k+1}/{n_actual}] grid mismatch ({cached_nx}x{cached_ny} vs {args.nx}x{args.ny}), recomputing...")
+                    import shutil
+                    shutil.rmtree(sample_dir)
+                    done_flag = sample_dir / "done.flag"  # reset
+
             # Load existing
-            di_path = sample_dir / "di_field.npy"
-            if di_path.exists():
+            if done_flag.exists():
+                di_path = sample_dir / "di_field.npy"
+            else:
+                di_path = None
+
+            if di_path is not None and di_path.exists():
                 di = np.load(di_path)
                 di_fields.append(di)
                 # Load or recompute E_phi_pg / E_virulence from phi_snaps
@@ -251,6 +269,8 @@ def run_condition(condition, args):
                 "di_max": result["di_max"],
                 "phi_pg_max": result["phi_pg_max"],
                 "timing_s": round(time.perf_counter() - tk, 1),
+                "nx": args.nx,
+                "ny": args.ny,
             }
             with (sample_dir / "meta.json").open("w") as f:
                 json.dump(meta, f, indent=2)
@@ -575,21 +595,92 @@ def main():
         results[cond] = run_condition(cond, args)
 
     # Cross-condition summary
-    if len(results) > 1:
+    valid = {k: v for k, v in results.items() if v}
+    if valid:
         print(f"\n{'='*60}")
         print("Cross-condition summary:")
-        for cond, r in results.items():
-            if r:
-                print(f"  {cond}:")
-                print(f"    DI mean: {r['di_mean_global']:.6f} "
-                      f"(CI width: {r['di_ci_width']:.6f})")
-                print(f"    E_eff (DI): {r['eeff_mean_gpa']:.4f} GPa "
-                      f"(CI width: {r['eeff_ci_width_gpa']:.4f})")
-                print(f"    E_phi_pg: {r['epg_mean_pa']:.1f} Pa "
-                      f"(CI width: {r['epg_ci_width_pa']:.1f})")
-                print(f"    E_virulence: {r['evir_mean_pa']:.1f} Pa "
-                      f"(CI width: {r['evir_ci_width_pa']:.1f})")
+        for cond, r in valid.items():
+            print(f"  {cond}:")
+            print(f"    DI mean: {r['di_mean_global']:.6f} "
+                  f"(CI width: {r['di_ci_width']:.6f})")
+            print(f"    E_phi_pg: {r['epg_mean_pa']:.1f} Pa "
+                  f"(CI width: {r['epg_ci_width_pa']:.1f})")
+            print(f"    E_virulence: {r['evir_mean_pa']:.1f} Pa "
+                  f"(CI width: {r['evir_ci_width_pa']:.1f})")
         print(f"{'='*60}")
+
+    if len(valid) >= 2:
+        _plot_cross_condition(valid, _OUT_BASE)
+
+    # Save final master summary
+    master = {k: v for k, v in valid.items()}
+    with (_OUT_BASE / "master_summary.json").open("w") as f:
+        json.dump(master, f, indent=2)
+    print(f"\nMaster summary: {_OUT_BASE / 'master_summary.json'}")
+
+
+def _plot_cross_condition(results, out_base):
+    """Cross-condition CI comparison figure (publication quality)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    conds = list(results.keys())
+    n = len(conds)
+
+    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+    colors = ["#1f77b4", "#d62728", "#2ca02c", "#ff7f0e", "#9467bd"]
+    x = np.arange(n)
+
+    # (a) DI mean + CI
+    ax = axes[0]
+    means = [results[c]["di_mean_global"] for c in conds]
+    widths = [results[c]["di_ci_width"] for c in conds]
+    ax.bar(x, means, color=[colors[i % len(colors)] for i in range(n)],
+           alpha=0.8, edgecolor="k", linewidth=0.5)
+    ax.errorbar(x, means, yerr=[w/2 for w in widths], fmt="none",
+                ecolor="k", capsize=5, capthick=1.5, linewidth=1.5)
+    ax.set_xticks(x)
+    ax.set_xticklabels([c.replace("_", "\n") for c in conds], fontsize=8)
+    ax.set_ylabel("DI (mean)", fontsize=11)
+    ax.set_title("(a) Dysbiosis Index", fontsize=12)
+    ax.grid(True, alpha=0.3, axis="y")
+
+    # (b) E_phi_pg + CI
+    ax = axes[1]
+    means = [results[c]["epg_mean_pa"] for c in conds]
+    widths = [results[c]["epg_ci_width_pa"] for c in conds]
+    ax.bar(x, means, color=[colors[i % len(colors)] for i in range(n)],
+           alpha=0.8, edgecolor="k", linewidth=0.5)
+    ax.errorbar(x, means, yerr=[w/2 for w in widths], fmt="none",
+                ecolor="k", capsize=5, capthick=1.5, linewidth=1.5)
+    ax.set_xticks(x)
+    ax.set_xticklabels([c.replace("_", "\n") for c in conds], fontsize=8)
+    ax.set_ylabel("$E_{\\phi_{Pg}}$ [Pa]", fontsize=11)
+    ax.set_title("(b) Young's Modulus (Pg Hill)", fontsize=12)
+    ax.grid(True, alpha=0.3, axis="y")
+
+    # (c) E_virulence + CI
+    ax = axes[2]
+    means = [results[c]["evir_mean_pa"] for c in conds]
+    widths = [results[c]["evir_ci_width_pa"] for c in conds]
+    ax.bar(x, means, color=[colors[i % len(colors)] for i in range(n)],
+           alpha=0.8, edgecolor="k", linewidth=0.5)
+    ax.errorbar(x, means, yerr=[w/2 for w in widths], fmt="none",
+                ecolor="k", capsize=5, capthick=1.5, linewidth=1.5)
+    ax.set_xticks(x)
+    ax.set_xticklabels([c.replace("_", "\n") for c in conds], fontsize=8)
+    ax.set_ylabel("$E_{vir}$ [Pa]", fontsize=11)
+    ax.set_title("(c) Young's Modulus (Pg+Fn)", fontsize=12)
+    ax.grid(True, alpha=0.3, axis="y")
+
+    fig.suptitle("Cross-Condition Uncertainty Comparison (90% CI)",
+                 fontsize=14, weight="bold")
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    out = out_base / "cross_condition_ci_comparison.png"
+    fig.savefig(out, dpi=200)
+    plt.close(fig)
+    print(f"\nCross-condition comparison: {out}")
 
 
 if __name__ == "__main__":
