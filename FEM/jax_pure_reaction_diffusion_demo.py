@@ -7,13 +7,7 @@ def solve_pde(D, n_steps=500, N=64, dt=1e-4, k=1.0, s0=10.0):
     y = jnp.linspace(0.0, 1.0, N)
     X, Y = jnp.meshgrid(x, y, indexing="ij")
     dx = x[1] - x[0]
-    dx_c = X - 0.5
-    dy_c = Y - 0.5
-    ax = 0.35
-    ay = 0.25
-    skew = 0.3
-    scale_y = ay * (1.0 + skew * dx_c)
-    r2 = (dx_c / ax) ** 2 + (dy_c / scale_y) ** 2
+    r2 = (X - 0.5) ** 2 + (Y - 0.5) ** 2
     source = s0 * jnp.exp(-r2 / 0.02)
 
     def laplacian(u):
@@ -70,3 +64,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

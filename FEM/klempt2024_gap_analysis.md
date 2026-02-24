@@ -45,7 +45,6 @@ E(DI) は「バイオフィルムで覆われた表面の**有効（合成）剛
 #### Option B ✅ 実装済み (2026-02-23): `--mode biofilm` フラグ
 
 既存の `biofilm_conformal_tet.py` は既に「歯 STL の外側に薄層を張る」構造になっていた
-
 （Inner face = 歯面固定、Outer face = 荷重）。問題は材料定数のスケールのみだった。
 
 `--mode biofilm` を追加して biofilm-scale E を使えるようにした：

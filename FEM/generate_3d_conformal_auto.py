@@ -41,10 +41,10 @@ _OUT_BASE = _HERE / "_3d_conformal_auto"
 sys.path.insert(0, str(_HERE))
 
 CONDITION_RUNS = {
-    "dh_baseline":      _RUNS_ROOT / "sweep_pg_20260217_081459" / "dh_baseline",
-    "commensal_static": _RUNS_ROOT / "Commensal_Static_20260208_002100",
-    "commensal_hobic":  _RUNS_ROOT / "Commensal_HOBIC_20260208_002100",
-    "dysbiotic_static": _RUNS_ROOT / "Dysbiotic_Static_20260207_203752",
+    "dh_baseline":      _RUNS_ROOT / "dh_baseline",
+    "commensal_static": _RUNS_ROOT / "commensal_static",
+    "commensal_hobic":  _RUNS_ROOT / "commensal_hobic",
+    "dysbiotic_static": _RUNS_ROOT / "dysbiotic_static",
 }
 
 TEETH = {
