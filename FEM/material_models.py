@@ -53,13 +53,15 @@ DI_SCALE = 0.025778     # DI 正規化スケール (historical default)
 DI_EXPONENT = 2.0       # 冪乗則指数
 
 # φ_Pg モデル
-PHI_PG_CRIT = 0.05      # Pg vol.fraction 閾値 (φ_Pg_crit)
+# 0D Hamilton ODE: commensal φ_Pg ≈ 0.167 (均等), dysbiotic φ_Pg ≈ 0.8 (Pg支配)
+# φ_crit は σ(0.167/φ_crit) ≈ 0 (健全) かつ σ(0.8/φ_crit) ≈ 1 (分解) を満たす値
+PHI_PG_CRIT = 0.25      # Pg vol.fraction 閾値 (calibrated for 0D ODE output)
 HILL_M = 4.0            # Hill 係数 (遷移の急峻さ, m=1: Michaelis, m→∞: step)
 
 # Virulence index モデル
 W_PG = 1.0              # Pg 重み
 W_FN = 0.3              # Fn 重み (Pg より弱い病原性)
-V_CRIT = 0.06           # Virulence 閾値
+V_CRIT = 0.30           # Virulence 閾値 (calibrated for 0D ODE output)
 
 # Species index (Hamilton ODE order)
 IDX_PG = 4              # P. gingivalis = species[4]
