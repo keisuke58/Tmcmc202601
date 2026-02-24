@@ -316,7 +316,7 @@ def write_two_layer_inp(out_path, tooth_name, tooth_data, bio_data,
             E_MPa = bin_E_stiff[b] * 1e-6  # Pa → MPa
             f.write("*Material, name=MAT_BIO_%02d\n" % b)
             f.write("*Elastic\n")
-            f.write(" %.4f, %.4f\n" % (E_MPa, nu))
+            f.write(" %.6e, %.4f\n" % (E_MPa, nu))
             f.write("**\n")
 
         # ── Sections ─────────────────────────────────────────────────────
