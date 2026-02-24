@@ -20,22 +20,6 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from pathlib import Path
 
-# ── publication-quality defaults ──────────────────────────────────────────
-DPI = 300
-plt.rcParams.update({
-    "font.family":      "serif",
-    "font.size":        10,
-    "axes.titlesize":   11,
-    "axes.labelsize":   10,
-    "xtick.labelsize":  9,
-    "ytick.labelsize":  9,
-    "legend.fontsize":  8,
-    "figure.dpi":       DPI,
-    "savefig.dpi":      DPI,
-    "savefig.bbox":     "tight",
-    "mathtext.fontset": "stix",
-})
-
 # ── paths ──────────────────────────────────────────────────────────────────
 _HERE  = Path(__file__).resolve().parent
 _BASE  = _HERE / "_posterior_abaqus"
@@ -65,14 +49,6 @@ PARAM_NICE = {
     "b5":  "b₅ (Pg grow)", "a15": "a₁₅ (So·Pg)", "a25": "a₂₅ (An·Pg)",
     "a35": "a₃₅ (Vd→Pg)", "a45": "a₄₅ (Fn→Pg)",
 }
-
-def _save(fig, stem):
-    """Save figure as both PNG (wiki/GitHub) and PDF (paper)."""
-    fig.savefig(_OUT / f"{stem}.png")
-    fig.savefig(_OUT / f"{stem}.pdf")
-    plt.close(fig)
-    print(f"[done] {stem}.png + .pdf")
-
 
 # ── load data ───────────────────────────────────────────────────────────────
 def load_all():
@@ -115,8 +91,9 @@ def fig1_violin(data):
                               showmedians=False, showextrema=False, widths=0.6)
         for body, col_ in zip(parts["bodies"], colors):
             body.set_facecolor(col_)
-            body.set_alpha(0.40)
+            body.set_alpha(0.45)
 
+        # box
         bp = ax.boxplot(vals_list, positions=range(len(CONDITIONS)),
                         widths=0.28, patch_artist=True,
                         medianprops=dict(color="black", lw=2),
@@ -127,32 +104,25 @@ def fig1_violin(data):
             patch.set_facecolor(col_)
             patch.set_alpha(0.75)
 
+        # individual sample dots
         for xi, (vals, col_) in enumerate(zip(vals_list, colors)):
             jitter = np.random.default_rng(42).uniform(-0.08, 0.08, len(vals))
-            ax.scatter(xi + jitter, vals, color=col_, s=20, zorder=5,
-                       alpha=0.8, edgecolors="k", linewidths=0.3)
-
-        # annotate median + CI
-        for xi, vals in enumerate(vals_list):
-            p50 = np.median(vals)
-            p05, p95 = np.percentile(vals, [5, 95])
-            ax.text(xi, ax.get_ylim()[1] * 0.98,
-                    f"{p50:.3f}\n[{p05:.3f}–{p95:.3f}]",
-                    ha="center", va="top", fontsize=7, color="k",
-                    bbox=dict(boxstyle="round,pad=0.2", fc="white", alpha=0.7))
+            ax.scatter(xi + jitter, vals, color=col_, s=18, zorder=5, alpha=0.8)
 
         ax.set_xticks(range(len(CONDITIONS)))
-        ax.set_xticklabels(xlabs)
-        ax.set_ylabel("$S_\\mathrm{Mises}$ (MPa)")
-        ax.set_title(f"Posterior $S_{{\\mathrm{{Mises}}}}$ — {slabel}")
+        ax.set_xticklabels(xlabs, fontsize=10)
+        ax.set_ylabel("$S_\\mathrm{Mises}$ (MPa)", fontsize=11)
+        ax.set_title(f"Posterior uncertainty — {slabel}", fontsize=12)
         ax.grid(axis="y", alpha=0.3, linestyle="--")
 
     fig.suptitle(
-        "Posterior $S_\\mathrm{Mises}$ Distribution"
-        " (20 TMCMC Samples $\\times$ 4 Conditions)",
-        fontweight="bold",
+        "Posterior $S_\\mathrm{Mises}$ Distribution (20 TMCMC Samples × 4 Conditions)",
+        fontsize=13, fontweight="bold",
     )
-    _save(fig, "Fig1_stress_violin")
+    out = _OUT / "Fig1_stress_violin.png"
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print(f"[done] {out.name}")
 
 
 # ── Fig 2: CI bars p05/p50/p95 ──────────────────────────────────────────────
@@ -190,7 +160,10 @@ def fig2_ci_bars(data):
         "Posterior $S_\\mathrm{Mises}$ Credible Intervals (5th–95th percentile)",
         fontsize=13, fontweight="bold",
     )
-    _save(fig, "Fig2_stress_ci_bars")
+    out = _OUT / "Fig2_stress_ci_bars.png"
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print(f"[done] {out.name}")
 
 
 # ── Fig 3: Spearman heatmap ──────────────────────────────────────────────────
@@ -227,7 +200,10 @@ def fig3_heatmap(spear):
         "Spearman Rank Correlation: TMCMC Parameters vs $S_\\mathrm{Mises}$",
         fontsize=13, fontweight="bold",
     )
-    _save(fig, "Fig3_sensitivity_heatmap")
+    out = _OUT / "Fig3_sensitivity_heatmap.png"
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print(f"[done] {out.name}")
 
 
 # ── Fig 4: Top-param scatter ─────────────────────────────────────────────────
@@ -266,7 +242,10 @@ def fig4_scatter(data, spear, thetas):
         "Top-5 Sensitivity Parameters: θ vs Substrate $S_\\mathrm{Mises}$",
         fontsize=12, fontweight="bold",
     )
-    _save(fig, "Fig4_top_params_scatter")
+    out = _OUT / "Fig4_top_params_scatter.png"
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print(f"[done] {out.name}")
 
 
 # ── Fig 5: Summary panel ─────────────────────────────────────────────────────
@@ -367,7 +346,10 @@ def fig5_summary(data, spear):
         "Posterior $S_\\mathrm{Mises}$ Uncertainty — 20 TMCMC Samples × 4 Conditions",
         fontsize=13, fontweight="bold",
     )
-    _save(fig, "Fig5_stress_summary_panel")
+    out = _OUT / "Fig5_stress_summary_panel.png"
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print(f"[done] {out.name}")
 
 
 # ── main ────────────────────────────────────────────────────────────────────

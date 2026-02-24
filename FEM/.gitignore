@@ -20,3 +20,12 @@ abaqus_cae/
 abaqus_logs/
 abaqus_jnl/
 abaqus_replay/
+_3d_conformal_auto/
+_abaqus_auto_jobs/
+_abaqus_input/
+_multiscale_results/
+_pipeline_runs/
+_pipeline_summary/
+_sweep_results/
+_uncertainty_propagation/
+klempt2024_results/

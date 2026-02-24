@@ -10,7 +10,7 @@ import sys
 # Set plotting style for publication
 plt.style.use('seaborn-v0_8-paper')
 sns.set_context("paper", font_scale=1.5)
-plt.rcParams['font.family'] = 'Times New Roman'
+plt.rcParams['font.family'] = 'serif'
 plt.rcParams['axes.labelsize'] = 14
 plt.rcParams['axes.titlesize'] = 16
 plt.rcParams['xtick.labelsize'] = 12
