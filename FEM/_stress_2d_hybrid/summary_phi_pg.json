@@ -1,0 +1,38 @@
+{
+  "commensal_static": {
+    "condition": "commensal_static",
+    "e_model": "phi_pg",
+    "E_mean_pa": 977.0854599999997,
+    "eps_growth_max": 0.139880188,
+    "sigma_vm_max_pa": 150.75294360684785,
+    "sigma_vm_mean_pa": 16.550222599153777,
+    "u_max": 0.12048559893113661
+  },
+  "commensal_hobic": {
+    "condition": "commensal_hobic",
+    "e_model": "phi_pg",
+    "E_mean_pa": 981.0796750000002,
+    "eps_growth_max": 0.139866871,
+    "sigma_vm_max_pa": 151.35587678794815,
+    "sigma_vm_mean_pa": 16.615936998251374,
+    "u_max": 0.12047517585267126
+  },
+  "dysbiotic_static": {
+    "condition": "dysbiotic_static",
+    "e_model": "phi_pg",
+    "E_mean_pa": 999.9959510000002,
+    "eps_growth_max": 0.139902456,
+    "sigma_vm_max_pa": 154.3094077622557,
+    "sigma_vm_mean_pa": 16.941301931561494,
+    "u_max": 0.1205011490338412
+  },
+  "dysbiotic_hobic": {
+    "condition": "dysbiotic_hobic",
+    "e_model": "phi_pg",
+    "E_mean_pa": 981.2116400000002,
+    "eps_growth_max": 0.139956955,
+    "sigma_vm_max_pa": 151.45302308795445,
+    "sigma_vm_mean_pa": 16.62824905622463,
+    "u_max": 0.1205265656806064
+  }
+}
