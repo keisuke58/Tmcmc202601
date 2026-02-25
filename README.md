@@ -345,6 +345,13 @@ Tmcmc202601/
 │   ├── FEM_README.md       # Detailed FEM pipeline documentation
 │   └── _*/                 # Output directories (results, sweeps, plots)
 │
+├── deeponet/               # DeepONet surrogate models
+│   ├── deeponet_hamilton.py    # DeepONet model (equinox) for Hamilton ODE
+│   ├── generate_training_data.py # Training data gen with importance sampling
+│   ├── pinn_elasticity.py      # PINN elasticity + E2E differentiable pipeline
+│   ├── checkpoints_*/          # Trained model checkpoints (v1, v2)
+│   └── data/                   # Training datasets (.npz)
+│
 ├── tmcmc/                  # Core TMCMC library
 ├── docs/                   # LaTeX reports and slides
 ├── wiki/                   # Extended documentation (TMCMC guide, FEM pipeline, etc.)
@@ -766,6 +773,7 @@ A smoke-test workflow (`.github/workflows/ci.yml`) runs on every push / pull req
 
 ### 短期（〜3ヶ月）
 
+- [x] **DeepONet surrogate (Phase A+B)**: Hamilton ODE の DeepONet サロゲート (384× speedup)、θ_MAP 近傍の importance sampling + output clipping で負値 φ を解消 (CS: -0.46→-0.09, 5× 改善)
 - [ ] **2D 反応拡散の完全統合**: `multiscale_coupling_2d.py` の出力を Abaqus INP に自動入力、2D 空間場の FEM 比較
 - [ ] **CZM (Cohesive Zone Model)**: バイオフィルム‐基材界面の剥離力学; $\varepsilon_\text{growth}$ を CZM の損傷パラメータに連携
 - [ ] **Hill gate $K$, $n$ の同時推定**: 現在固定の Hill パラメータを TMCMC 推定対象に追加（22 dims）
