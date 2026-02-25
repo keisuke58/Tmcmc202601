@@ -92,6 +92,11 @@ import csv
 import numpy as np
 from scipy.spatial import cKDTree
 
+try:
+    from material_models import DI_SCALE as DI_SCALE_DEFAULT
+except ImportError:
+    DI_SCALE_DEFAULT = 0.025778
+
 # ============================================================================
 # 1. STL READER
 # ============================================================================
