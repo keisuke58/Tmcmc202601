@@ -61,8 +61,13 @@ def di_to_E(di, di_scale=1.0, n=2.0):
 
 
 def compute_di_from_phi(phi):
-    """Shannon entropy DI from species fractions. phi: (5,)."""
+    """Shannon entropy DI from species fractions. phi: (5,).
+
+    Clips φ to [0, ∞) before computing to avoid NaN from negative values
+    (which can arise from DeepONet extrapolation errors).
+    """
     eps = 1e-12
+    phi = jnp.clip(phi, 0.0)  # prevent negative volume fractions
     phi_sum = jnp.sum(phi)
     phi_sum = jnp.where(phi_sum > eps, phi_sum, 1.0)
     p = phi / phi_sum
@@ -567,9 +572,9 @@ def end_to_end_demo(deeponet_ckpt: str, pinn_ckpt: str, norm_stats_path: str):
 
     don_dir = Path(__file__).parent
     cond_don_map = {
-        "CS": "checkpoints_Commensal_Static",
+        "CS": "checkpoints_CS_v2",
         "CH": "checkpoints_Commensal_HOBIC",
-        "DS": "checkpoints_Dysbiotic_Static",
+        "DS": "checkpoints_DS_v2",
         "DH": "checkpoints_Dysbiotic_HOBIC",
     }
     don_models = {}
@@ -644,8 +649,16 @@ def end_to_end_demo(deeponet_ckpt: str, pinn_ckpt: str, norm_stats_path: str):
             theta_lo = st["theta_lo"]
             theta_width = st["theta_width"]
             theta_n = jnp.array((theta_raw - theta_lo) / theta_width)
+            # predict_trajectory clips φ to [0,1] by default
             phi_traj = don_models[cond].predict_trajectory(theta_n, t_norm)
             phi_final = phi_traj[-1]
+            # Also check raw output for diagnostics
+            phi_traj_raw = don_models[cond].predict_trajectory(theta_n, t_norm, clip=False)
+            phi_raw = phi_traj_raw[-1]
+            n_neg = int(jnp.sum(phi_raw < 0))
+            if n_neg > 0:
+                print(f"  {cond}: WARNING — {n_neg} negative raw φ values clipped: "
+                      f"raw={np.array(phi_raw).round(4)}")
             di_val = float(compute_di_from_phi(phi_final))
             print(f"  {cond}: θ_MAP→DeepONet→φ(T)={np.array(phi_final).round(4)} → DI={di_val:.4f}")
 

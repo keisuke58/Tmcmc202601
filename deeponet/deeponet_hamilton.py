@@ -105,7 +105,7 @@ class DeepONet(eqx.Module):
             t: scalar, time point
 
         Returns:
-            (5,) predicted species fractions
+            (5,) predicted species fractions (raw, unconstrained)
         """
         n_species = self.bias.shape[0]
         b = self.branch(theta)  # (p * n_species,)
@@ -119,18 +119,22 @@ class DeepONet(eqx.Module):
         out = jnp.sum(b * tr, axis=1) + self.bias  # (5,)
         return out
 
-    def predict_trajectory(self, theta, t_grid):
+    def predict_trajectory(self, theta, t_grid, clip=True):
         """
         Predict full trajectory φ(t; θ) for all time points.
 
         Args:
             theta: (20,)
             t_grid: (T,)
+            clip: if True, enforce φ ∈ [0, 1] via hard clipping
 
         Returns:
             (T, 5) predicted species fractions
         """
-        return jax.vmap(lambda t: self(theta, t))(t_grid)
+        phi = jax.vmap(lambda t: self(theta, t))(t_grid)
+        if clip:
+            phi = jnp.clip(phi, 0.0, 1.0)
+        return phi
 
 
 # ============================================================
@@ -174,27 +178,36 @@ def load_data(path: str):
 # ============================================================
 
 @eqx.filter_jit
-def loss_fn(model, theta_batch, phi_batch, t_grid):
+def loss_fn(model, theta_batch, phi_batch, t_grid, w_constraint=0.1):
     """
-    MSE loss over a batch of trajectories.
+    MSE loss + physics constraint penalties over a batch of trajectories.
 
     Args:
         theta_batch: (B, 20)
         phi_batch: (B, T, 5)
         t_grid: (T,)
+        w_constraint: weight for φ ∈ [0,1] penalty
     """
     def single_loss(theta, phi_true):
-        phi_pred = model.predict_trajectory(theta, t_grid)  # (T, 5)
-        return jnp.mean((phi_pred - phi_true) ** 2)
+        phi_pred = model.predict_trajectory(theta, t_grid, clip=False)  # (T, 5) raw
+        mse = jnp.mean((phi_pred - phi_true) ** 2)
+
+        # Penalty: φ < 0 (ReLU-style, only penalize violations)
+        neg_penalty = jnp.mean(jax.nn.relu(-phi_pred) ** 2)
+        # Penalty: φ > 1
+        over_penalty = jnp.mean(jax.nn.relu(phi_pred - 1.0) ** 2)
+
+        return mse + w_constraint * (neg_penalty + over_penalty)
 
     losses = jax.vmap(single_loss)(theta_batch, phi_batch)
     return jnp.mean(losses)
 
 
 @eqx.filter_jit
-def train_step(model, opt_state, theta_batch, phi_batch, t_grid, optimizer):
+def train_step(model, opt_state, theta_batch, phi_batch, t_grid, optimizer,
+               w_constraint=0.1):
     loss, grads = eqx.filter_value_and_grad(loss_fn)(
-        model, theta_batch, phi_batch, t_grid
+        model, theta_batch, phi_batch, t_grid, w_constraint
     )
     updates, opt_state = optimizer.update(grads, opt_state, model)
     model = eqx.apply_updates(model, updates)
@@ -341,7 +354,7 @@ def train(
 # ============================================================
 
 def evaluate(checkpoint: str, data_path: str, p: int = 64, hidden: int = 128, n_layers: int = 3):
-    """Evaluate model on test data."""
+    """Evaluate model on test data, including constraint violation stats."""
     theta, phi, t_grid, stats = load_data(data_path)
     N = theta.shape[0]
 
@@ -349,18 +362,22 @@ def evaluate(checkpoint: str, data_path: str, p: int = 64, hidden: int = 128, n_
     model = DeepONet(theta_dim=20, n_species=5, p=p, hidden=hidden, n_layers=n_layers, key=key)
     model = eqx.tree_deserialise_leaves(checkpoint, model)
 
-    # Per-species error
+    # Per-species error (use raw output, no clipping)
     @jax.jit
     def compute_errors(theta_all, phi_all, t_grid):
         def single(theta, phi_true):
-            phi_pred = model.predict_trajectory(theta, t_grid)
+            phi_pred = model.predict_trajectory(theta, t_grid, clip=False)
             mse = jnp.mean((phi_pred - phi_true) ** 2, axis=0)  # (5,)
             mae = jnp.mean(jnp.abs(phi_pred - phi_true), axis=0)
             rel = jnp.mean(jnp.abs(phi_pred - phi_true) / (jnp.abs(phi_true) + 1e-6), axis=0)
-            return mse, mae, rel
+            n_neg = jnp.sum(phi_pred < 0.0)
+            n_over = jnp.sum(phi_pred > 1.0)
+            phi_min = jnp.min(phi_pred)
+            phi_max = jnp.max(phi_pred)
+            return mse, mae, rel, n_neg, n_over, phi_min, phi_max
         return jax.vmap(single)(theta_all, phi_all)
 
-    mse, mae, rel = compute_errors(theta, phi, t_grid)
+    mse, mae, rel, n_neg, n_over, phi_min, phi_max = compute_errors(theta, phi, t_grid)
 
     species = ["S.oralis", "A.naeslundii", "V.dispar", "F.nucleatum", "P.gingivalis"]
     print("\nPer-species errors (mean over dataset):")
@@ -374,6 +391,19 @@ def evaluate(checkpoint: str, data_path: str, p: int = 64, hidden: int = 128, n_
     print(f"\n{'Overall':<15} {float(mse.mean()):>10.6f} "
           f"{float(mae.mean()):>10.6f} "
           f"{float(rel.mean()):>10.4f}")
+
+    # Constraint violation statistics
+    total_neg = int(n_neg.sum())
+    total_over = int(n_over.sum())
+    total_vals = N * int(t_grid.shape[0]) * 5
+    global_min = float(phi_min.min())
+    global_max = float(phi_max.max())
+    pct_neg = 100.0 * total_neg / total_vals
+    pct_over = 100.0 * total_over / total_vals
+    print(f"\nConstraint violation (raw output, no clipping):")
+    print(f"  φ < 0: {total_neg}/{total_vals} ({pct_neg:.2f}%)")
+    print(f"  φ > 1: {total_over}/{total_vals} ({pct_over:.2f}%)")
+    print(f"  φ range: [{global_min:.4f}, {global_max:.4f}]")
 
 
 # ============================================================
