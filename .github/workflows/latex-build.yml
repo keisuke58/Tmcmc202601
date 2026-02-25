@@ -58,7 +58,7 @@ img.save('$f')
           fi
 
       - name: Upload PDF artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: paper-draft
           path: data_5species/docs/nishioka_latex20260218.pdf
