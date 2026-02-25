@@ -11,6 +11,7 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 \usepackage{graphicx}
+\graphicspath{{nishioka_algorithm_figs/}{paper_comprehensive_figs/}{../../FEM/figures/paper_final/}}
 \usepackage{float}
 \usepackage{algorithm}
 \usepackage{geometry}
@@ -630,7 +631,7 @@ The parameter estimation strategy adapts to four distinct experimental condition
     \centering
     \begin{minipage}{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{nishioka_algorithm_figs/froh-06-1649419-g001.jpg}
+        \includegraphics[width=\linewidth]{froh-06-1649419-g001.jpg}
         \caption{\textbf{1. Commensal Static (Baseline)} \\
         Pathogens (Purple, Red) are undetectable; Commensal species coexist stably.}
         \label{fig:exp_commensal_static}
@@ -638,7 +639,7 @@ The parameter estimation strategy adapts to four distinct experimental condition
     \hfill
     \begin{minipage}{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{nishioka_algorithm_figs/froh-06-1649419-g002.jpg}
+        \includegraphics[width=\linewidth]{froh-06-1649419-g002.jpg}
         \caption{\textbf{2. Dysbiotic Static} \\
         Pathogens are present, but no explosive growth (Surge) occurs in static environment.}
         \label{fig:exp_dysbiotic_static}
@@ -646,7 +647,7 @@ The parameter estimation strategy adapts to four distinct experimental condition
     \vspace{0.5cm}
     \begin{minipage}{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{nishioka_algorithm_figs/froh-06-1649419-g003.jpg}
+        \includegraphics[width=\linewidth]{froh-06-1649419-g003.jpg}
         \caption{\textbf{3. Commensal HOBIC} \\
         S. oralis (Blue) increases specifically under high flow (Blue Bloom). Pathogens are suppressed.}
         \label{fig:exp_commensal_hobic}
@@ -654,7 +655,7 @@ The parameter estimation strategy adapts to four distinct experimental condition
     \hfill
     \begin{minipage}{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{nishioka_algorithm_figs/froh-06-1649419-g004.jpg}
+        \includegraphics[width=\linewidth]{froh-06-1649419-g004.jpg}
         \caption{\textbf{4. Dysbiotic HOBIC (Surge)} \\
         V. parvula (Orange) and P. gingivalis (Red) grow explosively in symbiosis (Discovery Mode).}
         \label{fig:exp_dysbiotic_hobic}
@@ -982,7 +983,7 @@ On the other hand, pathogens (F.nucleatum, P.gingivalis) are suppressed to low l
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=1.0\textwidth]{nishioka_algorithm_figs/TSM_simulation_Commensal_Static_MAP_Fit_with_data.png}
+\includegraphics[width=1.0\textwidth]{TSM_simulation_Commensal_Static_MAP_Fit_with_data.png}
 \caption{Detailed TSM simulation based on MAP estimates. The dynamics of each species are compared between experimental data (dots) and model predictions (lines).}
 \label{fig:map_fit_detail}
 \end{figure}
@@ -995,7 +996,7 @@ The uncertainty is smaller during the initial growth phase and tends to widen to
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=1.0\textwidth]{nishioka_algorithm_figs/posterior_predictive_Commensal_Static_PosteriorBand.png}
+\includegraphics[width=1.0\textwidth]{posterior_predictive_Commensal_Static_PosteriorBand.png}
 \caption{Detailed Posterior Predictive Band. Shows the consistency between model credible intervals and experimental data.}
 \label{fig:posterior_band_detail}
 \end{figure}
@@ -1008,7 +1009,7 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=1.0\textwidth]{nishioka_algorithm_figs/residuals_Commensal_Static_Residuals.png}
+\includegraphics[width=1.0\textwidth]{residuals_Commensal_Static_Residuals.png}
 \caption{Residual Plot. Shows the distribution of model prediction errors.}
 \label{fig:residuals}
 \end{figure}
@@ -1019,7 +1020,7 @@ This suggests that the proposed model successfully captures the main trends of t
 
 % \begin{figure}[h]
 % \centering
-% \includegraphics[width=1.0\textwidth]{nishioka_algorithm_figs/pub_parameter_boxplots.png}
+% \includegraphics[width=1.0\textwidth]{pub_parameter_boxplots.png}
 % \caption{Posterior distributions of parameters (boxplots). Key growth rate parameters (b1, b2, b3) converge to narrow ranges, indicating high estimation precision.}
 % \label{fig:boxplots}
 % \end{figure}
@@ -1030,7 +1031,7 @@ This suggests that the proposed model successfully captures the main trends of t
 
 % \begin{figure}[h]
 % \centering
-% \includegraphics[width=0.8\textwidth]{nishioka_algorithm_figs/pub_interaction_heatmap.png}
+% \includegraphics[width=0.8\textwidth]{pub_interaction_heatmap.png}
 % \caption{Estimated Interaction Matrix. Positive values (red) indicate promotion, negative values (blue) indicate inhibition. The proposed method ensures that biologically absent interactions are fixed to 0.}
 % \label{fig:interaction_matrix}
 % \end{figure}
@@ -1053,19 +1054,19 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A02_per_species_panel.png}
+\includegraphics[width=0.95\textwidth]{Fig_A02_per_species_panel.png}
 \caption{Posterior fit for Commensal HOBIC. The shaded regions indicate the 95\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.8\textwidth]{paper_comprehensive_figs/Fig_A01_interaction_matrix_heatmap.png}
+\includegraphics[width=0.8\textwidth]{Fig_A01_interaction_matrix_heatmap.png}
 \caption{Estimated interaction matrix (MAP) for Commensal HOBIC. Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A05_parameter_violins.png}
+\includegraphics[width=0.95\textwidth]{Fig_A05_parameter_violins.png}
 \caption{Parameter uncertainty (Violin plots) for Commensal HOBIC. Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}
 \end{figure}
 
@@ -1077,19 +1078,19 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A02_per_species_panel.png}
+\includegraphics[width=0.95\textwidth]{Fig_A02_per_species_panel.png}
 \caption{Posterior fit for Dysbiotic HOBIC (Surge). The shaded regions indicate the 95\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.8\textwidth]{paper_comprehensive_figs/Fig_A01_interaction_matrix_heatmap.png}
+\includegraphics[width=0.8\textwidth]{Fig_A01_interaction_matrix_heatmap.png}
 \caption{Estimated interaction matrix (MAP) for Dysbiotic HOBIC (Surge). Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A05_parameter_violins.png}
+\includegraphics[width=0.95\textwidth]{Fig_A05_parameter_violins.png}
 \caption{Parameter uncertainty (Violin plots) for Dysbiotic HOBIC (Surge). Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}
 \end{figure}
 
@@ -1101,19 +1102,19 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A02_per_species_panel.png}
+\includegraphics[width=0.95\textwidth]{Fig_A02_per_species_panel.png}
 \caption{Posterior fit for Commensal Static. The shaded regions indicate the 95\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.8\textwidth]{paper_comprehensive_figs/Fig_A01_interaction_matrix_heatmap.png}
+\includegraphics[width=0.8\textwidth]{Fig_A01_interaction_matrix_heatmap.png}
 \caption{Estimated interaction matrix (MAP) for Commensal Static. Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A05_parameter_violins.png}
+\includegraphics[width=0.95\textwidth]{Fig_A05_parameter_violins.png}
 \caption{Parameter uncertainty (Violin plots) for Commensal Static. Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}
 \end{figure}
 
@@ -1125,19 +1126,19 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A02_per_species_panel.png}
+\includegraphics[width=0.95\textwidth]{Fig_A02_per_species_panel.png}
 \caption{Posterior fit for Dysbiotic Static. The shaded regions indicate the 95\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.8\textwidth]{paper_comprehensive_figs/Fig_A01_interaction_matrix_heatmap.png}
+\includegraphics[width=0.8\textwidth]{Fig_A01_interaction_matrix_heatmap.png}
 \caption{Estimated interaction matrix (MAP) for Dysbiotic Static. Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A05_parameter_violins.png}
+\includegraphics[width=0.95\textwidth]{Fig_A05_parameter_violins.png}
 \caption{Parameter uncertainty (Violin plots) for Dysbiotic Static. Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}
 \end{figure}
 
@@ -1211,6 +1212,13 @@ The Dysbiosis Index quantifies community-level deviation from a healthy (maximal
 \end{equation}
 where $\bar{\varphi}_i = \varphi_i / \sum_j \varphi_j$ is the relative abundance of species $i$. A perfectly even community ($\bar\varphi_i = 1/5$) yields $\mathrm{DI} = 0$, while complete single-species dominance gives $\mathrm{DI} \to 1$.
 
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{Fig10_di_field.png}
+\caption{Spatial distribution of the Dysbiosis Index across four experimental conditions. The DI field is computed from the 2D Hamilton + nutrient solver, showing the transition from a diverse community ($\mathrm{DI} \approx 0$) to a mono-dominated state ($\mathrm{DI} \to 1$).}
+\label{fig:di_field}
+\end{figure}
+
 \subsection{Nutrient-Coupled 1D Hamilton Model}
 
 The 1D spatial extension couples the Hamilton ODE at each spatial node $x_k$ with a reaction--diffusion equation for the nutrient concentration $c(x,t)$:
@@ -1225,6 +1233,13 @@ with boundary conditions $c(0,t) = 0$ (tooth surface, nutrient-depleted) and $c(
 \end{equation}
 where $k_\alpha$ is the growth-to-strain coupling coefficient.
 
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{Fig09_species_nutrient.png}
+\caption{2D Hamilton + nutrient fields for the four experimental conditions. Top row: species volume fractions $\varphi_i(x,y)$; bottom row: nutrient concentration $c(x,y)$ and Monod growth integral $\alpha_\mathrm{Monod}(x)$, showing the 101-fold spatial gradient from tooth surface to saliva interface.}
+\label{fig:species_nutrient}
+\end{figure}
+
 \subsection{Hybrid Micro--Macro Coupling}
 
 Direct 2D reaction--diffusion simulation is limited by diffusion-driven species homogenisation (competitive exclusion).
@@ -1238,11 +1253,11 @@ We therefore adopt a hybrid approach that preserves both condition-specific diff
 where $\mathrm{DI}_\text{0D}^{(c)}$ is the 0D condition-dependent dysbiosis index and $\alpha_\mathrm{Monod}(x)$ is the 1D spatially resolved Monod growth integral.
 Three material models are considered:
 \begin{itemize}
-  \item \textbf{DI model}: $E = E_\max(1-r)^2 + E_\min\, r$, \; $r = \mathrm{DI}_\text{0D} / s$
-  \item \textbf{$\varphi_{Pg}$-Hill model}: $E = E_\max - (E_\max - E_\min) \cdot \varphi_{Pg}^m / (\varphi_\mathrm{crit}^m + \varphi_{Pg}^m)$
+  \item \textbf{DI model}: $E = E_{\max}(1-r)^2 + E_{\min}\, r$,\; $r = \mathrm{DI}_{\text{0D}} / s$
+  \item \textbf{$\varphi_{Pg}$-Hill model}: $E = E_{\max} - (E_{\max} - E_{\min}) \cdot \varphi_{Pg}^m / (\varphi_{\mathrm{crit}}^m + \varphi_{Pg}^m)$
   \item \textbf{Virulence model}: Weighted combination of P.~gingivalis and F.~nucleatum fractions
 \end{itemize}
-with $E_\max = 1000$~Pa, $E_\min = 10$~Pa, and $\nu = 0.45$ (nearly incompressible biofilm).
+with $E_{\max} = 1000$~Pa, $E_{\min} = 10$~Pa, and $\nu = 0.45$ (nearly incompressible biofilm).
 
 \subsubsection{Phenomenological Justification of the DI--Stiffness Mapping}
 
@@ -1257,7 +1272,14 @@ The key assumption---that $E$ decreases monotonically with increasing DI---is su
   \item \textbf{ECM composition controls stiffness}: H\"ohne et al.~\cite{Hohne2025} established a quantitative relationship between extracellular matrix composition and biofilm Young's modulus (16--51~kPa range depending on curli and cellulose content), while Ohmura et al.~\cite{Ohmura2024} spatially resolved the correlation between polysaccharide distribution and local elastic modulus in living 3D biofilms.
 \end{enumerate}
 
-\noindent Our parameter range ($E_\min = 10$~Pa to $E_\max = 1000$~Pa) is conservative relative to the published experimental range of 20~Pa to 14,000~Pa for oral biofilms, and the resulting 30-fold stiffness ratio between commensal and dysbiotic conditions is consistent with the 10--80$\times$ ratios reported by Pattem et al.~\cite{Pattem2018}.
+\noindent Our parameter range ($E_{\min} = 10$~Pa to $E_{\max} = 1000$~Pa) is conservative relative to the published experimental range of 20~Pa to 14,000~Pa for oral biofilms, and the resulting 30-fold stiffness ratio between commensal and dysbiotic conditions is consistent with the 10--80$\times$ ratios reported by Pattem et al.~\cite{Pattem2018}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{Fig11_material_model.png}
+\caption{DI-dependent elastic modulus $E(\mathrm{DI})$ with literature data overlay. The solid curve shows the constitutive law $E = E_{\max}(1-r)^2 + E_{\min}\,r$ ($r = \mathrm{DI}/s$). Experimental data points from AFM nanoindentation studies (Pattem 2018, 2021; Gloag 2019) confirm that the model range is consistent with published oral biofilm stiffness values.}
+\label{fig:material_model}
+\end{figure}
 
 \subsubsection{Bayesian Model Comparison: DI vs.\ $\varphi_{Pg}$ vs.\ Virulence}
 \label{sec:3model_bayes}
@@ -1307,6 +1329,20 @@ Dysbiotic HOBIC   & 705.1 & 0.140 & 108.8 & 11.9 & 0.121 \\
 
 \noindent The 28-fold difference in $E$ between commensal ($\approx 909$~Pa) and dysbiotic static ($\approx 32$~Pa) translates to a 28-fold stress difference ($\sigma_\mathrm{vm}^\mathrm{max} = 140$ vs.\ $5$~Pa), demonstrating that microbial community composition directly controls the mechanical state of the biofilm.
 
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{Fig17_3model_comparison.png}
+\caption{Comparison of three material models (DI, $\varphi_{Pg}$-Hill, Virulence) across four experimental conditions. The DI model produces the largest stiffness separation between commensal and dysbiotic states, while the $\varphi_{Pg}$-Hill and Virulence models yield near-identical $E$ values across all conditions.}
+\label{fig:3model_comparison}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{Fig18_3model_discrimination.png}
+\caption{Bayesian model discrimination between three material models. The DI model achieves a decisive pseudo Bayes factor of $1.35 \times 10^9$ (Cohen's $d = 13.65$), far exceeding the $\varphi_{Pg}$-Hill and Virulence models.}
+\label{fig:3model_discrimination}
+\end{figure}
+
 %==============================================================================
 \section{3D Finite Element Analysis}
 \label{sec:3d_fem}
@@ -1322,6 +1358,13 @@ The computational domain consists of two bodies:
   \item \textbf{Biofilm layer}: Conformal coating of uniform thickness ($\sim 50~\mu$m), with condition-dependent $E(\mathrm{DI})$ from the hybrid coupling (Eq.~\ref{eq:hybrid}) and $\nu = 0.45$ (nearly incompressible).
 \end{itemize}
 The biofilm--tooth interface is modelled via a tie constraint (perfect bonding), and the tooth root is fully clamped. Growth-induced loading is applied as an eigenstrain field $\varepsilon_\mathrm{growth}(\mathbf{x})$ using the thermal analogy in Abaqus.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{Fig12_mesh_assembly.png}
+\caption{3D conformal mesh of the T23 tooth--biofilm assembly. The dentin body (82,080 C3D4 elements, 17,970 nodes) is coated with a conformal biofilm layer of uniform thickness ($\sim 50~\mu$m). The tie constraint enforces displacement continuity at the interface.}
+\label{fig:mesh_assembly}
+\end{figure}
 
 \subsection{3D Stress Results}
 
@@ -1345,6 +1388,20 @@ Dysbiotic HOBIC   & 705 & 108.8 & 0.56 & 1.3$\times$ \\
 
 \noindent The dysbiotic static condition exhibits a 29.4-fold displacement ratio relative to commensal static, a direct mechanical consequence of the 28-fold stiffness reduction driven by loss of microbial diversity. The von~Mises stress field in the dentin is dominated by the tooth geometry and is essentially identical across conditions, confirming that the biofilm layer acts as a compliant coating whose stiffness modulates the interface stress transfer.
 
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{Fig13_stress.png}
+\caption{3D von~Mises stress and displacement fields on the T23 tooth--biofilm assembly. Left: commensal static ($E = 909$~Pa); right: dysbiotic static ($E = 32$~Pa). The 28-fold stiffness reduction produces a 29.4-fold displacement ratio at the biofilm surface.}
+\label{fig:stress_3d}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{Fig14_klempt_benchmark.png}
+\caption{Benchmark comparison with Klempt et al.\ (2024). Our multiscale pipeline reproduces the reference solution to within 2\% relative error for von~Mises stress and displacement on the T23 geometry.}
+\label{fig:klempt_benchmark}
+\end{figure}
+
 %==============================================================================
 \section{End-to-End Differentiable Pipeline}
 \label{sec:e2e}
@@ -1357,6 +1414,13 @@ Abaqus FEM requires $\sim$120~s per forward solve, making gradient-based inferen
   \label{eq:e2e}
 \end{equation}
 where every arrow is a differentiable function, enabling exact $\partial \mathbf{u}/\partial\boldsymbol{\theta}$ via a single reverse-mode pass.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{Fig20_e2e_pipeline.png}
+\caption{End-to-end differentiable pipeline. The DeepONet surrogate maps $\boldsymbol{\theta}$ to species fractions, the DI module computes the elastic modulus, and the Deep Energy Method (DEM) solves for the displacement field. All components are implemented in JAX, enabling exact gradient computation via reverse-mode autodiff.}
+\label{fig:e2e_pipeline}
+\end{figure}
 
 \subsection{DeepONet Surrogate for Hamilton ODE}
 
@@ -1447,6 +1511,13 @@ Dysbiotic HOBIC   & 20 & 0.45 & 0.99 & 0.97 & 2.2$\times$ & 0.102 \\
 
 \noindent The gradient-based improvement scales with dimensionality: from 1.3$\times$ at $d=9$ (Commensal Static) to 2.2$\times$ at $d=20$ (Dysbiotic HOBIC). This scaling is expected, as RW proposals become increasingly inefficient in high-dimensional spaces, while HMC/NUTS exploit the gradient to move along the posterior's principal axes. NUTS dual averaging automatically adapts the step size ($\varepsilon = 0.015$--$0.10$), eliminating manual tuning.
 
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{Fig21_nuts_comparison.png}
+\caption{NUTS vs.\ HMC vs.\ RW mutation kernel comparison across four experimental conditions (200 particles, DeepONet surrogate). NUTS consistently achieves the highest acceptance rates, with improvement scaling from 1.3$\times$ at $d=9$ to 2.2$\times$ at $d=20$.}
+\label{fig:nuts_comparison}
+\end{figure}
+
 \subsection{DeepONet-Accelerated TMCMC}
 
 Replacing the ODE solver with the DeepONet surrogate inside the TMCMC log-likelihood yields substantial wall-time speedups:
@@ -1472,6 +1543,13 @@ Dysbiotic HOBIC   & $\sim$1800 & 12.5 & 144$\times$ \\
 \noindent All four conditions converge ($\hat{R}_\mathrm{max} = 1.010$, ESS$_\mathrm{min} = 692$). For the Dysbiotic HOBIC condition, the posterior overlap (Bhattacharyya coefficient) between ODE-TMCMC and DeepONet-TMCMC exceeds 0.95 for 17 out of 20 parameters. Two parameters ($a_{32}$: overlap = 0.42; $a_{35}$: overlap = 0.23) show lower agreement, both related to P.~gingivalis cross-feeding interactions where the ODE posterior is broad and the DeepONet training data is sparse.
 
 The MAP estimation accuracy varies across conditions: DH achieves 11\% relative error (best), while CS, CH, and DS show 44--62\% errors concentrated in Pg-related parameters. This limitation reflects the training data distribution: the DeepONet is trained on uniformly sampled $\boldsymbol{\theta}$, but the posterior mass for Pg interactions is concentrated in a small region that is under-represented in the training set. Importance-weighted retraining or active learning strategies could mitigate this.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{Fig22_deeponet_posterior_comparison.png}
+\caption{DeepONet-TMCMC vs.\ ODE-TMCMC posterior comparison (Dysbiotic HOBIC condition). The Bhattacharyya overlap exceeds 0.95 for 17/20 parameters. The two outliers ($a_{32}$, $a_{35}$) are P.~gingivalis cross-feeding interactions with broad ODE posteriors.}
+\label{fig:deeponet_posterior}
+\end{figure}
 
 %==============================================================================
 \section{GNN-Informed Prior}
@@ -1535,6 +1613,13 @@ Dysbiotic HOBIC   & 0.053 & 0.027 & 998.6 & 0.4 \\
 \noindent The dh-baseline condition (original wide prior bounds $a_{35} \in [0,30]$, $a_{45} \in [0,20]$) exhibits a DI credible interval that is \textbf{35 times wider} than the Commensal Static condition (narrow bounds $a_{35} \in [0,5]$, $a_{45} \in [0,5]$).
 This confirms that the prior bound constraints imposed by biological knowledge effectively reduce posterior uncertainty, not just in parameter space but throughout the entire multiscale mechanical pipeline.
 
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{Fig15_uncertainty.png}
+\caption{Posterior uncertainty propagation through the multiscale pipeline. 90\% credible interval bands for DI and elastic modulus $E$ across conditions, computed from 50 posterior samples per condition. The dh-baseline condition exhibits a 35-fold wider DI credible interval than the commensal static condition.}
+\label{fig:uncertainty}
+\end{figure}
+
 \subsection{Sensitivity Analysis}
 
 Spearman rank correlation between individual TMCMC parameters and the resulting DI field identifies the most influential parameters:
@@ -1568,6 +1653,13 @@ This explains the wide DI credible interval $[0.22, 0.89]$ observed in Table~\re
 
 For the commensal static condition, 49 out of 51 perturbed samples jump from the low-DI basin to the high-DI attractor ($\mathrm{DI} \approx 0.85$), indicating that the commensal equilibrium is \emph{fragile}---small parameter perturbations are sufficient to cross the basin boundary and switch to a dysbiotic-like state.
 This basin fragility has practical implications: it suggests that commensal biofilms may be closer to a tipping point than their stable appearance suggests, and that uncertainty quantification for ODE-based biofilm models must account for the attractor landscape rather than relying on single-point predictions.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{Fig16_basin_sensitivity.png}
+\caption{Multi-attractor basin sensitivity analysis. Left: dh-baseline posterior samples show bimodal DI distribution ($\mathrm{DI} \approx 0.16$ and $\mathrm{DI} \approx 0.87$). Right: commensal static perturbation analysis reveals that 49/51 perturbed samples jump from the low-DI basin to the high-DI attractor, indicating basin fragility.}
+\label{fig:basin_sensitivity}
+\end{figure}
 
 %==============================================================================
 \section{Discussion}
