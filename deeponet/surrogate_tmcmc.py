@@ -44,12 +44,21 @@ class DeepONetSurrogate:
 
     def __init__(self, checkpoint: str, norm_stats_path: str,
                  theta_dim: int = 20, n_species: int = 5,
-                 p: int = 64, hidden: int = 128,
+                 p: int = 64, hidden: int = 128, n_layers: int = 3,
                  n_time_out: int = 100):
+        # Auto-detect arch from config.json if available
+        config_path = Path(checkpoint).parent / "config.json"
+        if config_path.exists():
+            with open(config_path) as f:
+                cfg = json.load(f)
+            p = cfg.get("p", p)
+            hidden = cfg.get("hidden", hidden)
+            n_layers = cfg.get("n_layers", n_layers)
+
         # Load model
         key = jax.random.PRNGKey(0)
         self.model = DeepONet(theta_dim=theta_dim, n_species=n_species,
-                              p=p, hidden=hidden, key=key)
+                              p=p, hidden=hidden, n_layers=n_layers, key=key)
         self.model = eqx.tree_deserialise_leaves(checkpoint, self.model)
 
         # Load normalization

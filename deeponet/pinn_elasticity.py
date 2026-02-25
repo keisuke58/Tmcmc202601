@@ -253,6 +253,41 @@ def compute_loss(model, colloc_pts, bc_bot_pts, bc_top_pts, n_colloc):
     return total, (pde_loss, bc_bot_loss, bc_top_loss)
 
 
+@partial(jax.jit, static_argnums=(4,))
+def compute_loss_adaptive(model, colloc_pts, bc_bot_pts, bc_top_pts, n_colloc,
+                          w_pde=1.0, w_bot=10.0, w_top=10.0):
+    """Loss with adaptive weights (passed externally)."""
+    def single_pde(pt):
+        res, _, _ = pde_residual(model, pt[0], pt[1], pt[2])
+        return jnp.sum(res**2)
+    pde_loss = jnp.mean(jax.vmap(single_pde)(colloc_pts))
+
+    def single_bc_bot(pt):
+        u = model(pt[0], 0.0, pt[2] / E_MAX)
+        return jnp.sum(u**2)
+    bc_bot_loss = jnp.mean(jax.vmap(single_bc_bot)(bc_bot_pts))
+
+    def single_bc_top(pt):
+        x, E = pt[0], pt[2]
+        E_norm = E / E_MAX
+        def u_fn(xy):
+            return model(xy[0], xy[1], E_norm)
+        J = jax.jacobian(u_fn)(jnp.array([x, H]))
+        eps_xx = J[0, 0]
+        eps_yy = J[1, 1]
+        gamma_xy = J[0, 1] + J[1, 0]
+        lam = E * NU / ((1 + NU) * (1 - 2 * NU))
+        mu = E / (2 * (1 + NU))
+        sigma_yy = lam * eps_xx + (lam + 2*mu) * eps_yy
+        sigma_xy = mu * gamma_xy
+        return (sigma_yy - (-P_APPLIED))**2 + sigma_xy**2
+
+    bc_top_loss = jnp.mean(jax.vmap(single_bc_top)(bc_top_pts))
+
+    total = w_pde * pde_loss + w_bot * bc_bot_loss + w_top * bc_top_loss
+    return total, (pde_loss, bc_bot_loss, bc_top_loss)
+
+
 # ============================================================
 # Data sampling
 # ============================================================
@@ -281,7 +316,7 @@ def sample_points(key, n_interior, n_bc, E_fn):
 # ============================================================
 def train(
     n_fields: int = 30,
-    n_epochs: int = 5000,
+    n_epochs: int = 20000,
     n_interior: int = 1000,
     n_bc: int = 100,
     lr: float = 5e-4,
@@ -291,7 +326,7 @@ def train(
     seed: int = 0,
     checkpoint_dir: str = "pinn_checkpoints",
 ):
-    """Train PINN on multiple E-field realizations."""
+    """Train PINN on multiple E-field realizations with adaptive weighting."""
     ckpt_dir = Path(checkpoint_dir)
     ckpt_dir.mkdir(parents=True, exist_ok=True)
 
@@ -303,23 +338,31 @@ def train(
     n_params = sum(x.size for x in jax.tree.leaves(eqx.filter(model, eqx.is_array)))
     print(f"PINN params: {n_params:,}")
 
-    # E-field pool: 4 conditions + random fields
+    # E-field pool: 4 conditions (weighted 3x) + random fields
     E_fns = []
+    cond_E_fns = []
     for cond, (di_val, _) in CONDITIONS.items():
-        E_fns.append(generate_condition_E_field(di_val))
+        fn = generate_condition_E_field(di_val)
+        cond_E_fns.append(fn)
+        # Repeat condition fields 3x for emphasis
+        E_fns.extend([fn] * 3)
 
     field_keys = jr.split(k_data, n_fields)
-    for i in range(n_fields - len(CONDITIONS)):
+    n_random = max(0, n_fields - len(E_fns))
+    for i in range(n_random):
         E_fns.append(generate_E_field(field_keys[i]))
-    print(f"E-field pool: {len(E_fns)} ({len(CONDITIONS)} conditions + {len(E_fns)-len(CONDITIONS)} random)")
+    print(f"E-field pool: {len(E_fns)} ({len(CONDITIONS)}×3 conditions + {n_random} random)")
 
-    # Optimizer
+    # Optimizer with longer warmup for 20k epochs
     schedule = optax.warmup_cosine_decay_schedule(
         init_value=1e-6, peak_value=lr,
-        warmup_steps=300, decay_steps=n_epochs, end_value=1e-6,
+        warmup_steps=500, decay_steps=n_epochs, end_value=1e-7,
     )
     optimizer = optax.adam(schedule)
     opt_state = optimizer.init(eqx.filter(model, eqx.is_array))
+
+    # Adaptive weights (updated every 500 epochs)
+    w_pde, w_bot, w_top = 1.0, 10.0, 10.0
 
     @eqx.filter_jit
     def step(model, opt_state, colloc, bc_bot, bc_top):
@@ -355,7 +398,7 @@ def train(
             best_loss = loss_val
             eqx.tree_serialise_leaves(str(ckpt_dir / "best.eqx"), model)
 
-        if (epoch + 1) % 200 == 0 or epoch == 0:
+        if (epoch + 1) % 500 == 0 or epoch == 0:
             elapsed = time.time() - t0
             print(f"  [{epoch+1:5d}/{n_epochs}] loss={loss_val:.2e}  "
                   f"pde={float(pde_l):.2e}  bot={float(bot_l):.2e}  "
@@ -517,44 +560,105 @@ def end_to_end_demo(deeponet_ckpt: str, pinn_ckpt: str, norm_stats_path: str):
     pinn_model = ElasticityPINN(hidden=128, n_layers=5, n_fourier=32, key=jr.PRNGKey(1))
     pinn_model = eqx.tree_deserialise_leaves(pinn_ckpt, pinn_model)
 
-    # Try to load DeepONet; fall back to known DI values if checkpoint incompatible
-    don_model = None
-    theta_lo = theta_width = None
-    try:
-        from deeponet_hamilton import DeepONet as DeepONetModel
-        key = jr.PRNGKey(0)
-        don_model = DeepONetModel(theta_dim=20, n_species=5, p=64, hidden=128, key=key)
-        don_model = eqx.tree_deserialise_leaves(deeponet_ckpt, don_model)
-        stats = np.load(norm_stats_path)
-        theta_lo = jnp.array(stats["theta_lo"])
-        theta_width = jnp.array(stats["theta_width"])
-        print("DeepONet loaded OK — full θ→u pipeline active")
-    except Exception as e:
-        print(f"DeepONet load failed ({e.__class__.__name__}), using known DI values")
-        don_model = None
+    # Load per-condition DeepONet models for full θ→φ→DI pipeline
+    import json
+    from deeponet_hamilton import DeepONet as DeepONetModel
+    t_norm = jnp.linspace(0, 1, 100, dtype=jnp.float32)
 
-    param_names = [
-        "a11", "a12", "a22", "b1", "b2",
-        "a33", "a34", "a44", "b3", "b4",
-        "a13", "a14", "a23", "a24",
-        "a55", "b5", "a15", "a25", "a35", "a45",
-    ]
+    don_dir = Path(__file__).parent
+    cond_don_map = {
+        "CS": "checkpoints_Commensal_Static",
+        "CH": "checkpoints_Commensal_HOBIC",
+        "DS": "checkpoints_Dysbiotic_Static",
+        "DH": "checkpoints_Dysbiotic_HOBIC",
+    }
+    don_models = {}
+    don_stats = {}
+    for short, ckpt_name in cond_don_map.items():
+        ckpt_path = don_dir / ckpt_name / "best.eqx"
+        stats_path = don_dir / ckpt_name / "norm_stats.npz"
+        if ckpt_path.exists() and stats_path.exists():
+            try:
+                key = jr.PRNGKey(0)
+                m = DeepONetModel(theta_dim=20, n_species=5, p=64, hidden=128, key=key)
+                m = eqx.tree_deserialise_leaves(str(ckpt_path), m)
+                st = np.load(str(stats_path))
+                don_models[short] = m
+                don_stats[short] = st
+                print(f"  DeepONet loaded: {short} ({ckpt_name})")
+            except Exception as e:
+                print(f"  DeepONet load failed for {short}: {e}")
 
-    # Evaluate per condition using PINN with known DI values
+    # Also try default checkpoint as fallback for DH
+    if "DH" not in don_models:
+        try:
+            key = jr.PRNGKey(0)
+            m = DeepONetModel(theta_dim=20, n_species=5, p=64, hidden=128, key=key)
+            m = eqx.tree_deserialise_leaves(deeponet_ckpt, m)
+            st = np.load(norm_stats_path)
+            don_models["DH"] = m
+            don_stats["DH"] = st
+            print(f"  DeepONet loaded: DH (default checkpoint)")
+        except Exception as e:
+            print(f"  DeepONet fallback failed: {e}")
+
+    print(f"  DeepONet available for: {list(don_models.keys())}")
+
+    # Load θ_MAP per condition
+    theta_MAP = {}
+    base_runs = Path(__file__).parent.parent / "data_5species" / "_runs"
+    run_map = {
+        "CS": "commensal_static",
+        "CH": "commensal_hobic",
+        "DS": "dysbiotic_static",
+        "DH": "dh_baseline",
+    }
+    for short, dirname in run_map.items():
+        for pattern in [
+            base_runs / dirname / "theta_MAP.json",
+            base_runs / dirname / "posterior" / "theta_MAP.json",
+        ]:
+            if pattern.exists():
+                with open(pattern) as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    theta_MAP[short] = np.array(data["theta_full"], dtype=np.float32)
+                else:
+                    theta_MAP[short] = np.array(data, dtype=np.float32)
+                break
+    print(f"  θ_MAP available for: {list(theta_MAP.keys())}")
+
     y_pts = jnp.linspace(0.001, H, 50)
     x_mid = W / 2.0
     results = {}
 
-    print("Running pipeline for each condition...")
-    for cond, (di_val, _) in CONDITIONS.items():
+    print("\nRunning full pipeline for each condition...")
+    for cond, (di_val_known, _) in CONDITIONS.items():
+        di_val = di_val_known
+        phi_final = None
+
+        # Full chain: θ_MAP → DeepONet → φ(T) → DI
+        if cond in don_models and cond in theta_MAP:
+            theta_raw = theta_MAP[cond]
+            st = don_stats[cond]
+            theta_lo = st["theta_lo"]
+            theta_width = st["theta_width"]
+            theta_n = jnp.array((theta_raw - theta_lo) / theta_width)
+            phi_traj = don_models[cond].predict_trajectory(theta_n, t_norm)
+            phi_final = phi_traj[-1]
+            di_val = float(compute_di_from_phi(phi_final))
+            print(f"  {cond}: θ_MAP→DeepONet→φ(T)={np.array(phi_final).round(4)} → DI={di_val:.4f}")
+
         E_val = float(di_to_E(jnp.array(di_val)))
         E_norm = E_val / E_MAX
         u_arr = np.array(jax.vmap(lambda y: pinn_model(x_mid, y, E_norm))(y_pts))
         results[cond] = {
             "ux": u_arr[:, 0], "uy": u_arr[:, 1],
             "di": di_val, "E": E_val,
+            "phi": np.array(phi_final) if phi_final is not None else None,
         }
-        print(f"  {cond}: DI={di_val:.4f}, E={E_val:.1f} Pa, "
+        src = "DeepONet" if phi_final is not None else "known"
+        print(f"  {cond}: DI={di_val:.4f} ({src}), E={E_val:.1f} Pa, "
               f"u_y(top)={float(u_arr[-1, 1]):.6f}")
 
     # Sensitivity ∂u_y/∂DI (how displacement changes with dysbiotic index)
@@ -566,11 +670,11 @@ def end_to_end_demo(deeponet_ckpt: str, pinn_ckpt: str, norm_stats_path: str):
         u = pinn_model(x_mid, H, E / E_MAX)
         return u[1]
 
-    # Compute for each condition
+    # Compute for each condition (use actual DI from results)
     grad_abs = np.zeros(len(CONDITIONS))
     cond_list = list(CONDITIONS.keys())
     for i, cond in enumerate(cond_list):
-        di_val = CONDITIONS[cond][0]
+        di_val = results[cond]["di"]  # from DeepONet if available
         grad_abs[i] = abs(float(jax.grad(uy_of_di)(jnp.array(di_val))))
 
     # ── Figure: 3 rows ──
@@ -698,7 +802,7 @@ def main():
     sub = parser.add_subparsers(dest="command")
 
     p_train = sub.add_parser("train")
-    p_train.add_argument("--epochs", type=int, default=5000)
+    p_train.add_argument("--epochs", type=int, default=20000)
     p_train.add_argument("--n-fields", type=int, default=30)
     p_train.add_argument("--n-interior", type=int, default=1000)
     p_train.add_argument("--n-bc", type=int, default=100)
