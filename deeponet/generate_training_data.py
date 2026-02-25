@@ -18,6 +18,7 @@ import json
 import numpy as np
 from pathlib import Path
 import time
+from typing import Optional
 
 # Setup paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -110,6 +111,16 @@ def load_theta_map(condition: str) -> np.ndarray:
     return None
 
 
+# CS/CH: θ_MAP が学習データ範囲外になりやすい → importance sampling を強化
+# 推奨: map_frac=0.5, map_std_frac=0.15 (DEEPONET_ACHIEVEMENT_STATUS.md 参照)
+CONDITION_IMPORTANCE_PRESETS = {
+    "Commensal_Static": {"map_frac": 0.5, "map_std_frac": 0.15},
+    "Commensal_HOBIC": {"map_frac": 0.5, "map_std_frac": 0.15},
+    "Dysbiotic_Static": {"map_frac": 0.4, "map_std_frac": 0.12},
+    "Dysbiotic_HOBIC": {"map_frac": 0.3, "map_std_frac": 0.1},
+}
+
+
 def generate_dataset(
     n_samples: int = 10000,
     condition: str = "Dysbiotic_HOBIC",
@@ -117,8 +128,8 @@ def generate_dataset(
     maxtimestep: int = 500,
     dt: float = 1e-5,
     n_time_out: int = 100,  # downsample to this many time points
-    map_frac: float = 0.3,  # fraction of samples around θ_MAP
-    map_std_frac: float = 0.1,  # std dev as fraction of prior range
+    map_frac: Optional[float] = None,  # None = use condition preset
+    map_std_frac: Optional[float] = None,  # None = use condition preset
     expand_bounds: bool = True,  # expand bounds to include θ_MAP + margin
 ):
     """Generate training dataset with optional importance sampling around θ_MAP.
@@ -126,10 +137,17 @@ def generate_dataset(
     Args:
         map_frac: fraction of total samples to draw from Gaussian around θ_MAP
                   (remaining drawn uniformly from prior). Set 0 to disable.
+                  If None, uses condition-specific preset (CS/CH: 0.5).
         map_std_frac: Gaussian std = map_std_frac * (hi - lo) per parameter.
+                      If None, uses condition preset (CS/CH: 0.15).
         expand_bounds: if True and θ_MAP exists, expand bounds to include
                        θ_MAP ± 20% margin so DeepONet is never extrapolating.
     """
+    preset = CONDITION_IMPORTANCE_PRESETS.get(condition, {})
+    if map_frac is None:
+        map_frac = preset.get("map_frac", 0.3)
+    if map_std_frac is None:
+        map_std_frac = preset.get("map_std_frac", 0.1)
 
     bounds = load_prior_bounds(condition)
 

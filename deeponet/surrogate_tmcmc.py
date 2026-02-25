@@ -3,7 +3,7 @@
 TMCMC with DeepONet surrogate likelihood.
 
 Replaces the numba ODE solver in the likelihood evaluation with
-the trained DeepONet, achieving ~384x speedup per evaluation.
+the trained DeepONet, achieving ~80× per-sample speedup (~29× E2E TMCMC).
 
 Usage:
   python surrogate_tmcmc.py --checkpoint checkpoints/best.eqx \

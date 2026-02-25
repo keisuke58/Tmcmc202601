@@ -14,6 +14,19 @@ tmcmc-quick:  ## Run TMCMC estimation (quick: 150 particles)
 		--n-particles 150 --n-stages 8 \
 		--lambda-pg 2.0 --lambda-late 1.5
 
+# TMCMC + DeepONet (requires klempt_fem: JAX, Equinox)
+tmcmc-deeponet:  ## Run TMCMC with DeepONet surrogate (single: Dysbiotic HOBIC)
+	$(PYTHON_JAX) data_5species/main/estimate_reduced_nishioka.py \
+		--condition Dysbiotic --cultivation HOBIC \
+		--use-deeponet --n-particles 1000 --n-stages 8 \
+		--lambda-pg 2.0 --lambda-late 1.5
+
+tmcmc-deeponet-batch:  ## Run TMCMC + DeepONet for all 4 conditions
+	cd data_5species && ./run_all_4conditions_deeponet.sh full
+
+tmcmc-deeponet-quick:  ## Run TMCMC + DeepONet (quick: 200 particles, 4 conditions)
+	cd data_5species && ./run_all_4conditions_deeponet.sh quick
+
 # ── Multiscale ─────────────────────────────────────────────
 .PHONY: multiscale hybrid eigenstrain
 
@@ -62,6 +75,22 @@ lint:  ## Run basic syntax checks on all Python files
 
 all-figures: multiscale hybrid eigenstrain competition summary  ## Generate all figures
 	@echo "All figures generated."
+
+# ── Wiki ────────────────────────────────────────────────────
+.PHONY: wiki wiki-list wiki-validate
+
+WIKI_DIR = $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))/../Tmcmc202601.wiki
+
+wiki: wiki-list  ## Show wiki status and list pages
+
+wiki-list:  ## List wiki Markdown pages
+	@echo "Wiki: $(WIKI_DIR)"
+	@ls -la $(WIKI_DIR)/*.md 2>/dev/null | wc -l | xargs -I {} echo "  {} pages"
+	@ls $(WIKI_DIR)/*.md 2>/dev/null | xargs -I {} basename {} | head -30
+
+wiki-validate:  ## Check wiki internal links (basic)
+	@echo "Validating wiki links..."
+	@grep -rh '\[.*\]([A-Za-z0-9_-]*)' $(WIKI_DIR)/*.md 2>/dev/null | head -20 || true
 
 # ── Help ───────────────────────────────────────────────────
 .PHONY: help
