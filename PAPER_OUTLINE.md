@@ -23,6 +23,10 @@
 | **Fig 15** | Posterior → DI → E uncertainty propagation | `generate_paper_figures.py` | DONE |
 | **Fig 16** | **NEW: Basin sensitivity / multi-attractor** | `plot_basin_sensitivity.py` | DONE |
 | **Fig 17** | **NEW: 3-model comparison (DI vs φ_Pg vs Vir)** | existing `3model_comparison_3d.png` | EXISTS |
+| **Fig 18** | 3-model Bayes discrimination | `compute_3model_bayes_factor.py` | DONE |
+| **Fig 19** | Corner plot dh_baseline key params | `generate_corner_plot_paper.py` | DONE |
+| **Fig 20** | **E2E differentiable pipeline: 4-cond results** | `e2e_differentiable_pipeline.py` | DONE |
+| **Fig 21** | **NUTS vs HMC vs RW TMCMC comparison** | `gradient_tmcmc_nuts.py` | NEW |
 
 ---
 
@@ -65,7 +69,22 @@
 - **Fig 11**: E(DI) curve + experimental overlay
 - **Fig 17**: 3-model comparison
 
-#### 2.5 3D FEM Setup
+#### 2.5 E2E Differentiable Pipeline (DeepONet + DEM)
+- θ → DeepONet → φ(T;θ) → DI → E(DI) → DEM → u(x,y,z)
+- All steps JAX-differentiable → ∂u/∂θ via single backward pass
+- DeepONet surrogate: 160K params, trained per-condition (10K samples)
+- DEM (Deep Energy Method): 58K params, variational elasticity solver
+- Forward: 0.03 ms, Gradient (20 params): 0.04 ms → **3.8M× speedup vs Abaqus**
+- **Fig 20**: 4-condition pipeline results (φ, DI, E, u_y profile, ∂u_y/∂θ)
+
+#### 2.6 Gradient-Based TMCMC (HMC / NUTS)
+- Standard TMCMC uses random-walk Metropolis → 50% accept in 20D
+- Differentiable pipeline enables HMC mutation: leapfrog along ∂logL/∂θ
+- **NUTS extension**: automatic trajectory length via U-turn criterion
+- Dual averaging for step-size adaptation (Hoffman & Gelman 2014)
+- **Fig 21**: RW vs HMC vs NUTS comparison
+
+#### 2.7 3D FEM Setup
 - Patient T23 tooth, dentin E=18.6 GPa
 - Conformal C3D4 mesh, 17,970 nodes
 - Tie constraint (tooth-biofilm interface)
@@ -93,7 +112,23 @@
 - **Fig 13**: Stress comparison
 - **Fig 14**: Klempt benchmark
 
-#### 3.4 Posterior Uncertainty Propagation
+#### 3.4 E2E Pipeline & Sensitivity Analysis
+- Forward pass: 0.03 ms (Abaqus: ~120 s) → 3.8M× speedup
+- Exact ∂u_y/∂θ identifies most sensitive parameters:
+  - θ[16] (a₂₅, Vd→Pg): strongest mechanical sensitivity
+  - θ[15] (a₁₅, So→Pg): cross-feeding to pathogen
+- These control pathogen cross-species feeding → direct mechanical consequence
+- **Fig 20**: Pipeline results
+
+#### 3.5 Gradient-Based TMCMC Results
+- HMC acceptance 1.8× higher (0.90 vs 0.49)
+- NUTS auto-adapts trajectory length (no manual tuning)
+- Same tempering schedule (7 stages) — beta schedule is data-driven
+- Better posterior logL at convergence (-0.2 vs -1.6)
+- **Fig 21**: 3-method comparison
+- **Table**: Summary metrics (RW vs HMC vs NUTS)
+
+#### 3.6 Posterior Uncertainty Propagation
 - dh_baseline (real posterior): DI CI = [0.22, 0.89], E CI = [21, 609] Pa
 - commensal_static: basin fragility (49/51 samples jump to DI≈0.85)
 - Multi-attractor sensitivity = key UQ finding
@@ -119,7 +154,13 @@
 - Thiele modulus consistent with Klempt 2024
 - No prior work linking DI → mechanical properties quantitatively
 
-#### 4.4 Limitations
+#### 4.4 Differentiable Surrogate & Gradient Sampling
+- DeepONet+DEM surrogate enables gradient-based sampling impossible with Abaqus
+- NUTS automatically adapts to posterior geometry (no tuning needed)
+- 3.8M× speedup makes probabilistic analysis feasible
+- Limitation: surrogate accuracy bounded by training data coverage
+
+#### 4.5 Limitations
 - E(DI) mapping assumed (not experimentally calibrated for this system)
 - Only dh_baseline has real posterior samples
 - Linear elastic FEM (nonlinear needed for ε > 5%)
@@ -139,6 +180,9 @@
 - 28× stiffness range (commensal 900 Pa vs dysbiotic 30 Pa)
 - 29.4× displacement ratio
 - Multi-attractor sensitivity: DI CI spans [0.22, 0.89] for dh_baseline
+- 3.8M× speedup via DeepONet+DEM differentiable pipeline
+- HMC acceptance 1.8× vs random-walk (0.90 vs 0.49)
+- NUTS auto-tuned trajectory length eliminates manual step-size tuning
 
 ---
 
