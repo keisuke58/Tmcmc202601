@@ -89,6 +89,40 @@ from demo_analytical_tsm_with_linearization_jit import BiofilmTSM_Analytical
 from tmcmc_5species_tsm import BiofilmTSM5S
 
 
+def build_species_sigma(
+    sigma_global: float,
+    n_species: int = 5,
+    vd_species_idx: int = 2,
+    vd_factor: float = 2.0,
+) -> np.ndarray:
+    """
+    Build per-species observation noise vector.
+
+    V. dispar (species 2) gets higher sigma to acknowledge that the
+    Hamilton ODE cannot model nutrient-depletion-driven decline.
+
+    Parameters
+    ----------
+    sigma_global : float
+        Global observation noise (applied to all species).
+    n_species : int
+        Number of species.
+    vd_species_idx : int
+        Index of V. dispar (default 2).
+    vd_factor : float
+        Multiplicative factor for V. dispar sigma (default 2.0).
+
+    Returns
+    -------
+    np.ndarray
+        Per-species sigma, shape (n_species,).
+    """
+    sigma_arr = np.full(n_species, sigma_global, dtype=np.float64)
+    if vd_species_idx < n_species:
+        sigma_arr[vd_species_idx] *= vd_factor
+    return sigma_arr
+
+
 def build_likelihood_weights(
     n_obs: int,
     n_species: int,
@@ -140,7 +174,7 @@ def log_likelihood_sparse(
     mu: np.ndarray,
     sig: np.ndarray,
     data: np.ndarray,
-    sigma_obs: float,
+    sigma_obs,
     rho: float = 0.0,
     health: Optional[Dict[str, int]] = None,
     weights: Optional[np.ndarray] = None,
@@ -166,8 +200,9 @@ def log_likelihood_sparse(
         Predicted variance at observation times: shape (n_obs, n_species)
     data : np.ndarray
         Observed data: shape (n_obs, n_species)
-    sigma_obs : float
-        Observation noise standard deviation
+    sigma_obs : float or np.ndarray
+        Observation noise standard deviation.  Scalar applies to all species;
+        array of shape ``(n_species,)`` gives per-species noise.
     rho : float
         Observation correlation coefficient (default: 0.0)
     health : Dict[str, int], optional
@@ -184,24 +219,20 @@ def log_likelihood_sparse(
     n_obs, n_species = data.shape
     logL = 0.0
 
+    # Vectorize sigma_obs: scalar → per-species array
+    sigma_obs_arr = np.atleast_1d(np.asarray(sigma_obs, dtype=np.float64))
+    if sigma_obs_arr.size == 1:
+        sigma_obs_arr = np.full(n_species, sigma_obs_arr[0])
+
     # Pre-compute R inverse and determinant if rho is used
     use_correlation = (abs(rho) > 1e-9) and (n_species > 1)
 
     if use_correlation:
-        # Equicorrelated matrix R:
-        # Det(R) = (1 + (p-1)rho) * (1-rho)^(p-1)
-        # R^{-1} = (a I + b J)
-        # a = ... (standard formula for equicorrelated inverse)
-        # But for small n_species (e.g. 2 or 4), direct inversion is fast and safe.
         R = np.eye(n_species) + rho * (np.ones((n_species, n_species)) - np.eye(n_species))
         try:
-            # Cholesky is faster/stable for positive definite R
             L_R = np.linalg.cholesky(R)
-            # log|R| = 2 * sum(log(diag(L_R)))
             log_det_R = 2.0 * np.sum(np.log(np.diag(L_R)))
-            # Solve R x = y -> x = R^-1 y is not needed explicitly if we use solve
         except np.linalg.LinAlgError:
-            # Fallback if rho is invalid (not PD)
             if health is not None:
                 health["rho_error"] = 1
             return -1e20
@@ -210,7 +241,7 @@ def log_likelihood_sparse(
         # 1. Variance vector and total covariance diagonal
         var_total_vec = np.zeros(n_species)
         for j in range(n_species):
-            var_raw = sig[i, j] + sigma_obs**2
+            var_raw = sig[i, j] + sigma_obs_arr[j]**2
 
             # Health checks
             if health is not None:
