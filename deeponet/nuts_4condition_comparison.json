@@ -1,0 +1,48 @@
+{
+  "description": "NUTS vs HMC vs RW TMCMC comparison on real experimental data",
+  "date": "2026-02-26",
+  "n_particles": 200,
+  "seed": 42,
+  "conditions": {
+    "Commensal_Static": {
+      "free_dims": 9,
+      "sigma_obs": 0.1111,
+      "n_stages": 2,
+      "RW": {"avg_accept": 0.650, "max_logL": -26.1, "time_s": 0.2},
+      "HMC": {"avg_accept": 0.695, "max_logL": -26.0, "time_s": 2.8},
+      "NUTS": {"avg_accept": 0.835, "max_logL": -26.1, "time_s": 22.6, "final_eps": 0.075}
+    },
+    "Commensal_HOBIC": {
+      "free_dims": 13,
+      "sigma_obs": 0.1568,
+      "n_stages": 2,
+      "RW": {"avg_accept": 0.535, "max_logL": -13.5, "time_s": 0.2},
+      "HMC": {"avg_accept": 0.920, "max_logL": -13.8, "time_s": 3.3},
+      "NUTS": {"avg_accept": 0.935, "max_logL": -13.6, "time_s": 25.1, "final_eps": 0.069}
+    },
+    "Dysbiotic_Static": {
+      "free_dims": 15,
+      "sigma_obs": 0.2469,
+      "n_stages": 2,
+      "RW": {"avg_accept": 0.488, "max_logL": -4.4, "time_s": 0.2},
+      "HMC": {"avg_accept": 0.970, "max_logL": -4.4, "time_s": 3.6},
+      "NUTS": {"avg_accept": 0.972, "max_logL": -4.3, "time_s": 28.4, "final_eps": 0.059}
+    },
+    "Dysbiotic_HOBIC": {
+      "free_dims": 20,
+      "sigma_obs": 0.2321,
+      "n_stages": 2,
+      "RW": {"avg_accept": 0.448, "max_logL": -7.9, "time_s": 0.4},
+      "HMC": {"avg_accept": 0.990, "max_logL": -7.6, "time_s": 3.7},
+      "NUTS": {"avg_accept": 0.970, "max_logL": -7.1, "time_s": 35.5, "final_eps": 0.102}
+    }
+  },
+  "summary": {
+    "avg_RW_accept": 0.530,
+    "avg_HMC_accept": 0.894,
+    "avg_NUTS_accept": 0.928,
+    "HMC_vs_RW_ratio": 1.69,
+    "NUTS_vs_RW_ratio": 1.75,
+    "note": "Gradient-based improvement increases with dimensionality (1.3x at d=9 to 2.2x at d=20)"
+  }
+}
