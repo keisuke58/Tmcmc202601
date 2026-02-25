@@ -1,0 +1,37 @@
+name: Python Syntax Check
+
+on:
+  push:
+    paths:
+      - '**.py'
+  pull_request:
+    paths:
+      - '**.py'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install numpy
+
+      - name: Syntax check core modules
+        run: |
+          python -m py_compile data_5species/core/tmcmc.py
+          python -m py_compile data_5species/core/evaluator.py
+          python -m py_compile FEM/material_models.py
+          echo "Core modules compile OK"
+
+      - name: Check for common issues
+        run: |
+          # Check no debug prints left in core
+          if grep -rn "print.*DEBUG\|pdb\.\|breakpoint()" data_5species/core/ FEM/material_models.py 2>/dev/null; then
+            echo "::warning::Found debug statements in core modules"
+          fi
+          echo "Check complete"

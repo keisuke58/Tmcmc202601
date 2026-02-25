@@ -1,22 +1,24 @@
 ## Summary
+<!-- One-sentence description -->
 
-Brief description of changes.
+## Type
+- [ ] Paper text (LaTeX)
+- [ ] New figure / data
+- [ ] Code (TMCMC / FEM / DeepONet)
+- [ ] Infrastructure (CI, docs, templates)
 
 ## Changes
-
-- [ ] Change 1
-- [ ] Change 2
+-
 
 ## Related Issues
-
 Closes #
 
-## Testing
+## Checklist
+- [ ] LaTeX compiles without errors (`pdflatex + bibtex`)
+- [ ] No undefined citations or references
+- [ ] Figures in `FEM/figures/paper_final/` with consistent naming
+- [ ] Key numbers match MEMORY.md / PAPER_OUTLINE.md
+- [ ] Code tested locally (if applicable)
 
-- [ ] CI passes
-- [ ] Tested locally with `python -m py_compile ...`
-- [ ] Numerical results unchanged (if applicable)
-
-## Notes
-
-Any additional context for reviewers.
+## Reviewer Notes
+<!-- Context for Klempt/Junker review -->
