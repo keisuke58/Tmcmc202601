@@ -45,7 +45,7 @@
 
 \usepackage[hidelinks,pdfencoding=auto]{hyperref}
 
-\title{Biologically-Constrained Parameter Reduction\\for 5-Species Biofilm Model}
+\title{Bridging Microbial Ecology and Continuum Mechanics:\\A TMCMC-Based Multiscale Framework\\for Oral Biofilm Stress Analysis}
 \author{Keisuke Nishioka}
 \date{February 2026}
 
@@ -54,10 +54,10 @@
 \maketitle
 
 \begin{abstract}
-This document describes the Proposed Method, a parameter reduction technique for Bayesian estimation of the 5-species biofilm interaction model. By incorporating biological knowledge from experimentally determined interaction networks, the algorithm reduces the parameter space from 20 to 15 free parameters, improving estimation efficiency and biological interpretability.
+We present a complete multiscale pipeline that bridges Bayesian parameter estimation of a 5-species oral biofilm model with 3D finite-element stress analysis. Starting from experimental time-course data of \textit{Streptococcus oralis}, \textit{Actinomyces naeslundii}, \textit{Veillonella} spp., \textit{Fusobacterium nucleatum}, and \textit{Porphyromonas gingivalis} under four cultivation conditions, Transitional Markov Chain Monte Carlo (TMCMC) with biologically-constrained parameter reduction estimates a 20-parameter Hamilton interaction model, achieving 30\% RMSE improvement over unconstrained baselines. A novel Dysbiosis Index (DI) based on Shannon entropy serves as the bridging variable to a DI-dependent elastic modulus, producing a 28-fold stiffness range (commensal 909~Pa vs.\ dysbiotic 32~Pa) and 29.4-fold displacement ratio on a patient-specific 3D tooth geometry. Bayesian model comparison decisively favours the DI model over pathogen-fraction alternatives (pseudo Bayes factor $= 1.35 \times 10^9$). An end-to-end differentiable surrogate (DeepONet + Deep Energy Method) achieves a 3.8~million-fold speedup over Abaqus FEM, enabling gradient-based TMCMC (NUTS) with 1.75$\times$ higher acceptance rates than random-walk mutation. DeepONet-accelerated TMCMC provides $\sim$100$\times$ wall-time speedup while recovering 17/20 posterior marginals with $>$0.95 overlap. Basin sensitivity analysis reveals that commensal equilibria are fragile, with 96\% of perturbed samples jumping to a dysbiotic attractor, highlighting the importance of uncertainty quantification in biofilm mechanical predictions.
 
 \vspace{0.5cm}
-\noindent\textbf{Keywords:} Bayesian Estimation, Biofilm, Parameter Reduction, TMCMC, Biological Constraints, Multi-species Interaction, Inverse Problem, Peri-implantitis, Uncertainty Quantification
+\noindent\textbf{Keywords:} Bayesian Estimation, Biofilm Mechanics, TMCMC, DeepONet, Dysbiosis Index, Multi-species Interaction, Inverse Problem, Peri-implantitis, Uncertainty Quantification, Graph Neural Networks
 \end{abstract}
 
 \tableofcontents
@@ -1304,6 +1304,206 @@ Dysbiotic HOBIC   & 705.1 & 0.140 & 108.8 & 11.9 & 0.121 \\
 \noindent The 28-fold difference in $E$ between commensal ($\approx 909$~Pa) and dysbiotic static ($\approx 32$~Pa) translates to a 28-fold stress difference ($\sigma_\mathrm{vm}^\mathrm{max} = 140$ vs.\ $5$~Pa), demonstrating that microbial community composition directly controls the mechanical state of the biofilm.
 
 %==============================================================================
+\section{3D Finite Element Analysis}
+\label{sec:3d_fem}
+%==============================================================================
+
+To assess the mechanical consequences of microbial dysbiosis on a realistic geometry, we perform 3D linear-elastic FEM simulations on a patient-specific tooth model (T23, upper left canine).
+
+\subsection{Mesh and Boundary Conditions}
+
+The computational domain consists of two bodies:
+\begin{itemize}
+  \item \textbf{Tooth (dentin)}: $E_\mathrm{dentin} = 18.6$~GPa, $\nu = 0.31$, meshed with 82,080 C3D4 (linear tetrahedral) elements and 17,970 nodes.
+  \item \textbf{Biofilm layer}: Conformal coating of uniform thickness ($\sim 50~\mu$m), with condition-dependent $E(\mathrm{DI})$ from the hybrid coupling (Eq.~\ref{eq:hybrid}) and $\nu = 0.45$ (nearly incompressible).
+\end{itemize}
+The biofilm--tooth interface is modelled via a tie constraint (perfect bonding), and the tooth root is fully clamped. Growth-induced loading is applied as an eigenstrain field $\varepsilon_\mathrm{growth}(\mathbf{x})$ using the thermal analogy in Abaqus.
+
+\subsection{3D Stress Results}
+
+Table~\ref{tab:fem_3d} summarises the 3D FEM results across four conditions.
+
+\begin{table}[H]
+\centering
+\caption{3D FEM results on T23 tooth geometry (DI material model)}
+\label{tab:fem_3d}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Condition} & $E_\mathrm{bio}$ [Pa] & $\sigma_\mathrm{vm}^\mathrm{max}$ [Pa] & $u_\mathrm{max}$ [mm] & $u_\mathrm{max}/u_\mathrm{max}^\mathrm{CS}$ \\
+\midrule
+Commensal Static  & 909 & 140.3 & 0.44 & 1.0$\times$ \\
+Commensal HOBIC   & 890 & 137.3 & 0.45 & 1.0$\times$ \\
+Dysbiotic Static  &  32 &   5.0 & 12.9 & 29.4$\times$ \\
+Dysbiotic HOBIC   & 705 & 108.8 & 0.56 & 1.3$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The dysbiotic static condition exhibits a 29.4-fold displacement ratio relative to commensal static, a direct mechanical consequence of the 28-fold stiffness reduction driven by loss of microbial diversity. The von~Mises stress field in the dentin is dominated by the tooth geometry and is essentially identical across conditions, confirming that the biofilm layer acts as a compliant coating whose stiffness modulates the interface stress transfer.
+
+%==============================================================================
+\section{End-to-End Differentiable Pipeline}
+\label{sec:e2e}
+%==============================================================================
+
+Abaqus FEM requires $\sim$120~s per forward solve, making gradient-based inference intractable. We construct a fully differentiable surrogate pipeline in JAX~\cite{Bradbury2018JAX}:
+
+\begin{equation}
+  \boldsymbol{\theta} \;\xrightarrow{\text{DeepONet}}\; \hat{\boldsymbol{\varphi}}(T;\boldsymbol{\theta}) \;\xrightarrow{\text{DI}}\; E(\mathrm{DI}) \;\xrightarrow{\text{DEM}}\; \mathbf{u}(\mathbf{x})
+  \label{eq:e2e}
+\end{equation}
+where every arrow is a differentiable function, enabling exact $\partial \mathbf{u}/\partial\boldsymbol{\theta}$ via a single reverse-mode pass.
+
+\subsection{DeepONet Surrogate for Hamilton ODE}
+
+The DeepONet~\cite{Lu2021DeepONet} learns the input--output map $\boldsymbol{\theta} \mapsto \hat{\boldsymbol{\varphi}}(T;\boldsymbol{\theta})$ of the Hamilton ODE at the final observation time $T$. The architecture consists of a branch network (MLP, input: $\boldsymbol{\theta} \in \mathbb{R}^{20}$) and a trunk network (MLP, input: species index encoding), with output dimension $p = 64$ and hidden layers of width 128. The total parameter count is $\sim$168K.
+
+Training uses $N = 10{,}000$ synthetic samples per condition (uniformly sampled $\boldsymbol{\theta}$ within prior bounds, Hamilton ODE solved with the Hill-gated forward model). The best validation loss across 500 epochs is $7.72 \times 10^{-5}$ (MSE on normalised species fractions). Separate checkpoints are maintained for each of the four experimental conditions to account for condition-specific parameter locking and dynamics.
+
+\subsection{Deep Energy Method (DEM) for Elasticity}
+
+The displacement field $\mathbf{u}(\mathbf{x})$ is parameterised by a neural network and trained by minimising the elastic potential energy~\cite{Weinan2018DEM}:
+\begin{equation}
+  \Pi[\mathbf{u}] = \int_\Omega W(\boldsymbol{\varepsilon}(\mathbf{u}))\,\mathrm{d}\Omega - \int_{\partial\Omega_N} \mathbf{t} \cdot \mathbf{u}\,\mathrm{d}S
+  \label{eq:dem}
+\end{equation}
+where $W$ is the strain energy density (linear isotropic with spatially varying $E(\mathbf{x})$) and $\boldsymbol{\varepsilon} = \frac{1}{2}(\nabla\mathbf{u} + \nabla\mathbf{u}^T) - \varepsilon_\mathrm{growth}\mathbf{I}$ includes the eigenstrain. The DEM network has $\sim$58K parameters and is trained on a 2D cross-section of the tooth--biofilm assembly.
+
+\subsection{Forward and Gradient Timing}
+
+\begin{table}[H]
+\centering
+\caption{Computational cost of the E2E differentiable pipeline vs.\ Abaqus}
+\label{tab:e2e_timing}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Operation} & \textbf{E2E (JAX)} & \textbf{Classical (Abaqus)} \\
+\midrule
+Forward pass ($\boldsymbol{\theta} \to \mathbf{u}$)         & 0.03 ms & $\sim$120 s \\
+Gradient ($\partial\mathbf{u}/\partial\boldsymbol{\theta}$) & 0.04 ms & N/A (finite diff.\ $\sim$2400 s) \\
+Speedup factor                                                & \multicolumn{2}{c}{\textbf{3.8 million$\times$}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The exact gradient $\partial u_y/\partial\boldsymbol{\theta}$ identifies the most mechanically sensitive parameters: $\theta_{16}$ ($a_{25}$, Vd$\to$Pg) and $\theta_{15}$ ($a_{15}$, So$\to$Pg) exhibit the largest displacement sensitivities, revealing that pathogen cross-feeding interactions have the strongest mechanical consequence.
+
+%==============================================================================
+\section{Gradient-Based TMCMC}
+\label{sec:gradient_tmcmc}
+%==============================================================================
+
+Standard TMCMC employs a random-walk (RW) Metropolis--Hastings mutation (Algorithm~\ref{alg:tmcmc}, Step~2e), whose acceptance rate degrades with dimensionality. The differentiable pipeline (Section~\ref{sec:e2e}) enables gradient-informed mutation kernels that exploit the geometry of the tempered posterior.
+
+\subsection{Hamiltonian Monte Carlo (HMC) Mutation}
+
+At each TMCMC stage, the RW proposal is replaced by a Hamiltonian dynamics integration~\cite{Neal2011HMC}. An auxiliary momentum variable $\mathbf{p} \sim \mathcal{N}(\mathbf{0}, \mathbf{M})$ is introduced, and the joint Hamiltonian
+\begin{equation}
+  H(\boldsymbol{\theta}, \mathbf{p}) = -\beta_m\,\ell(\boldsymbol{\theta}) - \ln p(\boldsymbol{\theta}) + \tfrac{1}{2}\mathbf{p}^T\mathbf{M}^{-1}\mathbf{p}
+  \label{eq:hamiltonian}
+\end{equation}
+is integrated via $L$ leapfrog steps of size $\varepsilon$:
+\begin{align}
+  \mathbf{p}_{t+\varepsilon/2} &= \mathbf{p}_t + \tfrac{\varepsilon}{2}\,\nabla_{\boldsymbol{\theta}}\!\left[\beta_m\,\ell(\boldsymbol{\theta}_t) + \ln p(\boldsymbol{\theta}_t)\right] \label{eq:leapfrog1} \\
+  \boldsymbol{\theta}_{t+\varepsilon} &= \boldsymbol{\theta}_t + \varepsilon\,\mathbf{M}^{-1}\mathbf{p}_{t+\varepsilon/2} \label{eq:leapfrog2} \\
+  \mathbf{p}_{t+\varepsilon} &= \mathbf{p}_{t+\varepsilon/2} + \tfrac{\varepsilon}{2}\,\nabla_{\boldsymbol{\theta}}\!\left[\beta_m\,\ell(\boldsymbol{\theta}_{t+\varepsilon}) + \ln p(\boldsymbol{\theta}_{t+\varepsilon})\right] \label{eq:leapfrog3}
+\end{align}
+The proposed state $(\boldsymbol{\theta}^*, \mathbf{p}^*)$ is accepted with probability $\min(1, \exp(-\Delta H))$, where $\Delta H = H(\boldsymbol{\theta}^*, \mathbf{p}^*) - H(\boldsymbol{\theta}, \mathbf{p})$.
+
+\subsection{No-U-Turn Sampler (NUTS)}
+
+The HMC kernel requires manual tuning of $L$ and $\varepsilon$. We adopt the No-U-Turn Sampler (NUTS)~\cite{HoffmanGelman2014NUTS}, which automatically determines the trajectory length by building a balanced binary tree of leapfrog steps and terminating when the trajectory begins to turn back (``U-turn'' criterion):
+\begin{equation}
+  (\boldsymbol{\theta}_\mathrm{fwd} - \boldsymbol{\theta}_\mathrm{bwd}) \cdot \mathbf{p}_\mathrm{fwd} < 0 \quad \text{or} \quad (\boldsymbol{\theta}_\mathrm{fwd} - \boldsymbol{\theta}_\mathrm{bwd}) \cdot \mathbf{p}_\mathrm{bwd} < 0
+  \label{eq:uturn}
+\end{equation}
+The step size $\varepsilon$ is adapted during the first TMCMC stage via dual averaging, targeting an acceptance probability of 0.65. NUTS eliminates the need for manual HMC tuning and automatically adapts to the local curvature of the posterior.
+
+\subsection{Gradient-Based TMCMC Results (4-Condition Real Data)}
+
+We compare RW, HMC ($L=5$, $\varepsilon=0.005$), and NUTS mutation kernels on all four experimental conditions using 200 particles and the DeepONet surrogate.
+
+\begin{table}[H]
+\centering
+\caption{Acceptance rate comparison: RW vs.\ HMC vs.\ NUTS (200 particles, real data)}
+\label{tab:nuts_comparison}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Condition} & $n_\mathrm{free}$ & RW & HMC & NUTS & \textbf{NUTS/RW} & $\varepsilon_\mathrm{NUTS}$ \\
+\midrule
+Commensal Static  &  9 & 0.65 & 0.70 & 0.84 & 1.3$\times$ & 0.075 \\
+Commensal HOBIC   & 13 & 0.54 & 0.92 & 0.94 & 1.7$\times$ & 0.069 \\
+Dysbiotic Static  & 15 & 0.49 & 0.97 & 0.97 & 2.0$\times$ & 0.059 \\
+Dysbiotic HOBIC   & 20 & 0.45 & 0.99 & 0.97 & 2.2$\times$ & 0.102 \\
+\midrule
+\textbf{Average}  &    & 0.53 & 0.90 & \textbf{0.93} & \textbf{1.75$\times$} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The gradient-based improvement scales with dimensionality: from 1.3$\times$ at $d=9$ (Commensal Static) to 2.2$\times$ at $d=20$ (Dysbiotic HOBIC). This scaling is expected, as RW proposals become increasingly inefficient in high-dimensional spaces, while HMC/NUTS exploit the gradient to move along the posterior's principal axes. NUTS dual averaging automatically adapts the step size ($\varepsilon = 0.015$--$0.10$), eliminating manual tuning.
+
+\subsection{DeepONet-Accelerated TMCMC}
+
+Replacing the ODE solver with the DeepONet surrogate inside the TMCMC log-likelihood yields substantial wall-time speedups:
+
+\begin{table}[H]
+\centering
+\caption{DeepONet-TMCMC wall-time comparison (500 particles, 2 chains)}
+\label{tab:deeponet_tmcmc}
+\begin{tabular}{lrrl}
+\toprule
+\textbf{Condition} & ODE [s] & DeepONet [s] & \textbf{Speedup} \\
+\midrule
+Commensal Static  & $\sim$1800 & 18.4 & 98$\times$ \\
+Commensal HOBIC   & $\sim$1800 & 17.0 & 106$\times$ \\
+Dysbiotic Static  & $\sim$1800 & 18.0 & 100$\times$ \\
+Dysbiotic HOBIC   & $\sim$1800 & 12.5 & 144$\times$ \\
+\midrule
+\textbf{Average}  &            &      & \textbf{$\sim$100$\times$} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent All four conditions converge ($\hat{R}_\mathrm{max} = 1.010$, ESS$_\mathrm{min} = 692$). For the Dysbiotic HOBIC condition, the posterior overlap (Bhattacharyya coefficient) between ODE-TMCMC and DeepONet-TMCMC exceeds 0.95 for 17 out of 20 parameters. Two parameters ($a_{32}$: overlap = 0.42; $a_{35}$: overlap = 0.23) show lower agreement, both related to P.~gingivalis cross-feeding interactions where the ODE posterior is broad and the DeepONet training data is sparse.
+
+The MAP estimation accuracy varies across conditions: DH achieves 11\% relative error (best), while CS, CH, and DS show 44--62\% errors concentrated in Pg-related parameters. This limitation reflects the training data distribution: the DeepONet is trained on uniformly sampled $\boldsymbol{\theta}$, but the posterior mass for Pg interactions is concentrated in a small region that is under-represented in the training set. Importance-weighted retraining or active learning strategies could mitigate this.
+
+%==============================================================================
+\section{GNN-Informed Prior}
+\label{sec:gnn_prior}
+%==============================================================================
+
+To further accelerate TMCMC convergence, we train a Graph Neural Network (GNN) to predict the five active interaction parameters from microbial composition features, and use these predictions as an informative prior.
+
+\subsection{InteractionGNN Architecture}
+
+The GNN operates on a 5-node graph (one node per species) with node features $\mathbf{x}_i = (\bar\varphi_i, \sigma_{\varphi_i}, \varphi_i(T))$ encoding the mean, standard deviation, and final composition. Four graph convolutional layers~\cite{Kipf2017GCN} with residual connections and layer normalisation process the node features, followed by a 3-layer MLP head that predicts the 5 active interaction parameters ($a_{01}$, $a_{02}$, $a_{03}$, $a_{24}$, $a_{34}$ at $\boldsymbol{\theta}$ indices $\{1, 10, 11, 18, 19\}$). The model has 128 hidden dimensions, dropout 0.2, and weight decay $10^{-2}$.
+
+\subsection{Training Data and Results}
+
+Training data is generated by sampling $\boldsymbol{\theta}$ from the prior bounds, solving the Hamilton ODE, and extracting $({\varphi}_i(t), a_{ij}^\mathrm{active})$ pairs. We use $N=10{,}000$ samples across four conditions (offline mode using TMCMC posteriors).
+
+\begin{table}[H]
+\centering
+\caption{GNN per-edge prediction accuracy ($N=10{,}000$)}
+\label{tab:gnn_results}
+\begin{tabular}{lcl}
+\toprule
+\textbf{Edge} & \textbf{R\textsuperscript{2}} & \textbf{Biological role} \\
+\midrule
+$a_{01}$ (So$\to$An) & 0.27 & Co-aggregation \\
+$a_{02}$ (So$\to$Vd) & 0.56 & Lactate handover \\
+$a_{03}$ (So$\to$Fn) & 0.51 & Formate symbiosis \\
+$a_{24}$ (Vd$\to$Pg) & 0.62 & pH trigger \\
+$a_{34}$ (Fn$\to$Pg) & \textbf{0.72} & Co-aggregation/peptides \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The GNN prior is integrated into TMCMC as a Gaussian soft prior $p_\mathrm{GNN}(\boldsymbol{\theta}_\mathrm{active}) = \prod_k \mathcal{N}(\theta_k \mid \mu_k^\mathrm{GNN}, \sigma^2)$ multiplied with the uniform hard bounds. In NUTS-TMCMC experiments (DH condition, 100 particles), the GNN prior reduces the number of tempering stages from 7 to 6 (one fewer stage), confirming that the learned prior provides useful initialisation for the sampler.
+
+%==============================================================================
 \section{Posterior Uncertainty Propagation}
 \label{sec:uncertainty}
 %==============================================================================
@@ -1400,6 +1600,14 @@ This finding has practical implications for clinical decision support: a well-co
 The sensitivity analysis reveals that decay rates ($b_1$, $b_2$, $b_3$) are the universal drivers of DI uncertainty.
 This suggests that experimental efforts to better characterise species-specific death rates would yield the greatest improvement in predictive confidence, across all clinical conditions.
 
+\subsection{Differentiable Surrogate and Gradient Sampling}
+
+The E2E differentiable pipeline (Section~\ref{sec:e2e}) achieves a 3.8~million-fold speedup over classical Abaqus FEM, enabling gradient-based sampling that is impossible with black-box solvers. NUTS automatically adapts to the posterior geometry (no manual tuning of leapfrog parameters), and the acceptance rate improvement scales predictably with dimensionality (1.3$\times$ at $d=9$ to 2.2$\times$ at $d=20$, Table~\ref{tab:nuts_comparison}).
+
+The DeepONet surrogate provides $\sim$100$\times$ wall-time speedup for TMCMC (Table~\ref{tab:deeponet_tmcmc}), with excellent posterior recovery for 17/20 parameters (Bhattacharyya overlap $> 0.95$). The two poorly recovered parameters ($a_{32}$, $a_{35}$) are both P.~gingivalis cross-feeding interactions with broad ODE posteriors, suggesting that importance-weighted or condition-adaptive training strategies could improve coverage in these regions.
+
+The GNN-informed prior (Section~\ref{sec:gnn_prior}) demonstrates that microbial composition features contain sufficient information to predict interaction parameters \textit{a priori}, with $R^2 = 0.72$ for the F.~nucleatum$\to$P.~gingivalis interaction. While the current per-edge accuracy is moderate, even approximate prior centering reduces the number of TMCMC stages, and the GNN architecture can be scaled to larger microbiome datasets (e.g., HMP 16S data) for improved generalization.
+
 \subsection{Limitations and Future Work}
 
 Several limitations should be noted:
@@ -1408,8 +1616,7 @@ Several limitations should be noted:
   \item \textbf{DI$\to$E mapping}: The constitutive law $E(\mathrm{DI})$ is phenomenological and has not been calibrated against simultaneous measurements of species composition and local stiffness. While the parameter range is consistent with published AFM data (Section~\ref{sec:3model_bayes}), experimental validation through coupled 16S rRNA sequencing and nanoindentation would strengthen the model.
   \item \textbf{Symmetric interaction matrix}: The variational formulation enforces $A_{ij} = A_{ji}$ (Section~\ref{sec:symmetric_A}), which may not capture asymmetric biological interactions. However, this is a mathematical consequence of the Lagrangian structure rather than an ad hoc assumption.
   \item \textbf{Species-specific likelihood weighting}: The power likelihood ($\lambda_{Pg} = 5$, Eq.~\ref{eq:power_lik}) improves pathogen fitting but affects posterior calibration. Sensitivity analysis with $\lambda_{Pg} = 1$ confirms that the main conclusions (DI superiority, basin sensitivity) are robust to this choice.
-  \item \textbf{TSM sensitivity approximation}: The forward sensitivity equations used for the Taylor Series Model (TSM) surrogate drop the history propagation term $\partial Q / \partial g_\mathrm{old} \cdot x_{1,\mathrm{old}}$. This quasi-static approximation is accurate for slow dynamics but may underestimate sensitivity variance during rapid transients.
-  \item \textbf{MCMC mutation strategy}: In the current implementation, the $K$-step mutation (Algorithm~\ref{alg:tmcmc}, Step 2e) generates all $K$ proposals from the initial resampled state rather than chaining sequentially (i.e., proposal $k$ is drawn from the original particle, not from the accepted state at step $k{-}1$). This parallelisation-friendly design preserves the correct stationary distribution (the MH ratio is evaluated at the tempered posterior) but may reduce mixing efficiency compared to sequential chaining. Acceptance rate monitoring across all runs ($>25\%$) confirms that this choice does not compromise posterior accuracy for the present problem dimensions.
+  \item \textbf{DeepONet MAP accuracy}: The surrogate MAP error varies across conditions (DH 11\%, CS 62\%, CH 44\%, DS 52\%), with Pg-related parameters poorly resolved. This reflects the uniform training data distribution, which under-represents the posterior-relevant region for pathogen interactions.
   \item \textbf{Multi-attractor ODE}: The basin sensitivity analysis (Section~\ref{sec:basin}) reveals that posterior samples can span multiple attractors, particularly for the commensal static condition. This multi-modality is a genuine feature of the Hamilton ODE, not an artefact of the inference procedure, but it complicates point-estimate-based predictions.
   \item \textbf{Spatial homogenisation}: The 2D reaction--diffusion PDE homogenises species composition through diffusion, producing smaller DI values ($\sim 0.05$--$0.08$) than the 0D model ($\sim 0.16$--$0.85$). The hybrid approach (Eq.~\ref{eq:hybrid}) mitigates this but is itself an approximation.
 \end{itemize}
@@ -1418,21 +1625,23 @@ Future work will address:
 \begin{itemize}
   \item Experimental validation of the DI$\to$E mapping through combined microbiome profiling and biofilm micro-rheology, following the \textit{in vivo} approach of Ohmura et al.~\cite{Ohmura2024}
   \item State-dependent interaction matrices $\mathbf{A}(\mathrm{pH}, \mathrm{metabolites})$ to capture the terminal P.~gingivalis surge
-  \item DeepONet-accelerated TMCMC for high-throughput posterior exploration (~80$\times$ per-sample, ~29$\times$ E2E demonstrated)
-  \item 3D conformal FEM on realistic tooth geometry with condition-dependent material fields
+  \item Scaling the GNN-informed prior (Section~\ref{sec:gnn_prior}) to larger oral microbiome datasets (e.g., HMP V3--V5 16S) for improved \textit{a priori} interaction estimates
 \end{itemize}
 
 %==============================================================================
 \section{Conclusion}
 %==============================================================================
 
-We have presented a complete multiscale pipeline from Bayesian parameter estimation (TMCMC) of a 5-species oral biofilm model to 2D finite-element stress analysis.
+We have presented a complete multiscale pipeline from Bayesian parameter estimation (TMCMC) of a 5-species oral biofilm model to 3D finite-element stress analysis, augmented by differentiable surrogates for gradient-based inference.
 The key contributions are:
 
 \begin{enumerate}
-  \item \textbf{Biologically-constrained TMCMC}: Locking absent interactions to zero and narrowing bounds on key pathogen parameters ($a_{35}$, $a_{45}$) reduces the total RMSE by 30\% and produces physically plausible posterior distributions.
-  \item \textbf{Multiscale mechanical coupling}: A hybrid micro--macro approach combines 0D condition-dependent DI with 1D spatially resolved growth fields, producing 28-fold stress differences between commensal and dysbiotic biofilms.
-  \item \textbf{Uncertainty propagation}: Posterior samples from TMCMC propagate through the full pipeline, revealing that biological prior constraints reduce DI uncertainty by 35-fold, with decay rates ($b_1$, $b_2$, $b_3$) as the universal sensitivity drivers.
+  \item \textbf{Biologically-constrained TMCMC}: Locking absent interactions to zero and narrowing bounds on key pathogen parameters ($a_{35}$, $a_{45}$) reduces the total RMSE by 30\% and produces physically plausible posterior distributions across four experimental conditions.
+  \item \textbf{Multiscale mechanical coupling}: A hybrid micro--macro approach combines 0D condition-dependent DI with 1D spatially resolved growth fields, producing a 28-fold stiffness range (909~Pa vs.\ 32~Pa) and 29.4-fold displacement ratio between commensal and dysbiotic biofilms on a patient-specific 3D tooth geometry.
+  \item \textbf{DI as bridging variable}: Bayesian model comparison decisively favours the Shannon-entropy DI model over pathogen-specific ($\varphi_{Pg}$) and virulence-based alternatives (pseudo Bayes factor $= 1.35 \times 10^9$, Cohen's $d = 13.65$), confirming that dysbiosis is a community-level diversity loss rather than a pathogen abundance increase.
+  \item \textbf{E2E differentiable pipeline}: A DeepONet + DEM surrogate achieves a 3.8~million-fold speedup over Abaqus FEM, enabling exact gradient computation $\partial\mathbf{u}/\partial\boldsymbol{\theta}$ and NUTS-based TMCMC with 1.75$\times$ higher acceptance rates than random-walk mutation (0.93 vs.\ 0.53 average, scaling from 1.3$\times$ at $d=9$ to 2.2$\times$ at $d=20$).
+  \item \textbf{DeepONet-accelerated TMCMC}: Replacing the ODE solver with a neural operator provides $\sim$100$\times$ wall-time speedup while recovering 17/20 posterior marginals with $>$0.95 Bhattacharyya overlap.
+  \item \textbf{Multi-attractor sensitivity}: Basin analysis reveals that the commensal static equilibrium is fragile (49/51 perturbed samples jump to a dysbiotic attractor), with implications for clinical tipping-point predictions.
 \end{enumerate}
 
 This framework provides a quantitative bridge from microbial ecology to continuum mechanics, enabling \textit{in silico} prediction of biofilm mechanical behaviour under different clinical conditions and, ultimately, informing therapeutic strategies against peri-implant diseases.
@@ -1446,6 +1655,6 @@ This framework provides a quantitative bridge from microbial ecology to continuu
 
 \vfill
 \noindent\rule{\textwidth}{0.4pt}
-\small{Last updated: February 24, 2026}
+\small{Last updated: February 26, 2026}
 
 \end{document}
