@@ -1,0 +1,43 @@
+name: LaTeX Build
+
+on:
+  push:
+    paths:
+      - 'data_5species/docs/**.tex'
+      - 'data_5species/docs/**.bib'
+  pull_request:
+    paths:
+      - 'data_5species/docs/**.tex'
+      - 'data_5species/docs/**.bib'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile LaTeX
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: data_5species/docs/nishioka_latex20260218.tex
+          latexmk_use_xelatex: false
+          extra_system_packages: "bibtex"
+
+      - name: Check for undefined references
+        run: |
+          cd data_5species/docs
+          if grep -c "Citation.*undefined" nishioka_latex20260218.log 2>/dev/null; then
+            echo "::warning::Found undefined citations"
+            grep "Citation.*undefined" nishioka_latex20260218.log || true
+          fi
+          if grep -c "Reference.*undefined" nishioka_latex20260218.log 2>/dev/null; then
+            echo "::warning::Found undefined references"
+            grep "Reference.*undefined" nishioka_latex20260218.log || true
+          fi
+
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-draft
+          path: data_5species/docs/nishioka_latex20260218.pdf
+          retention-days: 30
