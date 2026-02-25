@@ -1,0 +1,5 @@
+# GNN project (Issue #39) dependencies
+torch>=2.0
+torch-geometric>=2.3
+numpy
+scipy

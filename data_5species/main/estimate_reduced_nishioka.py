@@ -2009,13 +2009,17 @@ def run_estimation(
         # Use DeepONet if available
         if deeponet_surrogate is not None:
             from core.evaluator import DeepONetEvaluator
+            # Map ODE idx_sparse (0..maxtimestep-1) to DeepONet 100-point grid (0..99)
+            maxtimestep = getattr(args, "maxtimestep", 2500)
+            idx_sparse_don = np.round(idx_sparse * 99.0 / max(maxtimestep - 1, 1)).astype(int)
+            idx_sparse_don = np.clip(idx_sparse_don, 0, 99)
             return DeepONetEvaluator(
                 surrogate=deeponet_surrogate,
                 active_species=active_species,
                 active_indices=active_indices,
                 theta_base=theta_base,
                 data=data,
-                idx_sparse=idx_sparse,
+                idx_sparse=idx_sparse_don,
                 sigma_obs=sigma_obs,
                 rho=0.0,
                 weights=likelihood_weights,
@@ -2038,6 +2042,35 @@ def run_estimation(
             weights=likelihood_weights,
         )
 
+    # GNN prior (Issue #39)
+    gnn_prior_obj = None
+    if getattr(args, 'use_gnn_prior', False):
+        try:
+            from data_5species.core.gnn_prior import GNNPrior
+            locked = [i for i, (lo, hi) in enumerate(prior_bounds) if abs(hi - lo) < 1e-12]
+            if getattr(args, 'gnn_prior_json', None):
+                json_path = Path(args.gnn_prior_json)
+                if not json_path.is_absolute():
+                    json_path = Path(__file__).resolve().parent.parent.parent / json_path
+                gnn_prior_obj = GNNPrior.from_json(
+                    str(json_path),
+                    sigma=args.gnn_sigma,
+                    weight=args.gnn_weight,
+                    locked_indices=locked,
+                )
+                logger.info(f"GNN prior from JSON: {args.gnn_prior_json}")
+            else:
+                gnn_prior_obj = GNNPrior.load(
+                    checkpoint=args.gnn_checkpoint,
+                    condition=f"{args.condition}_{args.cultivation}",
+                    sigma=args.gnn_sigma,
+                    weight=args.gnn_weight,
+                    locked_indices=locked,
+                )
+                logger.info(f"GNN prior loaded: sigma={args.gnn_sigma}, weight={args.gnn_weight}")
+        except Exception as e:
+            logger.warning(f"Failed to load GNN prior: {e}. Falling back to uniform prior.")
+
     # Run TMCMC
     logger.info("Starting TMCMC estimation...")
     start_time = time.time()
@@ -2058,6 +2091,7 @@ def run_estimation(
         seed=args.seed,
         n_jobs=args.n_jobs,
         debug_config=debug_config,
+        gnn_prior=gnn_prior_obj,
     )
 
     elapsed = time.time() - start_time
@@ -2259,6 +2293,17 @@ Examples:
     parser.add_argument("--n-chains", type=int, default=2, help="Number of chains")
     parser.add_argument("--n-jobs", type=int, default=12, help="Parallel jobs")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--use-gnn-prior", action="store_true",
+                        help="Use GNN-informed prior (Issue #39)")
+    parser.add_argument("--gnn-checkpoint", type=str,
+                        default="gnn/data/checkpoints/best.pt",
+                        help="Path to GNN checkpoint")
+    parser.add_argument("--gnn-sigma", type=float, default=1.0,
+                        help="GNN prior sigma (smaller = tighter prior)")
+    parser.add_argument("--gnn-weight", type=float, default=1.0,
+                        help="GNN prior weight in log-posterior")
+    parser.add_argument("--gnn-prior-json", type=str, default=None,
+                        help="Path to gnn_prior.json from predict_hmp.py (Phase 2 HMP)")
 
     # Output options
     parser.add_argument("--output-dir", type=str, default=None,
@@ -2313,9 +2358,9 @@ Examples:
     parser.add_argument("--vd-sigma-factor", type=float, default=2.0,
                         help="V. dispar sigma multiplier (default: 2.0)")
 
-    # DeepONet surrogate (384× speedup)
+    # DeepONet surrogate (~80× per-sample, ~29× E2E TMCMC)
     parser.add_argument("--use-deeponet", action="store_true",
-                        help="Use DeepONet surrogate instead of ODE solver (384× faster)")
+                        help="Use DeepONet surrogate instead of ODE solver (~80× per-sample, ~29× E2E)")
     parser.add_argument("--deeponet-checkpoint", type=str, default=None,
                         help="Path to DeepONet checkpoint dir (default: auto-detect from condition)")
 
