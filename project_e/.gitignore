@@ -1,0 +1,9 @@
+# Checkpoints (regenerable)
+checkpoints/
+*.pt
+
+# Synthetic data (regenerable)
+*.npz
+
+# Normalization params (regenerable)
+theta_norm_params.npz
