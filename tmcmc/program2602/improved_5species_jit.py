@@ -412,12 +412,9 @@ class BiofilmNewtonSolver5S:
         g_prev[11] = 0.0
 
         if self.use_numba:
-            # Need JIT wrapper for loop
             return self._run_loop_jit(theta, g_prev, A, b_diag)
         else:
-            # Fallback python loop (not implemented fully for brevity, assume numba)
-            # Or implement simple python loop if needed
-            raise NotImplementedError("Pure Python fallback not implemented for 5S solver yet.")
+            return self._run_loop_python(theta, g_prev, A, b_diag)
 
     def _run_loop_jit(self, theta, g_prev, A, b_diag):
         return _run_deterministic_jit_5s(
@@ -425,6 +422,50 @@ class BiofilmNewtonSolver5S:
             self.Eta_vec, self.Eta_phi_vec, self.c_const, self.alpha_const,
             A, b_diag, self.max_newton_iter, self.K_hill, self.n_hill
         )
+
+    def _run_loop_python(self, theta, g_prev, A, b_diag):
+        """Pure Python fallback for time-stepping (no numba required)."""
+        dt = self.dt
+        maxtimestep = self.maxtimestep
+        eps_base = self.eps
+        Kp1 = self.Kp1
+        Eta_vec = self.Eta_vec
+        Eta_phi_vec = self.Eta_phi_vec
+        c_val = self.c_const
+        alpha_val = self.alpha_const
+        K_hill = self.K_hill
+        n_hill = self.n_hill
+        max_newton = self.max_newton_iter
+
+        t_arr = np.empty(maxtimestep + 1, dtype=np.float64)
+        g_arr = np.empty((maxtimestep + 1, 12), dtype=np.float64)
+        t_arr[0] = 0.0
+        g_arr[0] = g_prev.copy()
+
+        for step in range(maxtimestep):
+            tt = (step + 1) * dt
+            tol_t = eps_base * (1.0 + 10.0 * tt)
+
+            # Newton iteration (pure Python)
+            g_new = g_prev.copy()
+            for _ in range(max_newton):
+                Q = self.compute_Q_vector(g_new, g_prev, tt, dt, A, b_diag)
+                if not np.all(np.isfinite(Q)):
+                    break
+                K_mat = self.compute_Jacobian_matrix(g_new, g_prev, tt, dt, A, b_diag)
+                try:
+                    delta = np.linalg.solve(K_mat, -Q)
+                except np.linalg.LinAlgError:
+                    break
+                g_new = g_new + delta
+                if np.linalg.norm(delta) < tol_t:
+                    break
+
+            g_prev = g_new.copy()
+            t_arr[step + 1] = tt
+            g_arr[step + 1] = g_prev.copy()
+
+        return t_arr, g_arr
 
     # Alias for compatibility with BiofilmTSM5S which calls solver.solve()
     solve = run_deterministic
@@ -547,26 +588,35 @@ def _compute_Q_vector_numpy_5s(phi_new, phi0_new, psi_new, gamma_new,
     return Q
 
 
-@njit(cache=False, fastmath=True)
-def _run_deterministic_jit_5s(g_prev, dt, maxtimestep, eps_base, Kp1,
-                              Eta_vec, Eta_phi_vec, c_val, alpha_val,
-                              A, b_diag, max_newton_iter, K_hill, n_hill):
-    t_arr = np.empty(maxtimestep + 1, dtype=np.float64)
-    g_arr = np.empty((maxtimestep + 1, 12), dtype=np.float64)
-    t_arr[0] = 0.0
-    g_arr[0] = g_prev
+if HAS_NUMBA:
+    @njit(cache=False, fastmath=True)
+    def _run_deterministic_jit_5s(g_prev, dt, maxtimestep, eps_base, Kp1,
+                                  Eta_vec, Eta_phi_vec, c_val, alpha_val,
+                                  A, b_diag, max_newton_iter, K_hill, n_hill):
+        t_arr = np.empty(maxtimestep + 1, dtype=np.float64)
+        g_arr = np.empty((maxtimestep + 1, 12), dtype=np.float64)
+        t_arr[0] = 0.0
+        g_arr[0] = g_prev
 
-    for step in range(maxtimestep):
-        tt = (step + 1) * dt
-        tol_t = eps_base * (1.0 + 10.0 * tt)
-        
-        g_new = _newton_step_jit_5s(
-            g_prev, dt, Kp1, Eta_vec, Eta_phi_vec,
-            c_val, alpha_val, A, b_diag,
-            tol_t, max_newton_iter, K_hill, n_hill
+        for step in range(maxtimestep):
+            tt = (step + 1) * dt
+            tol_t = eps_base * (1.0 + 10.0 * tt)
+
+            g_new = _newton_step_jit_5s(
+                g_prev, dt, Kp1, Eta_vec, Eta_phi_vec,
+                c_val, alpha_val, A, b_diag,
+                tol_t, max_newton_iter, K_hill, n_hill
+            )
+            g_prev = g_new
+            t_arr[step + 1] = tt
+            g_arr[step + 1] = g_prev
+
+        return t_arr, g_arr
+else:
+    def _run_deterministic_jit_5s(g_prev, dt, maxtimestep, eps_base, Kp1,
+                                  Eta_vec, Eta_phi_vec, c_val, alpha_val,
+                                  A, b_diag, max_newton_iter, K_hill, n_hill):
+        raise NotImplementedError(
+            "Pure Python fallback not implemented for 5S time loop. "
+            "Install numba: pip install numba"
         )
-        g_prev = g_new
-        t_arr[step + 1] = tt
-        g_arr[step + 1] = g_prev
-        
-    return t_arr, g_arr
