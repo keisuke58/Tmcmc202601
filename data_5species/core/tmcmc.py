@@ -393,16 +393,17 @@ def run_TMCMC(
     force_beta_one: bool = False,  # ★ If True, force β=1.0 at final stage (paper runs)
     n_jobs: Optional[int] = None,  # ★ Number of parallel jobs for particle evaluation (None = auto, 1 = sequential)
     use_threads: bool = False,  # ★ Use threads instead of processes (for GIL-friendly code)
+    gnn_prior: Optional[Any] = None,  # ★ GNNPrior instance (Project B, Issue #39)
 ) -> TMCMCResult:
     """
     Transitional MCMC (TMCMC) with β tempering + Linearization Update.
-    
+
     ★ 論文通りにβ（tempering）を入れることで、精度・安定性が向上！
     ★ さらに、各stageで線形化点を更新することで、TSM-ROMの精度が向上！
-    
+
     TMCMCはβ=0（事前分布）からβ=1（事後分布）へ段階的に遷移することで、
     多峰性や鋭いピークがある場合でも安定した探索が可能。
-    
+
     線形化点更新機能：
     - 各stageの後にMAPを計算
     - 一定間隔（update_linearization_interval）で線形化点を更新
@@ -470,13 +471,21 @@ def run_TMCMC(
         for i, (low, high) in enumerate(prior_bounds):
             if not (low <= theta[i] <= high):
                 return -np.inf
+        # GNN-informed soft prior (Issue #39)
+        if gnn_prior is not None:
+            return gnn_prior.log_density(theta)
         return 0.0
-    
+
     # Initialize particles from prior
     theta = np.zeros((n_particles, n_params))
-    for i in range(n_particles):
-        for j, (low, high) in enumerate(prior_bounds):
-            theta[i, j] = rng.uniform(low, high)
+    if gnn_prior is not None:
+        logger.info(f"[{model_name}] Using GNN-guided particle initialization")
+        for i in range(n_particles):
+            theta[i] = gnn_prior.sample(rng, prior_bounds)
+    else:
+        for i in range(n_particles):
+            for j, (low, high) in enumerate(prior_bounds):
+                theta[i, j] = rng.uniform(low, high)
     
     # Evaluate initial log-likelihood (parallelized)
     # ★ DIAGNOSTIC: Log parallelization settings
@@ -1696,10 +1705,11 @@ def run_multi_chain_TMCMC(
     force_beta_one: bool = False,  # ★ If True, force β=1.0 at final stage (paper runs)
     n_jobs: Optional[int] = None,  # ★ Number of parallel jobs for particle evaluation (None = auto, 1 = sequential)
     use_threads: bool = False,  # ★ Use threads instead of processes (for GIL-friendly code)
+    gnn_prior: Optional[Any] = None,  # ★ GNNPrior instance (Project B, Issue #39)
 ) -> Tuple[List[np.ndarray], List[np.ndarray], np.ndarray, List[bool], Dict]:
     """
     Run multiple TMCMC chains sequentially with diagnostics + Linearization Update.
-    
+
     ★ TMCMC版のマルチチェーン実行関数（β tempering + 線形化点更新）
     
     ★ 重要な改善点：
@@ -1825,6 +1835,7 @@ def run_multi_chain_TMCMC(
             linearization_enable_rom_threshold=linearization_enable_rom_threshold,
             debug_logger=debug_logger,  # ★ Pass debug logger
             force_beta_one=force_beta_one,
+            gnn_prior=gnn_prior,  # ★ GNN prior (Issue #39)
         )
         
         all_samples.append(result.samples)
