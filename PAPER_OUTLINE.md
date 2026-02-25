@@ -21,7 +21,7 @@
 | **Fig 13** | von Mises / displacement comparison | `generate_paper_figures.py` | DONE |
 | **Fig 14** | Klempt 2024 nutrient benchmark | `generate_paper_figures.py` | DONE |
 | **Fig 15** | Posterior → DI → E uncertainty propagation | `generate_paper_figures.py` | DONE |
-| **Fig 16** | **NEW: Basin sensitivity / multi-attractor** | `plot_basin_sensitivity.py` | TODO |
+| **Fig 16** | **NEW: Basin sensitivity / multi-attractor** | `plot_basin_sensitivity.py` | DONE |
 | **Fig 17** | **NEW: 3-model comparison (DI vs φ_Pg vs Vir)** | existing `3model_comparison_3d.png` | EXISTS |
 
 ---
