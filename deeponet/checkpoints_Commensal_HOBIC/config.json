@@ -1,0 +1,13 @@
+{
+  "p": 64,
+  "hidden": 128,
+  "n_layers": 3,
+  "theta_dim": 20,
+  "n_species": 5,
+  "n_params": 168069,
+  "n_train": 9000,
+  "n_epochs": 500,
+  "batch_size": 256,
+  "lr": 0.001,
+  "best_val_loss": 8.711079317436088e-06
+}
