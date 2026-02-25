@@ -48,11 +48,14 @@ def download_hmp_data(data_dir: Path = HMP_DATA_DIR):
     map_bz2 = data_dir / "v35_map_uniquebyPSN.txt.bz2"
 
     for url, dest in [(OTU_URL, otu_gz), (MAP_URL, map_bz2)]:
-        if dest.exists():
+        if dest.exists() and dest.stat().st_size > 0:
             print(f"  Already exists: {dest.name}")
             continue
         print(f"  Downloading {url} ...")
-        subprocess.run(["wget", "-q", "-O", str(dest), url], check=True)
+        try:
+            subprocess.run(["wget", "-q", "-O", str(dest), url], check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            subprocess.run(["curl", "-L", "-o", str(dest), url], check=True)
         print(f"  Saved: {dest}")
 
     # Decompress
@@ -322,9 +325,115 @@ def build_gnn_training_from_hmp(data_dir: Path = HMP_DATA_DIR, n_augment: int = 
     print(f"  Saved: {out_path} ({len(theta_list)} samples)")
 
 
+def build_offline_multi_condition(n_augment: int = 20, seed: int = 42):
+    """Offline mode: build multi-condition training data from existing TMCMC posteriors.
+
+    Uses theta_MAP and posterior samples from 4 conditions to generate
+    diverse (composition, a_ij) pairs without needing HMP download.
+
+    This is the recommended path when internet access is unavailable.
+    """
+    project_root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(project_root / "tmcmc" / "program2602"))
+    from improved_5species_jit import BiofilmNewtonSolver5S
+
+    sys.path.insert(0, str(Path(__file__).parent))
+    from generate_training_data import load_prior_bounds, ACTIVE_EDGE_THETA_IDX
+
+    runs_dir = project_root / "data_5species" / "_runs"
+    conditions = {
+        "commensal_static": "Commensal_Static",
+        "commensal_hobic": "Commensal_HOBIC",
+        "dysbiotic_static": "Dysbiotic_Static",
+        "dh_baseline": "Dysbiotic_HOBIC",
+    }
+
+    rng = np.random.default_rng(seed)
+    solver = BiofilmNewtonSolver5S(maxtimestep=500, dt=1e-5)
+    n_time_out = 100
+
+    all_theta, all_phi_mean, all_phi_std, all_phi_final, all_aij = [], [], [], [], []
+    all_conditions = []
+
+    for dirname, cond_key in conditions.items():
+        print(f"\n  --- {cond_key} ---")
+        bounds = load_prior_bounds(cond_key)
+
+        # Load MAP and posterior if available
+        map_path = runs_dir / dirname / "theta_MAP.json"
+        samples_path = runs_dir / dirname / "samples.npy"
+
+        anchors = []
+        if samples_path.exists():
+            posterior = np.load(samples_path)
+            anchors = list(posterior)
+            print(f"    Loaded {len(anchors)} posterior samples")
+        elif map_path.exists():
+            with open(map_path) as f:
+                d = json.load(f)
+            theta_map = np.array(d.get("theta_full", d))
+            anchors = [theta_map]
+            print(f"    Loaded MAP estimate")
+
+        if not anchors:
+            print(f"    WARNING: No data for {dirname}, skipping")
+            continue
+
+        count = 0
+        for anchor in anchors:
+            for _ in range(n_augment):
+                # Perturb anchor within bounds
+                theta = np.copy(anchor)
+                for i in range(20):
+                    lo, hi = bounds[i]
+                    if abs(hi - lo) < 1e-12:
+                        theta[i] = lo
+                    else:
+                        sigma = 0.15 * (hi - lo)
+                        theta[i] = np.clip(rng.normal(theta[i], sigma), lo, hi)
+
+                try:
+                    t_arr, g_arr = solver.run_deterministic(theta)
+                    phi = g_arr[:, :5]
+                    if np.any(~np.isfinite(phi)) or np.any(phi < -0.5) or np.any(phi > 1.5):
+                        continue
+
+                    t_out = np.linspace(t_arr[0], t_arr[-1], n_time_out)
+                    phi_out = np.array([np.interp(t_out, t_arr, phi[:, s]) for s in range(5)]).T
+
+                    all_theta.append(theta)
+                    all_phi_mean.append(np.mean(phi_out, axis=0))
+                    all_phi_std.append(np.std(phi_out, axis=0))
+                    all_phi_final.append(phi_out[-1])
+                    all_aij.append(theta[ACTIVE_EDGE_THETA_IDX])
+                    all_conditions.append(cond_key)
+                    count += 1
+                except Exception:
+                    continue
+
+        print(f"    Generated {count} valid samples")
+
+    if not all_theta:
+        print("  ERROR: No valid samples generated.")
+        return
+
+    out_path = Path(__file__).parent / "data" / f"train_gnn_multi_N{len(all_theta)}.npz"
+    np.savez_compressed(
+        out_path,
+        theta=np.array(all_theta),
+        phi_mean=np.array(all_phi_mean, dtype=np.float32),
+        phi_std=np.array(all_phi_std, dtype=np.float32),
+        phi_final=np.array(all_phi_final, dtype=np.float32),
+        a_ij_active=np.array(all_aij, dtype=np.float32),
+        conditions=np.array(all_conditions),
+    )
+    print(f"\n  Saved: {out_path} ({len(all_theta)} samples across {len(conditions)} conditions)")
+
+
 def main():
     parser = argparse.ArgumentParser(description="HMP oral microbiome pipeline for GNN")
-    parser.add_argument("step", choices=["download", "preprocess", "build-training", "all"],
+    parser.add_argument("step", choices=["download", "preprocess", "build-training",
+                                         "offline", "all"],
                         help="Pipeline step to run")
     parser.add_argument("--data-dir", type=str, default=str(HMP_DATA_DIR))
     parser.add_argument("--n-augment", type=int, default=5,
@@ -332,6 +441,11 @@ def main():
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir)
+
+    if args.step == "offline":
+        print("=== Offline: Build multi-condition data from TMCMC posteriors ===")
+        build_offline_multi_condition(n_augment=args.n_augment)
+        return
 
     if args.step in ("download", "all"):
         print("=== Step 1: Download HMP data ===")

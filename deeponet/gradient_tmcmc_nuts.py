@@ -357,6 +357,7 @@ def tmcmc_engine(
     seed=42,
     label=None,
     verbose=True,
+    log_prior_fn=None,   # GNN prior: theta → scalar (JAX)
 ):
     """
     Unified TMCMC with selectable mutation kernel.
@@ -364,6 +365,10 @@ def tmcmc_engine(
     Args:
         mutation: "rw" (random-walk), "hmc" (fixed leapfrog), "nuts" (auto)
         warmup_stages: number of stages for NUTS step-size adaptation
+        log_prior_fn: optional JAX function theta → log_prior(theta).
+            If provided, target at stage j is: log_prior(θ) + β_j * log_L(θ).
+            Importance weights still use only L(θ)^{Δβ}.
+            Initial particles are sampled from prior (within bounds).
     """
     if label is None:
         label = f"{mutation.upper()}-TMCMC"
@@ -377,7 +382,7 @@ def tmcmc_engine(
     free_dims = np.where(free_mask)[0]
     d_free = len(free_dims)
 
-    # Sample from prior
+    # Sample from prior (GNN-informed or uniform)
     particles = np.zeros((n_particles, d), dtype=np.float32)
     for i in range(d):
         lo, hi = prior_bounds[i]
@@ -386,11 +391,44 @@ def tmcmc_engine(
         else:
             particles[:, i] = rng.uniform(lo, hi, n_particles)
 
+    has_gnn_prior = log_prior_fn is not None
+    if has_gnn_prior:
+        # Build composite target: log_target = log_prior + beta * log_L
+        log_prior_jit = jax.jit(log_prior_fn)
+        # Resample initial particles from GNN prior (within bounds)
+        # Rejection sampling: accept if log_prior > threshold
+        _lp = np.array([float(log_prior_jit(jnp.array(p))) for p in particles])
+        # Keep top 70% by prior density, resample rest
+        thresh = np.percentile(_lp, 30)
+        for idx in range(n_particles):
+            if _lp[idx] < thresh:
+                # Resample until above threshold (max 20 tries)
+                for _ in range(20):
+                    cand = particles[idx].copy()
+                    for dim_i in free_dims:
+                        lo, hi = prior_bounds[dim_i]
+                        cand[dim_i] = rng.uniform(lo, hi)
+                    lp_cand = float(log_prior_jit(jnp.array(cand)))
+                    if lp_cand >= thresh:
+                        particles[idx] = cand
+                        break
+
     if verbose:
-        print(f"\n{label}: {n_particles} particles, {d_free} free dims, mutation={mutation}")
+        prior_label = " + GNN prior" if has_gnn_prior else ""
+        print(f"\n{label}: {n_particles} particles, {d_free} free dims, "
+              f"mutation={mutation}{prior_label}")
     t0 = time.time()
 
     logL_jit = jax.jit(log_likelihood)
+    # For gradient-based methods, target = log_prior + beta * log_L
+    if has_gnn_prior:
+        def _composite_logL_and_grad(theta, beta_val):
+            lp = log_prior_fn(theta)
+            ll, gl = jax.value_and_grad(log_likelihood)(theta)
+            _, gp = jax.value_and_grad(log_prior_fn)(theta)
+            return lp + beta_val * ll, gp + beta_val * gl
+        # Pre-JIT the prior gradient
+        _prior_vg_jit = jax.jit(jax.value_and_grad(log_prior_fn))
     grad_jit = jax.jit(jax.value_and_grad(log_likelihood))
 
     logL = np.array([float(logL_jit(jnp.array(p))) for p in particles])
@@ -449,9 +487,19 @@ def tmcmc_engine(
         logL = logL[idx].copy()
 
         # --- Mutation ---
-        def tempered_vg(theta):
-            val, grad = grad_jit(theta)
-            return beta_new * val, beta_new * grad
+        # Target at stage j: log_prior(θ) + β_j * log_L(θ)
+        # For gradient methods, we need value_and_grad of the full target.
+        if has_gnn_prior:
+            _beta_new = jnp.float32(beta_new)
+            @jax.jit
+            def tempered_vg(theta):
+                lp, gp = _prior_vg_jit(theta)
+                ll, gl = grad_jit(theta)
+                return lp + _beta_new * ll, gp + _beta_new * gl
+        else:
+            def tempered_vg(theta):
+                val, grad = grad_jit(theta)
+                return beta_new * val, beta_new * grad
 
         n_accept = 0
         n_leapfrog_stage = 0
@@ -476,7 +524,12 @@ def tmcmc_engine(
                 )
                 if in_bounds:
                     logL_new = float(logL_jit(jnp.array(proposal)))
-                    log_alpha = beta_new * (logL_new - logL[i])
+                    if has_gnn_prior:
+                        lp_old = float(log_prior_jit(jnp.array(particles[i])))
+                        lp_new = float(log_prior_jit(jnp.array(proposal)))
+                        log_alpha = (lp_new - lp_old) + beta_new * (logL_new - logL[i])
+                    else:
+                        log_alpha = beta_new * (logL_new - logL[i])
                     if np.log(rng.random()) < log_alpha:
                         particles[i] = proposal
                         logL[i] = logL_new
@@ -494,7 +547,12 @@ def tmcmc_engine(
                 n_leapfrog_stage += hmc_n_leapfrog
                 if bool(accepted):
                     particles[i] = np.array(new_theta)
-                    logL[i] = float(new_logp) / beta_new
+                    # Extract log_likelihood only (remove prior) for storage
+                    if has_gnn_prior:
+                        lp = float(log_prior_jit(new_theta))
+                        logL[i] = (float(new_logp) - lp) / beta_new
+                    else:
+                        logL[i] = float(new_logp) / beta_new
                     n_accept += 1
 
         elif mutation == "nuts":
@@ -512,7 +570,11 @@ def tmcmc_engine(
                 accept_probs.append(ap)
                 if accepted:
                     particles[i] = np.array(new_theta)
-                    logL[i] = float(new_logp) / beta_new
+                    if has_gnn_prior:
+                        lp = float(log_prior_jit(new_theta))
+                        logL[i] = (float(new_logp) - lp) / beta_new
+                    else:
+                        logL[i] = float(new_logp) / beta_new
                     n_accept += 1
 
             # Dual averaging during warmup stages
@@ -771,6 +833,66 @@ def load_prior_bounds(condition):
 
 
 # ============================================================
+# GNN Prior — Informative Gaussian prior from InteractionGNN
+# ============================================================
+GNN_DIR = PROJECT_ROOT / "gnn"
+ACTIVE_THETA_IDX = [1, 10, 11, 18, 19]  # θ indices for 5 active edges
+GNN_PREDICTIONS_FILE = GNN_DIR / "data" / "gnn_prior_predictions.json"
+
+
+def load_gnn_predictions(path=None):
+    """
+    Load pre-computed GNN predictions from JSON.
+
+    The JSON is generated by gnn/predict_for_tmcmc.py (runs in torch env).
+    This avoids needing torch in the JAX environment.
+
+    Returns:
+        dict: condition → {"a_ij_pred": [...], "a_ij_free": [...], ...}
+    """
+    fpath = Path(path) if path else GNN_PREDICTIONS_FILE
+    if not fpath.exists():
+        raise FileNotFoundError(
+            f"GNN predictions not found at {fpath}\n"
+            f"Run: cd gnn && python predict_for_tmcmc.py")
+    with open(fpath) as f:
+        return json.load(f)
+
+
+def get_gnn_prior_for_condition(gnn_preds, condition):
+    """Get a_ij predictions for a specific condition."""
+    if condition not in gnn_preds:
+        raise KeyError(f"No GNN prediction for {condition}")
+    entry = gnn_preds[condition]
+    return np.array(entry["a_ij_pred"], dtype=np.float32)
+
+
+def make_gnn_log_prior(gnn_predictions, sigma_prior=1.0, prior_bounds=None):
+    """
+    Create a JAX-compatible Gaussian log-prior for active edges.
+
+    log p(θ) = -0.5 * Σ_k ((θ[idx_k] - μ_k) / σ)²
+
+    Args:
+        gnn_predictions: (5,) GNN-predicted a_ij values
+        sigma_prior: prior width (default 1.0)
+        prior_bounds: (20, 2) bounds for clipping
+
+    Returns:
+        JAX function: theta → log_prior(theta)
+    """
+    mu = jnp.array(gnn_predictions, dtype=jnp.float32)
+    sigma = jnp.float32(sigma_prior)
+    idx = jnp.array(ACTIVE_THETA_IDX, dtype=jnp.int32)
+
+    def log_prior(theta):
+        theta_active = theta[idx]
+        return -0.5 * jnp.sum(((theta_active - mu) / sigma) ** 2)
+
+    return log_prior
+
+
+# ============================================================
 # Main
 # ============================================================
 def main():
@@ -793,13 +915,28 @@ def main():
     parser.add_argument("--nuts-max-depth", type=int, default=6)
     parser.add_argument("--paper-fig", action="store_true",
                         help="Generate paper-quality figures")
+    parser.add_argument("--gnn-prior", action="store_true",
+                        help="Use GNN-predicted a_ij as informative Gaussian prior")
+    parser.add_argument("--gnn-sigma", type=float, default=1.0,
+                        help="Width of GNN Gaussian prior (default: 1.0)")
+    parser.add_argument("--gnn-predictions", type=str, default=None,
+                        help="Path to GNN predictions JSON (default: gnn/data/gnn_prior_predictions.json)")
     args = parser.parse_args()
 
     print("=" * 70)
     print("NUTS-TMCMC: Gradient-Based TMCMC")
+    if args.gnn_prior:
+        print(f"  + GNN Prior (sigma={args.gnn_sigma})")
     print("=" * 70)
 
     dem_model = load_dem()
+
+    # Load GNN predictions if requested
+    gnn_preds = None
+    if args.gnn_prior:
+        print("Loading GNN predictions...")
+        gnn_preds = load_gnn_predictions(args.gnn_predictions)
+        print(f"  Loaded predictions for {list(gnn_preds.keys())}")
 
     conditions = (list(CONDITION_CHECKPOINTS.keys()) if args.all_conditions
                   else [args.condition])
@@ -817,6 +954,18 @@ def main():
         prior_bounds = load_prior_bounds(cond)
         free_dims = np.where(
             np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12)[0]
+
+        # Build GNN prior if requested
+        log_prior_fn = None
+        if args.gnn_prior and gnn_preds is not None:
+            try:
+                gnn_pred = get_gnn_prior_for_condition(gnn_preds, cond)
+                print(f"  GNN prior: a_ij = {gnn_pred.round(3)} (sigma={args.gnn_sigma})")
+                log_prior_fn = make_gnn_log_prior(
+                    gnn_pred, sigma_prior=args.gnn_sigma, prior_bounds=prior_bounds)
+            except Exception as e:
+                print(f"  WARNING: GNN prior failed ({e}), falling back to uniform")
+                log_prior_fn = None
 
         # Build log-likelihood
         if args.real:
@@ -870,12 +1019,14 @@ def main():
                     hmc_step_size=args.hmc_step_size,
                     hmc_n_leapfrog=args.hmc_n_leapfrog,
                     nuts_max_depth=args.nuts_max_depth,
+                    log_prior_fn=log_prior_fn,
                 )
                 results.append(r)
 
             # Summary
             print(f"\n{'='*70}")
             print(f"COMPARISON: {cond}")
+            gnn_tag = " + GNN prior" if log_prior_fn is not None else ""
             print(f"{'='*70}")
             print(f"{'Metric':<25} {'RW':>10} {'HMC':>10} {'NUTS':>10}")
             print("-" * 60)
@@ -906,6 +1057,7 @@ def main():
                 hmc_step_size=args.hmc_step_size,
                 hmc_n_leapfrog=args.hmc_n_leapfrog,
                 nuts_max_depth=args.nuts_max_depth,
+                log_prior_fn=log_prior_fn,
             )
 
             print(f"\n  Result: {r['n_stages']} stages, "
