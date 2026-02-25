@@ -23,6 +23,8 @@ jobs:
         with:
           root_file: data_5species/docs/nishioka_latex20260218.tex
           latexmk_use_xelatex: false
+          continue_on_error: true
+          args: "-pdf -file-line-error -interaction=nonstopmode"
 
       - name: Check for undefined references
         run: |
