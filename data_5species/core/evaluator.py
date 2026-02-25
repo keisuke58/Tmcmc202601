@@ -699,7 +699,7 @@ class DeepONetEvaluator:
     Log-likelihood evaluator using DeepONet surrogate (drop-in replacement for
     LogLikelihoodEvaluator).
 
-    Achieves ~384× speedup by replacing Newton ODE solver + TSM-ROM with a
+    Achieves ~80× per-sample speedup (~29× E2E TMCMC) by replacing Newton ODE solver + TSM-ROM with a
     pre-trained DeepONet operator network.
 
     Interface is identical to LogLikelihoodEvaluator:

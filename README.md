@@ -226,7 +226,7 @@ Tmcmc202601/
 │   ├── JAXFEM/                        # JAX-FEM modules
 │   └── external_tooth_models/         # Open-Full-Jaw STL (Git LFS)
 │
-├── deeponet/                  # DeepONet surrogate (384× speedup)
+├── deeponet/                  # DeepONet surrogate (~80× per-sample, ~29× E2E TMCMC)
 │   ├── deeponet_hamilton.py   #   Equinox-based DeepONet
 │   ├── generate_training_data.py  # Importance sampling data gen
 │   └── checkpoints_*/         #   Trained models
