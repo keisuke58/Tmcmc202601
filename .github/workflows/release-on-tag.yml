@@ -24,11 +24,11 @@ jobs:
           done
 
       - name: Compile LaTeX
+        continue-on-error: true
         uses: xu-cheng/latex-action@v4
         with:
           root_file: nishioka_latex20260218.tex
           working_directory: data_5species/docs
-          continue_on_error: true
           args: "-pdf -file-line-error -interaction=nonstopmode"
 
       - name: Create Release
