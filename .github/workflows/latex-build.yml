@@ -1,10 +1,12 @@
 name: LaTeX Build
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'data_5species/docs/**.tex'
       - 'data_5species/docs/**.bib'
+      - '.github/workflows/latex-build.yml'
   pull_request:
     paths:
       - 'data_5species/docs/**.tex'
