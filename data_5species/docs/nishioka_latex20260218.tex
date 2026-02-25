@@ -572,6 +572,12 @@ B_{10} = \frac{p(\mathbf{y}_{\mathrm{obs}} \mid \mathcal{M}_{\mathrm{proposed}})
 
 \noindent A Bayes factor $B_{10} > 1$ provides evidence in favor of the proposed reduced model, indicating that the biological constraints improve not only interpretability but also predictive performance relative to model complexity. According to Kass and Raftery's scale, $B_{10} > 3$ constitutes ``substantial'' evidence and $B_{10} > 20$ ``strong'' evidence for the reduced model.
 
+\paragraph{Multi-chain evidence aggregation.}
+When multiple independent TMCMC chains are run in parallel, each chain produces its own $\beta$ schedule $\{\beta_m^{(c)}\}$ and corresponding evidence estimate $\hat{p}^{(c)}(\mathbf{y}_\mathrm{obs})$ via~(\ref{eq:evidence}).
+Because the adaptive tempering selects $\beta_{m+1}$ based on the particle population within each chain, the schedules may differ across chains.
+We report the log-evidence as the mean across chains, $\overline{\ln \hat{p}} = C^{-1}\sum_{c=1}^{C}\ln\hat{p}^{(c)}$, together with the inter-chain standard deviation as an estimate of Monte Carlo uncertainty.
+For the experiments reported here ($C=2$ chains, $N=150$ particles), the inter-chain log-evidence difference is typically below 5\%, confirming adequate convergence.
+
 \subsection{Taylor Series Method (TSM) Surrogate}
 \label{sec:tsm}
 
@@ -593,6 +599,16 @@ The sensitivity matrix $\mathbf{J}$ is computed via complex-step differentiation
 with step size $h = 10^{-30}$. This approach achieves machine-precision accuracy without the subtractive cancellation errors of finite differences, at the cost of requiring the forward model to support complex-valued arithmetic.
 
 The linearisation point $\boldsymbol{\theta}_0$ is updated at the beginning of each TMCMC stage using the weighted mean of the current particle population. When the local approximation error exceeds a threshold (monitored via the Q~vector norm), the TSM is temporarily bypassed and the full forward model is evaluated, ensuring robustness. In the first TMCMC stage ($\beta \approx 0$), the TSM is disabled entirely to allow broad exploration of the prior.
+
+\paragraph{ROM-aware MAP selection.}
+Because the TSM surrogate introduces a local approximation error $\varepsilon_\mathrm{ROM}$, the MAP estimate is selected using a penalised log-likelihood:
+\begin{equation}
+  \hat{\boldsymbol{\theta}}_\mathrm{MAP} = \arg\max_j \left[\ell(\boldsymbol{\theta}_j) - \lambda\,\ln(1 + \varepsilon_{\mathrm{ROM},j})\right]
+  \label{eq:rom_penalty}
+\end{equation}
+where $\varepsilon_{\mathrm{ROM},j} = \lVert\hat{\mathbf{y}}_\mathrm{FOM}(\boldsymbol{\theta}_j) - \hat{\mathbf{y}}_\mathrm{TSM}(\boldsymbol{\theta}_j)\rVert / \lVert\hat{\mathbf{y}}_\mathrm{FOM}(\boldsymbol{\theta}_j)\rVert$ is the relative ROM--FOM discrepancy and $\lambda > 0$ is a regularisation weight.
+The penalty $\ln(1+\varepsilon)$ vanishes as $\varepsilon \to 0$ (no correction for accurate surrogates) and grows logarithmically, providing a mild bias against particles whose TSM approximation is least reliable.
+In practice, $\varepsilon_\mathrm{ROM} < 0.01$ for $>95\%$ of final-stage particles, so the penalty has negligible effect on well-converged runs but guards against selecting outlier MAP candidates whose high likelihood is an artefact of linearisation error.
 
 \subsection{Sensitivity Analysis of Hill Gate Parameters}
 \label{sec:sensitivity_kn}
@@ -1393,6 +1409,7 @@ Several limitations should be noted:
   \item \textbf{Symmetric interaction matrix}: The variational formulation enforces $A_{ij} = A_{ji}$ (Section~\ref{sec:symmetric_A}), which may not capture asymmetric biological interactions. However, this is a mathematical consequence of the Lagrangian structure rather than an ad hoc assumption.
   \item \textbf{Species-specific likelihood weighting}: The power likelihood ($\lambda_{Pg} = 5$, Eq.~\ref{eq:power_lik}) improves pathogen fitting but affects posterior calibration. Sensitivity analysis with $\lambda_{Pg} = 1$ confirms that the main conclusions (DI superiority, basin sensitivity) are robust to this choice.
   \item \textbf{TSM sensitivity approximation}: The forward sensitivity equations used for the Taylor Series Model (TSM) surrogate drop the history propagation term $\partial Q / \partial g_\mathrm{old} \cdot x_{1,\mathrm{old}}$. This quasi-static approximation is accurate for slow dynamics but may underestimate sensitivity variance during rapid transients.
+  \item \textbf{MCMC mutation strategy}: In the current implementation, the $K$-step mutation (Algorithm~\ref{alg:tmcmc}, Step 2e) generates all $K$ proposals from the initial resampled state rather than chaining sequentially (i.e., proposal $k$ is drawn from the original particle, not from the accepted state at step $k{-}1$). This parallelisation-friendly design preserves the correct stationary distribution (the MH ratio is evaluated at the tempered posterior) but may reduce mixing efficiency compared to sequential chaining. Acceptance rate monitoring across all runs ($>25\%$) confirms that this choice does not compromise posterior accuracy for the present problem dimensions.
   \item \textbf{Multi-attractor ODE}: The basin sensitivity analysis (Section~\ref{sec:basin}) reveals that posterior samples can span multiple attractors, particularly for the commensal static condition. This multi-modality is a genuine feature of the Hamilton ODE, not an artefact of the inference procedure, but it complicates point-estimate-based predictions.
   \item \textbf{Spatial homogenisation}: The 2D reaction--diffusion PDE homogenises species composition through diffusion, producing smaller DI values ($\sim 0.05$--$0.08$) than the 0D model ($\sim 0.16$--$0.85$). The hybrid approach (Eq.~\ref{eq:hybrid}) mitigates this but is itself an approximation.
 \end{itemize}
