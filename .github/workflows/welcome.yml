@@ -1,0 +1,33 @@
+name: Welcome
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: |
+            Thanks for opening this issue!
+
+            **Useful links:**
+            - [Wiki](https://github.com/keisuke58/Tmcmc202601/wiki) — Setup guides, parameter reference, results
+            - [Paper Progress](https://github.com/keisuke58/Tmcmc202601/discussions/55) — Current paper status
+            - [Documents & PDFs](https://keisuke58.github.io/Tmcmc202601/) — All PDFs with viewer
+          pr-message: |
+            Thanks for this PR!
+
+            **Checklist reminder:**
+            - [ ] LaTeX compiles (`pdflatex + bibtex`)
+            - [ ] No undefined citations
+            - [ ] Figures follow `FigNN_description.png` naming
+            - [ ] Core Python modules pass `py_compile`

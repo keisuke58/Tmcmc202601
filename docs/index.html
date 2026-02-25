@@ -3,6 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Multiscale Bayesian-Mechanical Framework for Oral Biofilm: TMCMC + Hamilton ODE + DI-based FEM + DeepONet surrogate">
+<meta property="og:title" content="Multiscale Biofilm Framework - Paper & Documents">
+<meta property="og:description" content="5-species oral biofilm TMCMC inference, DI-based material model, 3D FEM stress analysis, 384x DeepONet speedup">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://keisuke58.github.io/Tmcmc202601/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦠</text></svg>">
 <title>Tmcmc202601 - Paper & Documents</title>
 <style>
   :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #c9d1d9; --accent: #58a6ff; --green: #3fb950; }
@@ -51,6 +58,53 @@
   <a href="https://github.com/keisuke58/Tmcmc202601/releases/tag/paper-draft-v1">Release (all PDFs)</a>
 </p>
 
+<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.5rem;margin:1.5rem 0;">
+<h3 style="color:#f0f6fc;margin-bottom:0.8rem;font-size:1rem;">Pipeline Overview</h3>
+<svg viewBox="0 0 900 120" style="width:100%;max-width:900px;" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#58a6ff"/></marker>
+  </defs>
+  <!-- Boxes -->
+  <rect x="10" y="30" width="120" height="50" rx="6" fill="#1f6feb33" stroke="#1f6feb" stroke-width="1.5"/>
+  <text x="70" y="52" fill="#58a6ff" font-size="11" text-anchor="middle" font-weight="600">In vitro Data</text>
+  <text x="70" y="68" fill="#8b949e" font-size="9" text-anchor="middle">4 cond × 5 spp</text>
+
+  <line x1="130" y1="55" x2="158" y2="55" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="160" y="30" width="130" height="50" rx="6" fill="#23863633" stroke="#238636" stroke-width="1.5"/>
+  <text x="225" y="52" fill="#3fb950" font-size="11" text-anchor="middle" font-weight="600">TMCMC</text>
+  <text x="225" y="68" fill="#8b949e" font-size="9" text-anchor="middle">20-param Bayesian</text>
+
+  <line x1="290" y1="55" x2="318" y2="55" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="320" y="30" width="120" height="50" rx="6" fill="#a371f733" stroke="#a371f7" stroke-width="1.5"/>
+  <text x="380" y="52" fill="#a371f7" font-size="11" text-anchor="middle" font-weight="600">Hamilton ODE</text>
+  <text x="380" y="68" fill="#8b949e" font-size="9" text-anchor="middle">5-species + Hill</text>
+
+  <line x1="440" y1="55" x2="468" y2="55" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="470" y="30" width="110" height="50" rx="6" fill="#f0883e33" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="525" y="52" fill="#f0883e" font-size="11" text-anchor="middle" font-weight="600">DI → E(DI)</text>
+  <text x="525" y="68" fill="#8b949e" font-size="9" text-anchor="middle">28× stiffness</text>
+
+  <line x1="580" y1="55" x2="608" y2="55" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="610" y="30" width="120" height="50" rx="6" fill="#da363333" stroke="#da3633" stroke-width="1.5"/>
+  <text x="670" y="52" fill="#f85149" font-size="11" text-anchor="middle" font-weight="600">3D FEM</text>
+  <text x="670" y="68" fill="#8b949e" font-size="9" text-anchor="middle">Abaqus T23</text>
+
+  <line x1="730" y1="55" x2="758" y2="55" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="760" y="30" width="120" height="50" rx="6" fill="#1f6feb33" stroke="#1f6feb" stroke-width="1.5"/>
+  <text x="820" y="52" fill="#58a6ff" font-size="11" text-anchor="middle" font-weight="600">Stress / UQ</text>
+  <text x="820" y="68" fill="#8b949e" font-size="9" text-anchor="middle">σ, u, CI bands</text>
+
+  <!-- DeepONet bypass -->
+  <path d="M 225 80 Q 225 105 380 105 Q 525 105 525 80" fill="none" stroke="#3fb950" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="380" y="118" fill="#3fb950" font-size="9" text-anchor="middle">DeepONet 384× speedup</text>
+</svg>
+</div>
+
 <div class="stats">
   <div class="stat"><div class="num">5</div><div class="label">Species</div></div>
   <div class="stat"><div class="num">20</div><div class="label">Parameters</div></div>
@@ -58,6 +112,10 @@
   <div class="stat"><div class="num">28&times;</div><div class="label">Stiffness Range</div></div>
   <div class="stat"><div class="num">384&times;</div><div class="label">DeepONet Speedup</div></div>
   <div class="stat"><div class="num">19</div><div class="label">Paper Figures</div></div>
+</div>
+
+<div style="margin:1rem 0;">
+  <input type="text" id="search" placeholder="Search documents..." style="width:100%;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem;outline:none;" oninput="filterCards(this.value)">
 </div>
 
 <h2 class="section-title">Paper Draft</h2>
@@ -187,6 +245,14 @@ const base = 'https://raw.githubusercontent.com/keisuke58/Tmcmc202601/feat/atten
 figs.forEach(f => {
   gallery.innerHTML += `<div class="fig-thumb"><a href="${base}${f.file}" target="_blank"><img src="${base}${f.file}" alt="Fig ${f.n}" loading="lazy"></a><div class="caption">Fig ${f.n}: ${f.title}</div></div>`;
 });
+
+function filterCards(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('.card, .fig-thumb').forEach(el => {
+    const text = el.textContent.toLowerCase();
+    el.style.display = text.includes(q) ? '' : 'none';
+  });
+}
 </script>
 </body>
 </html>

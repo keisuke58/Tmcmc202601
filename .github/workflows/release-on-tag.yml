@@ -1,0 +1,27 @@
+name: Auto Release on Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'paper-*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile LaTeX
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: data_5species/docs/nishioka_latex20260218.tex
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            data_5species/docs/nishioka_latex20260218.pdf
+          generate_release_notes: true
