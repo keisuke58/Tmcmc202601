@@ -1974,23 +1974,24 @@ def run_estimation(
             # Auto-detect checkpoint directory
             ckpt_dir = args.deeponet_checkpoint
             if ckpt_dir is None:
-                cond_map = {
-                    "Commensal_Static": "checkpoints_Commensal_Static",
-                    "Commensal_HOBIC": "checkpoints_Commensal_HOBIC",
-                    "Dysbiotic_Static": "checkpoints_Dysbiotic_Static",
-                    "Dysbiotic_HOBIC": "checkpoints",
-                }
+                # Auto-detect best checkpoint per condition (prefer 50k > v2 > original)
                 cond_key = f"{args.condition}_{args.cultivation}"
-                ckpt_name = cond_map.get(cond_key, "checkpoints")
-                # Also try v2 first
                 deeponet_dir = Path(__file__).parent.parent.parent / "deeponet"
-                for suffix in [f"{ckpt_name}_v2", ckpt_name]:
-                    candidate = deeponet_dir / suffix
-                    if (candidate / "best.eqx").exists():
-                        ckpt_dir = str(candidate)
+                # Priority order: 50k trained, then v2, then original
+                candidates = {
+                    "Commensal_Static": ["checkpoints_CS_50k", "checkpoints_CS_v2", "checkpoints_Commensal_Static"],
+                    "Commensal_HOBIC": ["checkpoints_CH_50k", "checkpoints_CH_v2", "checkpoints_Commensal_HOBIC"],
+                    "Dysbiotic_Static": ["checkpoints_DS_v2", "checkpoints_Dysbiotic_Static"],
+                    "Dysbiotic_HOBIC": ["checkpoints_Dysbiotic_HOBIC_50k", "checkpoints_Dysbiotic_HOBIC"],
+                }
+                ckpt_name = None
+                for name in candidates.get(cond_key, ["checkpoints_Dysbiotic_HOBIC"]):
+                    if (deeponet_dir / name / "best.eqx").exists():
+                        ckpt_name = name
                         break
-                if ckpt_dir is None:
-                    ckpt_dir = str(deeponet_dir / ckpt_name)
+                if ckpt_name is None:
+                    ckpt_name = "checkpoints_Dysbiotic_HOBIC"
+                ckpt_dir = str(deeponet_dir / ckpt_name)
 
             ckpt_path = Path(ckpt_dir)
             deeponet_surrogate = DeepONetSurrogate(
@@ -1998,6 +1999,10 @@ def run_estimation(
                 str(ckpt_path / "norm_stats.npz"),
             )
             logger.info(f"DeepONet surrogate loaded from {ckpt_dir}")
+            # JAX objects can't be pickled across forked processes; force threading
+            if not getattr(args, 'use_threads', False):
+                args.use_threads = True
+                logger.info("Auto-enabled --use-threads for JAX/DeepONet compatibility")
         except Exception as e:
             logger.error(f"Failed to load DeepONet: {e}. Falling back to ODE solver.")
             deeponet_surrogate = None
@@ -2090,6 +2095,7 @@ def run_estimation(
         logL_scale=1.0,
         seed=args.seed,
         n_jobs=args.n_jobs,
+        use_threads=getattr(args, 'use_threads', False),
         debug_config=debug_config,
         gnn_prior=gnn_prior_obj,
     )
@@ -2363,6 +2369,8 @@ Examples:
                         help="Use DeepONet surrogate instead of ODE solver (~80× per-sample, ~29× E2E)")
     parser.add_argument("--deeponet-checkpoint", type=str, default=None,
                         help="Path to DeepONet checkpoint dir (default: auto-detect from condition)")
+    parser.add_argument("--use-threads", action="store_true",
+                        help="Use threads instead of processes (required for JAX/DeepONet to avoid fork issues)")
 
     return parser.parse_args()
 
