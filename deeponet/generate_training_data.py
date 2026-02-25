@@ -49,13 +49,21 @@ def load_prior_bounds(condition: str = "Dysbiotic_HOBIC") -> np.ndarray:
     return bounds
 
 
-def sample_theta(bounds: np.ndarray, rng: np.random.Generator) -> np.ndarray:
-    """Sample a single θ from uniform prior."""
+def sample_theta(bounds: np.ndarray, rng: np.random.Generator,
+                 theta_map: np.ndarray = None, map_std_frac: float = 0.1) -> np.ndarray:
+    """Sample a single θ from uniform prior, or Gaussian around θ_MAP.
+
+    If theta_map is provided, samples N(θ_MAP, (σ_i)^2) where σ_i = map_std_frac * range_i,
+    then clips to prior bounds.
+    """
     theta = np.zeros(20)
     for i in range(20):
         lo, hi = bounds[i]
         if abs(hi - lo) < 1e-12:
             theta[i] = lo  # locked
+        elif theta_map is not None:
+            sigma = map_std_frac * (hi - lo)
+            theta[i] = np.clip(rng.normal(theta_map[i], sigma), lo, hi)
         else:
             theta[i] = rng.uniform(lo, hi)
     return theta
@@ -76,6 +84,32 @@ def run_single(solver: BiofilmNewtonSolver5S, theta: np.ndarray):
         return None
 
 
+def load_theta_map(condition: str) -> np.ndarray:
+    """Load θ_MAP from TMCMC runs. Returns (20,) or None."""
+    run_map = {
+        "Commensal_Static": "commensal_static",
+        "Commensal_HOBIC": "commensal_hobic",
+        "Dysbiotic_Static": "dysbiotic_static",
+        "Dysbiotic_HOBIC": "dh_baseline",
+    }
+    dirname = run_map.get(condition)
+    if dirname is None:
+        return None
+
+    base = PROJECT_ROOT / "data_5species" / "_runs"
+    for pattern in [
+        base / dirname / "theta_MAP.json",
+        base / dirname / "posterior" / "theta_MAP.json",
+    ]:
+        if pattern.exists():
+            with open(pattern) as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return np.array(data["theta_full"], dtype=np.float64)
+            return np.array(data, dtype=np.float64)
+    return None
+
+
 def generate_dataset(
     n_samples: int = 10000,
     condition: str = "Dysbiotic_HOBIC",
@@ -83,11 +117,55 @@ def generate_dataset(
     maxtimestep: int = 500,
     dt: float = 1e-5,
     n_time_out: int = 100,  # downsample to this many time points
+    map_frac: float = 0.3,  # fraction of samples around θ_MAP
+    map_std_frac: float = 0.1,  # std dev as fraction of prior range
+    expand_bounds: bool = True,  # expand bounds to include θ_MAP + margin
 ):
-    """Generate training dataset."""
+    """Generate training dataset with optional importance sampling around θ_MAP.
+
+    Args:
+        map_frac: fraction of total samples to draw from Gaussian around θ_MAP
+                  (remaining drawn uniformly from prior). Set 0 to disable.
+        map_std_frac: Gaussian std = map_std_frac * (hi - lo) per parameter.
+        expand_bounds: if True and θ_MAP exists, expand bounds to include
+                       θ_MAP ± 20% margin so DeepONet is never extrapolating.
+    """
 
     bounds = load_prior_bounds(condition)
+
+    # Expand bounds to include θ_MAP if it falls outside
+    theta_map_check = load_theta_map(condition)
+    if expand_bounds and theta_map_check is not None:
+        n_expanded = 0
+        for i in range(20):
+            lo, hi = bounds[i]
+            if abs(hi - lo) < 1e-12:
+                continue  # locked param
+            val = theta_map_check[i]
+            rng_size = max(hi - lo, abs(val) * 0.5, 0.5)
+            margin = 0.2 * rng_size
+            if val < lo:
+                bounds[i, 0] = val - margin
+                n_expanded += 1
+            if val > hi:
+                bounds[i, 1] = val + margin
+                n_expanded += 1
+        if n_expanded > 0:
+            print(f"Expanded {n_expanded} bound(s) to include θ_MAP")
     rng = np.random.default_rng(seed)
+
+    # Use θ_MAP for importance sampling
+    theta_map = theta_map_check if map_frac > 0 else None
+    if theta_map is not None:
+        n_map = int(n_samples * map_frac)
+        n_uniform = n_samples - n_map
+        print(f"Importance sampling: {n_map} MAP-centered + {n_uniform} uniform "
+              f"(std={map_std_frac:.0%} of range)")
+    else:
+        n_map = 0
+        n_uniform = n_samples
+        if map_frac > 0:
+            print(f"Warning: θ_MAP not found for {condition}, using uniform only")
 
     solver = BiofilmNewtonSolver5S(
         dt=dt,
@@ -113,13 +191,21 @@ def generate_dataset(
     theta_list = []
     phi_list = []
     t_out = None
+    idx = None  # downsample indices
 
     n_success = 0
     n_failed = 0
+    n_map_done = 0
     t0 = time.time()
 
     while n_success < n_samples:
-        theta = sample_theta(bounds, rng)
+        # Decide: MAP-centered or uniform
+        use_map = (theta_map is not None and n_map_done < n_map)
+        theta = sample_theta(
+            bounds, rng,
+            theta_map=theta_map if use_map else None,
+            map_std_frac=map_std_frac,
+        )
         result = run_single(solver, theta)
 
         if result is None:
@@ -129,7 +215,7 @@ def generate_dataset(
         t_arr, phi = result
 
         # Downsample time dimension
-        if t_out is None:
+        if idx is None:
             idx = np.linspace(0, len(t_arr) - 1, n_time_out, dtype=int)
             t_out = t_arr[idx]
 
@@ -138,16 +224,21 @@ def generate_dataset(
         theta_list.append(theta)
         phi_list.append(phi_down)
         n_success += 1
+        if use_map:
+            n_map_done += 1
 
         if n_success % 500 == 0:
             elapsed = time.time() - t0
             rate = n_success / elapsed
+            map_info = f", MAP={n_map_done}" if theta_map is not None else ""
             print(f"  {n_success}/{n_samples} done ({rate:.0f} samples/s, "
-                  f"{n_failed} failed)")
+                  f"{n_failed} failed{map_info})")
 
     elapsed = time.time() - t0
     print(f"Done: {n_success} samples in {elapsed:.1f}s "
           f"({n_success/elapsed:.0f}/s, {n_failed} failed)")
+    if theta_map is not None:
+        print(f"  MAP-centered: {n_map_done}, Uniform: {n_success - n_map_done}")
 
     theta_arr = np.array(theta_list)   # (N, 20)
     phi_arr = np.array(phi_list)       # (N, n_time_out, 5)
@@ -163,6 +254,10 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n-time", type=int, default=100)
     parser.add_argument("--maxtimestep", type=int, default=500)
+    parser.add_argument("--map-frac", type=float, default=0.3,
+                        help="Fraction of MAP-centered samples (0=uniform only)")
+    parser.add_argument("--map-std", type=float, default=0.1,
+                        help="Gaussian std as fraction of prior range")
     args = parser.parse_args()
 
     theta_arr, phi_arr, t_out, bounds = generate_dataset(
@@ -171,6 +266,8 @@ def main():
         seed=args.seed,
         n_time_out=args.n_time,
         maxtimestep=args.maxtimestep,
+        map_frac=args.map_frac,
+        map_std_frac=args.map_std,
     )
 
     # Save
