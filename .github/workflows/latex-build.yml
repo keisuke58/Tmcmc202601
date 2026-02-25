@@ -18,10 +18,29 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Create placeholder figures
+        run: |
+          mkdir -p data_5species/docs/nishioka_figs
+          cd data_5species/docs/nishioka_figs
+          for f in froh-06-1649419-g001.jpg froh-06-1649419-g002.jpg \
+                   froh-06-1649419-g003.jpg froh-06-1649419-g004.jpg; do
+            convert -size 200x200 xc:white -gravity center \
+              -annotate +0+0 "placeholder" "$f" 2>/dev/null || \
+            python3 -c "
+from PIL import Image, ImageDraw
+img = Image.new('RGB', (200, 200), 'white')
+d = ImageDraw.Draw(img)
+d.text((50, 90), 'placeholder', fill='gray')
+img.save('$f')
+" 2>/dev/null || \
+            touch "$f"
+          done
+
       - name: Compile LaTeX
         uses: xu-cheng/latex-action@v4
         with:
-          root_file: data_5species/docs/nishioka_latex20260218.tex
+          root_file: nishioka_latex20260218.tex
+          working_directory: data_5species/docs
           latexmk_use_xelatex: false
           continue_on_error: true
           args: "-pdf -file-line-error -interaction=nonstopmode"
