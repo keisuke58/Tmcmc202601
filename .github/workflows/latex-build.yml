@@ -21,7 +21,6 @@ jobs:
         with:
           root_file: data_5species/docs/nishioka_latex20260218.tex
           latexmk_use_xelatex: false
-          extra_system_packages: "bibtex"
 
       - name: Check for undefined references
         run: |
