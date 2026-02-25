@@ -12,6 +12,7 @@
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 \usepackage{graphicx}
 \usepackage{float}
+\usepackage{algorithm}
 \usepackage{geometry}
 \geometry{margin=2.5cm}
 \usepackage{listings}
@@ -46,7 +47,10 @@
 \usepackage[hidelinks,pdfencoding=auto]{hyperref}
 
 \title{Bridging Microbial Ecology and Continuum Mechanics:\\A TMCMC-Based Multiscale Framework\\for Oral Biofilm Stress Analysis}
-\author{Keisuke Nishioka}
+\author{Keisuke Nishioka\\[4pt]
+\small Institute of Continuum Mechanics (IKM), Leibniz Universit\"at Hannover, Germany\\[2pt]
+\small \texttt{nishioka@ikm.uni-hannover.de}\\[2pt]
+\small \url{https://github.com/keisuke58/Tmcmc202601}}
 \date{February 2026}
 
 \begin{document}
@@ -57,7 +61,7 @@
 We present a complete multiscale pipeline that bridges Bayesian parameter estimation of a 5-species oral biofilm model with 3D finite-element stress analysis. Starting from experimental time-course data of \textit{Streptococcus oralis}, \textit{Actinomyces naeslundii}, \textit{Veillonella} spp., \textit{Fusobacterium nucleatum}, and \textit{Porphyromonas gingivalis} under four cultivation conditions, Transitional Markov Chain Monte Carlo (TMCMC) with biologically-constrained parameter reduction estimates a 20-parameter Hamilton interaction model, achieving 30\% RMSE improvement over unconstrained baselines. A novel Dysbiosis Index (DI) based on Shannon entropy serves as the bridging variable to a DI-dependent elastic modulus, producing a 28-fold stiffness range (commensal 909~Pa vs.\ dysbiotic 32~Pa) and 29.4-fold displacement ratio on a patient-specific 3D tooth geometry. Bayesian model comparison decisively favours the DI model over pathogen-fraction alternatives (pseudo Bayes factor $= 1.35 \times 10^9$). An end-to-end differentiable surrogate (DeepONet + Deep Energy Method) achieves a 3.8~million-fold speedup over Abaqus FEM, enabling gradient-based TMCMC (NUTS) with 1.75$\times$ higher acceptance rates than random-walk mutation. DeepONet-accelerated TMCMC provides $\sim$100$\times$ wall-time speedup while recovering 17/20 posterior marginals with $>$0.95 overlap. Basin sensitivity analysis reveals that commensal equilibria are fragile, with 96\% of perturbed samples jumping to a dysbiotic attractor, highlighting the importance of uncertainty quantification in biofilm mechanical predictions.
 
 \vspace{0.5cm}
-\noindent\textbf{Keywords:} Bayesian Estimation, Biofilm Mechanics, TMCMC, DeepONet, Dysbiosis Index, Multi-species Interaction, Inverse Problem, Peri-implantitis, Uncertainty Quantification, Graph Neural Networks
+\noindent\textbf{Keywords:} Transitional Markov Chain Monte Carlo (TMCMC), oral biofilm, multiscale modelling, Bayesian inverse problem, dysbiosis index, DeepONet surrogate, uncertainty quantification, finite element method, peri-implantitis, graph neural network
 \end{abstract}
 
 \tableofcontents
@@ -521,7 +525,7 @@ At each stage $m$, the algorithm proceeds through three steps:
 
 The complete TMCMC procedure with biological constraint enforcement is summarized in Algorithm~\ref{alg:tmcmc}.
 
-\begin{figure}[htbp]
+\begin{algorithm}[htbp]
 \centering
 \fbox{\begin{minipage}{0.92\textwidth}
 \vspace{0.3cm}
@@ -555,7 +559,7 @@ The complete TMCMC procedure with biological constraint enforcement is summarize
 \end{minipage}}
 \caption{TMCMC algorithm with biological constraint enforcement. Step~2(e)(ii) ensures that locked parameters remain at zero and all free parameters respect their condition-specific prior bounds throughout the sampling process.}
 \label{alg:tmcmc}
-\end{figure}
+\end{algorithm}
 
 \subsection{Model Evidence Estimation}
 
@@ -626,7 +630,7 @@ The parameter estimation strategy adapts to four distinct experimental condition
     \centering
     \begin{minipage}{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{nishioka_figs/froh-06-1649419-g001.jpg}
+        \includegraphics[width=\linewidth]{nishioka_algorithm_figs/froh-06-1649419-g001.jpg}
         \caption{\textbf{1. Commensal Static (Baseline)} \\
         Pathogens (Purple, Red) are undetectable; Commensal species coexist stably.}
         \label{fig:exp_commensal_static}
@@ -634,7 +638,7 @@ The parameter estimation strategy adapts to four distinct experimental condition
     \hfill
     \begin{minipage}{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{nishioka_figs/froh-06-1649419-g002.jpg}
+        \includegraphics[width=\linewidth]{nishioka_algorithm_figs/froh-06-1649419-g002.jpg}
         \caption{\textbf{2. Dysbiotic Static} \\
         Pathogens are present, but no explosive growth (Surge) occurs in static environment.}
         \label{fig:exp_dysbiotic_static}
@@ -642,7 +646,7 @@ The parameter estimation strategy adapts to four distinct experimental condition
     \vspace{0.5cm}
     \begin{minipage}{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{nishioka_figs/froh-06-1649419-g003.jpg}
+        \includegraphics[width=\linewidth]{nishioka_algorithm_figs/froh-06-1649419-g003.jpg}
         \caption{\textbf{3. Commensal HOBIC} \\
         S. oralis (Blue) increases specifically under high flow (Blue Bloom). Pathogens are suppressed.}
         \label{fig:exp_commensal_hobic}
@@ -650,7 +654,7 @@ The parameter estimation strategy adapts to four distinct experimental condition
     \hfill
     \begin{minipage}{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{nishioka_figs/froh-06-1649419-g004.jpg}
+        \includegraphics[width=\linewidth]{nishioka_algorithm_figs/froh-06-1649419-g004.jpg}
         \caption{\textbf{4. Dysbiotic HOBIC (Surge)} \\
         V. parvula (Orange) and P. gingivalis (Red) grow explosively in symbiosis (Discovery Mode).}
         \label{fig:exp_dysbiotic_hobic}
@@ -741,7 +745,7 @@ Parameter estimation is performed sequentially in 4 stages. This configuration h
 
 The 4-stage sequential estimation procedure is formalized in Algorithm~\ref{alg:sequential}. At each stage $s$, TMCMC (Algorithm~\ref{alg:tmcmc}) is applied to estimate only the parameters in the active set $\mathcal{A}_s = \mathcal{P}_s \setminus \mathcal{L}$, while parameters from previously completed stages are fixed at their MAP estimates.
 
-\begin{figure}[htbp]
+\begin{algorithm}[htbp]
 \centering
 \fbox{\begin{minipage}{0.92\textwidth}
 \vspace{0.3cm}
@@ -772,7 +776,7 @@ The 4-stage sequential estimation procedure is formalized in Algorithm~\ref{alg:
 \end{minipage}}
 \caption{Sequential estimation algorithm. Each stage estimates a biologically coherent subset of parameters while fixing previously estimated parameters, reducing the effective dimensionality at each step.}
 \label{alg:sequential}
-\end{figure}
+\end{algorithm}
 
 The sequential decomposition offers several theoretical and practical advantages:
 \begin{itemize}
@@ -978,7 +982,7 @@ On the other hand, pathogens (F.nucleatum, P.gingivalis) are suppressed to low l
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=1.0\textwidth]{nishioka_figs/TSM_simulation_Commensal_Static_MAP_Fit_with_data.png}
+\includegraphics[width=1.0\textwidth]{nishioka_algorithm_figs/TSM_simulation_Commensal_Static_MAP_Fit_with_data.png}
 \caption{Detailed TSM simulation based on MAP estimates. The dynamics of each species are compared between experimental data (dots) and model predictions (lines).}
 \label{fig:map_fit_detail}
 \end{figure}
@@ -991,7 +995,7 @@ The uncertainty is smaller during the initial growth phase and tends to widen to
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=1.0\textwidth]{nishioka_figs/posterior_predictive_Commensal_Static_PosteriorBand.png}
+\includegraphics[width=1.0\textwidth]{nishioka_algorithm_figs/posterior_predictive_Commensal_Static_PosteriorBand.png}
 \caption{Detailed Posterior Predictive Band. Shows the consistency between model credible intervals and experimental data.}
 \label{fig:posterior_band_detail}
 \end{figure}
@@ -1004,7 +1008,7 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=1.0\textwidth]{nishioka_figs/residuals_Commensal_Static_Residuals.png}
+\includegraphics[width=1.0\textwidth]{nishioka_algorithm_figs/residuals_Commensal_Static_Residuals.png}
 \caption{Residual Plot. Shows the distribution of model prediction errors.}
 \label{fig:residuals}
 \end{figure}
@@ -1015,7 +1019,7 @@ This suggests that the proposed model successfully captures the main trends of t
 
 % \begin{figure}[h]
 % \centering
-% \includegraphics[width=1.0\textwidth]{nishioka_figs/pub_parameter_boxplots.png}
+% \includegraphics[width=1.0\textwidth]{nishioka_algorithm_figs/pub_parameter_boxplots.png}
 % \caption{Posterior distributions of parameters (boxplots). Key growth rate parameters (b1, b2, b3) converge to narrow ranges, indicating high estimation precision.}
 % \label{fig:boxplots}
 % \end{figure}
@@ -1026,7 +1030,7 @@ This suggests that the proposed model successfully captures the main trends of t
 
 % \begin{figure}[h]
 % \centering
-% \includegraphics[width=0.8\textwidth]{nishioka_figs/pub_interaction_heatmap.png}
+% \includegraphics[width=0.8\textwidth]{nishioka_algorithm_figs/pub_interaction_heatmap.png}
 % \caption{Estimated Interaction Matrix. Positive values (red) indicate promotion, negative values (blue) indicate inhibition. The proposed method ensures that biologically absent interactions are fixed to 0.}
 % \label{fig:interaction_matrix}
 % \end{figure}
@@ -1049,19 +1053,19 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{nishioka_figs/Fig_A02_per_species_panel.png}
+\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A02_per_species_panel.png}
 \caption{Posterior fit for Commensal HOBIC. The shaded regions indicate the 95\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.8\textwidth]{nishioka_figs/Fig_A01_interaction_matrix_heatmap.png}
+\includegraphics[width=0.8\textwidth]{paper_comprehensive_figs/Fig_A01_interaction_matrix_heatmap.png}
 \caption{Estimated interaction matrix (MAP) for Commensal HOBIC. Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{nishioka_figs/Fig_A05_parameter_violins.png}
+\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A05_parameter_violins.png}
 \caption{Parameter uncertainty (Violin plots) for Commensal HOBIC. Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}
 \end{figure}
 
@@ -1073,19 +1077,19 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{nishioka_figs/Fig_A02_per_species_panel.png}
+\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A02_per_species_panel.png}
 \caption{Posterior fit for Dysbiotic HOBIC (Surge). The shaded regions indicate the 95\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.8\textwidth]{nishioka_figs/Fig_A01_interaction_matrix_heatmap.png}
+\includegraphics[width=0.8\textwidth]{paper_comprehensive_figs/Fig_A01_interaction_matrix_heatmap.png}
 \caption{Estimated interaction matrix (MAP) for Dysbiotic HOBIC (Surge). Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{nishioka_figs/Fig_A05_parameter_violins.png}
+\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A05_parameter_violins.png}
 \caption{Parameter uncertainty (Violin plots) for Dysbiotic HOBIC (Surge). Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}
 \end{figure}
 
@@ -1097,19 +1101,19 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{nishioka_figs/Fig_A02_per_species_panel.png}
+\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A02_per_species_panel.png}
 \caption{Posterior fit for Commensal Static. The shaded regions indicate the 95\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.8\textwidth]{nishioka_figs/Fig_A01_interaction_matrix_heatmap.png}
+\includegraphics[width=0.8\textwidth]{paper_comprehensive_figs/Fig_A01_interaction_matrix_heatmap.png}
 \caption{Estimated interaction matrix (MAP) for Commensal Static. Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{nishioka_figs/Fig_A05_parameter_violins.png}
+\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A05_parameter_violins.png}
 \caption{Parameter uncertainty (Violin plots) for Commensal Static. Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}
 \end{figure}
 
@@ -1121,19 +1125,19 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{nishioka_figs/Fig_A02_per_species_panel.png}
+\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A02_per_species_panel.png}
 \caption{Posterior fit for Dysbiotic Static. The shaded regions indicate the 95\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.8\textwidth]{nishioka_figs/Fig_A01_interaction_matrix_heatmap.png}
+\includegraphics[width=0.8\textwidth]{paper_comprehensive_figs/Fig_A01_interaction_matrix_heatmap.png}
 \caption{Estimated interaction matrix (MAP) for Dysbiotic Static. Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{nishioka_figs/Fig_A05_parameter_violins.png}
+\includegraphics[width=0.95\textwidth]{paper_comprehensive_figs/Fig_A05_parameter_violins.png}
 \caption{Parameter uncertainty (Violin plots) for Dysbiotic Static. Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}
 \end{figure}
 

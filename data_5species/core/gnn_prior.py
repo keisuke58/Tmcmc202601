@@ -233,10 +233,13 @@ class GNNPrior:
         sigma: float = 1.0,
         weight: float = 1.0,
         locked_indices: Optional[List[int]] = None,
+        condition: Optional[str] = None,
     ) -> "GNNPrior":
-        """Load GNN prior from predict_hmp.py output (Phase 2 HMP pipeline).
+        """Load GNN prior from JSON.
 
-        JSON format: {"gnn_prior_center": {"1": v1, "10": v2, ...}, "gnn_prior_std": {...}}
+        Supports two formats:
+        1. HMP format: {"gnn_prior_center": {"1": v, ...}, "gnn_prior_std": {...}}
+        2. predict_for_tmcmc format: {"Condition_Name": {"a_ij_pred": [...], ...}}
         """
         path = Path(json_path)
         if not path.exists():
@@ -245,11 +248,43 @@ class GNNPrior:
         with open(path) as f:
             data = json.load(f)
 
+        # Format 2: predict_for_tmcmc.py output (condition-keyed dict)
+        if condition and condition in data:
+            cond_data = data[condition]
+            mu_gnn = np.array(cond_data["a_ij_pred"], dtype=np.float64)
+            # Apply locked flags
+            if "a_ij_free" in cond_data:
+                for k, free in enumerate(cond_data["a_ij_free"]):
+                    if not free:
+                        mu_gnn[k] = 0.0
+            obj = cls(
+                model_path=None,
+                sigma=sigma,
+                weight=weight,
+                condition_phi=None,
+                locked_indices=locked_indices or [],
+            )
+            obj._mu_gnn = mu_gnn
+            logger.info(f"GNN prior from JSON [{condition}]: mu={mu_gnn}, sigma={sigma}")
+            return obj
+
+        # Format 1: HMP pipeline output
         center = data.get("gnn_prior_center", {})
         std_map = data.get("gnn_prior_std", {})
-        mu_gnn = np.array([float(center.get(str(i), 0.0)) for i in ACTIVE_THETA_IDX])
-        sigma_vals = [float(std_map.get(str(i), sigma)) for i in ACTIVE_THETA_IDX]
-        sigma_use = min(sigma_vals) if sigma_vals else sigma
+        if center:
+            mu_gnn = np.array([float(center.get(str(i), 0.0)) for i in ACTIVE_THETA_IDX])
+            sigma_vals = [float(std_map.get(str(i), sigma)) for i in ACTIVE_THETA_IDX]
+            sigma_use = min(sigma_vals) if sigma_vals else sigma
+        else:
+            # Try auto-detect condition from keys
+            cond_keys = [k for k in data if isinstance(data[k], dict) and "a_ij_pred" in data[k]]
+            if cond_keys:
+                cond_data = data[cond_keys[0]]
+                mu_gnn = np.array(cond_data["a_ij_pred"], dtype=np.float64)
+                sigma_use = sigma
+                logger.warning(f"No condition specified, using first: {cond_keys[0]}")
+            else:
+                raise ValueError(f"Cannot parse GNN prior JSON: {path}")
 
         obj = cls(
             model_path=None,
@@ -259,5 +294,5 @@ class GNNPrior:
             locked_indices=locked_indices or [],
         )
         obj._mu_gnn = mu_gnn
-        logger.info(f"GNN prior from JSON: mu={mu_gnn}, sigma={sigma}")
+        logger.info(f"GNN prior from JSON: mu={mu_gnn}, sigma={sigma_use}")
         return obj
