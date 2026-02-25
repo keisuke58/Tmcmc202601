@@ -41,41 +41,45 @@ class BranchNet(eqx.Module):
     """Branch network: θ (20) → R^(p * n_species)."""
     layers: list
 
-    def __init__(self, in_dim: int, hidden: int, p: int, n_species: int, *, key):
-        keys = jr.split(key, 4)
+    def __init__(self, in_dim: int, hidden: int, p: int, n_species: int,
+                 n_layers: int = 3, *, key):
+        keys = jr.split(key, n_layers + 2)
         out_dim = p * n_species
-        self.layers = [
-            eqx.nn.Linear(in_dim, hidden, key=keys[0]),
-            eqx.nn.Linear(hidden, hidden, key=keys[1]),
-            eqx.nn.Linear(hidden, hidden, key=keys[2]),
-            eqx.nn.Linear(hidden, out_dim, key=keys[3]),
-        ]
+        layers = [eqx.nn.Linear(in_dim, hidden, key=keys[0])]
+        for i in range(n_layers - 1):
+            layers.append(eqx.nn.Linear(hidden, hidden, key=keys[i + 1]))
+        layers.append(eqx.nn.Linear(hidden, out_dim, key=keys[n_layers]))
+        self.layers = layers
 
     def __call__(self, theta):
-        x = theta
-        for layer in self.layers[:-1]:
-            x = jax.nn.gelu(layer(x))
+        x = jax.nn.gelu(self.layers[0](theta))
+        for layer in self.layers[1:-1]:
+            h = jax.nn.gelu(layer(x))
+            x = x + h  # residual
         return self.layers[-1](x)
 
 
 class TrunkNet(eqx.Module):
     """Trunk network: t (1) → R^(p * n_species)."""
     layers: list
+    proj: eqx.nn.Linear  # project input dim to hidden for residual
 
-    def __init__(self, p: int, n_species: int, hidden: int, *, key):
-        keys = jr.split(key, 4)
+    def __init__(self, p: int, n_species: int, hidden: int,
+                 n_layers: int = 3, *, key):
+        keys = jr.split(key, n_layers + 3)
         out_dim = p * n_species
-        self.layers = [
-            eqx.nn.Linear(1, hidden, key=keys[0]),
-            eqx.nn.Linear(hidden, hidden, key=keys[1]),
-            eqx.nn.Linear(hidden, hidden, key=keys[2]),
-            eqx.nn.Linear(hidden, out_dim, key=keys[3]),
-        ]
+        self.proj = eqx.nn.Linear(1, hidden, key=keys[0])
+        layers = [eqx.nn.Linear(hidden, hidden, key=keys[1])]
+        for i in range(n_layers - 1):
+            layers.append(eqx.nn.Linear(hidden, hidden, key=keys[i + 2]))
+        layers.append(eqx.nn.Linear(hidden, out_dim, key=keys[n_layers + 1]))
+        self.layers = layers
 
     def __call__(self, t):
-        x = jnp.atleast_1d(t)
+        x = jax.nn.gelu(self.proj(jnp.atleast_1d(t)))
         for layer in self.layers[:-1]:
-            x = jax.nn.gelu(layer(x))
+            h = jax.nn.gelu(layer(x))
+            x = x + h  # residual
         return self.layers[-1](x)
 
 
@@ -84,17 +88,13 @@ class DeepONet(eqx.Module):
     branch: BranchNet
     trunk: TrunkNet
     bias: jnp.ndarray
-    p: int
-    n_species: int
 
     def __init__(self, theta_dim: int = 20, n_species: int = 5,
-                 p: int = 64, hidden: int = 128, *, key):
+                 p: int = 64, hidden: int = 128, n_layers: int = 3, *, key):
         k1, k2 = jr.split(key)
-        self.branch = BranchNet(theta_dim, hidden, p, n_species, key=k1)
-        self.trunk = TrunkNet(p, n_species, hidden, key=k2)
+        self.branch = BranchNet(theta_dim, hidden, p, n_species, n_layers=n_layers, key=k1)
+        self.trunk = TrunkNet(p, n_species, hidden, n_layers=n_layers, key=k2)
         self.bias = jnp.zeros(n_species)
-        self.p = p
-        self.n_species = n_species
 
     def __call__(self, theta, t):
         """
@@ -107,11 +107,13 @@ class DeepONet(eqx.Module):
         Returns:
             (5,) predicted species fractions
         """
+        n_species = self.bias.shape[0]
         b = self.branch(theta)  # (p * n_species,)
         tr = self.trunk(t)      # (p * n_species,)
+        p = b.shape[0] // n_species
 
-        b = b.reshape(self.n_species, self.p)   # (5, p)
-        tr = tr.reshape(self.n_species, self.p)  # (5, p)
+        b = b.reshape(n_species, p)   # (5, p)
+        tr = tr.reshape(n_species, p)  # (5, p)
 
         # Dot product per species
         out = jnp.sum(b * tr, axis=1) + self.bias  # (5,)
@@ -206,6 +208,7 @@ def train(
     lr: float = 1e-3,
     p: int = 64,
     hidden: int = 128,
+    n_layers: int = 3,
     val_frac: float = 0.1,
     seed: int = 0,
     checkpoint_dir: str = "checkpoints",
@@ -234,6 +237,7 @@ def train(
         n_species=phi.shape[2],
         p=p,
         hidden=hidden,
+        n_layers=n_layers,
         key=key,
     )
 
@@ -280,8 +284,15 @@ def train(
         epoch_loss /= max(n_batches, 1)
         train_losses.append(epoch_loss)
 
-        # Validation (full batch)
-        val_loss = float(loss_fn(model, theta_val, phi_val, t_grid))
+        # Validation (batched to avoid OOM with large datasets)
+        val_batch_size = min(batch_size, n_val)
+        n_val_batches = max(1, n_val // val_batch_size)
+        val_loss = 0.0
+        for vi in range(n_val_batches):
+            vb_theta = theta_val[vi * val_batch_size : (vi + 1) * val_batch_size]
+            vb_phi = phi_val[vi * val_batch_size : (vi + 1) * val_batch_size]
+            val_loss += float(loss_fn(model, vb_theta, vb_phi, t_grid))
+        val_loss /= n_val_batches
         val_losses.append(val_loss)
 
         if val_loss < best_val_loss:
@@ -308,6 +319,16 @@ def train(
     # Save normalization stats
     np.savez(ckpt_dir / "norm_stats.npz", **{k: np.array(v) for k, v in stats.items()})
 
+    # Save architecture config for reproducibility
+    import json
+    arch_cfg = {"p": p, "hidden": hidden, "n_layers": n_layers,
+                "theta_dim": int(theta.shape[1]), "n_species": int(phi.shape[2]),
+                "n_params": int(n_params), "n_train": int(n_train),
+                "n_epochs": n_epochs, "batch_size": batch_size, "lr": lr,
+                "best_val_loss": float(best_val_loss)}
+    with open(ckpt_dir / "config.json", "w") as f:
+        json.dump(arch_cfg, f, indent=2)
+
     elapsed = time.time() - t0
     print(f"\nDone in {elapsed:.0f}s. Best val loss: {best_val_loss:.6f}")
     print(f"Checkpoints saved to {ckpt_dir}/")
@@ -319,13 +340,13 @@ def train(
 # Evaluation
 # ============================================================
 
-def evaluate(checkpoint: str, data_path: str):
+def evaluate(checkpoint: str, data_path: str, p: int = 64, hidden: int = 128, n_layers: int = 3):
     """Evaluate model on test data."""
     theta, phi, t_grid, stats = load_data(data_path)
     N = theta.shape[0]
 
     key = jr.PRNGKey(0)
-    model = DeepONet(theta_dim=20, n_species=5, key=key)
+    model = DeepONet(theta_dim=20, n_species=5, p=p, hidden=hidden, n_layers=n_layers, key=key)
     model = eqx.tree_deserialise_leaves(checkpoint, model)
 
     # Per-species error
@@ -359,7 +380,8 @@ def evaluate(checkpoint: str, data_path: str):
 # Benchmark: DeepONet vs ODE solver speed
 # ============================================================
 
-def benchmark(checkpoint: str, data_path: str, n_bench: int = 1000):
+def benchmark(checkpoint: str, data_path: str, n_bench: int = 1000,
+              p: int = 64, hidden: int = 128, n_layers: int = 3):
     """Compare inference speed: DeepONet vs numba ODE solver."""
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent / "tmcmc" / "program2602"))
@@ -372,7 +394,7 @@ def benchmark(checkpoint: str, data_path: str, n_bench: int = 1000):
 
     # Load DeepONet
     key = jr.PRNGKey(0)
-    model = DeepONet(theta_dim=20, n_species=5, key=key)
+    model = DeepONet(theta_dim=20, n_species=5, p=p, hidden=hidden, n_layers=n_layers, key=key)
     model = eqx.tree_deserialise_leaves(checkpoint, model)
 
     # Normalize for DeepONet
@@ -426,7 +448,8 @@ def benchmark(checkpoint: str, data_path: str, n_bench: int = 1000):
 # Visualization
 # ============================================================
 
-def plot_results(checkpoint: str, data_path: str, n_examples: int = 6):
+def plot_results(checkpoint: str, data_path: str, n_examples: int = 6,
+                 p: int = 64, hidden: int = 128, n_layers: int = 3):
     """Plot predicted vs true trajectories."""
     import matplotlib
     matplotlib.use("Agg")
@@ -435,7 +458,7 @@ def plot_results(checkpoint: str, data_path: str, n_examples: int = 6):
     theta, phi, t_grid, stats = load_data(data_path)
 
     key = jr.PRNGKey(0)
-    model = DeepONet(theta_dim=20, n_species=5, key=key)
+    model = DeepONet(theta_dim=20, n_species=5, p=p, hidden=hidden, n_layers=n_layers, key=key)
     model = eqx.tree_deserialise_leaves(checkpoint, model)
 
     species = ["S.o", "A.n", "V.d", "F.n", "P.g"]
@@ -509,6 +532,7 @@ def main():
     p_train.add_argument("--lr", type=float, default=1e-3)
     p_train.add_argument("--p", type=int, default=64, help="DeepONet basis dim")
     p_train.add_argument("--hidden", type=int, default=128)
+    p_train.add_argument("--n-layers", type=int, default=3, help="Hidden layers per net")
     p_train.add_argument("--seed", type=int, default=0)
     p_train.add_argument("--checkpoint-dir", default="checkpoints")
 
@@ -516,17 +540,26 @@ def main():
     p_eval = sub.add_parser("eval")
     p_eval.add_argument("--checkpoint", required=True)
     p_eval.add_argument("--data", required=True)
+    p_eval.add_argument("--p", type=int, default=64)
+    p_eval.add_argument("--hidden", type=int, default=128)
+    p_eval.add_argument("--n-layers", type=int, default=3)
 
     # Benchmark
     p_bench = sub.add_parser("benchmark")
     p_bench.add_argument("--checkpoint", required=True)
     p_bench.add_argument("--data", required=True)
     p_bench.add_argument("--n-bench", type=int, default=1000)
+    p_bench.add_argument("--p", type=int, default=64)
+    p_bench.add_argument("--hidden", type=int, default=128)
+    p_bench.add_argument("--n-layers", type=int, default=3)
 
     # Plot
     p_plot = sub.add_parser("plot")
     p_plot.add_argument("--checkpoint", required=True)
     p_plot.add_argument("--data", required=True)
+    p_plot.add_argument("--p", type=int, default=64)
+    p_plot.add_argument("--hidden", type=int, default=128)
+    p_plot.add_argument("--n-layers", type=int, default=3)
 
     args = parser.parse_args()
 
@@ -538,15 +571,16 @@ def main():
             lr=args.lr,
             p=args.p,
             hidden=args.hidden,
+            n_layers=args.n_layers,
             seed=args.seed,
             checkpoint_dir=args.checkpoint_dir,
         )
     elif args.command == "eval":
-        evaluate(args.checkpoint, args.data)
+        evaluate(args.checkpoint, args.data, p=args.p, hidden=args.hidden, n_layers=args.n_layers)
     elif args.command == "benchmark":
-        benchmark(args.checkpoint, args.data, args.n_bench)
+        benchmark(args.checkpoint, args.data, args.n_bench, p=args.p, hidden=args.hidden, n_layers=args.n_layers)
     elif args.command == "plot":
-        plot_results(args.checkpoint, args.data)
+        plot_results(args.checkpoint, args.data, p=args.p, hidden=args.hidden, n_layers=args.n_layers)
     else:
         parser.print_help()
 
