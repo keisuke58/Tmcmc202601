@@ -129,4 +129,41 @@ Takuji Ohmura, Junichi Wakita, and Shigeyuki Nishimura.
   and local elastic modulus in living {3D} biofilms.
 \newblock {\em Soft Matter}, 2024.
 
+\bibitem{Bradbury2018JAX}
+James Bradbury, Roy Frostig, Peter Hawkins, Matthew~James Johnson, Chris Leary,
+  Dougal Maclaurin, George Necula, Adam Paszke, Jake VanderPlas, Skye
+  Wanderman-Milne, and Qiao Zhang.
+\newblock {JAX}: composable transformations of {Python}+{NumPy} programs.
+\newblock 2018.
+\newblock Software available from \url{https://github.com/google/jax}.
+
+\bibitem{Lu2021DeepONet}
+Lu~Lu, Pengzhan Jin, Guofei Pang, Zhongqiang Zhang, and George~Em Karniadakis.
+\newblock Learning nonlinear operators via {DeepONet} based on the universal
+  approximation theorem of operators.
+\newblock {\em Nature Machine Intelligence}, 3:218--229, 2021.
+
+\bibitem{Weinan2018DEM}
+Weinan E and Bing Yu.
+\newblock The deep {Ritz} method: a deep learning-based numerical method for
+  solving variational problems.
+\newblock {\em Communications in Mathematics and Statistics}, 6:1--12, 2018.
+
+\bibitem{Neal2011HMC}
+Radford~M. Neal.
+\newblock {MCMC} using {Hamiltonian} dynamics.
+\newblock {\em Handbook of Markov Chain Monte Carlo}, pages 113--162, 2011.
+
+\bibitem{HoffmanGelman2014NUTS}
+Matthew~D. Hoffman and Andrew Gelman.
+\newblock The {No-U-Turn} sampler: adaptively setting path lengths in
+  {Hamiltonian Monte Carlo}.
+\newblock {\em Journal of Machine Learning Research}, 15:1593--1623, 2014.
+
+\bibitem{Kipf2017GCN}
+Thomas~N. Kipf and Max Welling.
+\newblock Semi-supervised classification with graph convolutional networks.
+\newblock In {\em International Conference on Learning Representations (ICLR)},
+  2017.
+
 \end{thebibliography}

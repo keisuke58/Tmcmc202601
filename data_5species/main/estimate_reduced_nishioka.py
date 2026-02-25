@@ -2062,6 +2062,7 @@ def run_estimation(
                     sigma=args.gnn_sigma,
                     weight=args.gnn_weight,
                     locked_indices=locked,
+                    condition=f"{args.condition}_{args.cultivation}",
                 )
                 logger.info(f"GNN prior from JSON: {args.gnn_prior_json}")
             else:
