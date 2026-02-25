@@ -87,6 +87,7 @@ from core import (
     run_multi_chain_TMCMC,
     compute_MAP_with_uncertainty,
     build_likelihood_weights,
+    build_species_sigma,
 )
 from debug import DebugLogger
 from utils import save_json, save_npy
@@ -1929,9 +1930,20 @@ def run_estimation(
             prior_bounds[idx] = (0.0, 0.0)
 
     # Sigma for likelihood
-    sigma_obs = args.sigma_obs if args.sigma_obs else metadata.get('sigma_obs_estimated', 0.05)
+    sigma_obs_scalar = args.sigma_obs if args.sigma_obs else metadata.get('sigma_obs_estimated', 0.05)
 
-    logger.info(f"Using sigma_obs = {sigma_obs}")
+    # Species-specific sigma (V. dispar gets higher noise to acknowledge
+    # the model's structural inability to capture nutrient depletion dynamics)
+    if getattr(args, 'species_sigma', False):
+        vd_factor = getattr(args, 'vd_sigma_factor', 2.0)
+        sigma_obs = build_species_sigma(
+            sigma_obs_scalar, n_species=data.shape[1],
+            vd_species_idx=2, vd_factor=vd_factor,
+        )
+        logger.info(f"Using species-specific sigma_obs = {sigma_obs}")
+    else:
+        sigma_obs = sigma_obs_scalar
+        logger.info(f"Using sigma_obs = {sigma_obs}")
     logger.info(f"Data shape: {data.shape}")
     logger.info(f"idx_sparse: {idx_sparse}")
 
@@ -2294,6 +2306,12 @@ Examples:
     # Correlation Analysis (Improvement 14)
     parser.add_argument("--correlation-analysis", action="store_true",
                         help="Compute and plot parameter correlation matrix")
+
+    # Species-specific sigma (V. dispar model inadequacy)
+    parser.add_argument("--species-sigma", action="store_true",
+                        help="Use per-species sigma_obs (V. dispar gets higher noise)")
+    parser.add_argument("--vd-sigma-factor", type=float, default=2.0,
+                        help="V. dispar sigma multiplier (default: 2.0)")
 
     # DeepONet surrogate (384× speedup)
     parser.add_argument("--use-deeponet", action="store_true",

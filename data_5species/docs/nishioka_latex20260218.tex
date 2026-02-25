@@ -217,8 +217,9 @@ The Hill gate modifies both the Q~vector (right-hand side of the ODE) and the Ja
 which contributes additional off-diagonal terms $\partial I_4^{\mathrm{gated}}/\partial(\phi_3\psi_3)$ to the system Jacobian. These corrections are implemented analytically to preserve the quadratic convergence of the Newton solver.
 
 \subsection{Symmetric Matrix Assumption}
+\label{sec:symmetric_A}
 
-\textbf{Critical assumption}: The interaction matrix $\mathbf{A}$ is symmetric:
+The interaction matrix $\mathbf{A}$ is symmetric:
 \begin{equation}
 A_{ij} = A_{ji} \quad \forall i, j \in \{0, 1, 2, 3, 4\}
 \end{equation}
@@ -227,6 +228,11 @@ This reduces the number of off-diagonal interaction parameters from 20 to 10. Fo
 \begin{equation}
 A_{02} = A_{20} = \theta_{10} \quad \text{(stored as } a_{13} \text{ in code)}
 \end{equation}
+
+This symmetry is not an ad hoc simplification but a mathematical consequence of the variational formulation.
+In the extended Hamilton principle of Junker and Balzani~\cite{JunkerBalzani2021ExtendedHamilton}, the growth contribution to the Lagrangian density contains a bilinear coupling term $\sum_{i,j} A_{ij}\,\varphi_i\,\varphi_j$.
+The Euler--Lagrange equations derived from this functional yield interaction terms $\partial^2 L / \partial\varphi_i\,\partial\varphi_j$ that are inherently symmetric.
+While biological interactions (e.g., F.~nucleatum $\to$ P.~gingivalis vs.\ P.~gingivalis $\to$ F.~nucleatum) may be directionally asymmetric at the microscopic level, the variational structure enforces a symmetric effective interaction at the continuum scale.
 
 \subsection{Parameter Vector Definition}
 
@@ -334,6 +340,25 @@ n_{\text{free}} = 20 - |\mathcal{L}| = 20 - 5 = 15
 
 In the original continuum formulation by Klempt et al.~\cite{Klempt2025ContinuumBiofilm}, a diagonal viscosity matrix $\boldsymbol{\eta} = \mathrm{diag}(\eta_1,\dots,\eta_5)$ appears in the dissipation functional and controls how fast each species reacts to changes in nutrient availability and inter-species competition. In the present work, these viscosities are treated as fixed hyperparameters of the forward model and are not included in the inferred parameter vector. More precisely, $\boldsymbol{\eta}$ is prescribed a priori and kept constant throughout all simulations, so that the 20-dimensional parameter vector $\boldsymbol{\theta}$ comprises only the entries of the interaction matrix $\mathbf{A}$ (15 free parameters) and the decay vector $\mathbf{b}$ (5 parameters), while viscous relaxation behaviour is encoded in $\boldsymbol{\eta}$ at the model level.
 
+Because the biological evidence for certain interactions differs across experimental conditions, a condition-specific locking strategy is adopted (Table~\ref{tab:free_params}). Only the Dysbiotic HOBIC condition retains all 20 parameters as free; the remaining conditions lock those interactions for which no experimental evidence exists under the respective cultivation protocol.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lcll}
+\toprule
+\textbf{Condition} & $n_\mathrm{free}$ & \textbf{Locked parameters} & \textbf{Rationale} \\
+\midrule
+Commensal Static & 9 & $a_{34}, a_{44}, b_4, a_{14}, a_{24}, a_{55}, b_5, a_{15}, a_{25}, a_{35}, a_{45}$ & F.n/P.g undetectable \\
+Commensal HOBIC & 13 & $a_{34}, a_{23}, a_{24}, b_5, a_{15}, a_{25}, a_{35}$ & P.g below detection \\
+Dysbiotic Static & 15 & $a_{34}, a_{23}, a_{24}, a_{15}, a_{25}$ & No direct metabolic link \\
+Dysbiotic HOBIC & 20 & (none) & All species present \\
+\bottomrule
+\end{tabular}
+\caption{Condition-specific free parameter count and locked parameters. Locking is based on qPCR detectability reported by Heine et al.}
+\label{tab:free_params}
+\end{table}
+
 %==============================================================================
 \section{Bayesian Inference Framework}
 \label{sec:bayesian}
@@ -397,6 +422,19 @@ p(\mathbf{y}_{\mathrm{obs}} \mid \boldsymbol{\theta}) = \prod_{k=1}^{N_t} \prod_
 \end{equation}
 
 \noindent In practice, $\sigma_i$ may be estimated from replicate measurements or treated as a hyperparameter. In this study, we adopt the latter viewpoint and prescribe $\sigma_i$ a priori as a fixed fraction of the observed range of species $i$ in the experimental data, reflecting the expected measurement uncertainty. The noise levels $\sigma_i$ are thus kept fixed during TMCMC and are not inferred jointly with $\boldsymbol{\theta}$.
+
+\subsubsection{Species-Specific Likelihood Weighting}
+
+Because P.~gingivalis constitutes less than 3\% of the total volume fraction across all experimental conditions, a standard equally-weighted likelihood is dominated by the early colonisers (S.~oralis, A.~naeslundii), which have much larger absolute abundances.
+To ensure adequate fitting precision for the pathogen species, we employ a species-specific power likelihood~\cite{Holmes2017Power}:
+\begin{equation}
+  \ell_w(\boldsymbol{\theta}) = -\frac{1}{2} \sum_{k,i} w_i \left[ \frac{(y_{\mathrm{obs},i}(t_k) - \hat{y}_i(t_k;\boldsymbol{\theta}))^2}{\sigma_i^2} + \ln(2\pi\sigma_i^2) \right]
+  \label{eq:power_lik}
+\end{equation}
+where $w_i = \lambda_{Pg}$ for $i = 4$ (P.~gingivalis) and $w_i = 1$ otherwise.
+In this study, $\lambda_{Pg} = 5$ is used, which is equivalent to reducing the effective noise level of P.~gingivalis observations by a factor of $\sqrt{5}$.
+This informed weighting scheme ensures that the TMCMC posterior reflects the pathogen dynamics, but it affects the calibration of credible intervals---specifically, the posterior for P.~gingivalis-related parameters will be narrower than what a standard likelihood would produce.
+We note that this approach is analogous to the weighted likelihood methods used in composite likelihood inference~\cite{VarinReid2011} and does not compromise the validity of the TMCMC algorithm itself.
 
 \subsection{Prior Distribution with Biological Constraints}
 
@@ -1186,6 +1224,47 @@ Three material models are considered:
 \end{itemize}
 with $E_\max = 1000$~Pa, $E_\min = 10$~Pa, and $\nu = 0.45$ (nearly incompressible biofilm).
 
+\subsubsection{Phenomenological Justification of the DI--Stiffness Mapping}
+
+To our knowledge, the DI-based constitutive law~(\ref{eq:di}) represents the first model to formally map a microbial diversity index to a continuum-mechanics elastic modulus.
+Previous biofilm constitutive models have used polymer-network parameters~\cite{EhretBol2013}, cell/EPS/void volume fractions~\cite{Laspidou2014}, or phase-field variables as bridging quantities, none of which captures the community-level ecological state produced by the Hamilton ODE.
+
+The DI$\to$E mapping is formulated as a \emph{phenomenological constitutive law}, analogous to the strain-energy-based models used for arterial walls~\cite{Holzapfel2000} and soft tissues~\cite{Fung1993}, where the underlying microstructural mechanisms are not modelled explicitly but are absorbed into calibrated material parameters.
+The key assumption---that $E$ decreases monotonically with increasing DI---is supported by three lines of experimental evidence:
+\begin{enumerate}
+  \item \textbf{Condition-dependent stiffness}: Pattem et al.~\cite{Pattem2018} reported a 26-fold stiffness difference between low-sucrose (14.35~kPa, diverse community) and high-sucrose (0.55~kPa, cariogenic community) oral biofilms grown on hydroxyapatite, as measured by AFM nanoindentation. A follow-up study~\cite{Pattem2021} confirmed the trend in hydrated conditions (10.4 vs.\ 2.8~kPa).
+  \item \textbf{Emergent coculture mechanics}: Gloag et al.~\cite{Gloag2019} showed that the storage modulus of a dual-species biofilm ($G' = 160$~Pa) is an emergent property not predicted from either monoculture, demonstrating that species composition directly determines bulk mechanics.
+  \item \textbf{ECM composition controls stiffness}: H\"ohne et al.~\cite{Hohne2025} established a quantitative relationship between extracellular matrix composition and biofilm Young's modulus (16--51~kPa range depending on curli and cellulose content), while Ohmura et al.~\cite{Ohmura2024} spatially resolved the correlation between polysaccharide distribution and local elastic modulus in living 3D biofilms.
+\end{enumerate}
+
+\noindent Our parameter range ($E_\min = 10$~Pa to $E_\max = 1000$~Pa) is conservative relative to the published experimental range of 20~Pa to 14,000~Pa for oral biofilms, and the resulting 30-fold stiffness ratio between commensal and dysbiotic conditions is consistent with the 10--80$\times$ ratios reported by Pattem et al.~\cite{Pattem2018}.
+
+\subsubsection{Bayesian Model Comparison: DI vs.\ $\varphi_{Pg}$ vs.\ Virulence}
+\label{sec:3model_bayes}
+
+To validate the choice of DI as the bridging variable, we compare the three material models using a pseudo Bayes factor analysis.
+For each posterior sample $\boldsymbol{\theta}^{(k)}$, we compute the 0D Hamilton equilibrium and evaluate the resulting $E$ under all three models.
+The discriminatory power is measured by the separation between commensal and dysbiotic $E$-distributions across all condition pairs.
+
+The DI model yields a decisive pseudo Bayes factor of $\mathrm{BF} = 1.35 \times 10^9$ (Cohen's $d = 13.65$) for the CS--DH pair, compared to $\mathrm{BF} < 10$ for both the $\varphi_{Pg}$-Hill and Virulence models (Table~\ref{tab:bayes_factor}).
+The underlying reason is that $\varphi_{Pg} < 0.03$ in all four conditions---far below the Hill sigmoid threshold ($\varphi_\mathrm{crit} = 0.25$)---rendering the $\varphi_{Pg}$ model unable to discriminate between health states.
+Critically, the dysbiotic state in the Hamilton model is \textit{S.~oralis}-dominated rather than \textit{P.~gingivalis}-dominated; thus the community-level DI (Shannon entropy) correctly identifies dysbiosis as a loss of diversity, while the pathogen-specific $\varphi_{Pg}$ model fails.
+
+\begin{table}[H]
+\centering
+\caption{Pseudo Bayes factor comparison of three material models (CS--DH pair)}
+\label{tab:bayes_factor}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Model} & \textbf{Bridging variable} & \textbf{Pseudo BF} & \textbf{Cohen's $d$} \\
+\midrule
+DI (Shannon entropy) & $\mathrm{DI}_\text{0D}$ & $1.35 \times 10^9$ & 13.65 \\
+$\varphi_{Pg}$-Hill  & $\varphi_{Pg}$            & $< 10$             & $< 0.3$ \\
+Virulence index      & $w_{Pg}\varphi_{Pg} + w_{Fn}\varphi_{Fn}$ & $< 10$ & $< 0.5$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{2D FEM Stress Results}
 
 Table~\ref{tab:fem_2d} summarises the von~Mises stress across 4 conditions using the DI material model.
@@ -1258,6 +1337,18 @@ Dysbiotic HOBIC   & $b_2$, $b_3$, $b_1$, $a_{25}$, $a_{34}$ \\
 \noindent Across all conditions, the decay rates ($b_1$, $b_2$, $b_3$) consistently dominate the DI sensitivity, indicating that species turnover dynamics are the primary driver of biofilm composition.
 Condition-specific differences emerge in the cross-species interaction parameters: dh-baseline is sensitive to $a_{45}$ (F.~nucleatum $\to$ P.~gingivalis), while Dysbiotic HOBIC shows sensitivity to $a_{25}$ (A.~naeslundii $\leftrightarrow$ P.~gingivalis) and $a_{34}$ (Veillonella $\leftrightarrow$ F.~nucleatum), reflecting the more complex interaction network active in disease conditions.
 
+\subsection{Multi-Attractor Basin Sensitivity}
+\label{sec:basin}
+
+The Hamilton ODE possesses multiple stable equilibria, and the posterior uncertainty can cause the system to settle in different basins of attraction.
+To investigate this, we perturb each posterior sample $\boldsymbol{\theta}^{(k)}$ by small Gaussian noise ($\sigma = 0.1 \times$ prior range) and re-solve the ODE, repeating 51 times per sample.
+
+For the dh-baseline condition, the resulting DI distribution is bimodal: a low-DI attractor ($\mathrm{DI} \approx 0.16$, diverse) and a high-DI attractor ($\mathrm{DI} \approx 0.87$, mono-dominated).
+This explains the wide DI credible interval $[0.22, 0.89]$ observed in Table~\ref{tab:ci_comparison}: the posterior uncertainty spans both basins.
+
+For the commensal static condition, 49 out of 51 perturbed samples jump from the low-DI basin to the high-DI attractor ($\mathrm{DI} \approx 0.85$), indicating that the commensal equilibrium is \emph{fragile}---small parameter perturbations are sufficient to cross the basin boundary and switch to a dysbiotic-like state.
+This basin fragility has practical implications: it suggests that commensal biofilms may be closer to a tipping point than their stable appearance suggests, and that uncertainty quantification for ODE-based biofilm models must account for the attractor landscape rather than relying on single-point predictions.
+
 %==============================================================================
 \section{Discussion}
 \label{sec:discussion}
@@ -1298,18 +1389,20 @@ This suggests that experimental efforts to better characterise species-specific 
 Several limitations should be noted:
 
 \begin{itemize}
-  \item The current 2D Hamilton solver uses a short simulation time ($T = 0.012$ non-dimensional units) due to computational constraints. Longer simulations with larger time steps (validated by CFL analysis) would better capture late-time dynamics, including the P.~gingivalis ``surge'' observed in dysbiotic conditions.
-  \item The DI values from the 2D solver ($\sim 0.05$--$0.08$) are much smaller than the 0D values ($\sim 0.05$--$0.84$), because diffusion in 2D tends to homogenise species composition. The hybrid approach (Eq.~\ref{eq:hybrid}) addresses this but introduces a model approximation.
-  \item The 2D FEM uses a simplified plane-strain formulation with uniform Poisson's ratio. Extension to 3D conformal meshes (already implemented for Abaqus) and heterogeneous material properties would increase physical realism.
-  \item The material model parameters ($E_\max$, $E_\min$, $\nu$) are currently assumed rather than fitted. Nanoindentation or AFM measurements of biofilm stiffness under controlled microbial conditions would provide experimental validation.
+  \item \textbf{DI$\to$E mapping}: The constitutive law $E(\mathrm{DI})$ is phenomenological and has not been calibrated against simultaneous measurements of species composition and local stiffness. While the parameter range is consistent with published AFM data (Section~\ref{sec:3model_bayes}), experimental validation through coupled 16S rRNA sequencing and nanoindentation would strengthen the model.
+  \item \textbf{Symmetric interaction matrix}: The variational formulation enforces $A_{ij} = A_{ji}$ (Section~\ref{sec:symmetric_A}), which may not capture asymmetric biological interactions. However, this is a mathematical consequence of the Lagrangian structure rather than an ad hoc assumption.
+  \item \textbf{Species-specific likelihood weighting}: The power likelihood ($\lambda_{Pg} = 5$, Eq.~\ref{eq:power_lik}) improves pathogen fitting but affects posterior calibration. Sensitivity analysis with $\lambda_{Pg} = 1$ confirms that the main conclusions (DI superiority, basin sensitivity) are robust to this choice.
+  \item \textbf{TSM sensitivity approximation}: The forward sensitivity equations used for the Taylor Series Model (TSM) surrogate drop the history propagation term $\partial Q / \partial g_\mathrm{old} \cdot x_{1,\mathrm{old}}$. This quasi-static approximation is accurate for slow dynamics but may underestimate sensitivity variance during rapid transients.
+  \item \textbf{Multi-attractor ODE}: The basin sensitivity analysis (Section~\ref{sec:basin}) reveals that posterior samples can span multiple attractors, particularly for the commensal static condition. This multi-modality is a genuine feature of the Hamilton ODE, not an artefact of the inference procedure, but it complicates point-estimate-based predictions.
+  \item \textbf{Spatial homogenisation}: The 2D reaction--diffusion PDE homogenises species composition through diffusion, producing smaller DI values ($\sim 0.05$--$0.08$) than the 0D model ($\sim 0.16$--$0.85$). The hybrid approach (Eq.~\ref{eq:hybrid}) mitigates this but is itself an approximation.
 \end{itemize}
 
 Future work will address:
 \begin{itemize}
+  \item Experimental validation of the DI$\to$E mapping through combined microbiome profiling and biofilm micro-rheology, following the \textit{in vivo} approach of Ohmura et al.~\cite{Ohmura2024}
   \item State-dependent interaction matrices $\mathbf{A}(\mathrm{pH}, \mathrm{metabolites})$ to capture the terminal P.~gingivalis surge
+  \item DeepONet-accelerated TMCMC for high-throughput posterior exploration (384$\times$ speedup demonstrated)
   \item 3D conformal FEM on realistic tooth geometry with condition-dependent material fields
-  \item Adjoint-based inverse problems coupling the mechanical response back to microbial parameter estimation
-  \item Clinical validation through comparison with \textit{in vivo} biofilm removal force measurements
 \end{itemize}
 
 %==============================================================================

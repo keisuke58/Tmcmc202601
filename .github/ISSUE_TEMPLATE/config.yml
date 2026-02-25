@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Wiki Documentation
+    url: https://github.com/keisuke58/Tmcmc202601/wiki
+    about: Check the wiki for setup guides, parameter reference, and results
+  - name: Paper Progress Discussion
+    url: https://github.com/keisuke58/Tmcmc202601/discussions/55
+    about: Track paper writing progress and share feedback

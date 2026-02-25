@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tmcmc202601 - Paper & Documents</title>
+<style>
+  :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #c9d1d9; --accent: #58a6ff; --green: #3fb950; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.8rem; margin-bottom: 0.3rem; color: #f0f6fc; }
+  .subtitle { color: #8b949e; margin-bottom: 2rem; font-size: 0.95rem; }
+  .subtitle a { color: var(--accent); text-decoration: none; }
+  .section-title { font-size: 1.2rem; color: #f0f6fc; margin: 2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; transition: border-color 0.2s; }
+  .card:hover { border-color: var(--accent); }
+  .card h3 { font-size: 0.95rem; color: #f0f6fc; margin-bottom: 0.4rem; }
+  .card p { font-size: 0.85rem; color: #8b949e; margin-bottom: 0.8rem; }
+  .card .meta { font-size: 0.75rem; color: #6e7681; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; margin-right: 4px; }
+  .badge-paper { background: #1f6feb33; color: var(--accent); }
+  .badge-algo { background: #23863633; color: var(--green); }
+  .badge-fem { background: #a371f733; color: #a371f7; }
+  .badge-slides { background: #f0883e33; color: #f0883e; }
+  .btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; text-decoration: none; margin-right: 6px; margin-top: 6px; font-weight: 500; }
+  .btn-view { background: #1f6feb; color: #fff; }
+  .btn-view:hover { background: #388bfd; }
+  .btn-dl { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  .btn-dl:hover { background: #21262d; }
+  .stats { display: flex; gap: 2rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat .num { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
+  .stat .label { font-size: 0.75rem; color: #8b949e; }
+  .fig-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.8rem; margin-top: 1rem; }
+  .fig-thumb { background: var(--card); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .fig-thumb img { width: 100%; height: 140px; object-fit: cover; }
+  .fig-thumb .caption { padding: 6px 8px; font-size: 0.7rem; color: #8b949e; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: #6e7681; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Multiscale Bayesian-Mechanical Framework for Oral Biofilm</h1>
+<p class="subtitle">
+  <a href="https://github.com/keisuke58/Tmcmc202601">GitHub</a> &middot;
+  <a href="https://github.com/keisuke58/Tmcmc202601/wiki">Wiki</a> &middot;
+  <a href="https://github.com/keisuke58/Tmcmc202601/discussions">Discussions</a> &middot;
+  <a href="https://github.com/keisuke58/Tmcmc202601/releases/tag/paper-draft-v1">Release (all PDFs)</a>
+</p>
+
+<div class="stats">
+  <div class="stat"><div class="num">5</div><div class="label">Species</div></div>
+  <div class="stat"><div class="num">20</div><div class="label">Parameters</div></div>
+  <div class="stat"><div class="num">4</div><div class="label">Conditions</div></div>
+  <div class="stat"><div class="num">28&times;</div><div class="label">Stiffness Range</div></div>
+  <div class="stat"><div class="num">384&times;</div><div class="label">DeepONet Speedup</div></div>
+  <div class="stat"><div class="num">19</div><div class="label">Paper Figures</div></div>
+</div>
+
+<h2 class="section-title">Paper Draft</h2>
+<div class="grid">
+  <div class="card">
+    <h3>Main Paper (LaTeX Draft v1)</h3>
+    <p>Bridging microbial ecology and continuum mechanics: A TMCMC-based multiscale framework for oral biofilm stress analysis. 45 pages, 19 figures.</p>
+    <div class="meta"><span class="badge badge-paper">Paper</span> 2026-02-25 &middot; 520 KB</div>
+    <div>
+      <a class="btn btn-view" href="viewer.html?file=paper_draft.pdf">View PDF</a>
+      <a class="btn btn-dl" href="https://github.com/keisuke58/Tmcmc202601/releases/download/paper-draft-v1/paper_draft.pdf">Download</a>
+    </div>
+  </div>
+</div>
+
+<h2 class="section-title">Algorithm Documentation</h2>
+<div class="grid">
+  <div class="card">
+    <h3>TMCMC + TSM-ROM Algorithm (EN)</h3>
+    <p>Full algorithm: Hamilton ODE, TMCMC Bayesian inference, Taylor Series ROM, complex-step Jacobian.</p>
+    <div class="meta"><span class="badge badge-algo">Algorithm</span> EN &middot; 2.1 MB</div>
+    <div>
+      <a class="btn btn-view" href="viewer.html?file=nishioka_algorithm.pdf">View PDF</a>
+      <a class="btn btn-dl" href="https://github.com/keisuke58/Tmcmc202601/releases/download/paper-draft-v1/nishioka_algorithm.pdf">Download</a>
+    </div>
+  </div>
+  <div class="card">
+    <h3>TMCMC + TSM-ROM Algorithm (JA)</h3>
+    <p>Same content in Japanese.</p>
+    <div class="meta"><span class="badge badge-algo">Algorithm</span> JA &middot; 1.1 MB</div>
+    <div>
+      <a class="btn btn-view" href="viewer.html?file=nishioka_algorithm_ja.pdf">View PDF</a>
+      <a class="btn btn-dl" href="https://github.com/keisuke58/Tmcmc202601/releases/download/paper-draft-v1/nishioka_algorithm_ja.pdf">Download</a>
+    </div>
+  </div>
+  <div class="card">
+    <h3>TSM-ROM-TMCMC Pseudocode</h3>
+    <p>Compact pseudocode for the linearisation-based TMCMC pipeline.</p>
+    <div class="meta"><span class="badge badge-algo">Algorithm</span> EN &middot; 267 KB</div>
+    <div>
+      <a class="btn btn-view" href="viewer.html?file=alg_tsm_rom_tmcmc_en.pdf">View PDF</a>
+      <a class="btn btn-dl" href="https://github.com/keisuke58/Tmcmc202601/releases/download/paper-draft-v1/alg_tsm_rom_tmcmc_en.pdf">Download</a>
+    </div>
+  </div>
+</div>
+
+<h2 class="section-title">Presentation</h2>
+<div class="grid">
+  <div class="card">
+    <h3>Research Presentation Slides</h3>
+    <p>Full presentation: biofilm ecology, TMCMC inference, multiscale FEM, DeepONet surrogate.</p>
+    <div class="meta"><span class="badge badge-slides">Slides</span> 11.6 MB</div>
+    <div>
+      <a class="btn btn-view" href="viewer.html?file=nishioka_biofilm_tmcmc_presentation.pdf">View PDF</a>
+      <a class="btn btn-dl" href="https://github.com/keisuke58/Tmcmc202601/releases/download/paper-draft-v1/nishioka_biofilm_tmcmc_presentation.pdf">Download</a>
+    </div>
+  </div>
+</div>
+
+<h2 class="section-title">FEM Reports</h2>
+<div class="grid">
+  <div class="card">
+    <h3>FEM Pipeline Report</h3>
+    <p>JAX-FEM + Abaqus eigenstrain pipeline, DI-based material model, 3D stress fields.</p>
+    <div class="meta"><span class="badge badge-fem">FEM</span></div>
+    <div>
+      <a class="btn btn-view" href="viewer.html?file=fem_report.pdf">View PDF</a>
+      <a class="btn btn-dl" href="https://github.com/keisuke58/Tmcmc202601/releases/download/paper-draft-v1/fem_report.pdf">Download</a>
+    </div>
+  </div>
+  <div class="card">
+    <h3>3-Tooth Biofilm Analysis</h3>
+    <p>Patient T23 tooth, conformal C3D4 mesh, tie constraint, cross-condition comparison.</p>
+    <div class="meta"><span class="badge badge-fem">FEM</span></div>
+    <div>
+      <a class="btn btn-view" href="viewer.html?file=biofilm_3tooth_report.pdf">View PDF</a>
+      <a class="btn btn-dl" href="https://github.com/keisuke58/Tmcmc202601/releases/download/paper-draft-v1/biofilm_3tooth_report.pdf">Download</a>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Abaqus Implementation</h3>
+    <p>Eigenstrain (thermal analogy) approach, INP generation, boundary conditions.</p>
+    <div class="meta"><span class="badge badge-fem">FEM</span></div>
+    <div>
+      <a class="btn btn-view" href="viewer.html?file=abaqus_implementation_report.pdf">View PDF</a>
+      <a class="btn btn-dl" href="https://github.com/keisuke58/Tmcmc202601/releases/download/paper-draft-v1/abaqus_implementation_report.pdf">Download</a>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Klempt 2024 Benchmark</h3>
+    <p>Nutrient PDE validation against Klempt et al. (2024), Thiele modulus comparison.</p>
+    <div class="meta"><span class="badge badge-fem">FEM</span></div>
+    <div>
+      <a class="btn btn-view" href="viewer.html?file=klempt2024_comparison.pdf">View PDF</a>
+      <a class="btn btn-dl" href="https://github.com/keisuke58/Tmcmc202601/releases/download/paper-draft-v1/klempt2024_comparison.pdf">Download</a>
+    </div>
+  </div>
+</div>
+
+<h2 class="section-title">Paper Figures (19)</h2>
+<div class="fig-grid" id="fig-gallery"></div>
+
+<footer>
+  Tmcmc202601 &mdash; 5-species oral biofilm TMCMC + multiscale FEM &middot;
+  <a href="https://github.com/keisuke58/Tmcmc202601" style="color:var(--accent)">Source</a>
+</footer>
+
+</div>
+
+<script>
+const figs = [
+  {n:8, file:'Fig08_tmcmc_posterior_20params.png', title:'TMCMC Posterior'},
+  {n:9, file:'Fig09_2d_hamilton_nutrient_fields.png', title:'2D Hamilton+Nutrient'},
+  {n:10, file:'Fig10_di_spatial_distribution.png', title:'DI Spatial Field'},
+  {n:11, file:'Fig11_material_model_literature.png', title:'E(DI) + Literature'},
+  {n:12, file:'Fig12_3d_conformal_mesh.png', title:'3D Conformal Mesh'},
+  {n:13, file:'Fig13_von_mises_displacement.png', title:'von Mises / Disp.'},
+  {n:14, file:'Fig14_klempt_benchmark.png', title:'Klempt Benchmark'},
+  {n:15, file:'Fig15_posterior_uq_ci_bands.png', title:'Posterior UQ CI'},
+  {n:16, file:'Fig16_basin_sensitivity.png', title:'Basin Sensitivity'},
+  {n:17, file:'Fig17_3model_comparison.png', title:'3-Model Comparison'},
+  {n:18, file:'Fig18_3model_discrimination.png', title:'Bayes Factor'},
+  {n:19, file:'Fig19_corner_plot_dh_key_params.png', title:'Corner Plot (DH)'},
+];
+const gallery = document.getElementById('fig-gallery');
+const base = 'https://raw.githubusercontent.com/keisuke58/Tmcmc202601/feat/attention-point-figures/FEM/figures/paper_final/';
+figs.forEach(f => {
+  gallery.innerHTML += `<div class="fig-thumb"><a href="${base}${f.file}" target="_blank"><img src="${base}${f.file}" alt="Fig ${f.n}" loading="lazy"></a><div class="caption">Fig ${f.n}: ${f.title}</div></div>`;
+});
+</script>
+</body>
+</html>

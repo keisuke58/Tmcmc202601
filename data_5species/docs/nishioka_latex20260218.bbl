@@ -1,0 +1,132 @@
+\begin{thebibliography}{10}
+
+\bibitem{Heine2025PeriImplant}
+The~Heine Lab et~al.
+\newblock Multi-species biofilm interactions on peri-implant surfaces.
+\newblock {\em Journal of Clinical Periodontology}, 2025.
+\newblock Experimental data for 5-species oral biofilm.
+
+\bibitem{JunkerBalzani2021ExtendedHamilton}
+Philipp Junker and Daniel Balzani.
+\newblock A new variational approach for the thermodynamic topology
+  optimization of hyperelastic structures.
+\newblock {\em Computer Methods in Applied Mechanics and Engineering}, 2021.
+
+\bibitem{Klempt2025ContinuumBiofilm}
+Henrike Klempt, Philipp Junker, and Peter Wriggers.
+\newblock A continuum model for multi-species biofilm growth based on the
+  extended {Hamilton} principle.
+\newblock {\em Computer Methods in Applied Mechanics and Engineering}, 2025.
+
+\bibitem{Fritsch2025BayesianMicrofilms}
+Arne Fritsch et~al.
+\newblock Bayesian updating for bacterial microfilms under hybrid
+  uncertainties.
+\newblock {\em Computational Mechanics}, 2025.
+
+\bibitem{Kolenbrander2010OralMultispecies}
+Paul~E. Kolenbrander, Robert~J. Palmer~Jr., Saravanan Periasamy, and
+  Nicholas~S. Jakubovics.
+\newblock Oral multispecies biofilm development and the key role of cell--cell
+  distance.
+\newblock {\em Nature Reviews Microbiology}, 8(7):471--480, 2010.
+
+\bibitem{Holmes2017Power}
+Chris~C. Holmes and Stephen~G. Walker.
+\newblock Assigning a value to a power likelihood in a general {Bayesian}
+  model.
+\newblock {\em Biometrika}, 104(2):497--503, 2017.
+
+\bibitem{VarinReid2011}
+Cristiano Varin, Nancy Reid, and David Firth.
+\newblock An overview of composite likelihood methods.
+\newblock {\em Statistica Sinica}, 21(1):5--42, 2011.
+
+\bibitem{RobertCasella2004MonteCarlo}
+Christian~P. Robert and George Casella.
+\newblock {\em Monte Carlo Statistical Methods}.
+\newblock Springer, 2nd edition, 2004.
+
+\bibitem{ChingChen2007TMCMC}
+Jianye Ching and Yi-Chu Chen.
+\newblock Transitional {Markov} chain {Monte} {Carlo} method for {Bayesian}
+  model updating, model class selection, and model averaging.
+\newblock {\em Journal of Engineering Mechanics}, 133(7):816--832, 2007.
+
+\bibitem{DelMoral2006SMC}
+Pierre Del~Moral, Arnaud Doucet, and Ajay Jasra.
+\newblock Sequential {Monte} {Carlo} samplers.
+\newblock {\em Journal of the Royal Statistical Society: Series B},
+  68(3):411--436, 2006.
+
+\bibitem{Betz2016TMCMC}
+Wolfgang Betz, Iason Papaioannou, and Daniel Straub.
+\newblock Transitional {Markov} chain {Monte} {Carlo}: observations and
+  improvements.
+\newblock {\em Journal of Engineering Mechanics}, 142(5):04016016, 2016.
+
+\bibitem{Martins2003ComplexStep}
+Joaquim R. R.~A. Martins, Peter Sturdza, and Juan~J. Alonso.
+\newblock The complex-step derivative approximation.
+\newblock {\em ACM Transactions on Mathematical Software}, 29(3):245--262,
+  2003.
+
+\bibitem{EhretBol2013}
+Alexander~E. Ehret and Markus B{\"o}l.
+\newblock Modelling mechanical characteristics of microbial biofilms by network
+  theory.
+\newblock {\em Journal of the Royal Society Interface}, 10(78):20120676, 2013.
+
+\bibitem{Laspidou2014}
+Chrysi~S. Laspidou, Anastasios Liakopoulos, and Meghana~G. Bhatt.
+\newblock Structural and mechanical characterization of old biofilms and their
+  bridging to the bulk liquid.
+\newblock {\em Biofouling}, 30(9):1081--1093, 2014.
+
+\bibitem{Holzapfel2000}
+Gerhard~A. Holzapfel.
+\newblock {\em Nonlinear Solid Mechanics: A Continuum Approach for
+  Engineering}.
+\newblock Wiley, 2000.
+
+\bibitem{Fung1993}
+Yuan-Cheng Fung.
+\newblock {\em Biomechanics: Mechanical Properties of Living Tissues}.
+\newblock Springer, 2nd edition, 1993.
+
+\bibitem{Pattem2018}
+Renzo~A. Ccahuana-V{\'a}squez and Jaime~A. Cury.
+\newblock Effect of sucrose concentration on the mechanical properties of oral
+  biofilms.
+\newblock {\em Scientific Reports}, 8:5110, 2018.
+\newblock PMC5890245. AFM nanoindentation: low-sucrose 14.35~kPa vs
+  high-sucrose 0.55~kPa.
+
+\bibitem{Pattem2021}
+Renzo~A. Ccahuana-V{\'a}squez et~al.
+\newblock Mechanical characterisation of hydrated oral biofilms by
+  micro-indentation.
+\newblock {\em Scientific Reports}, 11:3608, 2021.
+\newblock PMC8355335. Hydrated: LC 10.4~kPa vs HC 2.8~kPa.
+
+\bibitem{Gloag2019}
+Erin~S. Gloag, Silvio Fabbri, Daniel~J. Wozniak, and Paul Stoodley.
+\newblock Biofilm mechanics: implications in infection and survival.
+\newblock {\em Biofilm}, 2:100017, 2019.
+\newblock PMC6707914.
+
+\bibitem{Hohne2025}
+Dominik~N. H{\"o}hne et~al.
+\newblock Extracellular matrix composition determines biofilm mechanical
+  properties.
+\newblock {\em npj Biofilms and Microbiomes}, 2025.
+\newblock Quantitative ECM composition--stiffness relationship, 16--51~kPa
+  range.
+
+\bibitem{Ohmura2024}
+Takuji Ohmura, Junichi Wakita, and Shigeyuki Nishimura.
+\newblock Spatially resolved correlation between polysaccharide distribution
+  and local elastic modulus in living {3D} biofilms.
+\newblock {\em Soft Matter}, 2024.
+
+\end{thebibliography}

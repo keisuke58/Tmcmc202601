@@ -6,7 +6,13 @@ authors:
   - family-names: Nishioka
     given-names: Keisuke
     affiliation: "Keio University / IKM Leibniz Universität Hannover"
-date-released: "2026-02-24"
+  - family-names: Klempt
+    given-names: Henrike
+    affiliation: "IKM Leibniz Universität Hannover"
+  - family-names: Junker
+    given-names: Philipp
+    affiliation: "IKM Leibniz Universität Hannover"
+date-released: "2026-02-25"
 url: "https://github.com/keisuke58/Tmcmc202601"
 repository-code: "https://github.com/keisuke58/Tmcmc202601"
 license: MIT
@@ -21,6 +27,8 @@ keywords:
   - uncertainty-propagation
   - multiscale-modeling
   - periodontal-disease
+  - DeepONet
+  - neural-operator
 abstract: >-
   End-to-end computational pipeline for Bayesian identification of interspecies
   interaction parameters in a 5-species oral biofilm Hamilton ODE model using
