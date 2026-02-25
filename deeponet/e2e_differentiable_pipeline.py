@@ -51,12 +51,12 @@ N_SPECIES = 5
 # Species names
 SPECIES = ["So", "An", "Vd", "Fn", "Pg"]
 
-# Condition → DeepONet checkpoint mapping
+# Condition → DeepONet checkpoint mapping (best validated per condition)
 CONDITION_CHECKPOINTS = {
-    "Commensal_Static": "checkpoints_Commensal_Static",
-    "Commensal_HOBIC": "checkpoints_Commensal_HOBIC",
-    "Dysbiotic_Static": "checkpoints_Dysbiotic_Static",
-    "Dysbiotic_HOBIC": "checkpoints_Dysbiotic_HOBIC",
+    "Commensal_Static": "checkpoints_Commensal_Static",      # original: 62% MAP err
+    "Commensal_HOBIC": "checkpoints_Commensal_HOBIC",        # original: 44% MAP err
+    "Dysbiotic_Static": "checkpoints_DS_v2",                 # v2 MAP-centered: 52%
+    "Dysbiotic_HOBIC": "checkpoints_Dysbiotic_HOBIC_50k",    # 50k: 11% MAP err
 }
 
 # Condition → theta_MAP mapping

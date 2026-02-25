@@ -26,7 +26,8 @@
 | **Fig 18** | 3-model Bayes discrimination | `compute_3model_bayes_factor.py` | DONE |
 | **Fig 19** | Corner plot dh_baseline key params | `generate_corner_plot_paper.py` | DONE |
 | **Fig 20** | **E2E differentiable pipeline: 4-cond results** | `e2e_differentiable_pipeline.py` | DONE |
-| **Fig 21** | **NUTS vs HMC vs RW TMCMC comparison** | `gradient_tmcmc_nuts.py` | NEW |
+| **Fig 21** | **NUTS vs HMC vs RW TMCMC comparison** | `generate_fig21_paper.py` | DONE |
+| **Fig 22** | **DeepONet vs ODE posterior comparison** | `generate_fig22_posterior_comparison.py` | DONE |
 
 ---
 
@@ -120,15 +121,32 @@
 - These control pathogen cross-species feeding → direct mechanical consequence
 - **Fig 20**: Pipeline results
 
-#### 3.5 Gradient-Based TMCMC Results
-- HMC acceptance 1.8× higher (0.90 vs 0.49)
-- NUTS auto-adapts trajectory length (no manual tuning)
-- Same tempering schedule (7 stages) — beta schedule is data-driven
-- Better posterior logL at convergence (-0.2 vs -1.6)
-- **Fig 21**: 3-method comparison
-- **Table**: Summary metrics (RW vs HMC vs NUTS)
+#### 3.5 Gradient-Based TMCMC Results (4-condition real data, 200 particles)
+- Acceptance improvement scales with dimensionality:
+  - DH (20 free): RW 0.45 → HMC 0.99 → NUTS 0.97 (**2.2× vs RW**)
+  - DS (15 free): RW 0.49 → HMC 0.97 → NUTS 0.97 (**2.0× vs RW**)
+  - CH (13 free): RW 0.54 → HMC 0.92 → NUTS 0.94 (**1.7× vs RW**)
+  - CS (9 free): RW 0.65 → HMC 0.70 → NUTS 0.84 (**1.3× vs RW**)
+- Average across conditions: RW 0.53 → NUTS 0.93 (**1.75×**)
+- NUTS auto-adapts step size via dual averaging (ε: 0.015→0.10)
+- Same tempering schedule for all 3 methods — beta schedule is data-driven
+- NUTS finds better max logL: DH -7.1 (NUTS) vs -7.9 (RW)
+- **Fig 21**: Per-condition RW/HMC/NUTS comparison
+- **Table**: Summary metrics (acceptance, logL, wall time)
 
-#### 3.6 Posterior Uncertainty Propagation
+#### 3.6 DeepONet Surrogate TMCMC (4-condition, 500 particles)
+- DeepONet replaces ODE solver inside TMCMC log-likelihood
+- JAX+fork issue solved via ThreadPoolExecutor (`--use-threads`)
+- **~100× wall-time speedup**: ODE ~1800s → DeepONet 12-18s per condition
+- All 4 conditions converged: R-hat max 1.010, ESS min 692
+- DH posterior comparison (300 ODE vs 1000 DeepONet samples):
+  - 17/20 params: Bhattacharyya overlap > 0.95 (excellent)
+  - 2 params low overlap: a₃₂ (0.42), a₃₅ (0.23) — Pg cross-feeding with wide ODE posterior
+  - Mean overlap: 0.903
+- Limitation: DeepONet MAP error (CS 62%, CH 44%) → Pg-related params poorly resolved
+- **Fig 22**: Posterior comparison (marginals + speedup + MAP comparison)
+
+#### 3.7 Posterior Uncertainty Propagation
 - dh_baseline (real posterior): DI CI = [0.22, 0.89], E CI = [21, 609] Pa
 - commensal_static: basin fragility (49/51 samples jump to DI≈0.85)
 - Multi-attractor sensitivity = key UQ finding
@@ -162,9 +180,10 @@
 
 #### 4.5 Limitations
 - E(DI) mapping assumed (not experimentally calibrated for this system)
-- Only dh_baseline has real posterior samples
+- ODE TMCMC: 150 particles × 2 chains → 300 samples (1000p runs pending)
 - Linear elastic FEM (nonlinear needed for ε > 5%)
 - 2D PDE homogenizes species (mitigated by Hybrid approach)
+- DeepONet MAP accuracy varies: DH 11%, DS 52%, CS 62%, CH 44% → Pg params poorly resolved
 
 ### 5. Conclusion
 - First quantitative pipeline: experimental data → TMCMC → DI → 3D FEM stress
@@ -181,8 +200,11 @@
 - 29.4× displacement ratio
 - Multi-attractor sensitivity: DI CI spans [0.22, 0.89] for dh_baseline
 - 3.8M× speedup via DeepONet+DEM differentiable pipeline
-- HMC acceptance 1.8× vs random-walk (0.90 vs 0.49)
-- NUTS auto-tuned trajectory length eliminates manual step-size tuning
+- Gradient TMCMC acceptance 1.75× vs random-walk (avg 0.93 vs 0.53, 4-condition real data)
+- Improvement scales with dimensionality: 1.3× (d=9) → 2.2× (d=20)
+- NUTS dual averaging auto-tunes step size (no manual tuning)
+- DeepONet TMCMC: ~100× speedup (12-18s vs ~1800s), 17/20 params overlap > 0.95
+- Full posterior recovery for growth parameters; Pg cross-feeding needs higher accuracy
 
 ---
 
