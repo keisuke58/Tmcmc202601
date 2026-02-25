@@ -1952,9 +1952,62 @@ def run_estimation(
         )
         logger.info(f"Weight matrix:\n{likelihood_weights}")
 
+    # --- DeepONet surrogate setup (optional) ---
+    deeponet_surrogate = None
+    if getattr(args, 'use_deeponet', False):
+        try:
+            sys.path.insert(0, str(Path(__file__).parent.parent.parent / "deeponet"))
+            from surrogate_tmcmc import DeepONetSurrogate
+
+            # Auto-detect checkpoint directory
+            ckpt_dir = args.deeponet_checkpoint
+            if ckpt_dir is None:
+                cond_map = {
+                    "Commensal_Static": "checkpoints_Commensal_Static",
+                    "Commensal_HOBIC": "checkpoints_Commensal_HOBIC",
+                    "Dysbiotic_Static": "checkpoints_Dysbiotic_Static",
+                    "Dysbiotic_HOBIC": "checkpoints",
+                }
+                cond_key = f"{args.condition}_{args.cultivation}"
+                ckpt_name = cond_map.get(cond_key, "checkpoints")
+                # Also try v2 first
+                deeponet_dir = Path(__file__).parent.parent.parent / "deeponet"
+                for suffix in [f"{ckpt_name}_v2", ckpt_name]:
+                    candidate = deeponet_dir / suffix
+                    if (candidate / "best.eqx").exists():
+                        ckpt_dir = str(candidate)
+                        break
+                if ckpt_dir is None:
+                    ckpt_dir = str(deeponet_dir / ckpt_name)
+
+            ckpt_path = Path(ckpt_dir)
+            deeponet_surrogate = DeepONetSurrogate(
+                str(ckpt_path / "best.eqx"),
+                str(ckpt_path / "norm_stats.npz"),
+            )
+            logger.info(f"DeepONet surrogate loaded from {ckpt_dir}")
+        except Exception as e:
+            logger.error(f"Failed to load DeepONet: {e}. Falling back to ODE solver.")
+            deeponet_surrogate = None
+
     def make_evaluator(theta_linearization=None):
         if theta_linearization is None:
             theta_linearization = theta_base
+
+        # Use DeepONet if available
+        if deeponet_surrogate is not None:
+            from core.evaluator import DeepONetEvaluator
+            return DeepONetEvaluator(
+                surrogate=deeponet_surrogate,
+                active_species=active_species,
+                active_indices=active_indices,
+                theta_base=theta_base,
+                data=data,
+                idx_sparse=idx_sparse,
+                sigma_obs=sigma_obs,
+                rho=0.0,
+                weights=likelihood_weights,
+            )
 
         return LogLikelihoodEvaluator(
             solver_kwargs=solver_kwargs,
@@ -2241,6 +2294,12 @@ Examples:
     # Correlation Analysis (Improvement 14)
     parser.add_argument("--correlation-analysis", action="store_true",
                         help="Compute and plot parameter correlation matrix")
+
+    # DeepONet surrogate (384× speedup)
+    parser.add_argument("--use-deeponet", action="store_true",
+                        help="Use DeepONet surrogate instead of ODE solver (384× faster)")
+    parser.add_argument("--deeponet-checkpoint", type=str, default=None,
+                        help="Path to DeepONet checkpoint dir (default: auto-detect from condition)")
 
     return parser.parse_args()
 
