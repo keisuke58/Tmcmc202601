@@ -96,7 +96,9 @@ def compute_0d_di(theta_np, K_hill=0.05, n_hill=4.0, n_steps=2500, dt=0.01):
     from generate_hybrid_macro_csv import solve_0d_composition
 
     result = solve_0d_composition(theta_np, n_steps=n_steps, dt=dt)
-    print(f"  0D DI = {result['di_0d']:.4f}, E_di = {result['E_di']:.1f} Pa")
+    print(
+        f"  0D DI = {result['di_0d']:.4f}, E_di = {result['E_di']:.1f} Pa, E_eps_synergy = {result.get('E_eps_synergy', 0):.1f} Pa"
+    )
     return result
 
 
@@ -377,6 +379,7 @@ def run_condition(condition, args):
         "n_hill": cfg.n_hill,
         "di_0d": di_0d,
         "E_di_Pa": ode_result["E_di"],
+        "E_eps_synergy_Pa": ode_result.get("E_eps_synergy", 0),
         "di_stats": {
             "mean": float(np.mean(di)),
             "max": float(np.max(di)),

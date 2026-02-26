@@ -68,6 +68,13 @@ def di_to_E(di, E_max=1000.0, E_min=10.0, di_scale=1.0):
     return E_max * (1 - r) ** 2 + E_min * r
 
 
+def phi_to_E_eps_synergy(phi_arr):
+    """EPS synergy material model: φ → E (delegated to material_models)."""
+    from material_models import compute_E_eps_synergy
+
+    return compute_E_eps_synergy(np.atleast_2d(phi_arr))
+
+
 def main():
     # Load all data
     all_samples = {}

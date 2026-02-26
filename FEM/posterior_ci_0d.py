@@ -170,12 +170,18 @@ def solve_0d_single(theta_np, n_steps=2500, dt=0.01):
     di_0d = float(1.0 - H / np.log(5.0))
 
     # Material models — use di_scale=1.0 for 0D DI values
-    from material_models import compute_E_di, compute_E_phi_pg, compute_E_virulence
+    from material_models import (
+        compute_E_di,
+        compute_E_phi_pg,
+        compute_E_virulence,
+        compute_E_eps_synergy,
+    )
 
     phi_2d = phi_final.reshape(1, 5)
     E_di = float(compute_E_di(di_0d * np.ones(1), di_scale=DI_SCALE_0D)[0])
     E_pg = float(compute_E_phi_pg(phi_2d)[0])
     E_vir = float(compute_E_virulence(phi_2d)[0])
+    E_eps = float(compute_E_eps_synergy(phi_2d)[0])
 
     return {
         "di_0d": di_0d,
@@ -188,6 +194,7 @@ def solve_0d_single(theta_np, n_steps=2500, dt=0.01):
         "E_di": E_di,
         "E_phi_pg": E_pg,
         "E_virulence": E_vir,
+        "E_eps_synergy": E_eps,
     }
 
 
