@@ -223,7 +223,7 @@ def main():
         color="#424242",
     )
 
-    out_path = PAPER_FIG_DIR / "fig23_gnn_prior_effect.png"
+    out_path = PAPER_FIG_DIR / "Fig23_gnn_prior_effect.png"
     fig.savefig(str(out_path), dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     print(f"\nSaved: {out_path}")
@@ -254,7 +254,7 @@ def main():
     )
     fig2.tight_layout(rect=[0, 0, 1, 0.92])
 
-    out_path2 = PAPER_FIG_DIR / "fig23_gnn_prior_edges.png"
+    out_path2 = PAPER_FIG_DIR / "Fig23_gnn_prior_edges.png"
     fig2.savefig(str(out_path2), dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig2)
     print(f"Saved: {out_path2}")
