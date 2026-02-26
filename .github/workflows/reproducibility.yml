@@ -46,7 +46,7 @@ jobs:
           pip list --format=json > reproducibility_artifacts/pip_list.json 2>/dev/null || true
 
       - name: Upload reproducibility artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: reproducibility-${{ github.sha }}
           path: reproducibility_artifacts/
