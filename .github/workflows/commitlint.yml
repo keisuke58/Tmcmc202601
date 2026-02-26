@@ -1,0 +1,34 @@
+# Commitlint: コミットメッセージの規約チェック (feat:, fix:, docs: 等)
+# .cursorrules のコミットプレフィックスに準拠
+
+name: Commitlint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: commitlint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check commit messages (conventional commits)
+        run: |
+          PREFIXES="feat|fix|docs|style|refactor|test|chore|perf|ci"
+          invalid=0
+          for sha in $(git log --format=%H ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}); do
+            msg=$(git log -1 --format=%s "$sha")
+            if ! echo "$msg" | grep -qE "^($PREFIXES)(\(.+\))?!?:"; then
+              echo "::warning::Invalid commit: $sha - $msg"
+              invalid=1
+            fi
+          done
+          [ $invalid -eq 0 ] || echo "Some commits don't follow conventional format (feat:, fix:, etc.)"
+        continue-on-error: true

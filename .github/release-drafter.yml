@@ -1,0 +1,35 @@
+# Release Drafter 設定
+# PR ラベル → リリースノートのカテゴリ
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+categories:
+  - title: '## 🚀 Features'
+    labels:
+      - 'feat'
+      - 'feature'
+      - 'enhancement'
+  - title: '## 🐛 Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bugfix'
+  - title: '## 📚 Documentation'
+    labels:
+      - 'docs'
+      - 'documentation'
+  - title: '## 🔬 Paper / LaTeX'
+    labels:
+      - 'paper'
+  - title: '## ⚙️ Infrastructure'
+    labels:
+      - 'infrastructure'
+      - 'ci'
+  - title: '## 🔧 Other'
+    labels:
+      - 'chore'
+      - 'refactor'
+      - 'style'
+
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&'

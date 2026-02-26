@@ -1,0 +1,53 @@
+# Reproducibility: pip freeze + 環境情報を成果物として保存
+# 再現性のための環境スナップショット
+
+name: Reproducibility
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - '**/requirements*.txt'
+      - '**/pyproject.toml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - '**/requirements*.txt'
+  schedule:
+    - cron: '0 0 1 * *'  # 毎月1日 00:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: reproducibility-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  env-snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install project deps
+        run: |
+          pip install numpy scipy pytest
+          pip install -r requirements-tools.txt 2>/dev/null || true
+          pip install -r gnn/requirements-gnn.txt 2>/dev/null || true
+
+      - name: Collect environment
+        run: |
+          mkdir -p reproducibility_artifacts
+          pip freeze > reproducibility_artifacts/pip_freeze.txt
+          python --version > reproducibility_artifacts/python_version.txt
+          uname -a >> reproducibility_artifacts/python_version.txt
+          pip list --format=json > reproducibility_artifacts/pip_list.json 2>/dev/null || true
+
+      - name: Upload reproducibility artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: reproducibility-${{ github.sha }}
+          path: reproducibility_artifacts/
+          retention-days: 90

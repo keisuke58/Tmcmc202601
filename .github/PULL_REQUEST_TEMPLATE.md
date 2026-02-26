@@ -19,6 +19,8 @@ Closes #
 - [ ] Figures in `FEM/figures/paper_final/` with consistent naming
 - [ ] Key numbers match MEMORY.md / PAPER_OUTLINE.md
 - [ ] Code tested locally (if applicable)
+- [ ] Lint passes (`ruff`, `black`)
+- [ ] Tests pass (`pytest FEM/tests/`)
 
 ## Reviewer Notes
 <!-- Context for Klempt/Junker review -->

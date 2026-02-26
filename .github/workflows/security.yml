@@ -1,0 +1,53 @@
+# Security: Bandit + 依存関係脆弱性チェック
+# 軽量なセキュリティスキャン（CodeQL の補完）
+
+name: Security
+
+on:
+  push:
+    paths:
+      - '**.py'
+  pull_request:
+    paths:
+      - '**.py'
+  schedule:
+    - cron: '0 0 * * 1'  # 毎週月曜 00:00 UTC
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bandit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Run Bandit
+        run: |
+          pip install bandit
+          bandit -r . -x 'FEM/JAXFEM,FEM/external_tooth_models,data_5species/_runs' \
+            -f json -o bandit-report.json || true
+          bandit -r . -x 'FEM/JAXFEM,FEM/external_tooth_models,data_5species/_runs' \
+            -ll 2>/dev/null || true
+        continue-on-error: true
+
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Run pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements-tools.txt 2>/dev/null || true
+          pip-audit -r gnn/requirements-gnn.txt 2>/dev/null || true
+        continue-on-error: true
