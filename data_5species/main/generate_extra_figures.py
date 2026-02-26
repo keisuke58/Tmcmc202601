@@ -18,29 +18,58 @@ Usage:
 
 import argparse
 import json
-import sys
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 from pathlib import Path
 
 # ── Parameter labels (20 params, Nishioka 5-species model) ──
 PARAM_LABELS = [
-    r"$a_{11}$", r"$a_{12}$", r"$a_{22}$", r"$b_1$", r"$b_2$",
-    r"$a_{33}$", r"$a_{34}$", r"$a_{44}$", r"$b_3$", r"$b_4$",
-    r"$a_{13}$", r"$a_{14}$", r"$a_{23}$", r"$a_{24}$",
-    r"$a_{55}$", r"$b_5$",
-    r"$a_{15}$", r"$a_{25}$", r"$a_{35}$", r"$a_{45}$",
+    r"$a_{11}$",
+    r"$a_{12}$",
+    r"$a_{22}$",
+    r"$b_1$",
+    r"$b_2$",
+    r"$a_{33}$",
+    r"$a_{34}$",
+    r"$a_{44}$",
+    r"$b_3$",
+    r"$b_4$",
+    r"$a_{13}$",
+    r"$a_{14}$",
+    r"$a_{23}$",
+    r"$a_{24}$",
+    r"$a_{55}$",
+    r"$b_5$",
+    r"$a_{15}$",
+    r"$a_{25}$",
+    r"$a_{35}$",
+    r"$a_{45}$",
 ]
 
 PARAM_LABELS_PLAIN = [
-    "a11", "a12", "a22", "b1", "b2",
-    "a33", "a34", "a44", "b3", "b4",
-    "a13", "a14", "a23", "a24",
-    "a55", "b5",
-    "a15", "a25", "a35", "a45",
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45",
 ]
 
 SPECIES_NAMES = ["S. oralis", "A. naeslundii", "V. dispar", "F. nucleatum", "P. gingivalis"]
@@ -57,20 +86,20 @@ def theta_to_A_matrix(theta):
     b = np.zeros(5)
 
     # M1: S0-S1 block
-    A[0, 0] = theta[0]   # a11
-    A[0, 1] = theta[1]   # a12
-    A[1, 0] = theta[1]   # a21 = a12 (symmetric)
-    A[1, 1] = theta[2]   # a22
-    b[0]    = theta[3]    # b1
-    b[1]    = theta[4]    # b2
+    A[0, 0] = theta[0]  # a11
+    A[0, 1] = theta[1]  # a12
+    A[1, 0] = theta[1]  # a21 = a12 (symmetric)
+    A[1, 1] = theta[2]  # a22
+    b[0] = theta[3]  # b1
+    b[1] = theta[4]  # b2
 
     # M2: S2-S3 block
-    A[2, 2] = theta[5]   # a33
-    A[2, 3] = theta[6]   # a34
-    A[3, 2] = theta[6]   # a43 = a34
-    A[3, 3] = theta[7]   # a44
-    b[2]    = theta[8]    # b3
-    b[3]    = theta[9]    # b4
+    A[2, 2] = theta[5]  # a33
+    A[2, 3] = theta[6]  # a34
+    A[3, 2] = theta[6]  # a43 = a34
+    A[3, 3] = theta[7]  # a44
+    b[2] = theta[8]  # b3
+    b[3] = theta[9]  # b4
 
     # M3: Cross interactions S0/S1 - S2/S3
     A[0, 2] = theta[10]  # a13
@@ -84,7 +113,7 @@ def theta_to_A_matrix(theta):
 
     # M4: S4 self
     A[4, 4] = theta[14]  # a55
-    b[4]    = theta[15]   # b5
+    b[4] = theta[15]  # b5
 
     # M5: S4 cross
     A[0, 4] = theta[16]  # a15
@@ -135,13 +164,16 @@ def load_run(run_dir):
 def save_plot_with_preview(fig, output_path):
     """Save plot in high res (300dpi) and preview (100dpi) formats."""
     # High resolution
-    fig.savefig(output_path.with_suffix('.png'), dpi=300, bbox_inches="tight")
-    fig.savefig(output_path.with_suffix('.pdf'), dpi=300, bbox_inches="tight")
-    
+    fig.savefig(output_path.with_suffix(".png"), dpi=300, bbox_inches="tight")
+    fig.savefig(output_path.with_suffix(".pdf"), dpi=300, bbox_inches="tight")
+
     # Preview (max 2000px width)
     # 100 dpi is usually safe for typical figure sizes (up to 20 inches)
-    fig.savefig(output_path.with_name(output_path.stem + "_preview.png"), dpi=100, bbox_inches="tight")
+    fig.savefig(
+        output_path.with_name(output_path.stem + "_preview.png"), dpi=100, bbox_inches="tight"
+    )
     print(f"  Saved: {output_path.name} (+preview)")
+
 
 # ═══════════════════════════════════════════════════════════════════
 # Figure 1: Interaction Matrix Heatmap
@@ -150,8 +182,7 @@ def fig_interaction_heatmap(data, out_dir):
     """5x5 interaction matrix heatmap from MAP estimate."""
     A, b = theta_to_A_matrix(data["theta_MAP"])
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5),
-                                    gridspec_kw={"width_ratios": [5, 1.2]})
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5), gridspec_kw={"width_ratios": [5, 1.2]})
 
     # Heatmap
     vmax = np.max(np.abs(A)) * 1.05
@@ -161,8 +192,16 @@ def fig_interaction_heatmap(data, out_dir):
         for j in range(5):
             val = A[i, j]
             color = "white" if abs(val) > vmax * 0.6 else "black"
-            ax1.text(j, i, f"{val:.2f}", ha="center", va="center",
-                     fontsize=11, fontweight="bold", color=color)
+            ax1.text(
+                j,
+                i,
+                f"{val:.2f}",
+                ha="center",
+                va="center",
+                fontsize=11,
+                fontweight="bold",
+                color=color,
+            )
 
     ax1.set_xticks(range(5))
     ax1.set_yticks(range(5))
@@ -205,29 +244,55 @@ def fig_violin_plots(data, out_dir):
 
     fig, ax = plt.subplots(figsize=(16, 6))
 
-    parts = ax.violinplot(samples, positions=range(n_params), showmedians=True,
-                          showextrema=False)
+    parts = ax.violinplot(samples, positions=range(n_params), showmedians=True, showextrema=False)
     for pc in parts["bodies"]:
         pc.set_facecolor("#4C72B0")
         pc.set_alpha(0.6)
     parts["cmedians"].set_color("black")
 
     # MAP and Mean markers
-    ax.scatter(range(n_params), theta_map, color="red", marker="D", s=50,
-               zorder=5, label="MAP", edgecolors="black", linewidths=0.5)
-    ax.scatter(range(n_params), theta_mean, color="limegreen", marker="s", s=40,
-               zorder=5, label="Mean", edgecolors="black", linewidths=0.5)
+    ax.scatter(
+        range(n_params),
+        theta_map,
+        color="red",
+        marker="D",
+        s=50,
+        zorder=5,
+        label="MAP",
+        edgecolors="black",
+        linewidths=0.5,
+    )
+    ax.scatter(
+        range(n_params),
+        theta_mean,
+        color="limegreen",
+        marker="s",
+        s=40,
+        zorder=5,
+        label="Mean",
+        edgecolors="black",
+        linewidths=0.5,
+    )
 
     # Group shading
-    groups = [(0, 5, "#E8F0FE", "M1\n(S.o–A.n)"),
-              (5, 10, "#FEF3E8", "M2\n(V.d–F.n)"),
-              (10, 14, "#E8FEE8", "M3\n(Cross)"),
-              (14, 16, "#FEE8FE", "M4\n(P.g self)"),
-              (16, 20, "#FEE8E8", "M5\n(P.g cross)")]
+    groups = [
+        (0, 5, "#E8F0FE", "M1\n(S.o–A.n)"),
+        (5, 10, "#FEF3E8", "M2\n(V.d–F.n)"),
+        (10, 14, "#E8FEE8", "M3\n(Cross)"),
+        (14, 16, "#FEE8FE", "M4\n(P.g self)"),
+        (16, 20, "#FEE8E8", "M5\n(P.g cross)"),
+    ]
     for start, end, color, label in groups:
         ax.axvspan(start - 0.5, end - 0.5, alpha=0.3, color=color)
-        ax.text((start + end) / 2 - 0.5, ax.get_ylim()[0] if ax.get_ylim()[0] < 0 else -0.1,
-                label, ha="center", va="top", fontsize=8, fontstyle="italic")
+        ax.text(
+            (start + end) / 2 - 0.5,
+            ax.get_ylim()[0] if ax.get_ylim()[0] < 0 else -0.1,
+            label,
+            ha="center",
+            va="top",
+            fontsize=8,
+            fontstyle="italic",
+        )
 
     ax.set_xticks(range(n_params))
     ax.set_xticklabels(PARAM_LABELS, fontsize=10)
@@ -257,14 +322,23 @@ def fig_correlation_heatmap(data, out_dir):
     for i in range(n):
         for j in range(n):
             if abs(corr[i, j]) > 0.3 and i != j:
-                ax.text(j, i, f"{corr[i,j]:.2f}", ha="center", va="center",
-                        fontsize=7, color="black" if abs(corr[i, j]) < 0.7 else "white")
+                ax.text(
+                    j,
+                    i,
+                    f"{corr[i,j]:.2f}",
+                    ha="center",
+                    va="center",
+                    fontsize=7,
+                    color="black" if abs(corr[i, j]) < 0.7 else "white",
+                )
 
     ax.set_xticks(range(n))
     ax.set_yticks(range(n))
     ax.set_xticklabels(PARAM_LABELS, fontsize=9, rotation=45, ha="right")
     ax.set_yticklabels(PARAM_LABELS, fontsize=9)
-    ax.set_title(f"Posterior Parameter Correlations — {data['label']}", fontsize=14, fontweight="bold")
+    ax.set_title(
+        f"Posterior Parameter Correlations — {data['label']}", fontsize=14, fontweight="bold"
+    )
 
     cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     cb.set_label("Pearson correlation", fontsize=11)
@@ -273,7 +347,7 @@ def fig_correlation_heatmap(data, out_dir):
     plt.savefig(out_dir / f"pub_correlation_{data['label']}.png", dpi=300, bbox_inches="tight")
     plt.savefig(out_dir / f"pub_correlation_{data['label']}.pdf", dpi=300, bbox_inches="tight")
     plt.close()
-    print(f"  [3] Correlation heatmap saved")
+    print("  [3] Correlation heatmap saved")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -289,8 +363,26 @@ def fig_map_vs_mean(data, out_dir):
     width = 0.35
 
     fig, ax = plt.subplots(figsize=(16, 5))
-    bars1 = ax.bar(x - width/2, theta_map, width, label="MAP", color="#d62728", alpha=0.8, edgecolor="black", linewidth=0.5)
-    bars2 = ax.bar(x + width/2, theta_mean, width, label="Mean", color="#2ca02c", alpha=0.8, edgecolor="black", linewidth=0.5)
+    bars1 = ax.bar(
+        x - width / 2,
+        theta_map,
+        width,
+        label="MAP",
+        color="#d62728",
+        alpha=0.8,
+        edgecolor="black",
+        linewidth=0.5,
+    )
+    bars2 = ax.bar(
+        x + width / 2,
+        theta_mean,
+        width,
+        label="Mean",
+        color="#2ca02c",
+        alpha=0.8,
+        edgecolor="black",
+        linewidth=0.5,
+    )
 
     ax.set_xticks(x)
     ax.set_xticklabels(PARAM_LABELS, fontsize=10)
@@ -316,7 +408,9 @@ def fig_logL_distribution(data, out_dir):
 
     fig, ax = plt.subplots(figsize=(10, 5))
 
-    ax.hist(logL, bins=60, color="#4C72B0", alpha=0.7, edgecolor="black", linewidth=0.3, density=True)
+    ax.hist(
+        logL, bins=60, color="#4C72B0", alpha=0.7, edgecolor="black", linewidth=0.3, density=True
+    )
 
     # Mark MAP logL (highest logL sample)
     map_idx = np.argmax(logL)
@@ -336,10 +430,14 @@ def fig_logL_distribution(data, out_dir):
     ax.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(out_dir / f"pub_logL_distribution_{data['label']}.png", dpi=300, bbox_inches="tight")
-    plt.savefig(out_dir / f"pub_logL_distribution_{data['label']}.pdf", dpi=300, bbox_inches="tight")
+    plt.savefig(
+        out_dir / f"pub_logL_distribution_{data['label']}.png", dpi=300, bbox_inches="tight"
+    )
+    plt.savefig(
+        out_dir / f"pub_logL_distribution_{data['label']}.pdf", dpi=300, bbox_inches="tight"
+    )
     plt.close()
-    print(f"  [5] Log-likelihood distribution saved")
+    print("  [5] Log-likelihood distribution saved")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -361,8 +459,15 @@ def fig_species_composition(data, out_dir):
     # Left: Absolute volumes
     bottom = np.zeros(len(days))
     for i in range(5):
-        ax1.bar([f"Day {d}" for d in days], exp_data[:, i], bottom=bottom,
-                color=colors[i], edgecolor="white", linewidth=0.5, label=SPECIES_NAMES[i])
+        ax1.bar(
+            [f"Day {d}" for d in days],
+            exp_data[:, i],
+            bottom=bottom,
+            color=colors[i],
+            edgecolor="white",
+            linewidth=0.5,
+            label=SPECIES_NAMES[i],
+        )
         bottom += exp_data[:, i]
 
     ax1.set_ylabel("Absolute Volume (φ̄)", fontsize=11)
@@ -373,8 +478,15 @@ def fig_species_composition(data, out_dir):
     # Right: Relative composition
     bottom = np.zeros(len(days))
     for i in range(5):
-        ax2.bar([f"Day {d}" for d in days], fracs[:, i], bottom=bottom,
-                color=colors[i], edgecolor="white", linewidth=0.5, label=SPECIES_NAMES[i])
+        ax2.bar(
+            [f"Day {d}" for d in days],
+            fracs[:, i],
+            bottom=bottom,
+            color=colors[i],
+            edgecolor="white",
+            linewidth=0.5,
+            label=SPECIES_NAMES[i],
+        )
         bottom += fracs[:, i]
 
     ax2.set_ylabel("Relative Fraction", fontsize=11)
@@ -402,12 +514,18 @@ def fig_parameter_sensitivity(data, out_dir):
     fig, ax = plt.subplots(figsize=(14, 5))
 
     colors_bar = ["#d62728" if c > 0 else "#2ca02c" for c in correlations]
-    bars = ax.bar(range(n_params), correlations, color=colors_bar, edgecolor="black", linewidth=0.5, alpha=0.8)
+    bars = ax.bar(
+        range(n_params), correlations, color=colors_bar, edgecolor="black", linewidth=0.5, alpha=0.8
+    )
 
     ax.set_xticks(range(n_params))
     ax.set_xticklabels(PARAM_LABELS, fontsize=10)
     ax.set_ylabel("Correlation with logL", fontsize=12)
-    ax.set_title(f"Parameter Sensitivity (Corr with Log-Likelihood) — {data['label']}", fontsize=13, fontweight="bold")
+    ax.set_title(
+        f"Parameter Sensitivity (Corr with Log-Likelihood) — {data['label']}",
+        fontsize=13,
+        fontweight="bold",
+    )
     ax.axhline(0, color="gray", lw=0.5)
     ax.axhline(0.1, color="gray", lw=0.5, ls=":")
     ax.axhline(-0.1, color="gray", lw=0.5, ls=":")
@@ -416,10 +534,15 @@ def fig_parameter_sensitivity(data, out_dir):
     # Annotate strongest
     top_idx = np.argsort(np.abs(correlations))[-3:]
     for idx in top_idx:
-        ax.annotate(f"{correlations[idx]:.3f}",
-                    (idx, correlations[idx]),
-                    textcoords="offset points", xytext=(0, 8 if correlations[idx] > 0 else -12),
-                    ha="center", fontsize=9, fontweight="bold")
+        ax.annotate(
+            f"{correlations[idx]:.3f}",
+            (idx, correlations[idx]),
+            textcoords="offset points",
+            xytext=(0, 8 if correlations[idx] > 0 else -12),
+            ha="center",
+            fontsize=9,
+            fontweight="bold",
+        )
 
     plt.tight_layout()
     save_plot_with_preview(fig, out_dir / f"pub_sensitivity_{data['label']}")
@@ -441,23 +564,32 @@ def fig_fit_metrics_table(data, out_dir):
     col_labels = ["Species", "RMSE (MAP)", "MAE (MAP)", "RMSE (Mean)", "MAE (Mean)"]
     table_data = []
     for i, name in enumerate(SPECIES_NAMES):
-        table_data.append([
-            name,
-            f"{map_m['rmse_per_species'][i]:.4f}",
-            f"{map_m['mae_per_species'][i]:.4f}",
-            f"{mean_m['rmse_per_species'][i]:.4f}",
-            f"{mean_m['mae_per_species'][i]:.4f}",
-        ])
-    table_data.append([
-        "TOTAL",
-        f"{map_m['rmse_total']:.4f}",
-        f"{map_m['mae_total']:.4f}",
-        f"{mean_m['rmse_total']:.4f}",
-        f"{mean_m['mae_total']:.4f}",
-    ])
+        table_data.append(
+            [
+                name,
+                f"{map_m['rmse_per_species'][i]:.4f}",
+                f"{map_m['mae_per_species'][i]:.4f}",
+                f"{mean_m['rmse_per_species'][i]:.4f}",
+                f"{mean_m['mae_per_species'][i]:.4f}",
+            ]
+        )
+    table_data.append(
+        [
+            "TOTAL",
+            f"{map_m['rmse_total']:.4f}",
+            f"{map_m['mae_total']:.4f}",
+            f"{mean_m['rmse_total']:.4f}",
+            f"{mean_m['mae_total']:.4f}",
+        ]
+    )
 
-    table = ax.table(cellText=table_data, colLabels=col_labels, loc="center",
-                     cellLoc="center", colColours=["#D6EAF8"] * 5)
+    table = ax.table(
+        cellText=table_data,
+        colLabels=col_labels,
+        loc="center",
+        cellLoc="center",
+        colColours=["#D6EAF8"] * 5,
+    )
     table.auto_set_font_size(False)
     table.set_fontsize(11)
     table.scale(1.0, 1.6)
@@ -472,7 +604,7 @@ def fig_fit_metrics_table(data, out_dir):
     plt.tight_layout()
     save_plot_with_preview(fig, out_dir / f"pub_fit_metrics_table_{data['label']}")
     plt.close()
-    print(f"  [8] Fit metrics table saved")
+    print("  [8] Fit metrics table saved")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -502,8 +634,13 @@ def process_run(run_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="Generate extra publication figures")
-    parser.add_argument("--run_dir", type=str, action="append", required=True,
-                        help="Run directory (can specify multiple)")
+    parser.add_argument(
+        "--run_dir",
+        type=str,
+        action="append",
+        required=True,
+        help="Run directory (can specify multiple)",
+    )
     args = parser.parse_args()
 
     for rd in args.run_dir:

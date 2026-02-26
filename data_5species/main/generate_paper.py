@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os
 from pathlib import Path
 
 # Setup paths
@@ -19,7 +18,7 @@ RUNS = [
         "condition": "Commensal",
         "cultivation": "HOBIC",
         "desc": "Healthy condition under flow (HOBIC). Characterized by high S.oralis growth ('Blue Bloom') and suppressed pathogens.",
-        "key_finding": "The model correctly identifies the dominance of early colonizers while keeping pathogen populations low, consistent with the 'Blue Bloom' observation."
+        "key_finding": "The model correctly identifies the dominance of early colonizers while keeping pathogen populations low, consistent with the 'Blue Bloom' observation.",
     },
     {
         "id": "Dysbiotic_HOBIC_20260208_002100",
@@ -27,7 +26,7 @@ RUNS = [
         "condition": "Dysbiotic",
         "cultivation": "HOBIC",
         "desc": "Disease condition under flow (HOBIC). Characterized by the explosive growth ('Surge') of F. nucleatum and P. gingivalis.",
-        "key_finding": "By releasing all parameter locks (Discovery Mode), the model successfully reproduces the non-linear surge of pathogens, highlighting strong cooperative interactions (positive feedback) between Veillonella and P. gingivalis."
+        "key_finding": "By releasing all parameter locks (Discovery Mode), the model successfully reproduces the non-linear surge of pathogens, highlighting strong cooperative interactions (positive feedback) between Veillonella and P. gingivalis.",
     },
     {
         "id": "Commensal_Static_20260208_002100",
@@ -35,7 +34,7 @@ RUNS = [
         "condition": "Commensal",
         "cultivation": "Static",
         "desc": "Healthy condition under static cultivation. Nutrient limitation leads to stable but lower biomass.",
-        "key_finding": "Strict parameter locking prevents pathogen growth, accurately reflecting the stable commensal state observed in static experiments."
+        "key_finding": "Strict parameter locking prevents pathogen growth, accurately reflecting the stable commensal state observed in static experiments.",
     },
     {
         "id": "Dysbiotic_Static_20260207_203752",
@@ -43,8 +42,8 @@ RUNS = [
         "condition": "Dysbiotic",
         "cultivation": "Static",
         "desc": "Disease condition under static cultivation. Pathogens are present but limited by metabolite accumulation.",
-        "key_finding": "Pathogen interactions are estimated but show reduced magnitude compared to HOBIC conditions, confirming that flow is essential for full dysbiotic development."
-    }
+        "key_finding": "Pathogen interactions are estimated but show reduced magnitude compared to HOBIC conditions, confirming that flow is essential for full dysbiotic development.",
+    },
 ]
 
 # LaTeX Header
@@ -173,6 +172,7 @@ This framework offers a powerful tool for analyzing multi-species bacterial inte
 \end{document}
 """
 
+
 def generate_results_section(runs):
     section = ""
     for run in runs:
@@ -180,48 +180,50 @@ def generate_results_section(runs):
         label = run["label"]
         desc = run["desc"]
         key_finding = run["key_finding"]
-        
+
         # Relative path to figures
         # From docs/paper.tex to _runs/run_id/
         fig_path = f"../_runs/{run_id}"
-        
+
         section += f"\\subsection{{{label}}}\n"
         section += f"\\textbf{{Description}}: {desc}\n\n"
         section += f"\\textbf{{Key Finding}}: {key_finding}\n\n"
-        
+
         # Fig 1: Fit (Per species panel)
         section += "\\begin{figure}[H]\n"
         section += "\\centering\n"
         section += f"\\includegraphics[width=0.95\\textwidth]{{{fig_path}/Fig_A02_per_species_panel.png}}\n"
         section += f"\\caption{{Posterior fit for {label}. The shaded regions indicate the 95\\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}}\n"
         section += "\\end{figure}\n\n"
-        
+
         # Fig 2: Interaction Matrix
         section += "\\begin{figure}[H]\n"
         section += "\\centering\n"
         section += f"\\includegraphics[width=0.8\\textwidth]{{{fig_path}/Fig_A01_interaction_matrix_heatmap.png}}\n"
         section += f"\\caption{{Estimated interaction matrix (MAP) for {label}. Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}}\n"
         section += "\\end{figure}\n\n"
-        
+
         # Fig 3: Parameter Uncertainty
         section += "\\begin{figure}[H]\n"
         section += "\\centering\n"
         section += f"\\includegraphics[width=0.95\\textwidth]{{{fig_path}/Fig_A05_parameter_violins.png}}\n"
         section += f"\\caption{{Parameter uncertainty (Violin plots) for {label}. Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}}\n"
         section += "\\end{figure}\n\n"
-        
+
         section += "\\clearpage\n"
-    
+
     return section
+
 
 def main():
     content = LATEX_HEADER + generate_results_section(RUNS) + LATEX_FOOTER
-    
+
     out_file = DOCS_DIR / "paper_comprehensive.tex"
     with open(out_file, "w") as f:
         f.write(content)
-    
+
     print(f"Generated {out_file}")
+
 
 if __name__ == "__main__":
     main()

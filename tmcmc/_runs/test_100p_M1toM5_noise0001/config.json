@@ -1,0 +1,86 @@
+{
+  "run_id": "test_100p_M1toM5_noise0001",
+  "mode": "paper",
+  "start_time": "2026-01-30 16:55:42",
+  "command": "tmcmc/main/case2_main.py --mode paper --n-particles 100 --sigma-obs 0.0001 --run-id test_100p_M1toM5_noise0001",
+  "paths": {
+    "output_root": "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/_runs",
+    "run_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/_runs/test_100p_M1toM5_noise0001",
+    "figures_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/_runs/test_100p_M1toM5_noise0001/figures"
+  },
+  "seeds": {
+    "base_seed": 42
+  },
+  "debug": {
+    "level": "OFF"
+  },
+  "experiment": {
+    "n_data": 20,
+    "sigma_obs": 0.0001,
+    "cov_rel": 0.005,
+    "aleatory_samples": 500
+  },
+  "tmcmc": {
+    "n_particles": 100,
+    "n_stages": 50,
+    "n_mutation_steps": 5,
+    "n_chains": 1,
+    "target_ess_ratio": 0.5,
+    "min_delta_beta": 0.02,
+    "max_delta_beta": 0.05,
+    "update_linearization_interval": 3,
+    "linearization_threshold": 0.75,
+    "linearization_enable_rom_threshold": 0.05,
+    "force_beta_one": true
+  },
+  "models": [
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "derivatives": {
+    "use_paper_analytical": true
+  },
+  "runtime": {
+    "HAS_NUMBA": true,
+    "lock_paper_conditions": true
+  },
+  "environment": {
+    "python": {
+      "executable": "/home/nishioka/miniconda3/bin/python3",
+      "version": "3.12.2 | packaged by conda-forge | (main, Feb 16 2024, 20:50:58) [GCC 12.3.0]",
+      "version_info": [
+        3,
+        12,
+        2,
+        "final",
+        0
+      ]
+    },
+    "numpy": {
+      "version": "1.26.4"
+    },
+    "numba": {
+      "enabled": true,
+      "version": "0.62.1",
+      "num_threads": 24,
+      "threading_layer": "tbb"
+    },
+    "platform": {
+      "system": "Linux",
+      "release": "5.14.0-284.11.1.el9_2.x86_64",
+      "version": "#1 SMP PREEMPT_DYNAMIC Tue May 9 17:09:15 UTC 2023",
+      "machine": "x86_64",
+      "processor": "x86_64"
+    },
+    "threads": {
+      "os_cpu_count": 24,
+      "mp_cpu_count": 24,
+      "OMP_NUM_THREADS": null,
+      "MKL_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null,
+      "NUMEXPR_NUM_THREADS": null,
+      "NUMBA_NUM_THREADS": null
+    }
+  }
+}

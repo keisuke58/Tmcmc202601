@@ -17,20 +17,20 @@ sys.path.insert(0, str(PROJECT_ROOT / "tmcmc"))
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from improved_5species_jit import BiofilmNewtonSolver5S
-from visualization.helpers import compute_phibar, compute_fit_metrics
+from visualization.helpers import compute_phibar
 
 RUNS = DATA_ROOT / "_runs"
 SPECIES = ["S. oralis", "A. naeslundii", "V. dispar", "F. nucleatum", "P. gingivalis"]
 
 # Conditions to analyze
 RUNS_TO_ANALYZE = [
-    ("commensal_static",  "CS old (20-free)", "Commensal", "Static"),
+    ("commensal_static", "CS old (20-free)", "Commensal", "Static"),
     ("commensal_static_posterior", "CS new (9-free)", "Commensal", "Static"),
-    ("dysbiotic_static",  "DS old (20-free)", "Dysbiotic", "Static"),
+    ("dysbiotic_static", "DS old (20-free)", "Dysbiotic", "Static"),
     ("dysbiotic_static_posterior", "DS new (15-free)", "Dysbiotic", "Static"),
-    ("commensal_hobic",   "CH old (20-free)", "Commensal", "HOBIC"),
+    ("commensal_hobic", "CH old (20-free)", "Commensal", "HOBIC"),
     ("commensal_hobic_posterior", "CH new (13-free)", "Commensal", "HOBIC"),
-    ("dh_baseline",       "DH old (20-free)", "Dysbiotic", "HOBIC"),
+    ("dh_baseline", "DH old (20-free)", "Dysbiotic", "HOBIC"),
 ]
 
 
@@ -57,6 +57,7 @@ def load_data_for_condition(condition, cultivation):
         return None, None, None
 
     import csv
+
     with open(csv_path) as f:
         reader = csv.DictReader(f)
         rows = list(reader)
@@ -182,7 +183,9 @@ def main():
     print(f"  {'─'*73}")
     for label, m in results.items():
         r = m["rmse_per_species"]
-        print(f"  {label:<25} {m['rmse_total']:8.4f} {r[0]:8.4f} {r[1]:8.4f} {r[2]:8.4f} {r[3]:8.4f} {r[4]:8.4f}")
+        print(
+            f"  {label:<25} {m['rmse_total']:8.4f} {r[0]:8.4f} {r[1]:8.4f} {r[2]:8.4f} {r[3]:8.4f} {r[4]:8.4f}"
+        )
 
 
 if __name__ == "__main__":

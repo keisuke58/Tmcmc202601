@@ -1,0 +1,86 @@
+{
+  "run_id": "parallel_fixed_M1M2M3_20260126_210657",
+  "mode": "paper",
+  "start_time": "2026-01-26 21:06:58",
+  "command": "main/case2_main.py --mode paper --seed 42 --output-root tmcmc/_runs --run-id parallel_fixed_M1M2M3_20260126_210657 --models M1,M2,M3 --no-noise --n-particles 5000 --n-stages 50 --n-jobs 6 --debug-level MINIMAL",
+  "paths": {
+    "output_root": "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/tmcmc/_runs",
+    "run_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/tmcmc/_runs/parallel_fixed_M1M2M3_20260126_210657",
+    "figures_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/tmcmc/_runs/parallel_fixed_M1M2M3_20260126_210657/figures"
+  },
+  "seeds": {
+    "base_seed": 42
+  },
+  "debug": {
+    "level": "MINIMAL"
+  },
+  "experiment": {
+    "n_data": 20,
+    "sigma_obs": 0.01,
+    "cov_rel": 0.005,
+    "aleatory_samples": 500
+  },
+  "tmcmc": {
+    "n_particles": 5000,
+    "n_stages": 50,
+    "n_mutation_steps": 5,
+    "n_chains": 1,
+    "target_ess_ratio": 0.5,
+    "min_delta_beta": 0.02,
+    "max_delta_beta": 0.05,
+    "update_linearization_interval": 3,
+    "linearization_threshold": 0.75,
+    "linearization_enable_rom_threshold": 0.05,
+    "force_beta_one": true
+  },
+  "models": [
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "derivatives": {
+    "use_paper_analytical": true
+  },
+  "runtime": {
+    "HAS_NUMBA": true,
+    "lock_paper_conditions": true
+  },
+  "environment": {
+    "python": {
+      "executable": "/home/nishioka/miniconda3/bin/python",
+      "version": "3.12.2 | packaged by conda-forge | (main, Feb 16 2024, 20:50:58) [GCC 12.3.0]",
+      "version_info": [
+        3,
+        12,
+        2,
+        "final",
+        0
+      ]
+    },
+    "numpy": {
+      "version": "1.26.4"
+    },
+    "numba": {
+      "enabled": true,
+      "version": "0.62.1",
+      "num_threads": 12,
+      "threading_layer": "tbb"
+    },
+    "platform": {
+      "system": "Linux",
+      "release": "5.14.0-284.11.1.el9_2.x86_64",
+      "version": "#1 SMP PREEMPT_DYNAMIC Tue May 9 17:09:15 UTC 2023",
+      "machine": "x86_64",
+      "processor": "x86_64"
+    },
+    "threads": {
+      "os_cpu_count": 12,
+      "mp_cpu_count": 12,
+      "OMP_NUM_THREADS": null,
+      "MKL_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null,
+      "NUMEXPR_NUM_THREADS": null,
+      "NUMBA_NUM_THREADS": null
+    }
+  }
+}

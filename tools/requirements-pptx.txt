@@ -1,0 +1,4 @@
+# Paper to PowerPoint conversion
+# pip install -r tools/requirements-pptx.txt
+
+python-pptx>=0.6.21

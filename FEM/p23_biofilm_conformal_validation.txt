@@ -17,7 +17,7 @@ Mesh
   Volume range : 0.0007149 .. 0.005462 mm^3
 
 DI Bins
-  Bin     E_stiff (GPa)  n_tets      
+  Bin     E_stiff (GPa)  n_tets
   00     9.6659        0
   01     9.0155        0
   02     8.3891        0

@@ -8,7 +8,7 @@ for server in $SERVERS; do
     echo "[$server]"
     # Find log files modified in the last 3 days
     ssh -o BatchMode=yes -o ConnectTimeout=3 "$server" "find /home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species -name '*.log' -mtime -3 -ls" 2>/dev/null
-    
+
     # Also check tail of specific logs seen in process list
     if [ "$server" == "marinos02" ]; then
         echo "  >> Tail of dysbiotic_static_1000.log:"

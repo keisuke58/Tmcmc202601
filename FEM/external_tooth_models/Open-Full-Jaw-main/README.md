@@ -30,7 +30,7 @@ The [dataset](https://github.com/diku-dk/Open-Full-Jaw/tree/main/dataset) includ
 3. The reduced surface meshes with no undesired gaps/penetrations
 4. The principal axes of every patient's teeth that provides great information for setting up different scenarios automatically
 5. The automatically generated FEM files for tipping scenario and a biting scenario
-  
+
 
 ### 2. Code for reproducibility of dataset
 
@@ -60,7 +60,7 @@ If you use the content of this repository please consider to cite us as below,
 
 #### Setting up the conda environment and the required packages
 
-The first step is to set up your conda environment for running the jupyter notebook as below: 
+The first step is to set up your conda environment for running the jupyter notebook as below:
 ```python
 conda create -n fulljaw
 conda activate fulljaw
@@ -80,7 +80,7 @@ conda install -c anaconda scikit-image
 :bangbang: **Note that our pipeline uses fTetWild as a backbone for volumetric mesh generation. Therefore, you need to install the [fTetWild](https://wildmeshing.github.io/ftetwild/) by cloning the repository and building it on your machine in a desired directory.**
 
 ## How to use
-First, activate the environment, then run jupyter notebook: 
+First, activate the environment, then run jupyter notebook:
 ```python
 conda activate fulljaw
 jupyter notebook
@@ -118,8 +118,8 @@ path_ftetwild = '/your_desired_directory/fTetWild/build/FloatTetwild_bin'
 * ***volume_mesh_l:*** The edge_length value for fTetWild in multi-material meshing step.
 * ***volume_mesh_json_path:*** The directory where the json file for CSG operation will be stored.
 
-#### Params for step5 (Tetrahedra Filtering) 
-* ***tet_filtering_dist:*** The distance used for filtering the tetrahedra to get the intersection of teeth and bone hollows. 
+#### Params for step5 (Tetrahedra Filtering)
+* ***tet_filtering_dist:*** The distance used for filtering the tetrahedra to get the intersection of teeth and bone hollows.
 
 #### Params for step6 (Simulation Setup)
 
@@ -141,8 +141,8 @@ gap_thickness        =  0.2
 gap_tooth_bone_ratio =  0.5
 
 # params for step3( PDL rim generation step)
-rim_distance_rest    =  0.26   🚧 
-rim_distance_molars  =  0.28   🚧 
+rim_distance_rest    =  0.26   🚧
+rim_distance_molars  =  0.28   🚧
 rim_thickness_factor =  1
 rim_trim_iter        =  2
 rim_smooth_iter_base =  16   🚧
@@ -153,25 +153,23 @@ volume_mesh_json_path       =  mid_o_dir + 'logical_operation.json'
 volume_mesh_output_fname    =  'unified'
 volume_mesh_operation_type  =  'union'
 volume_mesh_eps             =  2e-4
-volume_mesh_l               =  0.05       
+volume_mesh_l               =  0.05
 
-# params for step5( tetrahedra filtering step) 
+# params for step5( tetrahedra filtering step)
 tet_filtering_dist  =  0.3   🚧
 
 # general params for fTetWild
 self.verbose_level  =  3
 self.max_iter       =  20
 self.ftet_path      =  path_ftetwild
-self.output_dir     =  mid_o_dir 
+self.output_dir     =  mid_o_dir
 ```
 ## Funding
-- This project has received funding from the European Union's Horizon 2020 research and innovation program under the Marie Sklodowska-Curie grant agreement No. 764644. This paper only contains the authors' views, and the Research Executive Agency and the Commission are not responsible for any use that may be made of the information it contains. 
+- This project has received funding from the European Union's Horizon 2020 research and innovation program under the Marie Sklodowska-Curie grant agreement No. 764644. This paper only contains the authors' views, and the Research Executive Agency and the Commission are not responsible for any use that may be made of the information it contains.
 - This work was also partially supported by the NSF CAREER award under Grant No. 1652515, the NSF grants OAC-1835712, OIA-1937043, CHS-1908767, CHS-1901091, NSERC DGECR-2021-00461 and RGPIN-2021-03707, a Sloan Fellowship, a gift from Adobe Research and a gift from Advanced Micro Devices, Inc.
 - The funders had no role in study design, data collection/analysis, publication decision, or manuscript preparation.
 
 ## Acknowledgements
 - We thank 3Shape A/S for providing this study's CBCT scans
-- We especially thank 3Shape A/S Dental CAD AI team for their support in the CBCT segmentation and teeth principal axes computations. 
-- We also thank NYU IT High-Performance Computing for resources, services, and staff expertise. 
-
-
+- We especially thank 3Shape A/S Dental CAD AI team for their support in the CBCT segmentation and teeth principal axes computations.
+- We also thank NYU IT High-Performance Computing for resources, services, and staff expertise.

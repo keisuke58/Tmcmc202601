@@ -39,9 +39,7 @@ def main():
     dt = 1e-4
     D_true = 0.01
     k_true = 1.0
-    u_true, u_obs, idx = generate_data(
-        N=N, T=T, dt=dt, D_true=D_true, k_true=k_true
-    )
+    u_true, u_obs, idx = generate_data(N=N, T=T, dt=dt, D_true=D_true, k_true=k_true)
     params = jnp.array([jnp.log(0.02), jnp.log(1.0)])
     lr = 5e-3
     loss_fn = jax.jit(lambda p: loss_params(p, u_obs, N, T, dt, idx))

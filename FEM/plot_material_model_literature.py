@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -25,14 +26,14 @@ _CI_DIR = _HERE / "_ci_0d_results"
 
 # Material model (0D DI scale)
 E_MAX = 1000.0  # Pa (commensal/diverse)
-E_MIN = 10.0    # Pa (dysbiotic/mono-dominated)
+E_MIN = 10.0  # Pa (dysbiotic/mono-dominated)
 DI_SCALE = 1.0  # 0D ODE DI values
 DI_EXP = 2.0
 
 
 def E_model(di):
     r = np.clip(di / DI_SCALE, 0, 1)
-    return E_MAX * (1 - r)**DI_EXP + E_MIN * r
+    return E_MAX * (1 - r) ** DI_EXP + E_MIN * r
 
 
 # ── Literature experimental data ──────────────────────────────────────
@@ -132,10 +133,10 @@ def main():
             master = json.load(f)
 
     COND_META = {
-        "commensal_static":  {"label": "CS", "color": "#2ca02c"},
-        "commensal_hobic":   {"label": "CH", "color": "#17becf"},
-        "dh_baseline":       {"label": "DH", "color": "#d62728"},
-        "dysbiotic_static":  {"label": "DS", "color": "#ff7f0e"},
+        "commensal_static": {"label": "CS", "color": "#2ca02c"},
+        "commensal_hobic": {"label": "CH", "color": "#17becf"},
+        "dh_baseline": {"label": "DH", "color": "#d62728"},
+        "dysbiotic_static": {"label": "DS", "color": "#ff7f0e"},
     }
 
     # ── Figure ──
@@ -157,11 +158,19 @@ def main():
         ref_label = lit["ref"]
         label = f'{lit["ref"]}: {lit["label"]}'
         ax.errorbar(
-            lit["DI_approx"], lit["E"], yerr=lit["E_err"],
-            fmt=lit["marker"], color=lit["color"], markersize=8,
-            markeredgecolor="k", markeredgewidth=0.5,
-            capsize=4, capthick=1, elinewidth=1,
-            label=label, zorder=4,
+            lit["DI_approx"],
+            lit["E"],
+            yerr=lit["E_err"],
+            fmt=lit["marker"],
+            color=lit["color"],
+            markersize=8,
+            markeredgecolor="k",
+            markeredgewidth=0.5,
+            capsize=4,
+            capthick=1,
+            elinewidth=1,
+            label=label,
+            zorder=4,
         )
 
     # Our conditions (MAP values)
@@ -171,9 +180,14 @@ def main():
         m = master[c]
         meta = COND_META[c]
         ax.scatter(
-            m["di_0d_map"], m["E_di_map"],
-            marker="*", s=250, color=meta["color"],
-            edgecolor="navy", linewidth=1.5, zorder=6,
+            m["di_0d_map"],
+            m["E_di_map"],
+            marker="*",
+            s=250,
+            color=meta["color"],
+            edgecolor="navy",
+            linewidth=1.5,
+            zorder=6,
             label=f"Our model: {meta['label']}",
         )
         # CI band (if available)
@@ -184,7 +198,9 @@ def main():
                 [ci_di[0], ci_di[1]],
                 [ci_e[0], ci_e[0]],
                 [ci_e[1], ci_e[1]],
-                color=meta["color"], alpha=0.08, zorder=1,
+                color=meta["color"],
+                alpha=0.08,
+                zorder=1,
             )
 
     ax.set_xlabel("Dysbiosis Index ($DI_{0D}$)", fontsize=12)
@@ -197,14 +213,24 @@ def main():
     ax.grid(True, alpha=0.2, which="both")
 
     # Annotation: model regime
-    ax.annotate("Diverse\n(commensal)", xy=(0.1, E_model(0.1)),
-                xytext=(0.05, 3000), fontsize=8, color="green",
-                arrowprops=dict(arrowstyle="->", color="green", lw=1),
-                ha="center")
-    ax.annotate("Mono-dominated\n(dysbiotic)", xy=(0.85, E_model(0.85)),
-                xytext=(0.75, 3), fontsize=8, color="red",
-                arrowprops=dict(arrowstyle="->", color="red", lw=1),
-                ha="center")
+    ax.annotate(
+        "Diverse\n(commensal)",
+        xy=(0.1, E_model(0.1)),
+        xytext=(0.05, 3000),
+        fontsize=8,
+        color="green",
+        arrowprops=dict(arrowstyle="->", color="green", lw=1),
+        ha="center",
+    )
+    ax.annotate(
+        "Mono-dominated\n(dysbiotic)",
+        xy=(0.85, E_model(0.85)),
+        xytext=(0.75, 3),
+        fontsize=8,
+        color="red",
+        arrowprops=dict(arrowstyle="->", color="red", lw=1),
+        ha="center",
+    )
 
     # ================================================================
     # Panel (b): Summary table + model parameters
@@ -234,30 +260,41 @@ def main():
         ["", "exponent n = 2", "", "", "(power law)"],
     ]
 
-    text = "\n".join(
-        "  ".join(f"{cell:<15}" for cell in row)
-        for row in table_data
+    text = "\n".join("  ".join(f"{cell:<15}" for cell in row) for row in table_data)
+    ax.text(
+        0.02,
+        0.98,
+        text,
+        transform=ax.transAxes,
+        fontsize=7.5,
+        family="monospace",
+        va="top",
+        bbox=dict(boxstyle="round,pad=0.4", facecolor="#f8f8f8", alpha=0.9),
     )
-    ax.text(0.02, 0.98, text, transform=ax.transAxes, fontsize=7.5,
-            family="monospace", va="top",
-            bbox=dict(boxstyle="round,pad=0.4", facecolor="#f8f8f8", alpha=0.9))
 
     # Note about DI approximation
-    ax.text(0.02, 0.02,
-            "Note: Literature DI values are estimated from condition type\n"
-            "(low-sucrose ≈ diverse ≈ low DI; high-sucrose ≈ cariogenic ≈ high DI).\n"
-            "Direct DI–E correlation has not been measured experimentally.\n"
-            "Our E range (30–900 Pa) is within the 20–14,000 Pa literature range.\n"
-            "The 30× ratio matches Pattem 2018's 10–80× (sucrose-dependent).",
-            transform=ax.transAxes, fontsize=8, va="bottom",
-            bbox=dict(boxstyle="round,pad=0.3", facecolor="lightyellow", alpha=0.9))
+    ax.text(
+        0.02,
+        0.02,
+        "Note: Literature DI values are estimated from condition type\n"
+        "(low-sucrose ≈ diverse ≈ low DI; high-sucrose ≈ cariogenic ≈ high DI).\n"
+        "Direct DI–E correlation has not been measured experimentally.\n"
+        "Our E range (30–900 Pa) is within the 20–14,000 Pa literature range.\n"
+        "The 30× ratio matches Pattem 2018's 10–80× (sucrose-dependent).",
+        transform=ax.transAxes,
+        fontsize=8,
+        va="bottom",
+        bbox=dict(boxstyle="round,pad=0.3", facecolor="lightyellow", alpha=0.9),
+    )
 
     ax.set_title("(b) Literature comparison & model parameters", fontsize=12, weight="bold")
 
     fig.suptitle(
         "Fig 11: DI-Based Material Model with Experimental Validation\n"
         "$E(DI) = E_{max}(1-r)^2 + E_{min} \\cdot r$, $r = DI/DI_{scale}$",
-        fontsize=13, weight="bold")
+        fontsize=13,
+        weight="bold",
+    )
     fig.tight_layout(rect=[0, 0, 1, 0.90])
 
     out = _OUT / "Fig11_material_model.png"

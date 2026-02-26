@@ -1,0 +1,75 @@
+2026-01-29 18:59:38 INFO __main__: Modules imported with TSM Linearization support
+2026-01-29 18:59:38 INFO __main__: Numba: enabled
+2026-01-29 18:59:38 INFO __main__: ================================================================================
+2026-01-29 18:59:38 INFO __main__: Case II: Hierarchical Bayesian Estimation with TSM Linearization
+2026-01-29 18:59:38 INFO __main__: ================================================================================
+2026-01-29 18:59:38 INFO __main__: Start time: 2026-01-29 18:59:38
+2026-01-29 18:59:38 INFO __main__: CLI: main/case2_main.py --mode paper --models M2 --n-particles 1000 --sigma-obs 0.001 --n-jobs 12 --debug-level MINIMAL --run-id parallel_fixed_M2_noise0001_1000p
+2026-01-29 18:59:38 WARNING __main__: Ignoring --sigma-obs=0.001 due to paper-condition lock (sigma_obs=0.01).
+2026-01-29 18:59:38 INFO __main__: ================================================================================
+2026-01-29 18:59:38 INFO __main__: EXPERIMENT CONFIGURATION SUMMARY
+2026-01-29 18:59:38 INFO __main__: ================================================================================
+2026-01-29 18:59:38 INFO __main__: Mode: DEBUG
+2026-01-29 18:59:38 INFO __main__: Debug Level: MINIMAL
+2026-01-29 18:59:38 INFO __main__: Output Root: tmcmc/_runs
+2026-01-29 18:59:38 INFO __main__: Run ID: parallel_fixed_M2_noise0001_1000p
+2026-01-29 18:59:38 INFO __main__: Run Directory: tmcmc/_runs/parallel_fixed_M2_noise0001_1000p
+2026-01-29 18:59:38 INFO __main__: Figures Directory: tmcmc/_runs/parallel_fixed_M2_noise0001_1000p/figures
+2026-01-29 18:59:38 INFO __main__: MCMC Settings: n_samples=2000, n_chains=1, initial_scale=0.02, target_accept=0.3
+2026-01-29 18:59:38 INFO __main__: TMCMC Settings (per model):
+2026-01-29 18:59:38 INFO __main__: n_particles=1000 (production)
+2026-01-29 18:59:38 INFO __main__: n_stages=50 (production)
+2026-01-29 18:59:38 INFO __main__: n_mutation_steps=5 (production)
+2026-01-29 18:59:38 INFO __main__: n_chains=1 (production)
+2026-01-29 18:59:38 INFO __main__: TMCMC schedule: target_ess_ratio=0.500, min_delta_beta=0.0200, max_delta_beta=0.0500, update_linearization_interval=3, linearization_threshold=0.750, lin_enable_rom_thr=0.0500, force_beta_one=True
+2026-01-29 18:59:38 INFO __main__: Experiment Settings: n_data=20, sigma_obs=0.01, cov_rel=0.005, output_dir=tmcmc/_runs/parallel_fixed_M2_noise0001_1000p, random_seed=42
+2026-01-29 18:59:38 INFO __main__: Model Configuration: M1=5 params (a11, a12, a22, b1, b2); M2=5 params (a33, a34, a44, b3, b4); M3=4 params (a13, a14, a23, a24)
+2026-01-29 18:59:38 INFO __main__: Requested Models: ['M2']
+2026-01-29 18:59:38 INFO __main__: ================================================================================
+2026-01-29 18:59:38 INFO __main__: True parameters θ* (14): [0.8 2.  1.  0.1 0.2 1.5 1.  2.  0.3 0.4 2.  1.  2.  1. ]
+2026-01-29 18:59:38 INFO __main__: ================================================================================
+2026-01-29 18:59:38 INFO __main__: STEP 1: Generate Synthetic Data
+2026-01-29 18:59:38 INFO __main__: ================================================================================
+2026-01-29 18:59:38 INFO __main__: [M2] Generating synthetic data...
+2026-01-29 18:59:45 INFO visualization.plot_manager: Saved figure: TSM_simulation_M2_with_data.png
+2026-01-29 18:59:45 INFO __main__: Generated 20 observations for 2 species
+2026-01-29 18:59:45 INFO __main__: Data generation complete
+2026-01-29 18:59:45 INFO __main__: Skipping M1 TMCMC (not requested)
+2026-01-29 18:59:45 INFO __main__: Loading M1 MAP from /home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/tmcmc/_runs/parallel_fixed_M1M2M3_20260126_210657/theta_MAP_M1.json
+2026-01-29 18:59:45 INFO __main__: ================================================================================
+2026-01-29 18:59:45 INFO __main__: STEP 3: M2 TMCMC (β tempering) with Linearization Update
+2026-01-29 18:59:45 INFO __main__: ================================================================================
+2026-01-29 18:59:45 INFO core.tmcmc: [M2] Running 1 TMCMC chains (β tempering + linearization update)...
+2026-01-29 18:59:45 INFO core.tmcmc: Chain 1/1
+2026-01-29 18:59:45 INFO core.evaluator: TSM initialized (linearization disabled initially for exploration)
+2026-01-29 18:59:45 INFO core.tmcmc: [Chain 1] Initial linearization point set
+2026-01-29 18:59:45 INFO core.tmcmc: [M2_chain1] Parallelization: n_jobs=12 (effective=12), use_threads=False, n_particles=1000
+2026-01-29 19:02:50 INFO debug.logger:       [TMCMC] Initial LogL: min=-74836.7, max=-1734.2
+2026-01-29 19:02:50 INFO debug.logger:       [TMCMC] Model: M2_chain1
+2026-01-29 19:02:50 INFO debug.logger:       [TMCMC] Starting TMCMC with 1000 particles, 50 stages...
+2026-01-29 19:02:50 INFO debug.logger:       [TMCMC] Stage 1/50 starting...
+2026-01-29 19:02:50 INFO core.tmcmc:       [TMCMC] Stage 1: β=0.0000 → 0.0200 (Δ=0.020000), ESS=500.0/500.0 (actual=1.2), logL range=[-74836.70, -1734.18], log_w range=1462.05, w[min,max]=[0.00e+00,8.92e-01]
+2026-01-29 19:02:50 INFO debug.logger:       [TMCMC] Resample degeneracy: unique=3/1000 (unique_ratio=0.003)
+2026-01-29 19:02:50 INFO debug.logger:       [TMCMC] Proposal cov stats: trace(cov_base)=7.92e-01, trace(cov)=1.80e+01, scale=1.58e-01, nugget=1.68e-07, tempered_scale=1.13e+01, adapt_scale=2.00x, cond(cov)=1.06e+08
+2026-01-29 19:18:16 INFO core.tmcmc: [M2_chain1] Mutation Stage 1: 5000 proposals evaluated in parallel (n_jobs=12), 469 accepted (rate=0.0938), time=925.93s
+2026-01-29 19:18:16 INFO debug.logger:       [TMCMC] Post-mutation diversity: unique≈417/1000 (unique_ratio≈0.417)
+2026-01-29 19:18:16 INFO debug.logger:       [TMCMC] Stage 1: β=0.0200 (+0.0200)
+2026-01-29 19:18:16 INFO debug.logger:       [TMCMC] Likelihood health (cumulative): {'n_calls': 0, 'n_tsm_fail': 0, 'n_output_nonfinite': 0, 'n_var_raw_negative': 0, 'n_var_raw_nonfinite': 0, 'n_var_total_clipped': 0}
+2026-01-29 19:18:16 INFO debug.logger:       [TMCMC] Stage 2/50 starting...
+2026-01-29 19:18:16 INFO core.tmcmc:       [TMCMC] Stage 2: β=0.0200 → 0.0400 (Δ=0.020000), ESS=500.0/500.0 (actual=2.0), logL range=[-2057.22, -415.72], log_w range=32.83, w[min,max]=[3.34e-15,6.05e-01]
+2026-01-29 19:18:16 INFO debug.logger:       [TMCMC] Resample degeneracy: unique=4/1000 (unique_ratio=0.004)
+2026-01-29 19:18:16 INFO debug.logger:       [TMCMC] Proposal cov stats: trace(cov_base)=4.47e-03, trace(cov)=1.01e-01, scale=8.94e-04, nugget=1.09e-08, tempered_scale=1.13e+01, adapt_scale=2.00x, cond(cov)=6.96e+06
+2026-01-29 19:33:49 INFO debug.logger:       [TMCMC] Post-mutation diversity: unique≈437/1000 (unique_ratio≈0.437)
+2026-01-29 19:33:49 INFO debug.logger:       [TMCMC] Stage 2: β=0.0400 (+0.0200)
+2026-01-29 19:33:49 INFO debug.logger:       [TMCMC] Likelihood health (cumulative): {'n_calls': 0, 'n_tsm_fail': 0, 'n_output_nonfinite': 0, 'n_var_raw_negative': 0, 'n_var_raw_nonfinite': 0, 'n_var_total_clipped': 0}
+2026-01-29 19:33:49 INFO debug.logger:       [TMCMC] Stage 3/50 starting...
+2026-01-29 19:33:49 INFO core.tmcmc:       [TMCMC] Stage 3: β=0.0400 → 0.0785 (Δ=0.038501), ESS=500.0/500.0 (actual=500.0), logL range=[-696.73, -364.94], log_w range=12.77, w[min,max]=[1.41e-08,4.96e-03]
+2026-01-29 19:33:49 INFO debug.logger:       [TMCMC] Resample degeneracy: unique=515/1000 (unique_ratio=0.515)
+2026-01-29 19:33:49 INFO debug.logger:       [TMCMC] Proposal cov stats: trace(cov_base)=3.85e-03, trace(cov)=8.72e-02, scale=7.70e-04, nugget=1.08e-08, tempered_scale=1.13e+01, adapt_scale=2.00x, cond(cov)=3.26e+05
+2026-01-29 19:49:21 INFO debug.logger:       [TMCMC] Post-mutation diversity: unique≈534/1000 (unique_ratio≈0.534)
+2026-01-29 19:49:21 INFO debug.logger:       [TMCMC] Stage 3: β=0.0785 (+0.0385)
+2026-01-29 19:49:21 INFO debug.logger:       [TMCMC] Likelihood health (cumulative): {'n_calls': 0, 'n_tsm_fail': 0, 'n_output_nonfinite': 0, 'n_var_raw_negative': 0, 'n_var_raw_nonfinite': 0, 'n_var_total_clipped': 0}
+2026-01-29 19:49:21 INFO debug.logger:       [TMCMC] Stage 4/50 starting...
+2026-01-29 19:49:21 INFO core.tmcmc:       [TMCMC] Stage 4: β=0.0785 → 0.1285 (Δ=0.050000), ESS=500.0/500.0 (actual=624.6), logL range=[-476.26, -362.27], log_w range=5.70, w[min,max]=[1.04e-05,3.10e-03]
+2026-01-29 19:49:21 INFO debug.logger:       [TMCMC] Resample degeneracy: unique=523/1000 (unique_ratio=0.523)
+2026-01-29 19:49:21 INFO debug.logger:       [TMCMC] Proposal cov stats: trace(cov_base)=2.01e-03, trace(cov)=3.54e-02, scale=4.01e-04, nugget=1.04e-08, tempered_scale=8.82e+00, adapt_scale=2.00x, cond(cov)=2.52e+04

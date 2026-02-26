@@ -26,7 +26,6 @@ Usage
 """
 import argparse
 import json
-import os
 import sys
 import time
 from pathlib import Path
@@ -42,9 +41,9 @@ _OUT_BASE = _HERE / "_3d_conformal_auto"
 sys.path.insert(0, str(_HERE))
 
 CONDITION_RUNS = {
-    "dh_baseline":      _RUNS_ROOT / "dh_baseline",
+    "dh_baseline": _RUNS_ROOT / "dh_baseline",
     "commensal_static": _RUNS_ROOT / "commensal_static",
-    "commensal_hobic":  _RUNS_ROOT / "commensal_hobic",
+    "commensal_hobic": _RUNS_ROOT / "commensal_hobic",
     "dysbiotic_static": _RUNS_ROOT / "dysbiotic_static",
 }
 
@@ -55,11 +54,26 @@ TEETH = {
 }
 
 _PARAM_KEYS = [
-    "a11", "a12", "a22", "b1", "b2",
-    "a33", "a34", "a44", "b3", "b4",
-    "a13", "a14", "a23", "a24",
-    "a55", "b5",
-    "a15", "a25", "a35", "a45",
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45",
 ]
 
 
@@ -80,6 +94,7 @@ def compute_0d_di(theta_np, K_hill=0.05, n_hill=4.0, n_steps=2500, dt=0.01):
     Returns dict with di_0d, phi_final, E_di (Pa).
     """
     from generate_hybrid_macro_csv import solve_0d_composition
+
     result = solve_0d_composition(theta_np, n_steps=n_steps, dt=dt)
     print(f"  0D DI = {result['di_0d']:.4f}, E_di = {result['E_di']:.1f} Pa")
     return result
@@ -90,8 +105,14 @@ def run_fem_2d(theta, condition, cfg_override=None):
     from JAXFEM.core_hamilton_2d_nutrient import run_simulation, Config2D
 
     cfg = cfg_override or Config2D(
-        Nx=20, Ny=20, n_macro=100, n_react_sub=20,
-        dt_h=1e-5, save_every=10, K_hill=0.05, n_hill=4.0,
+        Nx=20,
+        Ny=20,
+        n_macro=100,
+        n_react_sub=20,
+        dt_h=1e-5,
+        save_every=10,
+        K_hill=0.05,
+        n_hill=4.0,
     )
     result = run_simulation(theta, cfg)
     return result, cfg
@@ -120,7 +141,7 @@ def export_di_csv(result, cfg, out_csv, di_0d=None):
     c_snaps = result["c_snaps"]
 
     phi_final = phi_snaps[-1]  # (5, Nx, Ny)
-    c_final = c_snaps[-1]      # (Nx, Ny)
+    c_final = c_snaps[-1]  # (Nx, Ny)
     Nx, Ny = cfg.Nx, cfg.Ny
     x = np.linspace(0, cfg.Lx, Nx)
     y = np.linspace(0, cfg.Ly, Ny)
@@ -138,8 +159,10 @@ def export_di_csv(result, cfg, out_csv, di_0d=None):
     # Apply Hybrid scaling if 0D DI provided
     if di_0d is not None:
         di = compute_hybrid_di(di_raw, di_0d)
-        print(f"  Hybrid DI: 0D={di_0d:.4f}, 2D mean={np.mean(di_raw):.4f} "
-              f"→ hybrid mean={np.mean(di):.4f}")
+        print(
+            f"  Hybrid DI: 0D={di_0d:.4f}, 2D mean={np.mean(di_raw):.4f} "
+            f"→ hybrid mean={np.mean(di):.4f}"
+        )
     else:
         di = di_raw
 
@@ -148,13 +171,17 @@ def export_di_csv(result, cfg, out_csv, di_0d=None):
         f.write("x,y,phi_pg,di,phi_total,c\n")
         for ix in range(Nx):
             for iy in range(Ny):
-                f.write("%.8e,%.8e,%.8e,%.8e,%.8e,%.8e\n" % (
-                    x[ix], y[iy],
-                    float(phi_final[4, ix, iy]),
-                    float(di[ix, iy]),
-                    float(phi_sum[ix, iy]),
-                    float(c_final[ix, iy]),
-                ))
+                f.write(
+                    "%.8e,%.8e,%.8e,%.8e,%.8e,%.8e\n"
+                    % (
+                        x[ix],
+                        y[iy],
+                        float(phi_final[4, ix, iy]),
+                        float(di[ix, iy]),
+                        float(phi_sum[ix, iy]),
+                        float(c_final[ix, iy]),
+                    )
+                )
     print(f"  DI CSV: {out_csv} ({Nx*Ny} points)")
     return di
 
@@ -162,13 +189,13 @@ def export_di_csv(result, cfg, out_csv, di_0d=None):
 def generate_conformal_mesh(condition, tooth_key, di_csv, out_dir, cfg_mesh):
     """Generate conformal C3D4 mesh + two-layer Tie INP."""
     from biofilm_conformal_tet import (
-        read_stl, deduplicate_vertices, compute_vertex_normals,
-        laplacian_smooth_offset, build_tet_mesh,
-        read_di_csv, assign_di_bins, write_abaqus_inp,
+        write_abaqus_inp,
     )
     from biofilm_tooth_tie_assembly import (
-        process_tooth_shell, process_biofilm,
-        write_two_layer_inp, detect_tooth_base,
+        process_tooth_shell,
+        process_biofilm,
+        write_two_layer_inp,
+        detect_tooth_base,
     )
 
     stl_path = str(_STL_ROOT / TEETH[tooth_key])
@@ -178,8 +205,7 @@ def generate_conformal_mesh(condition, tooth_key, di_csv, out_dir, cfg_mesh):
 
     # Build tooth shell
     tooth_data = process_tooth_shell(stl_path, dedup_tol=cfg_mesh["dedup_tol"])
-    tooth_data["base_ids"] = detect_tooth_base(
-        tooth_data["nodes"], frac=cfg_mesh["base_frac"])
+    tooth_data["base_ids"] = detect_tooth_base(tooth_data["nodes"], frac=cfg_mesh["base_frac"])
 
     # Build biofilm conformal mesh
     bio_cfg = {
@@ -199,21 +225,41 @@ def generate_conformal_mesh(condition, tooth_key, di_csv, out_dir, cfg_mesh):
     standalone_inp = out_dir / f"biofilm_{tooth_key}_{condition}.inp"
     write_abaqus_inp(
         str(standalone_inp),
-        bio_data["nodes"], bio_data["tets"], bio_data["tet_bins"],
-        bio_data["inner_nodes"], bio_data["outer_nodes"],
-        bio_data["bin_E_stiff"], cfg_mesh["aniso_ratio"], cfg_mesh["nu"],
-        cfg_mesh["n_bins"], cfg_mesh["pressure"], cfg_mesh["bc_mode"],
-        bio_data["verts_outer"], bio_data["faces"], bio_data["vnorms_outer"],
-        stl_path, str(di_csv), cfg_mesh["n_layers"], cfg_mesh["thickness"],
+        bio_data["nodes"],
+        bio_data["tets"],
+        bio_data["tet_bins"],
+        bio_data["inner_nodes"],
+        bio_data["outer_nodes"],
+        bio_data["bin_E_stiff"],
+        cfg_mesh["aniso_ratio"],
+        cfg_mesh["nu"],
+        cfg_mesh["n_bins"],
+        cfg_mesh["pressure"],
+        cfg_mesh["bc_mode"],
+        bio_data["verts_outer"],
+        bio_data["faces"],
+        bio_data["vnorms_outer"],
+        stl_path,
+        str(di_csv),
+        cfg_mesh["n_layers"],
+        cfg_mesh["thickness"],
     )
 
     # Write two-layer Tie INP
     tie_inp = out_dir / f"two_layer_{tooth_key}_{condition}.inp"
     write_two_layer_inp(
-        str(tie_inp), tooth_key, tooth_data, bio_data,
-        bio_data["bin_E_stiff"], cfg_mesh["n_bins"], cfg_mesh["nu"],
-        cfg_mesh["pressure"], cfg_mesh["shell_thick"],
-        str(di_csv), cfg_mesh["thickness"], cfg_mesh["n_layers"],
+        str(tie_inp),
+        tooth_key,
+        tooth_data,
+        bio_data,
+        bio_data["bin_E_stiff"],
+        cfg_mesh["n_bins"],
+        cfg_mesh["nu"],
+        cfg_mesh["pressure"],
+        cfg_mesh["shell_thick"],
+        str(di_csv),
+        cfg_mesh["thickness"],
+        cfg_mesh["n_layers"],
     )
 
     return {
@@ -251,14 +297,29 @@ def run_condition(condition, args):
 
     # Step 1: 2D Hamilton+nutrient
     from JAXFEM.core_hamilton_2d_nutrient import Config2D
+
     if args.quick:
-        cfg = Config2D(Nx=10, Ny=10, n_macro=10, n_react_sub=5,
-                       dt_h=1e-5, save_every=5, K_hill=0.05, n_hill=4.0)
+        cfg = Config2D(
+            Nx=10,
+            Ny=10,
+            n_macro=10,
+            n_react_sub=5,
+            dt_h=1e-5,
+            save_every=5,
+            K_hill=0.05,
+            n_hill=4.0,
+        )
     else:
-        cfg = Config2D(Nx=args.nx, Ny=args.ny,
-                       n_macro=args.n_macro, n_react_sub=args.n_react_sub,
-                       dt_h=args.dt_h, save_every=args.save_every,
-                       K_hill=args.k_hill, n_hill=args.n_hill)
+        cfg = Config2D(
+            Nx=args.nx,
+            Ny=args.ny,
+            n_macro=args.n_macro,
+            n_react_sub=args.n_react_sub,
+            dt_h=args.dt_h,
+            save_every=args.save_every,
+            K_hill=args.k_hill,
+            n_hill=args.n_hill,
+        )
 
     # Step 0: 0D Hamilton ODE → condition-specific DI_0D
     print("\n[0/3] 0D Hamilton ODE → DI_0D...")
@@ -296,7 +357,7 @@ def run_condition(condition, args):
         "shell_thick": args.shell_thick,
     }
 
-    print(f"\n[2/3] Conformal mesh generation...")
+    print("\n[2/3] Conformal mesh generation...")
     mesh_results = {}
     for tooth_key in args.teeth:
         print(f"\n  --- {tooth_key} ---")
@@ -305,7 +366,7 @@ def run_condition(condition, args):
             mesh_results[tooth_key] = mr
 
     # Step 3: Save metadata
-    print(f"\n[3/3] Saving metadata...")
+    print("\n[3/3] Saving metadata...")
     meta = {
         "condition": condition,
         "theta_path": str(theta_path),
@@ -334,14 +395,10 @@ def run_condition(condition, args):
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Automated 3D conformal mesh generation")
-    ap.add_argument("--condition", default="dh_baseline",
-                    choices=list(CONDITION_RUNS.keys()))
-    ap.add_argument("--all", action="store_true",
-                    help="Process all conditions")
-    ap.add_argument("--teeth", nargs="+", default=["T23"],
-                    choices=list(TEETH.keys()))
+    ap = argparse.ArgumentParser(description="Automated 3D conformal mesh generation")
+    ap.add_argument("--condition", default="dh_baseline", choices=list(CONDITION_RUNS.keys()))
+    ap.add_argument("--all", action="store_true", help="Process all conditions")
+    ap.add_argument("--teeth", nargs="+", default=["T23"], choices=list(TEETH.keys()))
     ap.add_argument("--quick", action="store_true")
     # 2D simulation
     ap.add_argument("--nx", type=int, default=20)
@@ -356,12 +413,11 @@ def main():
     ap.add_argument("--thickness", type=float, default=0.5)
     ap.add_argument("--n-layers", type=int, default=8)
     ap.add_argument("--n-bins", type=int, default=20)
-    ap.add_argument("--e-max", type=float, default=1000.0,
-                    help="E_healthy [Pa] (default: 1000 Pa)")
-    ap.add_argument("--e-min", type=float, default=10.0,
-                    help="E_degraded [Pa] (default: 10 Pa)")
-    ap.add_argument("--di-scale", type=float, default=1.0,
-                    help="DI normalization (default: 1.0 for Hybrid DI)")
+    ap.add_argument("--e-max", type=float, default=1000.0, help="E_healthy [Pa] (default: 1000 Pa)")
+    ap.add_argument("--e-min", type=float, default=10.0, help="E_degraded [Pa] (default: 10 Pa)")
+    ap.add_argument(
+        "--di-scale", type=float, default=1.0, help="DI normalization (default: 1.0 for Hybrid DI)"
+    )
     ap.add_argument("--di-exp", type=float, default=2.0)
     ap.add_argument("--nu", type=float, default=0.30)
     ap.add_argument("--pressure", type=float, default=1.0e6)
@@ -378,9 +434,11 @@ def main():
         print("All conditions processed:")
         for cond, meta in results.items():
             if meta:
-                print(f"  {cond}: DI mean={meta['di_stats']['mean']:.4f}, "
-                      f"max={meta['di_stats']['max']:.4f}, "
-                      f"{meta['timing_s']:.0f}s")
+                print(
+                    f"  {cond}: DI mean={meta['di_stats']['mean']:.4f}, "
+                    f"max={meta['di_stats']['max']:.4f}, "
+                    f"{meta['timing_s']:.0f}s"
+                )
         print(f"{'='*60}")
     else:
         run_condition(args.condition, args)

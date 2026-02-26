@@ -56,18 +56,33 @@ _SWEEP_BASE = _HERE / "_sweep_results"
 sys.path.insert(0, str(_HERE))
 
 CONDITION_RUNS = {
-    "dh_baseline":      _RUNS_ROOT / "dh_baseline",
+    "dh_baseline": _RUNS_ROOT / "dh_baseline",
     "commensal_static": _RUNS_ROOT / "commensal_static",
-    "commensal_hobic":  _RUNS_ROOT / "commensal_hobic",
+    "commensal_hobic": _RUNS_ROOT / "commensal_hobic",
     "dysbiotic_static": _RUNS_ROOT / "dysbiotic_static",
 }
 
 _PARAM_KEYS = [
-    "a11", "a12", "a22", "b1", "b2",
-    "a33", "a34", "a44", "b3", "b4",
-    "a13", "a14", "a23", "a24",
-    "a55", "b5",
-    "a15", "a25", "a35", "a45",
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45",
 ]
 
 
@@ -103,11 +118,11 @@ def compute_alpha_monod(phi_snaps, c_snaps, t_snaps, k_monod=1.0, k_alpha=0.01):
     # Trapezoidal integration
     alpha = np.zeros_like(c_snaps[0])
     for i in range(n_snap - 1):
-        dt = t_snaps[i+1] - t_snaps[i]
+        dt = t_snaps[i + 1] - t_snaps[i]
         phi_total_i = phi_snaps[i].sum(axis=0)
-        phi_total_ip1 = phi_snaps[i+1].sum(axis=0)
+        phi_total_ip1 = phi_snaps[i + 1].sum(axis=0)
         monod_i = c_snaps[i] / (k_monod + c_snaps[i])
-        monod_ip1 = c_snaps[i+1] / (k_monod + c_snaps[i+1])
+        monod_ip1 = c_snaps[i + 1] / (k_monod + c_snaps[i + 1])
         integrand_i = phi_total_i * monod_i
         integrand_ip1 = phi_total_ip1 * monod_ip1
         alpha += 0.5 * dt * (integrand_i + integrand_ip1)
@@ -120,12 +135,14 @@ def run_single(theta, condition, K_hill, n_hill, cfg_base, out_dir):
     from JAXFEM.core_hamilton_2d_nutrient import run_simulation, Config2D
 
     cfg = Config2D(
-        Nx=cfg_base["Nx"], Ny=cfg_base["Ny"],
+        Nx=cfg_base["Nx"],
+        Ny=cfg_base["Ny"],
         n_macro=cfg_base["n_macro"],
         n_react_sub=cfg_base["n_react_sub"],
         dt_h=cfg_base["dt_h"],
         save_every=cfg_base["save_every"],
-        K_hill=K_hill, n_hill=n_hill,
+        K_hill=K_hill,
+        n_hill=n_hill,
     )
 
     result = run_simulation(theta, cfg)
@@ -155,14 +172,18 @@ def run_single(theta, condition, K_hill, n_hill, cfg_base, out_dir):
         f.write("x,y,phi_pg,di,phi_total,c,alpha_monod\n")
         for ix in range(cfg.Nx):
             for iy in range(cfg.Ny):
-                f.write("%.8e,%.8e,%.8e,%.8e,%.8e,%.8e,%.8e\n" % (
-                    x[ix], y[iy],
-                    float(phi_final[4, ix, iy]),
-                    float(di[ix, iy]),
-                    float(phi_final.sum(axis=0)[ix, iy]),
-                    float(c_final[ix, iy]),
-                    float(alpha_monod[ix, iy]),
-                ))
+                f.write(
+                    "%.8e,%.8e,%.8e,%.8e,%.8e,%.8e,%.8e\n"
+                    % (
+                        x[ix],
+                        y[iy],
+                        float(phi_final[4, ix, iy]),
+                        float(di[ix, iy]),
+                        float(phi_final.sum(axis=0)[ix, iy]),
+                        float(c_final[ix, iy]),
+                        float(alpha_monod[ix, iy]),
+                    )
+                )
 
     return {
         "di_mean": float(np.mean(di)),
@@ -190,7 +211,8 @@ def run_sweep(args):
     n_total = len(grid)
 
     cfg_base = {
-        "Nx": args.nx, "Ny": args.ny,
+        "Nx": args.nx,
+        "Ny": args.ny,
         "n_macro": args.n_macro,
         "n_react_sub": args.n_react_sub,
         "dt_h": args.dt_h,
@@ -301,6 +323,7 @@ def run_sweep(args):
 def _plot_sweep(results, sweep_dir, conditions, k_hills, n_hills):
     """Generate sweep result visualization."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -325,8 +348,7 @@ def _plot_sweep(results, sweep_dir, conditions, k_hills, n_hills):
         if cond_runs:
             ks = [r["K_hill"] for r in cond_runs]
             dis = [r["di_mean"] for r in cond_runs]
-            ax.plot(ks, dis, "o-", color=cond_colors.get(cond, "gray"),
-                    label=cond, markersize=6)
+            ax.plot(ks, dis, "o-", color=cond_colors.get(cond, "gray"), label=cond, markersize=6)
     ax.set_xlabel("$K_{hill}$", fontsize=12)
     ax.set_ylabel("DI mean", fontsize=12)
     ax.set_title("(a) DI vs Hill Constant", fontsize=13)
@@ -341,8 +363,7 @@ def _plot_sweep(results, sweep_dir, conditions, k_hills, n_hills):
         if cond_runs:
             ks = [r["K_hill"] for r in cond_runs]
             pgs = [r["phi_pg_max"] for r in cond_runs]
-            ax.plot(ks, pgs, "s-", color=cond_colors.get(cond, "gray"),
-                    label=cond, markersize=6)
+            ax.plot(ks, pgs, "s-", color=cond_colors.get(cond, "gray"), label=cond, markersize=6)
     ax.set_xlabel("$K_{hill}$", fontsize=12)
     ax.set_ylabel("$\\phi_{Pg}$ max", fontsize=12)
     ax.set_title("(b) P.gingivalis vs Hill Constant", fontsize=13)
@@ -357,8 +378,7 @@ def _plot_sweep(results, sweep_dir, conditions, k_hills, n_hills):
         if cond_runs:
             ks = [r["K_hill"] for r in cond_runs]
             alphas = [r["alpha_monod_max"] for r in cond_runs]
-            ax.plot(ks, alphas, "^-", color=cond_colors.get(cond, "gray"),
-                    label=cond, markersize=6)
+            ax.plot(ks, alphas, "^-", color=cond_colors.get(cond, "gray"), label=cond, markersize=6)
     ax.set_xlabel("$K_{hill}$", fontsize=12)
     ax.set_ylabel(r"$\alpha_{Monod}$ max", fontsize=12)
     ax.set_title("(c) Growth Activity vs Hill Constant", fontsize=13)
@@ -378,8 +398,7 @@ def _plot_sweep(results, sweep_dir, conditions, k_hills, n_hills):
                 ni = n_hills.index(r["n_hill"]) if r["n_hill"] in n_hills else -1
                 if ki >= 0 and ni >= 0:
                     di_grid[ni, ki] = r["di_mean"]
-            im = ax.imshow(di_grid, aspect="auto", origin="lower",
-                           cmap="RdYlGn_r")
+            im = ax.imshow(di_grid, aspect="auto", origin="lower", cmap="RdYlGn_r")
             ax.set_xticks(range(len(k_hills)))
             ax.set_xticklabels([f"{k:.3f}" for k in k_hills])
             ax.set_yticks(range(len(n_hills)))
@@ -389,8 +408,15 @@ def _plot_sweep(results, sweep_dir, conditions, k_hills, n_hills):
             plt.colorbar(im, ax=ax, label="DI mean")
             ax.set_title("(d) DI Heatmap (DH baseline)", fontsize=13)
     else:
-        ax.text(0.5, 0.5, "Need >1 K_hill and n_hill\nfor heatmap",
-                ha="center", va="center", transform=ax.transAxes, fontsize=12)
+        ax.text(
+            0.5,
+            0.5,
+            "Need >1 K_hill and n_hill\nfor heatmap",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontsize=12,
+        )
 
     fig.tight_layout()
     out = sweep_dir / "sweep_summary.png"
@@ -400,18 +426,18 @@ def _plot_sweep(results, sweep_dir, conditions, k_hills, n_hills):
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Automated parameter sweep")
-    ap.add_argument("--conditions", nargs="+",
-                    default=["dh_baseline", "commensal_static",
-                             "commensal_hobic", "dysbiotic_static"])
-    ap.add_argument("--k-hill", nargs="+", type=float,
-                    default=[0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.50])
-    ap.add_argument("--n-hill", nargs="+", type=float,
-                    default=[1.0, 2.0, 3.0, 4.0, 6.0, 8.0])
+    ap = argparse.ArgumentParser(description="Automated parameter sweep")
+    ap.add_argument(
+        "--conditions",
+        nargs="+",
+        default=["dh_baseline", "commensal_static", "commensal_hobic", "dysbiotic_static"],
+    )
+    ap.add_argument(
+        "--k-hill", nargs="+", type=float, default=[0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.50]
+    )
+    ap.add_argument("--n-hill", nargs="+", type=float, default=[1.0, 2.0, 3.0, 4.0, 6.0, 8.0])
     ap.add_argument("--quick", action="store_true")
-    ap.add_argument("--resume", default=None,
-                    help="Resume sweep from directory")
+    ap.add_argument("--resume", default=None, help="Resume sweep from directory")
     # Simulation config
     ap.add_argument("--nx", type=int, default=20)
     ap.add_argument("--ny", type=int, default=20)

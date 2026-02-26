@@ -64,22 +64,22 @@ import json
 # ---------------------------------------------------------------------------
 
 _DEF = {
-    "bbox_json":     None,
-    "tooth_key":     "P1_Tooth_23",
-    "field_csv":     None,
-    "geometry":      "crown",
-    "biofilm_frac":  0.15,     # shell thickness / effective tooth radius
-    "pocket_frac":   0.25,     # pocket width / tooth x-extent
-    "aniso_ratio":   0.5,
-    "e1_dir":        "radial", # 'radial' | 'x' | 'y' | 'z'
-    "n_bins":        20,
-    "e_max":         10.0e9,
-    "e_min":         0.5e9,
-    "di_exponent":   2.0,
-    "di_scale":      0.025778,
-    "nu":            0.30,
+    "bbox_json": None,
+    "tooth_key": "P1_Tooth_23",
+    "field_csv": None,
+    "geometry": "crown",
+    "biofilm_frac": 0.15,  # shell thickness / effective tooth radius
+    "pocket_frac": 0.25,  # pocket width / tooth x-extent
+    "aniso_ratio": 0.5,
+    "e1_dir": "radial",  # 'radial' | 'x' | 'y' | 'z'
+    "n_bins": 20,
+    "e_max": 10.0e9,
+    "e_min": 0.5e9,
+    "di_exponent": 2.0,
+    "di_scale": 0.025778,
+    "nu": 0.30,
     "poly_from_json": False,
-    "job_name":      "OpenJawBioJob",
+    "job_name": "OpenJawBioJob",
 }
 
 
@@ -88,24 +88,74 @@ def _parse_args(argv):
     i = 0
     while i < len(argv):
         a = argv[i]
+
         def _nxt():
             return argv[i + 1] if i + 1 < len(argv) else None
-        if a == "--bbox-json"     and _nxt(): cfg["bbox_json"]     = _nxt(); i += 2; continue
-        if a == "--tooth-key"     and _nxt(): cfg["tooth_key"]     = _nxt(); i += 2; continue
-        if a == "--field-csv"     and _nxt(): cfg["field_csv"]     = _nxt(); i += 2; continue
-        if a == "--geometry"      and _nxt(): cfg["geometry"]      = _nxt(); i += 2; continue
-        if a == "--biofilm-frac"  and _nxt(): cfg["biofilm_frac"]  = float(_nxt()); i += 2; continue
-        if a == "--pocket-frac"   and _nxt(): cfg["pocket_frac"]   = float(_nxt()); i += 2; continue
-        if a == "--aniso-ratio"   and _nxt(): cfg["aniso_ratio"]   = float(_nxt()); i += 2; continue
-        if a == "--e1-dir"        and _nxt(): cfg["e1_dir"]        = _nxt(); i += 2; continue
-        if a == "--n-bins"        and _nxt(): cfg["n_bins"]        = int(_nxt());   i += 2; continue
-        if a == "--e-max"         and _nxt(): cfg["e_max"]         = float(_nxt()); i += 2; continue
-        if a == "--e-min"         and _nxt(): cfg["e_min"]         = float(_nxt()); i += 2; continue
-        if a == "--di-exponent"   and _nxt(): cfg["di_exponent"]   = float(_nxt()); i += 2; continue
-        if a == "--di-scale"      and _nxt(): cfg["di_scale"]      = float(_nxt()); i += 2; continue
-        if a == "--nu"            and _nxt(): cfg["nu"]            = float(_nxt()); i += 2; continue
-        if a == "--poly-from-json":           cfg["poly_from_json"] = True;         i += 1; continue
-        if a == "--job-name"      and _nxt(): cfg["job_name"]      = _nxt(); i += 2; continue
+
+        if a == "--bbox-json" and _nxt():
+            cfg["bbox_json"] = _nxt()
+            i += 2
+            continue
+        if a == "--tooth-key" and _nxt():
+            cfg["tooth_key"] = _nxt()
+            i += 2
+            continue
+        if a == "--field-csv" and _nxt():
+            cfg["field_csv"] = _nxt()
+            i += 2
+            continue
+        if a == "--geometry" and _nxt():
+            cfg["geometry"] = _nxt()
+            i += 2
+            continue
+        if a == "--biofilm-frac" and _nxt():
+            cfg["biofilm_frac"] = float(_nxt())
+            i += 2
+            continue
+        if a == "--pocket-frac" and _nxt():
+            cfg["pocket_frac"] = float(_nxt())
+            i += 2
+            continue
+        if a == "--aniso-ratio" and _nxt():
+            cfg["aniso_ratio"] = float(_nxt())
+            i += 2
+            continue
+        if a == "--e1-dir" and _nxt():
+            cfg["e1_dir"] = _nxt()
+            i += 2
+            continue
+        if a == "--n-bins" and _nxt():
+            cfg["n_bins"] = int(_nxt())
+            i += 2
+            continue
+        if a == "--e-max" and _nxt():
+            cfg["e_max"] = float(_nxt())
+            i += 2
+            continue
+        if a == "--e-min" and _nxt():
+            cfg["e_min"] = float(_nxt())
+            i += 2
+            continue
+        if a == "--di-exponent" and _nxt():
+            cfg["di_exponent"] = float(_nxt())
+            i += 2
+            continue
+        if a == "--di-scale" and _nxt():
+            cfg["di_scale"] = float(_nxt())
+            i += 2
+            continue
+        if a == "--nu" and _nxt():
+            cfg["nu"] = float(_nxt())
+            i += 2
+            continue
+        if a == "--poly-from-json":
+            cfg["poly_from_json"] = True
+            i += 1
+            continue
+        if a == "--job-name" and _nxt():
+            cfg["job_name"] = _nxt()
+            i += 2
+            continue
         i += 1
     if cfg["bbox_json"] is None:
         raise RuntimeError("--bbox-json is required")
@@ -118,6 +168,7 @@ def _parse_args(argv):
 # Material helpers
 # ---------------------------------------------------------------------------
 
+
 def _di_to_E_stiff(di_val, e_max, e_min, di_scale, exponent):
     if di_scale <= 0:
         return e_max
@@ -129,15 +180,22 @@ def _engineering_constants(E_stiff, E_trans, nu):
     G_stiff = E_stiff / (2.0 * (1.0 + nu))
     G_trans = E_trans / (2.0 * (1.0 + nu))
     return (
-        E_stiff, E_trans, E_trans,
-        nu, nu, nu,
-        G_stiff, G_stiff, G_trans,
+        E_stiff,
+        E_trans,
+        E_trans,
+        nu,
+        nu,
+        nu,
+        G_stiff,
+        G_stiff,
+        G_trans,
     )
 
 
 # ---------------------------------------------------------------------------
 # DI field CSV reader
 # ---------------------------------------------------------------------------
+
 
 def _read_field_csv(path):
     """Return (coords, di_vals) where coords is list of (x,y,z) or (x,y)."""
@@ -187,6 +245,7 @@ def _field_x_range(coords):
 # Geometry builders
 # ---------------------------------------------------------------------------
 
+
 def _make_crown_polygon(cx, cy, hx, hy, biofilm_frac, poly_pts=None):
     """
     Return (inner_pts, outer_pts) for a crown cross-section.
@@ -205,12 +264,12 @@ def _make_crown_polygon(cx, cy, hx, hy, biofilm_frac, poly_pts=None):
     else:
         # 8-point polygon (same as abaqus_biofilm_aniso_3d_real.py)
         shape_uv = [
-            (0.0,  -1.0),
-            (0.6,  -0.9),
-            (0.9,  -0.2),
-            (0.6,   0.9),
-            (0.0,   1.0),
-            (-0.6,  0.9),
+            (0.0, -1.0),
+            (0.6, -0.9),
+            (0.9, -0.2),
+            (0.6, 0.9),
+            (0.0, 1.0),
+            (-0.6, 0.9),
             (-0.9, -0.2),
             (-0.6, -0.9),
         ]
@@ -246,12 +305,21 @@ def _make_slit_polygon(cx, cy, hx, hy, pocket_frac):
 # Core build & run
 # ---------------------------------------------------------------------------
 
+
 def _build_and_run(cfg):
     from abaqus import mdb
     from abaqusConstants import (
-        THREE_D, DEFORMABLE_BODY, ON, OFF, UNSET,
-        FROM_SECTION, MIDDLE_SURFACE, ANALYSIS,
-        CARTESIAN, SYSTEM, AXIS_1, ROTATION_NONE, STACK_3,
+        THREE_D,
+        DEFORMABLE_BODY,
+        ON,
+        OFF,
+        FROM_SECTION,
+        MIDDLE_SURFACE,
+        CARTESIAN,
+        SYSTEM,
+        AXIS_1,
+        ROTATION_NONE,
+        STACK_3,
         ENGINEERING_CONSTANTS,
     )
     from regionToolset import Region
@@ -262,13 +330,14 @@ def _build_and_run(cfg):
 
     tooth_key = cfg["tooth_key"]
     if tooth_key not in bbox_all:
-        raise RuntimeError("tooth_key '%s' not in bbox JSON (available: %s)" % (
-            tooth_key, list(bbox_all.keys())))
+        raise RuntimeError(
+            "tooth_key '%s' not in bbox JSON (available: %s)" % (tooth_key, list(bbox_all.keys()))
+        )
 
     bb = bbox_all[tooth_key]
     t_cx, t_cy, t_cz = bb["center"]
     t_sx, t_sy, t_sz = bb["size"]
-    t_zmin, t_zmax   = bb["min"][2], bb["max"][2]
+    t_zmin, t_zmax = bb["min"][2], bb["max"][2]
 
     # Use optional cross-section polygon from stl_bbox.py
     poly_pts = None
@@ -276,25 +345,26 @@ def _build_and_run(cfg):
         poly_pts = bb["cross_section_polygon"]
         print("  Using %d-point cross-section polygon from JSON." % len(poly_pts))
 
-    print("Tooth: %s  center=(%.2f, %.2f, %.2f)  size=(%.2f, %.2f, %.2f)" % (
-        tooth_key, t_cx, t_cy, t_cz, t_sx, t_sy, t_sz))
+    print(
+        "Tooth: %s  center=(%.2f, %.2f, %.2f)  size=(%.2f, %.2f, %.2f)"
+        % (tooth_key, t_cx, t_cy, t_cz, t_sx, t_sy, t_sz)
+    )
 
     # ── Load DI field CSV ────────────────────────────────────────────────────
     coords, di_vals = _read_field_csv(cfg["field_csv"])
     if not coords:
         raise RuntimeError("No data in field CSV: %s" % cfg["field_csv"])
 
-    di_max   = max(di_vals) if di_vals else 1.0
+    di_max = max(di_vals) if di_vals else 1.0
     di_scale = cfg["di_scale"] if cfg["di_scale"] > 0 else 1.1 * di_max
-    n_bins   = cfg["n_bins"]
-    bin_w    = di_max / n_bins if n_bins > 0 else 1.0
+    n_bins = cfg["n_bins"]
+    bin_w = di_max / n_bins if n_bins > 0 else 1.0
 
     # x range of DI field → normalised depth axis
     x_field_min, x_field_max = _field_x_range(coords)
     x_field_range = x_field_max - x_field_min or 1.0
 
-    print("DI field: %d points  di_max=%.5f  di_scale=%.5f" % (
-        len(coords), di_max, di_scale))
+    print("DI field: %d points  di_max=%.5f  di_scale=%.5f" % (len(coords), di_max, di_scale))
 
     # ── Abaqus model ─────────────────────────────────────────────────────────
     model_name = "OpenJawBio_%s" % tooth_key.replace("P1_", "").replace("Tooth_", "T")
@@ -302,8 +372,8 @@ def _build_and_run(cfg):
         del mdb.models[model_name]
     model = mdb.Model(name=model_name)
 
-    geom        = cfg["geometry"]
-    bio_frac    = cfg["biofilm_frac"]
+    geom = cfg["geometry"]
+    bio_frac = cfg["biofilm_frac"]
     pocket_frac = cfg["pocket_frac"]
 
     # ── Build 2-D sketch ─────────────────────────────────────────────────────
@@ -316,12 +386,13 @@ def _build_and_run(cfg):
             x1, y1 = corners[i]
             x2, y2 = corners[(i + 1) % len(corners)]
             sk.Line(point1=(x1, y1), point2=(x2, y2))
-        R_inner    = 0.5 * min(t_sx, t_sy)
+        R_inner = 0.5 * min(t_sx, t_sy)
         biofilm_th = bio_frac * R_inner
     else:
         # crown (default)
         inner, outer, R_inner, biofilm_th = _make_crown_polygon(
-            t_cx, t_cy, t_sx, t_sy, bio_frac, poly_pts)
+            t_cx, t_cy, t_sx, t_sy, bio_frac, poly_pts
+        )
         # Draw outer polygon as the extruded cross-section
         for i in range(len(outer)):
             x1, y1 = outer[i]
@@ -333,7 +404,7 @@ def _build_and_run(cfg):
     part.BaseSolidExtrude(sketch=sk, depth=extrude_depth)
 
     # Seed and mesh
-    seed_size = max(R_inner * bio_frac * 0.5, 0.5)   # at least half the biofilm thickness
+    seed_size = max(R_inner * bio_frac * 0.5, 0.5)  # at least half the biofilm thickness
     part.seedPart(size=seed_size, deviationFactor=0.1, minSizeFactor=0.1)
     part.generateMesh()
     print("  Mesh: %d elements generated." % len(part.elements))
@@ -348,7 +419,7 @@ def _build_and_run(cfg):
         e1 = (0.0, 0.0, 1.0)
     else:
         # radial: dominant gradient is radially outward from tooth centre in XY-plane
-        e1 = (1.0, 0.0, 0.0)   # will be overridden per-element via rho_norm; global datum = X
+        e1 = (1.0, 0.0, 0.0)  # will be overridden per-element via rho_norm; global datum = X
 
     # Build a reference CSYS for SYSTEM-type orientation (Abaqus requires one)
     e2_ref = (0.0, 1.0, 0.0) if abs(e1[0]) < 0.9 else (0.0, 0.0, 1.0)
@@ -363,11 +434,10 @@ def _build_and_run(cfg):
     # ── Materials (per DI bin) ────────────────────────────────────────────────
     aniso_ratio = cfg["aniso_ratio"]
     for b in range(n_bins):
-        di_b    = (b + 0.5) * bin_w
-        E_stiff = _di_to_E_stiff(di_b, cfg["e_max"], cfg["e_min"],
-                                  di_scale, cfg["di_exponent"])
+        di_b = (b + 0.5) * bin_w
+        E_stiff = _di_to_E_stiff(di_b, cfg["e_max"], cfg["e_min"], di_scale, cfg["di_exponent"])
         E_trans = aniso_ratio * E_stiff
-        consts  = _engineering_constants(E_stiff, E_trans, cfg["nu"])
+        consts = _engineering_constants(E_stiff, E_trans, cfg["nu"])
         mname = "MAT_ANISO_%02d" % b
         sname = "SEC_ANISO_%02d" % b
         mat = model.Material(name=mname)
@@ -376,7 +446,7 @@ def _build_and_run(cfg):
 
     # ── Element → DI bin assignment (radial depth mapping) ───────────────────
     bin_labels = [[] for _ in range(n_bins)]
-    n_biofilm  = 0
+    n_biofilm = 0
 
     for elem in part.elements:
         nodes = elem.getNodes()
@@ -385,8 +455,11 @@ def _build_and_run(cfg):
         sx = sy = sz = 0.0
         nc = 0
         for nd in nodes:
-            c  = nd.coordinates
-            sx += c[0]; sy += c[1]; sz += c[2]; nc += 1
+            c = nd.coordinates
+            sx += c[0]
+            sy += c[1]
+            sz += c[2]
+            nc += 1
         if nc == 0:
             continue
         ex, ey = sx / nc, sy / nc
@@ -409,13 +482,13 @@ def _build_and_run(cfg):
         x_query = x_field_min + rho_norm * x_field_range
 
         # Nearest neighbour in DI field (by x-coordinate only → 1-D lookup)
-        best_di  = 0.0
+        best_di = 0.0
         best_dx2 = 1.0e30
         for (xv, yv, zv), dv in zip(coords, di_vals):
             dx2 = (xv - x_query) ** 2
             if dx2 < best_dx2:
                 best_dx2 = dx2
-                best_di  = dv
+                best_di = dv
 
         b_idx = int(best_di / bin_w)
         b_idx = max(0, min(n_bins - 1, b_idx))
@@ -432,16 +505,16 @@ def _build_and_run(cfg):
         part.SectionAssignment(
             region=reg,
             sectionName="SEC_ANISO_%02d" % b,
-            offset=0.0, offsetType=MIDDLE_SURFACE, offsetField="",
+            offset=0.0,
+            offsetType=MIDDLE_SURFACE,
+            offsetField="",
             thicknessAssignment=FROM_SECTION,
         )
         total_assigned += len(bin_labels[b])
-    print("  Assigned %d / %d elements across %d bins." % (
-        total_assigned, n_biofilm, n_bins))
+    print("  Assigned %d / %d elements across %d bins." % (total_assigned, n_biofilm, n_bins))
 
     # ── Material orientation (global datum CSYS for all elements) ─────────────
-    all_seq = part.elements.sequenceFromLabels(
-        labels=[e.label for e in part.elements])
+    all_seq = part.elements.sequenceFromLabels(labels=[e.label for e in part.elements])
     part.MaterialOrientation(
         region=Region(elements=all_seq),
         orientationType=SYSTEM,
@@ -455,7 +528,7 @@ def _build_and_run(cfg):
     )
 
     # ── Assembly ──────────────────────────────────────────────────────────────
-    asm  = model.rootAssembly
+    asm = model.rootAssembly
     inst = asm.Instance(name="BioInst", part=part, dependent=ON)
 
     # Translate the biofilm solid so that its bottom face is at the actual tooth z_min
@@ -468,30 +541,37 @@ def _build_and_run(cfg):
     top_z = t_zmin + extrude_depth
 
     bot_faces = inst.faces.getByBoundingBox(
-        xMin=-1e9, xMax=1e9, yMin=-1e9, yMax=1e9,
-        zMin=bot_z - tol, zMax=bot_z + tol)
+        xMin=-1e9, xMax=1e9, yMin=-1e9, yMax=1e9, zMin=bot_z - tol, zMax=bot_z + tol
+    )
     top_faces = inst.faces.getByBoundingBox(
-        xMin=-1e9, xMax=1e9, yMin=-1e9, yMax=1e9,
-        zMin=top_z - tol, zMax=top_z + tol)
+        xMin=-1e9, xMax=1e9, yMin=-1e9, yMax=1e9, zMin=top_z - tol, zMax=top_z + tol
+    )
 
-    model.StaticStep(name="LOAD", previous="Initial",
-                     maxNumInc=100, initialInc=0.1, minInc=1e-5, maxInc=1.0)
+    model.StaticStep(
+        name="LOAD", previous="Initial", maxNumInc=100, initialInc=0.1, minInc=1e-5, maxInc=1.0
+    )
 
     if bot_faces:
         model.DisplacementBC(
-            name="FIX_BOT", createStepName="Initial",
+            name="FIX_BOT",
+            createStepName="Initial",
             region=Region(faces=bot_faces),
-            u1=0.0, u2=0.0, u3=0.0)
+            u1=0.0,
+            u2=0.0,
+            u3=0.0,
+        )
 
     if top_faces:
         model.Pressure(
-            name="PRESS", createStepName="LOAD",
-            region=Region(side1Faces=top_faces), magnitude=1.0e6)
+            name="PRESS",
+            createStepName="LOAD",
+            region=Region(side1Faces=top_faces),
+            magnitude=1.0e6,
+        )
 
     # ── Save CAE ──────────────────────────────────────────────────────────────
     base_dir = os.getcwd()
-    cae_path = os.path.join(base_dir,
-                            "OpenJaw_%s_biofilm.cae" % tooth_key.replace(" ", "_"))
+    cae_path = os.path.join(base_dir, "OpenJaw_%s_biofilm.cae" % tooth_key.replace(" ", "_"))
     mdb.saveAs(pathName=cae_path)
     print("[saved] %s" % cae_path)
 
@@ -500,8 +580,7 @@ def _build_and_run(cfg):
         name=cfg["job_name"],
         model=model_name,
         numCpus=1,
-        description="OpenJaw biofilm %s  geom=%s  beta=%.2f" % (
-            tooth_key, geom, aniso_ratio),
+        description="OpenJaw biofilm %s  geom=%s  beta=%.2f" % (tooth_key, geom, aniso_ratio),
     )
     job.submit(consistencyChecking=OFF)
     job.waitForCompletion()
@@ -512,10 +591,11 @@ def _build_and_run(cfg):
 # Entry point
 # ---------------------------------------------------------------------------
 
+
 def main():
     try:
         sep = sys.argv.index("--")
-        user_args = sys.argv[sep + 1:]
+        user_args = sys.argv[sep + 1 :]
     except ValueError:
         user_args = sys.argv[1:]
 

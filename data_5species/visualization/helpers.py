@@ -13,7 +13,6 @@ from typing import Any, Dict, List
 import numpy as np
 
 import sys
-from pathlib import Path
 
 # Try to import tmcmc, add to path if needed
 try:
@@ -24,7 +23,7 @@ except ImportError:
     project_root = current_dir.parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
-    
+
     try:
         from tmcmc.utils.io import write_csv
     except ImportError:
@@ -40,7 +39,7 @@ logger = logging.getLogger(__name__)
 def compute_phibar(x0: np.ndarray, active_species: List[int]) -> np.ndarray:
     """
     Compute observable φ̄ = φ * ψ (living bacteria volume fraction).
-    
+
     Parameters
     ----------
     x0 : np.ndarray
@@ -48,7 +47,7 @@ def compute_phibar(x0: np.ndarray, active_species: List[int]) -> np.ndarray:
         State vector: [phi_0..phi_{N-1}, phi0, psi_0..psi_{N-1}, gamma]
     active_species : List[int]
         Active species indices
-        
+
     Returns
     -------
     np.ndarray
@@ -126,7 +125,7 @@ def compute_fit_metrics(
         metrics["weighted_rmse_total"] = w_rmse
         # P.g. (species 4) late-stage RMSE (last n_late obs)
         if data.shape[1] > 4:
-            metrics["rmse_pg_last2"] = float(np.sqrt(np.mean(resid[-2:, 4]**2)))
+            metrics["rmse_pg_last2"] = float(np.sqrt(np.mean(resid[-2:, 4] ** 2)))
     return metrics
 
 
@@ -137,7 +136,7 @@ def export_tmcmc_diagnostics_tables(
 ) -> None:
     """
     Export TMCMC diagnostics (β/acc/ROM/θ0) into simple CSV tables.
-    
+
     Parameters
     ----------
     output_dir : Path
@@ -161,7 +160,11 @@ def export_tmcmc_diagnostics_tables(
         for stage, beta in enumerate(sched):
             beta_rows.append([model_tag, chain_id, stage, float(beta)])
     if beta_rows:
-        write_csv(tables_dir / f"{model_tag}_beta_schedule.csv", ["model", "chain", "stage", "beta"], beta_rows)
+        write_csv(
+            tables_dir / f"{model_tag}_beta_schedule.csv",
+            ["model", "chain", "stage", "beta"],
+            beta_rows,
+        )
 
     # acceptance rate histories
     acc_rows: List[List[Any]] = []
@@ -169,7 +172,11 @@ def export_tmcmc_diagnostics_tables(
         for stage, acc in enumerate(hist):
             acc_rows.append([model_tag, chain_id, stage, float(acc)])
     if acc_rows:
-        write_csv(tables_dir / f"{model_tag}_acceptance_rate.csv", ["model", "chain", "stage", "accept_rate"], acc_rows)
+        write_csv(
+            tables_dir / f"{model_tag}_acceptance_rate.csv",
+            ["model", "chain", "stage", "accept_rate"],
+            acc_rows,
+        )
 
     # Stage summary (per chain, per stage)
     stage_rows: List[List[Any]] = []
@@ -193,9 +200,21 @@ def export_tmcmc_diagnostics_tables(
                     float(row.get("logL_min", float("nan"))),
                     float(row.get("logL_max", float("nan"))),
                     int(row.get("linearization_enabled", 0)),
-                    float(row.get("rom_error_pre", float("nan"))) if row.get("rom_error_pre") is not None else float("nan"),
-                    float(row.get("rom_error_post", float("nan"))) if row.get("rom_error_post") is not None else float("nan"),
-                    float(row.get("delta_theta0", float("nan"))) if row.get("delta_theta0") is not None else float("nan"),
+                    (
+                        float(row.get("rom_error_pre", float("nan")))
+                        if row.get("rom_error_pre") is not None
+                        else float("nan")
+                    ),
+                    (
+                        float(row.get("rom_error_post", float("nan")))
+                        if row.get("rom_error_post") is not None
+                        else float("nan")
+                    ),
+                    (
+                        float(row.get("delta_theta0", float("nan")))
+                        if row.get("delta_theta0") is not None
+                        else float("nan")
+                    ),
                 ]
             )
     if stage_rows:
@@ -262,7 +281,9 @@ def export_tmcmc_diagnostics_tables(
                 step_norm = float(np.linalg.norm(theta0 - prev))
             theta0_rows.append([model_tag, chain_id, upd, step_norm, *theta0.tolist()])
     if theta0_rows:
-        header = ["model", "chain", "update", "step_norm"] + [f"theta0_{i}" for i in range(len(theta0_rows[0]) - 4)]
+        header = ["model", "chain", "update", "step_norm"] + [
+            f"theta0_{i}" for i in range(len(theta0_rows[0]) - 4)
+        ]
         write_csv(tables_dir / f"{model_tag}_theta0_history.csv", header, theta0_rows)
 
     logger.info("Exported diagnostics tables for %s to %s", model_tag, tables_dir)

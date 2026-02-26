@@ -43,20 +43,20 @@ import math
 # Defaults
 # ---------------------------------------------------------------------------
 _DEF = {
-    "field_csv":    None,
-    "mapping":      "power",
-    "n_bins":       20,
-    "e_max":        10.0e9,
-    "e_min":        0.5e9,
-    "di_exponent":  2.0,
-    "di_scale":     0.025778,
-    "nu":           0.30,
-    "aniso_ratio":  0.5,     # E_trans / E_stiff  (1.0 = isotropic)
-    "e1_x":         1.0,     # dominant direction components
-    "e1_y":         0.0,
-    "e1_z":         0.0,
-    "job_name":     "BiofilmAnisoJob",
-    "geometry":     "cube",
+    "field_csv": None,
+    "mapping": "power",
+    "n_bins": 20,
+    "e_max": 10.0e9,
+    "e_min": 0.5e9,
+    "di_exponent": 2.0,
+    "di_scale": 0.025778,
+    "nu": 0.30,
+    "aniso_ratio": 0.5,  # E_trans / E_stiff  (1.0 = isotropic)
+    "e1_x": 1.0,  # dominant direction components
+    "e1_y": 0.0,
+    "e1_z": 0.0,
+    "job_name": "BiofilmAnisoJob",
+    "geometry": "cube",
 }
 
 
@@ -64,25 +64,68 @@ _DEF = {
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def _parse_args(argv):
     cfg = dict(_DEF)
     i = 0
     while i < len(argv):
         a = argv[i]
-        if a == "--field-csv"   and i+1 < len(argv): cfg["field_csv"]   = argv[i+1]; i+=2; continue
-        if a == "--mapping"     and i+1 < len(argv): cfg["mapping"]     = argv[i+1]; i+=2; continue
-        if a == "--n-bins"      and i+1 < len(argv): cfg["n_bins"]      = int(argv[i+1]);   i+=2; continue
-        if a == "--e-max"       and i+1 < len(argv): cfg["e_max"]       = float(argv[i+1]); i+=2; continue
-        if a == "--e-min"       and i+1 < len(argv): cfg["e_min"]       = float(argv[i+1]); i+=2; continue
-        if a == "--di-exponent" and i+1 < len(argv): cfg["di_exponent"] = float(argv[i+1]); i+=2; continue
-        if a == "--di-scale"    and i+1 < len(argv): cfg["di_scale"]    = float(argv[i+1]); i+=2; continue
-        if a == "--nu"          and i+1 < len(argv): cfg["nu"]          = float(argv[i+1]); i+=2; continue
-        if a == "--aniso-ratio" and i+1 < len(argv): cfg["aniso_ratio"] = float(argv[i+1]); i+=2; continue
-        if a == "--e1-x"        and i+1 < len(argv): cfg["e1_x"]        = float(argv[i+1]); i+=2; continue
-        if a == "--e1-y"        and i+1 < len(argv): cfg["e1_y"]        = float(argv[i+1]); i+=2; continue
-        if a == "--e1-z"        and i+1 < len(argv): cfg["e1_z"]        = float(argv[i+1]); i+=2; continue
-        if a == "--job-name"    and i+1 < len(argv): cfg["job_name"]    = argv[i+1]; i+=2; continue
-        if a == "--geometry"    and i+1 < len(argv): cfg["geometry"]    = argv[i+1]; i+=2; continue
+        if a == "--field-csv" and i + 1 < len(argv):
+            cfg["field_csv"] = argv[i + 1]
+            i += 2
+            continue
+        if a == "--mapping" and i + 1 < len(argv):
+            cfg["mapping"] = argv[i + 1]
+            i += 2
+            continue
+        if a == "--n-bins" and i + 1 < len(argv):
+            cfg["n_bins"] = int(argv[i + 1])
+            i += 2
+            continue
+        if a == "--e-max" and i + 1 < len(argv):
+            cfg["e_max"] = float(argv[i + 1])
+            i += 2
+            continue
+        if a == "--e-min" and i + 1 < len(argv):
+            cfg["e_min"] = float(argv[i + 1])
+            i += 2
+            continue
+        if a == "--di-exponent" and i + 1 < len(argv):
+            cfg["di_exponent"] = float(argv[i + 1])
+            i += 2
+            continue
+        if a == "--di-scale" and i + 1 < len(argv):
+            cfg["di_scale"] = float(argv[i + 1])
+            i += 2
+            continue
+        if a == "--nu" and i + 1 < len(argv):
+            cfg["nu"] = float(argv[i + 1])
+            i += 2
+            continue
+        if a == "--aniso-ratio" and i + 1 < len(argv):
+            cfg["aniso_ratio"] = float(argv[i + 1])
+            i += 2
+            continue
+        if a == "--e1-x" and i + 1 < len(argv):
+            cfg["e1_x"] = float(argv[i + 1])
+            i += 2
+            continue
+        if a == "--e1-y" and i + 1 < len(argv):
+            cfg["e1_y"] = float(argv[i + 1])
+            i += 2
+            continue
+        if a == "--e1-z" and i + 1 < len(argv):
+            cfg["e1_z"] = float(argv[i + 1])
+            i += 2
+            continue
+        if a == "--job-name" and i + 1 < len(argv):
+            cfg["job_name"] = argv[i + 1]
+            i += 2
+            continue
+        if a == "--geometry" and i + 1 < len(argv):
+            cfg["geometry"] = argv[i + 1]
+            i += 2
+            continue
         i += 1
     if cfg["field_csv"] is None:
         raise RuntimeError("--field-csv required")
@@ -92,6 +135,7 @@ def _parse_args(argv):
 # ---------------------------------------------------------------------------
 # Material helpers
 # ---------------------------------------------------------------------------
+
 
 def _di_to_E_stiff(di_val, e_max, e_min, di_scale, exponent):
     if di_scale <= 0:
@@ -105,15 +149,22 @@ def _engineering_constants(E_stiff, E_trans, nu):
     G_stiff = E_stiff / (2.0 * (1.0 + nu))
     G_trans = E_trans / (2.0 * (1.0 + nu))
     return (
-        E_stiff, E_trans, E_trans,   # E1, E2, E3
-        nu, nu, nu,                  # NU12, NU13, NU23
-        G_stiff, G_stiff, G_trans,   # G12, G13, G23
+        E_stiff,
+        E_trans,
+        E_trans,  # E1, E2, E3
+        nu,
+        nu,
+        nu,  # NU12, NU13, NU23
+        G_stiff,
+        G_stiff,
+        G_trans,  # G12, G13, G23
     )
 
 
 # ---------------------------------------------------------------------------
 # CSV reader
 # ---------------------------------------------------------------------------
+
 
 def _read_field_csv(path):
     coords, phi_pg, di_vals = [], [], []
@@ -135,12 +186,21 @@ def _read_field_csv(path):
 # Abaqus model
 # ---------------------------------------------------------------------------
 
+
 def _build_and_run(cfg):
     from abaqus import mdb
     from abaqusConstants import (
-        THREE_D, DEFORMABLE_BODY, ON, OFF, UNSET,
-        FROM_SECTION, MIDDLE_SURFACE, ANALYSIS, SINGLE, DEFAULT,
-        CARTESIAN, SYSTEM, AXIS_1, ROTATION_NONE, STACK_3,
+        THREE_D,
+        DEFORMABLE_BODY,
+        ON,
+        OFF,
+        FROM_SECTION,
+        MIDDLE_SURFACE,
+        CARTESIAN,
+        SYSTEM,
+        AXIS_1,
+        ROTATION_NONE,
+        STACK_3,
         ENGINEERING_CONSTANTS,
     )
     from regionToolset import Region
@@ -159,23 +219,23 @@ def _build_and_run(cfg):
 
     # Normalise e1 (explicit arithmetic for Abaqus Python 2 compat)
     e1x, e1y, e1z = cfg["e1_x"], cfg["e1_y"], cfg["e1_z"]
-    norm = math.sqrt(e1x*e1x + e1y*e1y + e1z*e1z) or 1.0
-    e1 = [e1x/norm, e1y/norm, e1z/norm]
+    norm = math.sqrt(e1x * e1x + e1y * e1y + e1z * e1z) or 1.0
+    e1 = [e1x / norm, e1y / norm, e1z / norm]
 
     # Orthogonal e2 (arbitrary, perp to e1) via cross product
     if abs(e1[0]) < 0.9:
         rx, ry, rz = 1.0, 0.0, 0.0
     else:
         rx, ry, rz = 0.0, 1.0, 0.0
-    e2x = e1[1]*rz - e1[2]*ry
-    e2y = e1[2]*rx - e1[0]*rz
-    e2z = e1[0]*ry - e1[1]*rx
-    n2 = math.sqrt(e2x*e2x + e2y*e2y + e2z*e2z) or 1.0
-    e2 = [e2x/n2, e2y/n2, e2z/n2]
+    e2x = e1[1] * rz - e1[2] * ry
+    e2y = e1[2] * rx - e1[0] * rz
+    e2z = e1[0] * ry - e1[1] * rx
+    n2 = math.sqrt(e2x * e2x + e2y * e2y + e2z * e2z) or 1.0
+    e2 = [e2x / n2, e2y / n2, e2z / n2]
 
-    n_bins      = cfg["n_bins"]
+    n_bins = cfg["n_bins"]
     aniso_ratio = cfg["aniso_ratio"]
-    bin_w       = di_max / n_bins if n_bins > 0 else 1.0
+    bin_w = di_max / n_bins if n_bins > 0 else 1.0
 
     nx_est = len(set(round(x, 6) for x in xs))
     ny_est = len(set(round(y, 6) for y in ys))
@@ -186,8 +246,7 @@ def _build_and_run(cfg):
         (z_max - z_min) / max(nz_est - 1, 1),
     )
 
-    print("aniso_ratio=%.2f  e1=[%.3f,%.3f,%.3f]" % (
-        aniso_ratio, e1[0], e1[1], e1[2]))
+    print("aniso_ratio=%.2f  e1=[%.3f,%.3f,%.3f]" % (aniso_ratio, e1[0], e1[1], e1[2]))
     print("di_scale=%.5f  di_max=%.5f  n_bins=%d" % (di_scale, di_max, n_bins))
 
     # ── Model ──────────────────────────────────────────────────────────────
@@ -197,7 +256,7 @@ def _build_and_run(cfg):
     model = mdb.Model(name=model_name)
 
     geom = cfg.get("geometry", "cube")
-    sk = model.ConstrainedSketch(name="Sk", sheetSize=max(x_max-x_min, y_max-y_min)*3)
+    sk = model.ConstrainedSketch(name="Sk", sheetSize=max(x_max - x_min, y_max - y_min) * 3)
     if geom == "crown":
         hx = x_max - x_min
         hy = y_max - y_min
@@ -229,12 +288,12 @@ def _build_and_run(cfg):
         cy = 0.5 * (y_min + y_max)
         shape_slit = [
             (-1.0, -1.0),
-            ( 1.0, -1.0),
-            ( 1.0,  0.8),
-            ( 0.4,  0.9),
-            ( 0.0,  0.6),
-            (-0.4,  0.9),
-            (-1.0,  0.8),
+            (1.0, -1.0),
+            (1.0, 0.8),
+            (0.4, 0.9),
+            (0.0, 0.6),
+            (-0.4, 0.9),
+            (-1.0, 0.8),
         ]
         pts_s = []
         for ux, uy in shape_slit:
@@ -264,11 +323,10 @@ def _build_and_run(cfg):
 
     # Materials: transversely isotropic, DI-binned
     for b in range(n_bins):
-        di_b     = (b + 0.5) * bin_w
-        E_stiff  = _di_to_E_stiff(di_b, cfg["e_max"], cfg["e_min"],
-                                   di_scale, cfg["di_exponent"])
-        E_trans  = aniso_ratio * E_stiff
-        consts   = _engineering_constants(E_stiff, E_trans, cfg["nu"])
+        di_b = (b + 0.5) * bin_w
+        E_stiff = _di_to_E_stiff(di_b, cfg["e_max"], cfg["e_min"], di_scale, cfg["di_exponent"])
+        E_trans = aniso_ratio * E_stiff
+        consts = _engineering_constants(E_stiff, E_trans, cfg["nu"])
 
         mname = "MAT_ANISO_%02d" % b
         sname = "SEC_ANISO_%02d" % b
@@ -286,7 +344,10 @@ def _build_and_run(cfg):
         ncnt = 0
         for nd in nodes:
             c = nd.coordinates
-            sx += c[0]; sy += c[1]; sz += c[2]; ncnt += 1
+            sx += c[0]
+            sy += c[1]
+            sz += c[2]
+            ncnt += 1
         if ncnt == 0:
             continue
         ex, ey, ez = sx / ncnt, sy / ncnt, sz / ncnt
@@ -327,7 +388,7 @@ def _build_and_run(cfg):
         best_di = 0.0
         best_d2 = 1.0e30
         for (xv, yv, zv), dv in zip(coords, di_vals):
-            d2 = (xv-ex)**2 + (yv-ey)**2 + (zv-ez)**2
+            d2 = (xv - ex) ** 2 + (yv - ey) ** 2 + (zv - ez) ** 2
             if d2 < best_d2:
                 best_d2 = d2
                 best_di = dv
@@ -344,7 +405,9 @@ def _build_and_run(cfg):
         part.SectionAssignment(
             region=reg,
             sectionName="SEC_ANISO_%02d" % b,
-            offset=0.0, offsetType=MIDDLE_SURFACE, offsetField="",
+            offset=0.0,
+            offsetType=MIDDLE_SURFACE,
+            offsetField="",
             thicknessAssignment=FROM_SECTION,
         )
         total_assigned += len(bin_labels[b])
@@ -361,13 +424,14 @@ def _build_and_run(cfg):
         part.SectionAssignment(
             region=reg_t,
             sectionName="SEC_TOOTH",
-            offset=0.0, offsetType=MIDDLE_SURFACE, offsetField="",
+            offset=0.0,
+            offsetType=MIDDLE_SURFACE,
+            offsetField="",
             thicknessAssignment=FROM_SECTION,
         )
 
     # Apply global material orientation (axis 1 along e1) to all elements
-    all_elem_seq = part.elements.sequenceFromLabels(
-        labels=[e.label for e in part.elements])
+    all_elem_seq = part.elements.sequenceFromLabels(labels=[e.label for e in part.elements])
     part.MaterialOrientation(
         region=Region(elements=all_elem_seq),
         orientationType=SYSTEM,
@@ -381,45 +445,56 @@ def _build_and_run(cfg):
     )
 
     # Assembly
-    asm  = model.rootAssembly
+    asm = model.rootAssembly
     inst = asm.Instance(name="BioInst", part=part, dependent=ON)
 
     # BCs: fix bottom face (z_min), apply pressure to top (z_max)
     tol = elem_size * 0.1
 
     bot_faces = inst.faces.getByBoundingBox(
-        xMin=x_min-tol, xMax=x_max+tol,
-        yMin=y_min-tol, yMax=y_max+tol,
-        zMin=z_min-tol, zMax=z_min+tol)
+        xMin=x_min - tol,
+        xMax=x_max + tol,
+        yMin=y_min - tol,
+        yMax=y_max + tol,
+        zMin=z_min - tol,
+        zMax=z_min + tol,
+    )
     top_faces = inst.faces.getByBoundingBox(
-        xMin=x_min-tol, xMax=x_max+tol,
-        yMin=y_min-tol, yMax=y_max+tol,
-        zMin=z_max-tol, zMax=z_max+tol)
+        xMin=x_min - tol,
+        xMax=x_max + tol,
+        yMin=y_min - tol,
+        yMax=y_max + tol,
+        zMin=z_max - tol,
+        zMax=z_max + tol,
+    )
 
     # Static step
-    model.StaticStep(name="LOAD", previous="Initial",
-                     maxNumInc=100, initialInc=0.1, minInc=1e-5, maxInc=1.0)
+    model.StaticStep(
+        name="LOAD", previous="Initial", maxNumInc=100, initialInc=0.1, minInc=1e-5, maxInc=1.0
+    )
 
     if bot_faces:
         model.DisplacementBC(
-            name="FIX_BOT", createStepName="Initial",
+            name="FIX_BOT",
+            createStepName="Initial",
             region=Region(faces=bot_faces),
-            u1=0.0, u2=0.0, u3=0.0)
+            u1=0.0,
+            u2=0.0,
+            u3=0.0,
+        )
 
     if top_faces:
         # 1 MPa compressive pressure (same as isotropic reference model)
         region_top = Region(side1Faces=top_faces)
-        model.Pressure(
-            name="PRESS", createStepName="LOAD",
-            region=region_top, magnitude=1.0e6)
+        model.Pressure(name="PRESS", createStepName="LOAD", region=region_top, magnitude=1.0e6)
 
     # Job
     job = mdb.Job(
         name=cfg["job_name"],
         model=model_name,
         numCpus=1,
-        description="Aniso biofilm  beta=%.2f  e1=[%.2f,%.2f,%.2f]" % (
-            aniso_ratio, e1[0], e1[1], e1[2]),
+        description="Aniso biofilm  beta=%.2f  e1=[%.2f,%.2f,%.2f]"
+        % (aniso_ratio, e1[0], e1[1], e1[2]),
     )
     job.submit(consistencyChecking=OFF)
     job.waitForCompletion()
@@ -430,10 +505,11 @@ def _build_and_run(cfg):
 # Entry
 # ---------------------------------------------------------------------------
 
+
 def main():
     try:
         sep = sys.argv.index("--")
-        user_args = sys.argv[sep+1:]
+        user_args = sys.argv[sep + 1 :]
     except ValueError:
         user_args = sys.argv[1:]
 

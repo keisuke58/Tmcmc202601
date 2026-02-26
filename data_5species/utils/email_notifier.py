@@ -11,7 +11,6 @@ import smtplib
 import sys
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from pathlib import Path
 from typing import Optional
 
 
@@ -27,7 +26,7 @@ def send_email_notification(
 ) -> bool:
     """
     Send email notification via SMTP (Gmail supported).
-    
+
     Parameters
     ----------
     subject : str
@@ -46,7 +45,7 @@ def send_email_notification(
         SMTP username (default: from EMAIL_USER env var)
     smtp_password : str, optional
         SMTP password/app password (default: from EMAIL_PASSWORD env var)
-    
+
     Returns
     -------
     bool
@@ -57,27 +56,27 @@ def send_email_notification(
     from_email = from_email or os.getenv("EMAIL_FROM")
     smtp_user = smtp_user or os.getenv("EMAIL_USER")
     smtp_password = smtp_password or os.getenv("EMAIL_PASSWORD")
-    
+
     # Check if email is enabled
     if not all([to_email, from_email, smtp_user, smtp_password]):
         return False
-    
+
     try:
         # Create message
         msg = MIMEMultipart()
         msg["From"] = from_email
         msg["To"] = to_email
         msg["Subject"] = subject
-        
+
         # Add body
         msg.attach(MIMEText(body, "plain", "utf-8"))
-        
+
         # Send email
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.starttls()
             server.login(smtp_user, smtp_password)
             server.send_message(msg)
-        
+
         return True
     except Exception as e:
         # Silent fail - don't break execution if email fails
@@ -95,7 +94,7 @@ def notify_tmcmc_completion(
 ) -> bool:
     """
     Send email notification for TMCMC completion.
-    
+
     Parameters
     ----------
     run_id : str
@@ -110,7 +109,7 @@ def notify_tmcmc_completion(
         Report file path
     error_message : str, optional
         Error message if failed
-    
+
     Returns
     -------
     bool
@@ -119,7 +118,7 @@ def notify_tmcmc_completion(
     # Check if email is enabled
     if not os.getenv("EMAIL_TO"):
         return False
-    
+
     # Build subject
     if status in ["SUCCESS", "PASS"]:
         subject = f"✅ TMCMC計算完了: {run_id}"
@@ -130,7 +129,7 @@ def notify_tmcmc_completion(
     else:
         subject = f"❌ TMCMC計算失敗: {run_id}"
         emoji = "❌"
-    
+
     # Build body
     body_lines = [
         f"{emoji} TMCMC計算が完了しました",
@@ -138,31 +137,34 @@ def notify_tmcmc_completion(
         f"Run ID: {run_id}",
         f"ステータス: {status}",
     ]
-    
+
     if elapsed_time:
         body_lines.append(f"実行時間: {elapsed_time}")
-    
+
     if run_dir:
         body_lines.append(f"結果ディレクトリ: {run_dir}")
-    
+
     if report_path:
         body_lines.append(f"レポート: {report_path}")
-    
+
     if error_message:
-        body_lines.extend([
-            "",
-            "エラー詳細:",
-            error_message,
-        ])
-    
+        body_lines.extend(
+            [
+                "",
+                "エラー詳細:",
+                error_message,
+            ]
+        )
+
     body = "\n".join(body_lines)
-    
+
     return send_email_notification(subject, body)
 
 
 if __name__ == "__main__":
     # Test email notification
     import sys
+
     if len(sys.argv) > 1 and sys.argv[1] == "test":
         result = notify_tmcmc_completion(
             run_id="test_run",

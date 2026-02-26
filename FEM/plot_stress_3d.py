@@ -16,31 +16,37 @@ from pathlib import Path
 
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
-from matplotlib.colors import Normalize, LogNorm
 
 _HERE = Path(__file__).resolve().parent
 _FIG_DIR = _HERE / "figures"
 _FIG_DIR.mkdir(exist_ok=True)
 
-CONDITIONS = ["commensal_static", "commensal_hobic",
-              "dh_baseline", "dysbiotic_static"]
+CONDITIONS = ["commensal_static", "commensal_hobic", "dh_baseline", "dysbiotic_static"]
 
 COND_INFO = {
     "commensal_static": {"short": "Comm-Static", "color": "#2ca02c"},
-    "commensal_hobic":  {"short": "Comm-HOBIC",  "color": "#17becf"},
-    "dh_baseline":      {"short": "Dysb-HOBIC",  "color": "#d62728"},
-    "dysbiotic_static": {"short": "Dysb-Static",  "color": "#ff7f0e"},
+    "commensal_hobic": {"short": "Comm-HOBIC", "color": "#17becf"},
+    "dh_baseline": {"short": "Dysb-HOBIC", "color": "#d62728"},
+    "dysbiotic_static": {"short": "Dysb-Static", "color": "#ff7f0e"},
 }
 
 
 def load_nodes_csv(csv_path):
     """Load node CSV: instance, node_id, x, y, z, ux, uy, uz, u_mag."""
-    data = {"instance": [], "node_id": [], "x": [], "y": [], "z": [],
-            "ux": [], "uy": [], "uz": [], "u_mag": []}
+    data = {
+        "instance": [],
+        "node_id": [],
+        "x": [],
+        "y": [],
+        "z": [],
+        "ux": [],
+        "uy": [],
+        "uz": [],
+        "u_mag": [],
+    }
     with open(csv_path) as f:
         header = f.readline().strip().split(",")
         for line in f:
@@ -103,8 +109,9 @@ def fig_3d_displacement_comparison(all_data, stress_info, suffix="v2"):
 
         # Separate tooth vs biofilm by instance name
         instances = np.unique(d["instance"])
-        tooth_mask = np.array(["TOOTH" in inst.upper() or "DENTIN" in inst.upper()
-                               for inst in d["instance"]])
+        tooth_mask = np.array(
+            ["TOOTH" in inst.upper() or "DENTIN" in inst.upper() for inst in d["instance"]]
+        )
         bio_mask = ~tooth_mask
 
         # Deformation scale (normalize so max deformation is visible)
@@ -123,18 +130,27 @@ def fig_3d_displacement_comparison(all_data, stress_info, suffix="v2"):
             idx_t = np.where(tooth_mask)[0]
             if len(idx_t) > max_pts:
                 idx_t = np.random.choice(idx_t, max_pts, replace=False)
-            ax.scatter(x[idx_t], y[idx_t], z[idx_t],
-                       c="lightgray", s=1, alpha=0.15, rasterized=True)
+            ax.scatter(
+                x[idx_t], y[idx_t], z[idx_t], c="lightgray", s=1, alpha=0.15, rasterized=True
+            )
 
         # Plot biofilm nodes colored by displacement
         if bio_mask.any():
             idx_b = np.where(bio_mask)[0]
             if len(idx_b) > max_pts:
                 idx_b = np.random.choice(idx_b, max_pts, replace=False)
-            sc = ax.scatter(x[idx_b], y[idx_b], z[idx_b],
-                            c=u_mag[idx_b], cmap="hot_r",
-                            vmin=0, vmax=max(u_mag[bio_mask]) * 1.0 if bio_mask.any() else 1,
-                            s=4, alpha=0.7, rasterized=True)
+            sc = ax.scatter(
+                x[idx_b],
+                y[idx_b],
+                z[idx_b],
+                c=u_mag[idx_b],
+                cmap="hot_r",
+                vmin=0,
+                vmax=max(u_mag[bio_mask]) * 1.0 if bio_mask.any() else 1,
+                s=4,
+                alpha=0.7,
+                rasterized=True,
+            )
             cb = fig.colorbar(sc, ax=ax, shrink=0.5, pad=0.08)
             cb.set_label("Displacement [mm]", fontsize=9)
         else:
@@ -142,10 +158,18 @@ def fig_3d_displacement_comparison(all_data, stress_info, suffix="v2"):
             idx_all = np.arange(len(x))
             if len(idx_all) > max_pts * 2:
                 idx_all = np.random.choice(idx_all, max_pts * 2, replace=False)
-            sc = ax.scatter(x[idx_all], y[idx_all], z[idx_all],
-                            c=u_mag[idx_all], cmap="hot_r",
-                            vmin=0, vmax=np.percentile(u_mag, 99),
-                            s=2, alpha=0.6, rasterized=True)
+            sc = ax.scatter(
+                x[idx_all],
+                y[idx_all],
+                z[idx_all],
+                c=u_mag[idx_all],
+                cmap="hot_r",
+                vmin=0,
+                vmax=np.percentile(u_mag, 99),
+                s=2,
+                alpha=0.6,
+                rasterized=True,
+            )
             cb = fig.colorbar(sc, ax=ax, shrink=0.5, pad=0.08)
             cb.set_label("Displacement [mm]", fontsize=9)
 
@@ -167,9 +191,13 @@ def fig_3d_displacement_comparison(all_data, stress_info, suffix="v2"):
         # Set consistent view angle
         ax.view_init(elev=25, azim=-60)
 
-    fig.suptitle("3D Abaqus: Biofilm Displacement by Condition\n"
-                 "(Hybrid DI: 0D Hamilton scale + 2D spatial pattern)",
-                 fontsize=14, fontweight="bold", y=0.98)
+    fig.suptitle(
+        "3D Abaqus: Biofilm Displacement by Condition\n"
+        "(Hybrid DI: 0D Hamilton scale + 2D spatial pattern)",
+        fontsize=14,
+        fontweight="bold",
+        y=0.98,
+    )
     fig.tight_layout(rect=[0, 0, 1, 0.94])
 
     out = _FIG_DIR / "stress_3d_displacement.png"
@@ -195,8 +223,9 @@ def fig_3d_multiview(all_data, stress_info, cond="dh_baseline"):
     x, y, z = d["x"], d["y"], d["z"]
 
     # Instance classification
-    tooth_mask = np.array(["TOOTH" in inst.upper() or "DENTIN" in inst.upper()
-                           for inst in d["instance"]])
+    tooth_mask = np.array(
+        ["TOOTH" in inst.upper() or "DENTIN" in inst.upper() for inst in d["instance"]]
+    )
     bio_mask = ~tooth_mask
     max_pts = 5000
 
@@ -208,27 +237,44 @@ def fig_3d_multiview(all_data, stress_info, cond="dh_baseline"):
             idx_t = np.where(tooth_mask)[0]
             if len(idx_t) > max_pts:
                 idx_t = np.random.choice(idx_t, max_pts, replace=False)
-            ax.scatter(x[idx_t], y[idx_t], z[idx_t],
-                       c="lightgray", s=1, alpha=0.15, rasterized=True)
+            ax.scatter(
+                x[idx_t], y[idx_t], z[idx_t], c="lightgray", s=1, alpha=0.15, rasterized=True
+            )
 
         # Biofilm
         if bio_mask.any():
             idx_b = np.where(bio_mask)[0]
             if len(idx_b) > max_pts:
                 idx_b = np.random.choice(idx_b, max_pts, replace=False)
-            sc = ax.scatter(x[idx_b], y[idx_b], z[idx_b],
-                            c=u_mag[idx_b], cmap="hot_r",
-                            vmin=0, vmax=max(u_mag[bio_mask]),
-                            s=4, alpha=0.7, rasterized=True)
+            sc = ax.scatter(
+                x[idx_b],
+                y[idx_b],
+                z[idx_b],
+                c=u_mag[idx_b],
+                cmap="hot_r",
+                vmin=0,
+                vmax=max(u_mag[bio_mask]),
+                s=4,
+                alpha=0.7,
+                rasterized=True,
+            )
             fig.colorbar(sc, ax=ax, shrink=0.4, pad=0.08)
         else:
             idx_all = np.arange(len(x))
             if len(idx_all) > max_pts * 2:
                 idx_all = np.random.choice(idx_all, max_pts * 2, replace=False)
-            sc = ax.scatter(x[idx_all], y[idx_all], z[idx_all],
-                            c=u_mag[idx_all], cmap="hot_r",
-                            vmin=0, vmax=np.percentile(u_mag, 99),
-                            s=2, alpha=0.6, rasterized=True)
+            sc = ax.scatter(
+                x[idx_all],
+                y[idx_all],
+                z[idx_all],
+                c=u_mag[idx_all],
+                cmap="hot_r",
+                vmin=0,
+                vmax=np.percentile(u_mag, 99),
+                s=2,
+                alpha=0.6,
+                rasterized=True,
+            )
             fig.colorbar(sc, ax=ax, shrink=0.4, pad=0.08)
 
         ax.view_init(elev=elev, azim=azim)
@@ -239,8 +285,9 @@ def fig_3d_multiview(all_data, stress_info, cond="dh_baseline"):
         ax.tick_params(labelsize=7)
 
     info = COND_INFO.get(cond, {"short": cond})
-    fig.suptitle(f"3D Views: {info['short']} — Displacement Field [mm]",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle(
+        f"3D Views: {info['short']} — Displacement Field [mm]", fontsize=14, fontweight="bold"
+    )
     fig.tight_layout(rect=[0, 0, 1, 0.93])
 
     out = _FIG_DIR / f"stress_3d_multiview_{cond}.png"

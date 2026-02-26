@@ -8,7 +8,6 @@ Decoder: z -> θ (20)
 Uses reparameterization trick for training.
 """
 
-from pathlib import Path
 
 import torch
 import torch.nn as nn

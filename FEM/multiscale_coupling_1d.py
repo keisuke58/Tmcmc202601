@@ -70,15 +70,16 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 jax.config.update("jax_enable_x64", True)
 
 # ── パス設定 ─────────────────────────────────────────────────────────────────
-_HERE     = os.path.dirname(os.path.abspath(__file__))          # FEM/
-_FEMROOT  = _HERE                                                # FEM/
-_PROJ     = os.path.dirname(_HERE)                              # Tmcmc202601/
+_HERE = os.path.dirname(os.path.abspath(__file__))  # FEM/
+_FEMROOT = _HERE  # FEM/
+_PROJ = os.path.dirname(_HERE)  # Tmcmc202601/
 _RUNS_DIR = os.path.join(_PROJ, "data_5species", "_runs")
 
 if _FEMROOT not in sys.path:
@@ -87,7 +88,9 @@ if _FEMROOT not in sys.path:
 # JAXFEM パッケージから連成 PDE ソルバーをインポート
 from JAXFEM.core_hamilton_1d_nutrient import simulate_hamilton_1d_nutrient
 from JAXFEM.core_hamilton_1d import (
-    theta_to_matrices, newton_step, make_initial_state,
+    theta_to_matrices,
+    newton_step,
+    make_initial_state,
 )
 
 OUT_DIR = os.path.join(_HERE, "_multiscale_results")
@@ -125,11 +128,11 @@ SPECIES_COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#d62728"]
 
 # ── 物理パラメータ ────────────────────────────────────────────────────────────
 # Klempt (2024) ベースの無次元パラメータ
-D_EFF    = jnp.array([0.001, 0.001, 0.0008, 0.0005, 0.0002])  # 菌種別拡散係数
-D_C      = 1.0     # 栄養拡散係数 (非次元)
-G_EFF    = 50.0    # 栄養消費係数 → Thiele 数 ~ 4
-K_MONOD  = 1.0     # Monod 半飽和定数
-K_ALPHA  = 0.05    # 成長–固有ひずみ結合 [T*^{-1}]
+D_EFF = jnp.array([0.001, 0.001, 0.0008, 0.0005, 0.0002])  # 菌種別拡散係数
+D_C = 1.0  # 栄養拡散係数 (非次元)
+G_EFF = 50.0  # 栄養消費係数 → Thiele 数 ~ 4
+K_MONOD = 1.0  # Monod 半飽和定数
+K_ALPHA = 0.05  # 成長–固有ひずみ結合 [T*^{-1}]
 
 # シミュレーション設定
 # 目標: T_total = N_MACRO * N_REACT * DT_H = 1000 * 20 * 1e-3 = 20 T*
@@ -137,20 +140,20 @@ K_ALPHA  = 0.05    # 成長–固有ひずみ結合 [T*^{-1}]
 # CFL 安定性:
 #   栄養PDE: dt_c = N_REACT * DT_H / N_SUB_C = 20e-3/60 = 3.3e-4 < dx²/(2Dc) = 5.9e-4 ✓
 #   菌種拡散: dt_diff = N_REACT * DT_H = 0.02 < dx²/(2 D_max) = 0.59 ✓
-N_NODES    = 30    # 空間ノード数
-N_MACRO    = 1000  # マクロタイムステップ数  → T_total = 20 T*
-N_REACT    = 20    # 反応サブステップ数
-N_SUB_C    = 60    # 栄養 PDE サブステップ数 (CFL 安定: dt_c = 3.3e-4)
-DT_H       = 1e-3  # Hamilton タイムステップ (0D ODE の dt=0.01 より小さく安全)
+N_NODES = 30  # 空間ノード数
+N_MACRO = 1000  # マクロタイムステップ数  → T_total = 20 T*
+N_REACT = 20  # 反応サブステップ数
+N_SUB_C = 60  # 栄養 PDE サブステップ数 (CFL 安定: dt_c = 3.3e-4)
+DT_H = 1e-3  # Hamilton タイムステップ (0D ODE の dt=0.01 より小さく安全)
 
 # スケール変換
 L_BIOFILM_MM = 0.2  # バイオフィルム厚さ [mm] (Abaqus biofilm mode と一致)
 
 # マクロ材料パラメータ (material_models.py に集約、互換性のため残す)
-E_MAX_PA = 1000.0   # E_max [Pa] (EPS-rich commensal)
-E_MIN_PA = 10.0     # E_min [Pa] (Klempt 2024 cite)
+E_MAX_PA = 1000.0  # E_max [Pa] (EPS-rich commensal)
+E_MIN_PA = 10.0  # E_min [Pa] (Klempt 2024 cite)
 DI_SCALE = 0.025778  # DI スケール係数 (aggregate_di_credible.py より)
-N_POWER  = 2.0       # 冪乗則指数
+N_POWER = 2.0  # 冪乗則指数
 
 # φ_Pg / Virulence モデル (material_models.py)
 from material_models import compute_E_phi_pg, compute_E_virulence
@@ -159,6 +162,7 @@ from material_models import compute_E_phi_pg, compute_E_virulence
 # ─────────────────────────────────────────────────────────────────────────────
 # ユーティリティ関数
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def load_theta(condition_key: str) -> np.ndarray:
     """TMCMC ランディレクトリから theta_MAP を読み込む。"""
@@ -202,6 +206,7 @@ def compute_E_DI(di: np.ndarray) -> np.ndarray:
 # 0D Hamilton JAX ソルバー (条件別 DI・組成推定)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def solve_0d_hamilton_jax(
     theta_np: np.ndarray,
     n_steps: int = 2500,
@@ -230,10 +235,10 @@ def solve_0d_hamilton_jax(
         "Kp1": 1e-4,
         "Eta": jnp.ones(5, dtype=jnp.float64),
         "EtaPhi": jnp.ones(5, dtype=jnp.float64),
-        "c": 100.0,        # 固定結合定数 (TMCMC ODE と同じ)
-        "alpha": 100.0,    # Lennard-Jones ポテンシャル高さ
+        "c": 100.0,  # 固定結合定数 (TMCMC ODE と同じ)
+        "alpha": 100.0,  # Lennard-Jones ポテンシャル高さ
         "K_hill": jnp.array(0.05, dtype=jnp.float64),
-        "n_hill": jnp.array(4.0,  dtype=jnp.float64),
+        "n_hill": jnp.array(4.0, dtype=jnp.float64),
         "A": A,
         "b_diag": b_diag,
         "active_mask": active_mask,
@@ -249,18 +254,18 @@ def solve_0d_hamilton_jax(
     _, g_traj = jax.lax.scan(jax.jit(body), g0, jnp.arange(n_steps))
     # g_traj: (n_steps, 12)
 
-    phi_traj  = np.array(g_traj[:, 0:5])      # (n_steps, 5)
-    phi_total = phi_traj.sum(axis=1)           # (n_steps,)
-    t_axis    = np.arange(n_steps, dtype=float) * dt
-    alpha_0d  = float(K_ALPHA * np.trapezoid(phi_total, t_axis))
-    phi_final = phi_traj[-1]                   # (5,)
+    phi_traj = np.array(g_traj[:, 0:5])  # (n_steps, 5)
+    phi_total = phi_traj.sum(axis=1)  # (n_steps,)
+    t_axis = np.arange(n_steps, dtype=float) * dt
+    alpha_0d = float(K_ALPHA * np.trapezoid(phi_total, t_axis))
+    phi_final = phi_traj[-1]  # (5,)
 
     # 0D DI
     phi_sum = phi_final.sum()
     p = phi_final / max(phi_sum, 1e-12)
     with np.errstate(divide="ignore", invalid="ignore"):
         log_p = np.where(p > 0, np.log(p), 0.0)
-    H_0d  = -(p * log_p).sum()
+    H_0d = -(p * log_p).sum()
     di_0d = float(1.0 - H_0d / np.log(5.0))
 
     return {
@@ -276,6 +281,7 @@ def solve_0d_hamilton_jax(
 # ─────────────────────────────────────────────────────────────────────────────
 # ミクロシミュレーション: 1条件の解析
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def run_micro_simulation(theta: np.ndarray, condition_label: str) -> dict:
     """
@@ -295,8 +301,11 @@ def run_micro_simulation(theta: np.ndarray, condition_label: str) -> dict:
     theta_jax = jnp.array(theta, dtype=jnp.float64)
 
     t0 = time.time()
-    print(f"  [{condition_label}] Hamilton 1D + 栄養PDE を実行中 "
-          f"(N={N_NODES}, n_macro={N_MACRO}) ...", flush=True)
+    print(
+        f"  [{condition_label}] Hamilton 1D + 栄養PDE を実行中 "
+        f"(N={N_NODES}, n_macro={N_MACRO}) ...",
+        flush=True,
+    )
 
     G_all, c_all = simulate_hamilton_1d_nutrient(
         theta=theta_jax,
@@ -321,7 +330,7 @@ def run_micro_simulation(theta: np.ndarray, condition_label: str) -> dict:
     # ── α(x,T) を時間積分で計算 ──────────────────────────────────────────────
     dt_macro = DT_H * N_REACT  # マクロステップの時間幅 [T*]
     phi_total_traj = np.array(G_all[:, :, 0:5].sum(axis=2))  # (n_macro+1, N)
-    c_traj         = np.array(c_all)                          # (n_macro+1, N)
+    c_traj = np.array(c_all)  # (n_macro+1, N)
     t_axis = np.arange(N_MACRO + 1, dtype=float) * dt_macro
 
     # (A) 単純積分 α(x,T) = k_α ∫ φ_total dt  [拡散のみ考慮]
@@ -330,50 +339,50 @@ def run_micro_simulation(theta: np.ndarray, condition_label: str) -> dict:
     # (B) 栄養制限型 α_Monod(x,T) = k_α ∫ φ_total · c/(k+c) dt  [KEY: 空間非一様]
     #   near tooth (x=0): c≈0.004 → c/(k+c)≈0.004  → alpha_monod ≈ 0
     #   near saliva(x=1): c=1.000 → c/(k+c)≈0.500  → alpha_monod ≈ alpha/2
-    monod_factor   = c_traj / (K_MONOD + c_traj)   # (n_macro+1, N)
-    alpha_monod    = K_ALPHA * np.trapezoid(
-        phi_total_traj * monod_factor, t_axis, axis=0)  # (N,)
+    monod_factor = c_traj / (K_MONOD + c_traj)  # (n_macro+1, N)
+    alpha_monod = K_ALPHA * np.trapezoid(phi_total_traj * monod_factor, t_axis, axis=0)  # (N,)
 
     # ── 最終時刻の場 ─────────────────────────────────────────────────────────
-    phi_final   = np.array(G_all[-1, :, 0:5])  # (N, 5)
-    phi_total_f = phi_final.sum(axis=1)          # (N,)
-    c_final     = np.array(c_all[-1, :])         # (N,)
+    phi_final = np.array(G_all[-1, :, 0:5])  # (N, 5)
+    phi_total_f = phi_final.sum(axis=1)  # (N,)
+    c_final = np.array(c_all[-1, :])  # (N,)
 
     # ── マクロ量計算 ─────────────────────────────────────────────────────────
-    di     = compute_di(phi_final)
-    E_Pa   = compute_E_DI(di)
-    eps_gr = alpha_monod / 3.0   # 栄養制限型を主固有ひずみとして使用
+    di = compute_di(phi_final)
+    E_Pa = compute_E_DI(di)
+    eps_gr = alpha_monod / 3.0  # 栄養制限型を主固有ひずみとして使用
 
     # φ_Pg / Virulence ベース E(x) (メカニズムベース)
     E_phi_pg = compute_E_phi_pg(phi_final)
-    E_vir    = compute_E_virulence(phi_final)
+    E_vir = compute_E_virulence(phi_final)
 
     # ── スケール変換: 正規化 x → 物理深さ [mm] ───────────────────────────────
-    x_norm   = np.linspace(0.0, 1.0, N_NODES)
+    x_norm = np.linspace(0.0, 1.0, N_NODES)
     depth_mm = x_norm * L_BIOFILM_MM
 
     return {
-        "x_norm":      x_norm,
-        "depth_mm":    depth_mm,
-        "phi":         phi_final,
-        "phi_total":   phi_total_f,
-        "c":           c_final,
-        "alpha":       alpha_field,        # (A) 単純積分 α(x)
-        "alpha_monod": alpha_monod,        # (B) 栄養制限型 α_Monod(x) [空間非一様]
-        "eps_growth":  eps_gr,             # = alpha_monod / 3
-        "di":          di,
-        "E_Pa":        E_Pa,               # DI-based (legacy)
-        "E_phi_pg":    E_phi_pg,           # φ_Pg-based (mechanism)
-        "E_virulence": E_vir,              # Pg+Fn weighted (mechanism)
-        "phi_Pg":      phi_final[:, 4],    # P. gingivalis fraction
+        "x_norm": x_norm,
+        "depth_mm": depth_mm,
+        "phi": phi_final,
+        "phi_total": phi_total_f,
+        "c": c_final,
+        "alpha": alpha_field,  # (A) 単純積分 α(x)
+        "alpha_monod": alpha_monod,  # (B) 栄養制限型 α_Monod(x) [空間非一様]
+        "eps_growth": eps_gr,  # = alpha_monod / 3
+        "di": di,
+        "E_Pa": E_Pa,  # DI-based (legacy)
+        "E_phi_pg": E_phi_pg,  # φ_Pg-based (mechanism)
+        "E_virulence": E_vir,  # Pg+Fn weighted (mechanism)
+        "phi_Pg": phi_final[:, 4],  # P. gingivalis fraction
         "t_end_Tstar": float(t_axis[-1]),
-        "elapsed_s":   elapsed,
+        "elapsed_s": elapsed,
     }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CSV エクスポート (Abaqus 固有ひずみ入力)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def export_macro_csv(result: dict, condition_key: str) -> str:
     """
@@ -388,7 +397,7 @@ def export_macro_csv(result: dict, condition_key: str) -> str:
     将来の深さ依存 USDFLD として利用できる。
     """
     fname = f"macro_eigenstrain_{condition_key}.csv"
-    path  = os.path.join(OUT_DIR, fname)
+    path = os.path.join(OUT_DIR, fname)
 
     header = (
         "# Two-scale coupling: micro Hamilton 1D → macro Abaqus eigenstrain\n"
@@ -434,6 +443,7 @@ def export_macro_csv(result: dict, condition_key: str) -> str:
 # 4条件比較図 (4パネル)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def plot_multiscale_comparison(results: dict[str, dict]) -> str:
     """
     4パネル比較図を生成する。
@@ -450,9 +460,8 @@ def plot_multiscale_comparison(results: dict[str, dict]) -> str:
 
     for ckey, res in results.items():
         info = CONDITIONS[ckey]
-        x    = res["depth_mm"]
-        kw   = dict(color=info["color"], ls=info["linestyle"],
-                    lw=1.8, label=info["label"])
+        x = res["depth_mm"]
+        kw = dict(color=info["color"], ls=info["linestyle"], lw=1.8, label=info["label"])
 
         # Panel 1: φ_total
         ax_phi.plot(x, res["phi_total"], **kw)
@@ -475,10 +484,18 @@ def plot_multiscale_comparison(results: dict[str, dict]) -> str:
     ax_phi.legend(fontsize=8, loc="upper right")
     ax_phi.grid(alpha=0.3)
     ax_phi.axvline(0.0, color="gray", lw=0.8, ls="--", alpha=0.5)
-    ax_phi.text(0.005, ax_phi.get_ylim()[1] * 0.95, "tooth", fontsize=7,
-                color="gray", ha="left", va="top")
-    ax_phi.text(L_BIOFILM_MM * 0.98, ax_phi.get_ylim()[1] * 0.95, "saliva",
-                fontsize=7, color="gray", ha="right", va="top")
+    ax_phi.text(
+        0.005, ax_phi.get_ylim()[1] * 0.95, "tooth", fontsize=7, color="gray", ha="left", va="top"
+    )
+    ax_phi.text(
+        L_BIOFILM_MM * 0.98,
+        ax_phi.get_ylim()[1] * 0.95,
+        "saliva",
+        fontsize=7,
+        color="gray",
+        ha="right",
+        va="top",
+    )
 
     # ── Panel 2: c (nutrient) ─────────────────────────────────────────────────
     ax_c.set_xlabel("Depth from tooth surface [mm]")
@@ -488,14 +505,12 @@ def plot_multiscale_comparison(results: dict[str, dict]) -> str:
     ax_c.set_ylim([0, 1.05])
     ax_c.legend(fontsize=8, loc="lower right")
     ax_c.grid(alpha=0.3)
-    ax_c.axhline(1.0, color="gray", lw=0.8, ls="--", alpha=0.5,
-                 label="BC: c=1 (saliva)")
+    ax_c.axhline(1.0, color="gray", lw=0.8, ls="--", alpha=0.5, label="BC: c=1 (saliva)")
 
     # ── Panel 3: α_Monod (key panel: spatially non-uniform) ──────────────────
     ax_alpha.set_xlabel("Depth from tooth surface [mm]")
     ax_alpha.set_ylabel(
-        r"$\alpha_\mathrm{Monod}(x,T) = k_\alpha \int_0^T \phi_\mathrm{tot}"
-        r"\frac{c}{k+c}\,dt$"
+        r"$\alpha_\mathrm{Monod}(x,T) = k_\alpha \int_0^T \phi_\mathrm{tot}" r"\frac{c}{k+c}\,dt$"
     )
     ax_alpha.set_title(
         r"(c) Nutrient-limited growth eigenstrain $\alpha_\mathrm{Monod}(x)$"
@@ -506,18 +521,30 @@ def plot_multiscale_comparison(results: dict[str, dict]) -> str:
     ax_alpha.legend(fontsize=8, loc="lower right")
     ax_alpha.grid(alpha=0.3)
     ax_alpha.axvline(0.0, color="gray", lw=0.8, ls="--", alpha=0.5)
-    ax_alpha.text(0.005, ax_alpha.get_ylim()[1] * 0.5,
-                  "nutrient\ndeprived", fontsize=6, color="gray",
-                  ha="left", va="center", style="italic")
+    ax_alpha.text(
+        0.005,
+        ax_alpha.get_ylim()[1] * 0.5,
+        "nutrient\ndeprived",
+        fontsize=6,
+        color="gray",
+        ha="left",
+        va="center",
+        style="italic",
+    )
     # ε_growth right axis
     ax_alpha2 = ax_alpha.twinx()
     for ckey, res in results.items():
-        ax_alpha2.plot(res["depth_mm"], res["eps_growth"],
-                       color=CONDITIONS[ckey]["color"],
-                       ls=CONDITIONS[ckey]["linestyle"],
-                       lw=0.8, alpha=0.5)
-    ax_alpha2.set_ylabel(r"$\varepsilon_\mathrm{growth} = \alpha_\mathrm{Monod}/3$",
-                          color="gray", fontsize=8)
+        ax_alpha2.plot(
+            res["depth_mm"],
+            res["eps_growth"],
+            color=CONDITIONS[ckey]["color"],
+            ls=CONDITIONS[ckey]["linestyle"],
+            lw=0.8,
+            alpha=0.5,
+        )
+    ax_alpha2.set_ylabel(
+        r"$\varepsilon_\mathrm{growth} = \alpha_\mathrm{Monod}/3$", color="gray", fontsize=8
+    )
     ax_alpha2.tick_params(axis="y", labelcolor="gray")
     ax_alpha2.set_ylim(bottom=0)
 
@@ -529,18 +556,20 @@ def plot_multiscale_comparison(results: dict[str, dict]) -> str:
     ax_di.legend(fontsize=8, loc="upper right")
     ax_di.grid(alpha=0.3)
     for ckey, res in results.items():
-        ax_di.plot(res["depth_mm"], res["phi_Pg"],
-                   color=CONDITIONS[ckey]["color"],
-                   ls=CONDITIONS[ckey]["linestyle"],
-                   lw=1.2, alpha=0.7)
+        ax_di.plot(
+            res["depth_mm"],
+            res["phi_Pg"],
+            color=CONDITIONS[ckey]["color"],
+            ls=CONDITIONS[ckey]["linestyle"],
+            lw=1.2,
+            alpha=0.7,
+        )
     ax_di.set_ylim(bottom=0)
     ax_e = ax_di.twinx()
     for ckey, res in results.items():
         c = CONDITIONS[ckey]["color"]
-        ax_e.plot(res["depth_mm"], res["E_phi_pg"],
-                  color=c, ls="-", lw=1.5, alpha=0.6)
-        ax_e.plot(res["depth_mm"], res["E_Pa"],
-                  color=c, ls=":", lw=0.8, alpha=0.4)
+        ax_e.plot(res["depth_mm"], res["E_phi_pg"], color=c, ls="-", lw=1.5, alpha=0.6)
+        ax_e.plot(res["depth_mm"], res["E_Pa"], color=c, ls=":", lw=0.8, alpha=0.4)
     ax_e.set_ylabel("E [Pa]  (solid=φ_Pg, dotted=DI)", color="gray", fontsize=8)
     ax_e.tick_params(axis="y", labelcolor="gray")
     ax_e.set_ylim([0, E_MAX_PA * 1.05])
@@ -549,7 +578,8 @@ def plot_multiscale_comparison(results: dict[str, dict]) -> str:
         "Two-scale Coupling: Micro (Hamilton PDE, μm) → Macro (Abaqus FEM, mm)\n"
         f"k_α={K_ALPHA}, g_eff={G_EFF}, N={N_NODES}, n_macro={N_MACRO}  |  "
         f"L_biofilm={L_BIOFILM_MM} mm",
-        fontsize=10, y=1.02
+        fontsize=10,
+        y=1.02,
     )
     plt.tight_layout()
 
@@ -564,22 +594,28 @@ def plot_multiscale_comparison(results: dict[str, dict]) -> str:
 # サマリーテーブル
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def print_summary_table(results: dict[str, dict]) -> None:
     """4条件のマクロ量サマリーを表示する。"""
     print()
     print("=" * 80)
     print("  二スケール連成 サマリー (ミクロ → マクロ)")
-    print(f"  k_α = {K_ALPHA},  L_biofilm = {L_BIOFILM_MM} mm,  "
-          f"N = {N_NODES},  n_macro = {N_MACRO}")
+    print(
+        f"  k_α = {K_ALPHA},  L_biofilm = {L_BIOFILM_MM} mm,  "
+        f"N = {N_NODES},  n_macro = {N_MACRO}"
+    )
     print("=" * 80)
-    hdr = (f"  {'条件':<22}  {'α_Monod[tooth]':>14}  {'α_Monod[sal]':>12}  "
-           f"{'ratio':>6}  {'c_min':>7}  {'E_mean[Pa]':>11}")
+    hdr = (
+        f"  {'条件':<22}  {'α_Monod[tooth]':>14}  {'α_Monod[sal]':>12}  "
+        f"{'ratio':>6}  {'c_min':>7}  {'E_mean[Pa]':>11}"
+    )
     print(hdr)
     print("  " + "-" * 80)
     for ckey, res in results.items():
         label = CONDITIONS[ckey]["label"]
         am = res["alpha_monod"]
-        tooth_val = am[0]; sal_val = am[-1]
+        tooth_val = am[0]
+        sal_val = am[-1]
         ratio = sal_val / max(tooth_val, 1e-12)
         print(
             f"  {label:<22}  "
@@ -603,7 +639,7 @@ def print_summary_table(results: dict[str, dict]) -> None:
         print(f"  α_mean 差分 (基準: {CONDITIONS[ckeys[0]]['label']}):")
         for ck in ckeys[1:]:
             diff = results[ck]["alpha"].mean() - ref["alpha"].mean()
-            pct  = diff / (ref["alpha"].mean() + 1e-12) * 100
+            pct = diff / (ref["alpha"].mean() + 1e-12) * 100
             print(f"    {CONDITIONS[ck]['label']:<22}: Δα = {diff:+.4f}  ({pct:+.1f}%)")
     print()
 
@@ -611,6 +647,7 @@ def print_summary_table(results: dict[str, dict]) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 # Abaqus コマンド候補を表示
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def print_abaqus_next_steps(csv_paths: dict[str, str]) -> None:
     """
@@ -629,11 +666,11 @@ def print_abaqus_next_steps(csv_paths: dict[str, str]) -> None:
         data = np.genfromtxt(csv_path, delimiter=",", skip_header=6)
         alpha_mean = data[:, 10].mean()  # alpha カラム
         print(f"  # {CONDITIONS[ckey]['label']}")
-        print(f"  python3 biofilm_conformal_tet.py \\")
+        print("  python3 biofilm_conformal_tet.py \\")
         print(f"      --stl {stl} \\")
         print(f"      --di-csv _di_credible/{ckey}/p50_field.csv \\")
         print(f"      --out p23_{ckey}_multiscale.inp \\")
-        print(f"      --mode biofilm \\")
+        print("      --mode biofilm \\")
         print(f"      --growth-eigenstrain {alpha_mean:.4f}")
         print()
     print("  詳細 CSV (深さ方向プロファイル) は将来の USDFLD/FORTRAN 実装で直接利用可。")
@@ -643,6 +680,7 @@ def print_abaqus_next_steps(csv_paths: dict[str, str]) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 # メイン
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -654,8 +692,8 @@ def main():
     print(f"  出力先: {OUT_DIR}")
     print("=" * 80)
 
-    results   = {}
-    res_0d    = {}
+    results = {}
+    res_0d = {}
     csv_paths = {}
 
     for ckey in CONDITIONS:
@@ -669,16 +707,17 @@ def main():
         except FileNotFoundError as e:
             print(f"  SKIP: {e}")
             continue
-        print(f"  θ[18]=a35={theta[18]:.4f}  θ[19]=a45={theta[19]:.4f}  "
-              f"(Vd→Pg, Fn→Pg 促進)")
+        print(f"  θ[18]=a35={theta[18]:.4f}  θ[19]=a45={theta[19]:.4f}  " f"(Vd→Pg, Fn→Pg 促進)")
 
         # 2a. 0D JAX Hamilton ソルバー (条件別 DI・組成)
-        print(f"  [0D] JAX Hamilton ODE (n=2500, dt=0.01, T*=25) ...", flush=True)
+        print("  [0D] JAX Hamilton ODE (n=2500, dt=0.01, T*=25) ...", flush=True)
         r0d = solve_0d_hamilton_jax(theta, n_steps=2500, dt=0.01)
         res_0d[ckey] = r0d
         phi0 = r0d["phi_final"]
-        print(f"  [0D] α_0D={r0d['alpha_0d']:.4f}  DI_0D={r0d['di_0d']:.4f}  "
-              f"φ_Pg={phi0[4]:.4f}  φ_tot={r0d['phi_total_final']:.4f}")
+        print(
+            f"  [0D] α_0D={r0d['alpha_0d']:.4f}  DI_0D={r0d['di_0d']:.4f}  "
+            f"φ_Pg={phi0[4]:.4f}  φ_tot={r0d['phi_total_final']:.4f}"
+        )
 
         # 2b. ミクロシミュレーション (Hamilton 1D + 栄養PDE)
         res = run_micro_simulation(theta, info["label"])
@@ -689,9 +728,11 @@ def main():
         csv_paths[ckey] = csv_path
 
         # 4. 簡易表示
-        print(f"  [1D] α_Monod: tooth={res['alpha_monod'][0]:.4f}  "
-              f"saliva={res['alpha_monod'][-1]:.4f}  "
-              f"ratio={res['alpha_monod'][-1]/max(res['alpha_monod'][0],1e-9):.1f}x")
+        print(
+            f"  [1D] α_Monod: tooth={res['alpha_monod'][0]:.4f}  "
+            f"saliva={res['alpha_monod'][-1]:.4f}  "
+            f"ratio={res['alpha_monod'][-1]/max(res['alpha_monod'][0],1e-9):.1f}x"
+        )
 
     if not results:
         print("ERROR: シミュレーション結果なし。TMCMC ランディレクトリを確認してください。")
@@ -702,15 +743,19 @@ def main():
     print("=" * 80)
     print("  [0D Hamilton ODE] 条件別 定常組成 (T*=25, k_α=0.05)")
     print("=" * 80)
-    hdr0 = (f"  {'条件':<22}  {'DI_0D':>7}  {'α_0D':>7}  "
-            f"{'φ_So':>6}  {'φ_Vd':>6}  {'φ_Pg':>6}  {'φ_tot':>6}")
+    hdr0 = (
+        f"  {'条件':<22}  {'DI_0D':>7}  {'α_0D':>7}  "
+        f"{'φ_So':>6}  {'φ_Vd':>6}  {'φ_Pg':>6}  {'φ_tot':>6}"
+    )
     print(hdr0)
     print("  " + "-" * 68)
     for ck, r0 in res_0d.items():
         φ = r0["phi_final"]
-        print(f"  {CONDITIONS[ck]['label']:<22}  "
-              f"{r0['di_0d']:7.4f}  {r0['alpha_0d']:7.4f}  "
-              f"{φ[0]:6.4f}  {φ[2]:6.4f}  {φ[4]:6.4f}  {r0['phi_total_final']:6.4f}")
+        print(
+            f"  {CONDITIONS[ck]['label']:<22}  "
+            f"{r0['di_0d']:7.4f}  {r0['alpha_0d']:7.4f}  "
+            f"{φ[0]:6.4f}  {φ[2]:6.4f}  {φ[4]:6.4f}  {r0['phi_total_final']:6.4f}"
+        )
     print()
     print("  [1D Hamilton PDE] 空間プロファイル (栄養制限型 α_Monod)")
     print("  DI≈0 in 1D: diffusion homogenizes species → condition diff. from 0D")

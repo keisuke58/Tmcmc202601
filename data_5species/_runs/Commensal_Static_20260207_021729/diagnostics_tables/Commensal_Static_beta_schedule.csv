@@ -1,0 +1,15 @@
+model,chain,stage,beta
+Commensal_Static,1,0,0.0
+Commensal_Static,1,1,0.06877338886260986
+Commensal_Static,1,2,0.1836642477555941
+Commensal_Static,1,3,0.37723232365321524
+Commensal_Static,1,4,0.7023131994479616
+Commensal_Static,1,5,0.999999991128242
+Commensal_Static,1,6,1.0
+Commensal_Static,2,0,0.0
+Commensal_Static,2,1,0.06769278645515442
+Commensal_Static,2,2,0.1785243044756042
+Commensal_Static,2,3,0.36678095486536355
+Commensal_Static,2,4,0.6598490687705153
+Commensal_Static,2,5,0.9999999898627123
+Commensal_Static,2,6,1.0

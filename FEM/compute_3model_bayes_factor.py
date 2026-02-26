@@ -37,22 +37,39 @@ RUNS_DIR = _ROOT / "data_5species" / "_runs"
 OUT_DIR = _HERE / "_3model_bayes_factor"
 
 CONDITIONS = {
-    "commensal_static":  {"samples": RUNS_DIR / "commensal_static_posterior" / "samples.npy",
-                          "label": "Commensal Static", "short": "CS", "color": "#2ca02c"},
-    "commensal_hobic":   {"samples": RUNS_DIR / "commensal_hobic_posterior" / "samples.npy",
-                          "label": "Commensal HOBIC", "short": "CH", "color": "#17becf"},
-    "dh_baseline":       {"samples": RUNS_DIR / "dh_baseline" / "samples.npy",
-                          "label": "Dysbiotic HOBIC", "short": "DH", "color": "#d62728"},
+    "commensal_static": {
+        "samples": RUNS_DIR / "commensal_static_posterior" / "samples.npy",
+        "label": "Commensal Static",
+        "short": "CS",
+        "color": "#2ca02c",
+    },
+    "commensal_hobic": {
+        "samples": RUNS_DIR / "commensal_hobic_posterior" / "samples.npy",
+        "label": "Commensal HOBIC",
+        "short": "CH",
+        "color": "#17becf",
+    },
+    "dh_baseline": {
+        "samples": RUNS_DIR / "dh_baseline" / "samples.npy",
+        "label": "Dysbiotic HOBIC",
+        "short": "DH",
+        "color": "#d62728",
+    },
 }
 
 
 def _solve_single(theta):
     """Run Hamilton ODE for a single theta → return phi_final (5,)."""
     solver = BiofilmNewtonSolver5S(
-        dt=1e-4, maxtimestep=750,
+        dt=1e-4,
+        maxtimestep=750,
         active_species=[0, 1, 2, 3, 4],
-        c_const=25.0, alpha_const=0.0, phi_init=0.02,
-        K_hill=0.05, n_hill=4.0, use_numba=True,
+        c_const=25.0,
+        alpha_const=0.0,
+        phi_init=0.02,
+        K_hill=0.05,
+        n_hill=4.0,
+        use_numba=True,
     )
     try:
         _, g_arr = solver.solve(theta)
@@ -95,10 +112,10 @@ def run_condition(cond_name, n_samples, workers):
     phi_arr = phi_arr[valid]
 
     # Compute DI and E under 3 models
-    di = compute_di(phi_arr)                    # (n,)
-    E_di = compute_E_di(di, di_scale=1.0)       # 0D scale
-    E_phipg = compute_E_phi_pg(phi_arr)         # (n,)
-    E_vir = compute_E_virulence(phi_arr)        # (n,)
+    di = compute_di(phi_arr)  # (n,)
+    E_di = compute_E_di(di, di_scale=1.0)  # 0D scale
+    E_phipg = compute_E_phi_pg(phi_arr)  # (n,)
+    E_vir = compute_E_virulence(phi_arr)  # (n,)
 
     return {
         "condition": cond_name,
@@ -114,24 +131,26 @@ def run_condition(cond_name, n_samples, workers):
 
 # ── Discrimination Metrics ───────────────────────────────────────────────────
 
+
 def bhattacharyya_distance(x, y):
     """Bhattacharyya distance between two 1D distributions (Gaussian approx)."""
     mu1, s1 = np.mean(x), np.std(x) + 1e-12
     mu2, s2 = np.mean(y), np.std(y) + 1e-12
     sigma = 0.5 * (s1**2 + s2**2)
-    return 0.125 * (mu1 - mu2)**2 / sigma + 0.5 * np.log(sigma / (s1 * s2 + 1e-30))
+    return 0.125 * (mu1 - mu2) ** 2 / sigma + 0.5 * np.log(sigma / (s1 * s2 + 1e-30))
 
 
 def cohens_d(x, y):
     """Effect size (Cohen's d)."""
     n1, n2 = len(x), len(y)
-    s_pool = np.sqrt(((n1-1)*np.var(x) + (n2-1)*np.var(y)) / (n1+n2-2))
+    s_pool = np.sqrt(((n1 - 1) * np.var(x) + (n2 - 1) * np.var(y)) / (n1 + n2 - 2))
     return abs(np.mean(x) - np.mean(y)) / (s_pool + 1e-12)
 
 
 def kruskal_h(*groups):
     """Kruskal-Wallis H statistic (non-parametric ANOVA)."""
     from scipy.stats import kruskal
+
     stat, pval = kruskal(*groups)
     return stat, pval
 
@@ -148,7 +167,7 @@ def compute_discrimination_metrics(results):
         # Pairwise Bhattacharyya & Cohen's d
         pairwise = {}
         for i, c1 in enumerate(conds):
-            for c2 in conds[i+1:]:
+            for c2 in conds[i + 1 :]:
                 pair = f"{CONDITIONS[c1]['short']}-{CONDITIONS[c2]['short']}"
                 pairwise[pair] = {
                     "bhattacharyya": float(bhattacharyya_distance(E_arrays[c1], E_arrays[c2])),
@@ -172,10 +191,14 @@ def compute_discrimination_metrics(results):
             "E_range_Pa": float(e_range),
             "E_ratio": float(e_ratio),
             "per_condition": {
-                c: {"mean": float(np.mean(E_arrays[c])),
+                c: {
+                    "mean": float(np.mean(E_arrays[c])),
                     "std": float(np.std(E_arrays[c])),
-                    "ci90": [float(np.percentile(E_arrays[c], 5)),
-                             float(np.percentile(E_arrays[c], 95))]}
+                    "ci90": [
+                        float(np.percentile(E_arrays[c], 5)),
+                        float(np.percentile(E_arrays[c], 95)),
+                    ],
+                }
                 for c in conds
             },
         }
@@ -185,18 +208,18 @@ def compute_discrimination_metrics(results):
 
 # ── Plotting ─────────────────────────────────────────────────────────────────
 
+
 def plot_3model_comparison(results, metrics, outdir):
     """Generate publication-quality 3-model discrimination figure."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.patches import FancyBboxPatch
 
     conds = list(results.keys())
     models = [("DI", "E_di"), ("φ_Pg", "E_phipg"), ("Virulence", "E_vir")]
 
-    fig, axes = plt.subplots(2, 3, figsize=(16, 10),
-                             gridspec_kw={"height_ratios": [2, 1]})
+    fig, axes = plt.subplots(2, 3, figsize=(16, 10), gridspec_kw={"height_ratios": [2, 1]})
 
     # ── Row 1: E distribution violin/swarm for each model ────────────────
     for j, (model_name, key) in enumerate(models):
@@ -214,8 +237,9 @@ def plot_3model_comparison(results, metrics, outdir):
             labels.append(CONDITIONS[c]["short"])
 
         # Violin plot
-        parts = ax.violinplot(data_list, positions=positions,
-                              showmeans=True, showextrema=True, showmedians=True)
+        parts = ax.violinplot(
+            data_list, positions=positions, showmeans=True, showextrema=True, showmedians=True
+        )
         for pc, col in zip(parts["bodies"], colors):
             pc.set_facecolor(col)
             pc.set_alpha(0.5)
@@ -235,9 +259,13 @@ def plot_3model_comparison(results, metrics, outdir):
         m = metrics[model_name]
         ax.annotate(
             f"Range: {m['E_range_Pa']:.0f} Pa\nRatio: {m['E_ratio']:.1f}×\nKW p={m['kruskal_wallis_p']:.2e}",
-            xy=(0.97, 0.97), xycoords="axes fraction", fontsize=9,
-            ha="right", va="top",
-            bbox=dict(boxstyle="round,pad=0.3", fc="lightyellow", alpha=0.9))
+            xy=(0.97, 0.97),
+            xycoords="axes fraction",
+            fontsize=9,
+            ha="right",
+            va="top",
+            bbox=dict(boxstyle="round,pad=0.3", fc="lightyellow", alpha=0.9),
+        )
 
     # ── Row 2: Bhattacharyya distance comparison bars ─────────────────────
     for j, (model_name, key) in enumerate(models):
@@ -249,9 +277,9 @@ def plot_3model_comparison(results, metrics, outdir):
 
         x = np.arange(len(pairs))
         w = 0.35
-        bars1 = ax.bar(x - w/2, bhatt, w, label="Bhattacharyya D", color="#4c72b0", alpha=0.8)
+        bars1 = ax.bar(x - w / 2, bhatt, w, label="Bhattacharyya D", color="#4c72b0", alpha=0.8)
         ax2 = ax.twinx()
-        bars2 = ax2.bar(x + w/2, cohen, w, label="Cohen's d", color="#dd8452", alpha=0.8)
+        bars2 = ax2.bar(x + w / 2, cohen, w, label="Cohen's d", color="#dd8452", alpha=0.8)
 
         ax.set_xticks(x)
         ax.set_xticklabels(pairs, fontsize=10)
@@ -271,7 +299,10 @@ def plot_3model_comparison(results, metrics, outdir):
     fig.suptitle(
         "Three Material Model Discrimination:\n"
         "DI (entropy) vs φ_Pg (pathogen fraction) vs Virulence (Pg+Fn weighted)",
-        fontsize=14, fontweight="bold", y=1.02)
+        fontsize=14,
+        fontweight="bold",
+        y=1.02,
+    )
     plt.tight_layout()
 
     outpath = outdir / "fig_3model_discrimination.png"
@@ -284,6 +315,7 @@ def plot_3model_comparison(results, metrics, outdir):
 def plot_summary_table(metrics, outdir):
     """Generate summary comparison table as figure."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -316,8 +348,7 @@ def plot_summary_table(metrics, outdir):
         row.append(f"{max_d:.2f}")
         rows.append(row)
 
-    table = ax.table(cellText=rows, colLabels=header, loc="center",
-                     cellLoc="center")
+    table = ax.table(cellText=rows, colLabels=header, loc="center", cellLoc="center")
     table.auto_set_font_size(False)
     table.set_fontsize(10)
     table.scale(1.0, 1.8)
@@ -329,8 +360,7 @@ def plot_summary_table(metrics, outdir):
         table[3, j].set_facecolor("#f8d7da")  # red for Virulence
         table[0, j].set_facecolor("#e2e3e5")  # header gray
 
-    ax.set_title("Material Model Discrimination Summary", fontsize=13,
-                 fontweight="bold", pad=20)
+    ax.set_title("Material Model Discrimination Summary", fontsize=13, fontweight="bold", pad=20)
 
     outpath = outdir / "table_3model_summary.png"
     fig.savefig(outpath, dpi=200, bbox_inches="tight")
@@ -341,12 +371,18 @@ def plot_summary_table(metrics, outdir):
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n-samples", type=int, default=50,
-                        help="Number of posterior samples per condition (default: 50)")
-    parser.add_argument("--workers", type=int, default=4,
-                        help="Parallel workers for ODE solves (default: 4)")
+    parser.add_argument(
+        "--n-samples",
+        type=int,
+        default=50,
+        help="Number of posterior samples per condition (default: 50)",
+    )
+    parser.add_argument(
+        "--workers", type=int, default=4, help="Parallel workers for ODE solves (default: 4)"
+    )
     args = parser.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -380,12 +416,16 @@ def main():
         print(f"  E range: {m['E_range_Pa']:.0f} Pa, ratio: {m['E_ratio']:.1f}×")
         for c in CONDITIONS:
             pc = m["per_condition"][c]
-            print(f"    {CONDITIONS[c]['short']}: E = {pc['mean']:.1f} ± {pc['std']:.1f} Pa "
-                  f"[{pc['ci90'][0]:.0f}, {pc['ci90'][1]:.0f}]")
-        print(f"  Pairwise:")
+            print(
+                f"    {CONDITIONS[c]['short']}: E = {pc['mean']:.1f} ± {pc['std']:.1f} Pa "
+                f"[{pc['ci90'][0]:.0f}, {pc['ci90'][1]:.0f}]"
+            )
+        print("  Pairwise:")
         for pair, pv in m["pairwise"].items():
-            print(f"    {pair}: Bhattacharyya={pv['bhattacharyya']:.2f}, "
-                  f"Cohen's d={pv['cohens_d']:.2f}, ΔE={pv['mean_diff']:.0f} Pa")
+            print(
+                f"    {pair}: Bhattacharyya={pv['bhattacharyya']:.2f}, "
+                f"Cohen's d={pv['cohens_d']:.2f}, ΔE={pv['mean_diff']:.0f} Pa"
+            )
 
     # 4. Pseudo Bayes Factor interpretation
     # B = exp(D_bhatt_DI - D_bhatt_altmodel) for worst-case pair
@@ -398,8 +438,10 @@ def main():
         d_di = metrics["DI"]["pairwise"][target_pair]["bhattacharyya"]
         d_alt = metrics[alt]["pairwise"][target_pair]["bhattacharyya"]
         pseudo_bf = np.exp(d_di - d_alt)
-        print(f"  DI vs {alt} ({target_pair}): "
-              f"B_DI = exp({d_di:.2f} - {d_alt:.2f}) = {pseudo_bf:.1f}")
+        print(
+            f"  DI vs {alt} ({target_pair}): "
+            f"B_DI = exp({d_di:.2f} - {d_alt:.2f}) = {pseudo_bf:.1f}"
+        )
         if pseudo_bf > 100:
             interp = "decisive (>100)"
         elif pseudo_bf > 10:
@@ -423,12 +465,14 @@ def main():
 
     # 7. Save numpy arrays for reproducibility
     for c in results:
-        np.savez(OUT_DIR / f"{c}_3model.npz",
-                 phi_final=results[c]["phi_final"],
-                 di=results[c]["di"],
-                 E_di=results[c]["E_di"],
-                 E_phipg=results[c]["E_phipg"],
-                 E_vir=results[c]["E_vir"])
+        np.savez(
+            OUT_DIR / f"{c}_3model.npz",
+            phi_final=results[c]["phi_final"],
+            di=results[c]["di"],
+            E_di=results[c]["E_di"],
+            E_phipg=results[c]["E_phipg"],
+            E_vir=results[c]["E_vir"],
+        )
 
     print(f"\nAll outputs in: {OUT_DIR}")
     print("Done.")

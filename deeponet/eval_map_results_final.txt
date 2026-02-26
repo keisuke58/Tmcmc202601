@@ -1,0 +1,55 @@
+============================================================
+DeepONet MAP θ Accuracy Evaluation
+============================================================
+
+--- Commensal_Static ---
+  MSE:      2.13e-02
+  MAE:      0.1196
+  Rel.Err:  61.64%
+    So: MSE=1.26e-02, MAE=0.0894
+    An: MSE=3.54e-02, MAE=0.1880
+    Vd: MSE=3.33e-02, MAE=0.1274
+    Fn: MSE=1.02e-02, MAE=0.0908
+    Pg: MSE=1.47e-02, MAE=0.1023
+
+--- Commensal_HOBIC ---
+  MSE:      8.85e-03
+  MAE:      0.0856
+  Rel.Err:  44.10%
+    So: MSE=8.83e-03, MAE=0.0908
+    An: MSE=1.20e-02, MAE=0.1073
+    Vd: MSE=4.04e-03, MAE=0.0413
+    Fn: MSE=1.24e-02, MAE=0.1104
+    Pg: MSE=6.95e-03, MAE=0.0781
+
+--- Dysbiotic_Static ---
+  MSE:      1.42e-02
+  MAE:      0.1006
+  Rel.Err:  51.83%
+    So: MSE=1.54e-02, MAE=0.1098
+    An: MSE=1.85e-02, MAE=0.1227
+    Vd: MSE=1.77e-02, MAE=0.1015
+    Fn: MSE=1.48e-02, MAE=0.1081
+    Pg: MSE=4.70e-03, MAE=0.0610
+
+--- Dysbiotic_HOBIC ---
+  MSE:      1.46e-03
+  MAE:      0.0220
+  Rel.Err:  11.18%
+    So: MSE=1.84e-03, MAE=0.0270
+    An: MSE=1.30e-03, MAE=0.0225
+    Vd: MSE=1.96e-03, MAE=0.0282
+    Fn: MSE=5.22e-05, MAE=0.0053
+    Pg: MSE=2.13e-03, MAE=0.0271
+
+============================================================
+Summary Table
+============================================================
+Condition              Status                MSE      MAE   Rel.Err%
+----------------------------------------------------------------
+Commensal_Static       OK               2.13e-02   0.1196      61.64
+Commensal_HOBIC        OK               8.85e-03   0.0856      44.10
+Dysbiotic_Static       OK               1.42e-02   0.1006      51.83
+Dysbiotic_HOBIC        OK               1.46e-03   0.0220      11.18
+
+Saved: /home/nishioka/IKM_Hiwi/Tmcmc202601/deeponet/map_accuracy_results.json

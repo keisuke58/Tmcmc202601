@@ -38,29 +38,31 @@ _OUT = _HERE / "_klempt_benchmark"
 # =========================================================================
 
 KLEMPT_PARAMS = {
-    "D_c": 1.0,           # nutrient diffusivity
-    "k_monod": 1.0,       # Monod half-saturation
-    "g_eff": 50.0,        # effective consumption rate
-    "c_boundary": 1.0,    # boundary nutrient concentration
+    "D_c": 1.0,  # nutrient diffusivity
+    "k_monod": 1.0,  # Monod half-saturation
+    "g_eff": 50.0,  # effective consumption rate
+    "c_boundary": 1.0,  # boundary nutrient concentration
     # Biofilm shape (egg-shaped, Fig. 1)
-    "ax": 0.35,           # semi-axis x
-    "ay": 0.25,           # semi-axis y
-    "skew": 0.3,          # skewness
-    "eps": 0.1,           # smoothing
+    "ax": 0.35,  # semi-axis x
+    "ay": 0.25,  # semi-axis y
+    "skew": 0.3,  # skewness
+    "eps": 0.1,  # smoothing
     # Mechanics
     "E_biofilm": 1000.0,  # Pa (EPS matrix)
     "nu": 0.30,
-    "alpha_growth": 0.05, # growth eigenstrain
+    "alpha_growth": 0.05,  # growth eigenstrain
     # Grid
-    "Nx": 40, "Ny": 40,
-    "Lx": 1.0, "Ly": 1.0,
+    "Nx": 40,
+    "Ny": 40,
+    "Lx": 1.0,
+    "Ly": 1.0,
 }
 
 # Expected results from Klempt 2024
 KLEMPT_REFERENCE = {
-    "c_min_interior": 0.3,   # approx c_min inside biofilm (Fig. 3)
-    "thiele_modulus": 4.0,    # sqrt(g_eff / D_c) ~ diffusion-limited
-    "sigma_max_pa": 50.0,    # approx max von Mises in biofilm (Pa)
+    "c_min_interior": 0.3,  # approx c_min inside biofilm (Fig. 3)
+    "thiele_modulus": 4.0,  # sqrt(g_eff / D_c) ~ diffusion-limited
+    "sigma_max_pa": 50.0,  # approx max von Mises in biofilm (Pa)
     "growth_strain_max": 0.05,
 }
 
@@ -73,7 +75,7 @@ def _egg_shape(x, y, params):
     eps = params["eps"]
     cx, cy = 0.5, 0.5
     xn = (x - cx) / ax
-    yn = (y - cy + skew * (x - cx)**2) / ay
+    yn = (y - cy + skew * (x - cx) ** 2) / ay
     r2 = xn**2 + yn**2
     return 0.5 * (1.0 - np.tanh((r2 - 1.0) / eps))
 
@@ -108,8 +110,9 @@ def benchmark_nutrient(params=None, quick=False):
     for newton_iter in range(200):
         # Laplacian with Dirichlet BC (c=1 on boundary)
         c_pad = np.pad(c, 1, mode="constant", constant_values=p["c_boundary"])
-        lap = (c_pad[:-2, 1:-1] + c_pad[2:, 1:-1] - 2*c_pad[1:-1, 1:-1]) / dx**2 \
-            + (c_pad[1:-1, :-2] + c_pad[1:-1, 2:] - 2*c_pad[1:-1, 1:-1]) / dy**2
+        lap = (c_pad[:-2, 1:-1] + c_pad[2:, 1:-1] - 2 * c_pad[1:-1, 1:-1]) / dx**2 + (
+            c_pad[1:-1, :-2] + c_pad[1:-1, 2:] - 2 * c_pad[1:-1, 1:-1]
+        ) / dy**2
 
         # Monod consumption
         monod = c / (k + c)
@@ -120,8 +123,7 @@ def benchmark_nutrient(params=None, quick=False):
 
         # Jacobian diagonal (for damped Newton)
         # dR/dc = D_c * d(lap)/dc - g * phi * k/(k+c)^2
-        dR_dc = -D_c * 2 * (1/dx**2 + 1/dy**2) * np.ones_like(c) \
-                - g * phi * k / (k + c)**2
+        dR_dc = -D_c * 2 * (1 / dx**2 + 1 / dy**2) * np.ones_like(c) - g * phi * k / (k + c) ** 2
 
         # Newton update (damped)
         delta = -R / (dR_dc + 1e-12)
@@ -159,10 +161,12 @@ def benchmark_nutrient(params=None, quick=False):
         "c_min_error": abs(c_min_biofilm - KLEMPT_REFERENCE["c_min_interior"]),
     }
 
-    print(f"\n  Nutrient field benchmark:")
+    print("\n  Nutrient field benchmark:")
     print(f"    Grid: {Nx}x{Ny}")
     print(f"    Newton iterations: {newton_iter+1}")
-    print(f"    c_min (biofilm interior): {c_min_biofilm:.4f} (Klempt ref: ~{KLEMPT_REFERENCE['c_min_interior']})")
+    print(
+        f"    c_min (biofilm interior): {c_min_biofilm:.4f} (Klempt ref: ~{KLEMPT_REFERENCE['c_min_interior']})"
+    )
     print(f"    Thiele modulus: {thiele:.2f} (Klempt ref: ~{KLEMPT_REFERENCE['thiele_modulus']})")
     print(f"    Error: {result['c_min_error']:.4f}")
 
@@ -180,14 +184,14 @@ def benchmark_growth(quick=False):
     """
     # Klempt logistic model
     r_logistic = 2.0  # growth rate
-    K_cap = 0.8       # carrying capacity
+    K_cap = 0.8  # carrying capacity
     n_steps = 1000
     dt = 0.01
     phi_init = 0.1
 
     # Logistic solution
     t = np.arange(n_steps) * dt
-    phi_logistic = K_cap / (1 + (K_cap/phi_init - 1) * np.exp(-r_logistic * t))
+    phi_logistic = K_cap / (1 + (K_cap / phi_init - 1) * np.exp(-r_logistic * t))
 
     # Our simplified 5-species model (Lotka-Volterra approx)
     phi_5sp = np.array([0.12, 0.12, 0.08, 0.05, 0.02])
@@ -209,7 +213,7 @@ def benchmark_growth(quick=False):
 
     # Compare characteristic times
     # Klempt: time to reach 90% capacity
-    t_90_klempt = -np.log((K_cap/phi_init - 1) * 0.1 / 0.9) / r_logistic
+    t_90_klempt = -np.log((K_cap / phi_init - 1) * 0.1 / 0.9) / r_logistic
     # Ours: time for phi_total to reach 90% of max
     phi_total_max = phi_total_ours.max()
     idx_90 = np.argmax(phi_total_ours >= 0.9 * phi_total_max)
@@ -232,7 +236,7 @@ def benchmark_growth(quick=False):
         },
     }
 
-    print(f"\n  Growth model benchmark:")
+    print("\n  Growth model benchmark:")
     print(f"    Klempt logistic: phi_final={phi_logistic[-1]:.4f}, t_90={t_90_klempt:.2f}")
     print(f"    Hamilton 5sp:    phi_total={phi_total_ours[-1]:.4f}, t_90={t_90_ours:.2f}")
     print(f"    phi_total ratio: {result['comparison']['phi_total_ratio']:.3f}")
@@ -273,9 +277,11 @@ def benchmark_eigenstrain(c_field, phi_field, params=None, quick=False):
         "sigma_error_ratio": float(np.max(sigma_vm) / KLEMPT_REFERENCE["sigma_max_pa"]),
     }
 
-    print(f"\n  Eigenstrain/stress benchmark:")
+    print("\n  Eigenstrain/stress benchmark:")
     print(f"    eps_growth max: {np.max(eps_growth):.6f}")
-    print(f"    sigma_vm max:   {np.max(sigma_vm):.2f} Pa (Klempt ref: ~{KLEMPT_REFERENCE['sigma_max_pa']} Pa)")
+    print(
+        f"    sigma_vm max:   {np.max(sigma_vm):.2f} Pa (Klempt ref: ~{KLEMPT_REFERENCE['sigma_max_pa']} Pa)"
+    )
     print(f"    Ratio: {result['sigma_error_ratio']:.3f}")
 
     return result, eps_growth, sigma_vm
@@ -286,28 +292,44 @@ def benchmark_sensitivity(quick=False):
     g_values = [5, 10, 20, 50, 100, 200] if not quick else [10, 50, 100]
     results = []
 
-    print(f"\n  Thiele modulus sensitivity:")
+    print("\n  Thiele modulus sensitivity:")
     for g in g_values:
         params = KLEMPT_PARAMS.copy()
         params["g_eff"] = g
         res, c, phi, _, _ = benchmark_nutrient(params, quick=True)
         thiele = np.sqrt(g / params["D_c"])
-        results.append({
-            "g_eff": g,
-            "thiele": float(thiele),
-            "c_min": res["c_min_biofilm"],
-        })
+        results.append(
+            {
+                "g_eff": g,
+                "thiele": float(thiele),
+                "c_min": res["c_min_biofilm"],
+            }
+        )
         print(f"    g={g:4d}, Phi={thiele:5.1f}, c_min={res['c_min_biofilm']:.4f}")
 
     return results
 
 
-def generate_figures(nutrient_res, c, phi, X, Y,
-                     growth_res, t, phi_log, phi_total, phi_5sp,
-                     eigen_res, eps_growth, sigma_vm,
-                     sensitivity_res, out_dir):
+def generate_figures(
+    nutrient_res,
+    c,
+    phi,
+    X,
+    Y,
+    growth_res,
+    t,
+    phi_log,
+    phi_total,
+    phi_5sp,
+    eigen_res,
+    eps_growth,
+    sigma_vm,
+    sensitivity_res,
+    out_dir,
+):
     """Generate comprehensive benchmark comparison figures."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -320,7 +342,8 @@ def generate_figures(nutrient_res, c, phi, X, Y,
     ax.contour(X, Y, phi, levels=[0.5], colors="white", linewidths=2)
     plt.colorbar(im, ax=ax, label="c")
     ax.set_title("(a) Nutrient Field c(x,y)", fontsize=11)
-    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
     ax.set_aspect("equal")
 
     # Panel 2: Biofilm shape phi(x,y)
@@ -328,7 +351,8 @@ def generate_figures(nutrient_res, c, phi, X, Y,
     im = ax.contourf(X, Y, phi, levels=20, cmap="YlOrRd")
     plt.colorbar(im, ax=ax, label=r"$\phi_0$")
     ax.set_title("(b) Biofilm Shape (Klempt Egg)", fontsize=11)
-    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
     ax.set_aspect("equal")
 
     # Panel 3: Nutrient profile (centerline y=0.5)
@@ -336,13 +360,17 @@ def generate_figures(nutrient_res, c, phi, X, Y,
     ny_mid = c.shape[1] // 2
     x_line = np.linspace(0, KLEMPT_PARAMS["Lx"], c.shape[0])
     ax.plot(x_line, c[:, ny_mid], "b-", lw=2, label="Computed")
-    ax.axhline(KLEMPT_REFERENCE["c_min_interior"], color="r", ls="--",
-               label=f"Klempt ref ({KLEMPT_REFERENCE['c_min_interior']})")
+    ax.axhline(
+        KLEMPT_REFERENCE["c_min_interior"],
+        color="r",
+        ls="--",
+        label=f"Klempt ref ({KLEMPT_REFERENCE['c_min_interior']})",
+    )
     # Mark biofilm region
     phi_line = phi[:, ny_mid]
-    ax.fill_between(x_line, 0, 1, where=phi_line > 0.5,
-                    alpha=0.1, color="orange", label="Biofilm")
-    ax.set_xlabel("x"); ax.set_ylabel("c")
+    ax.fill_between(x_line, 0, 1, where=phi_line > 0.5, alpha=0.1, color="orange", label="Biofilm")
+    ax.set_xlabel("x")
+    ax.set_ylabel("c")
     ax.set_title("(c) Centerline Nutrient Profile", fontsize=11)
     ax.legend(fontsize=8)
     ax.set_ylim(0, 1.1)
@@ -350,9 +378,11 @@ def generate_figures(nutrient_res, c, phi, X, Y,
     # Panel 4: Growth model comparison
     ax = fig.add_subplot(gs[1, 0])
     ax.plot(t, phi_log, "b-", lw=2, label="Klempt logistic")
-    ax.plot(np.arange(len(phi_total)) * 0.01, phi_total, "r--", lw=2,
-            label="Hamilton 5-species (total)")
-    ax.set_xlabel("Time"); ax.set_ylabel(r"$\phi_{total}$")
+    ax.plot(
+        np.arange(len(phi_total)) * 0.01, phi_total, "r--", lw=2, label="Hamilton 5-species (total)"
+    )
+    ax.set_xlabel("Time")
+    ax.set_ylabel(r"$\phi_{total}$")
     ax.set_title("(d) Growth: Logistic vs Hamilton", fontsize=11)
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3)
@@ -364,7 +394,8 @@ def generate_figures(nutrient_res, c, phi, X, Y,
     t_5sp = np.arange(len(phi_5sp)) * 0.01
     for i, (name, clr) in enumerate(zip(species_names, colors)):
         ax.plot(t_5sp, phi_5sp[:, i], color=clr, lw=1.5, label=name)
-    ax.set_xlabel("Time"); ax.set_ylabel(r"$\phi_i$")
+    ax.set_xlabel("Time")
+    ax.set_ylabel(r"$\phi_i$")
     ax.set_title("(e) Hamilton Species Dynamics", fontsize=11)
     ax.legend(fontsize=7, ncol=2)
     ax.grid(True, alpha=0.3)
@@ -375,7 +406,8 @@ def generate_figures(nutrient_res, c, phi, X, Y,
     ax.contour(X, Y, phi, levels=[0.5], colors="white", linewidths=2)
     plt.colorbar(im, ax=ax, label=r"$\varepsilon_{growth}$")
     ax.set_title("(f) Growth Eigenstrain", fontsize=11)
-    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
     ax.set_aspect("equal")
 
     # Panel 7: Stress field
@@ -384,7 +416,8 @@ def generate_figures(nutrient_res, c, phi, X, Y,
     ax.contour(X, Y, phi, levels=[0.5], colors="black", linewidths=1)
     plt.colorbar(im, ax=ax, label=r"$\sigma_{vM}$ [Pa]")
     ax.set_title("(g) von Mises Stress [Pa]", fontsize=11)
-    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
     ax.set_aspect("equal")
 
     # Panel 8: Thiele sensitivity
@@ -405,22 +438,29 @@ def generate_figures(nutrient_res, c, phi, X, Y,
     ax = fig.add_subplot(gs[2, 2])
     ax.axis("off")
     metrics_text = [
-        f"Klempt 2024 Benchmark Summary",
+        "Klempt 2024 Benchmark Summary",
         f"{'='*35}",
-        f"Nutrient field:",
+        "Nutrient field:",
         f"  c_min (biofilm): {nutrient_res['c_min_biofilm']:.3f} (ref: ~{KLEMPT_REFERENCE['c_min_interior']})",
         f"  Thiele modulus:  {nutrient_res['thiele_modulus']:.1f} (ref: ~{KLEMPT_REFERENCE['thiele_modulus']})",
-        f"",
-        f"Growth model:",
+        "",
+        "Growth model:",
         f"  phi_total ratio: {growth_res['comparison']['phi_total_ratio']:.3f}",
         f"  t_90 ratio:      {growth_res['comparison']['t_90_ratio']:.3f}",
-        f"",
-        f"Stress field:",
+        "",
+        "Stress field:",
         f"  sigma_max: {eigen_res['sigma_vm_max_pa']:.1f} Pa (ref: ~{KLEMPT_REFERENCE['sigma_max_pa']})",
         f"  Ratio:     {eigen_res['sigma_error_ratio']:.3f}",
     ]
-    ax.text(0.05, 0.95, "\n".join(metrics_text), transform=ax.transAxes,
-            fontsize=9, family="monospace", va="top")
+    ax.text(
+        0.05,
+        0.95,
+        "\n".join(metrics_text),
+        transform=ax.transAxes,
+        fontsize=9,
+        family="monospace",
+        va="top",
+    )
 
     fig.suptitle("Klempt 2024 Quantitative Benchmark", fontsize=15, weight="bold")
     out = out_dir / "klempt_benchmark.png"
@@ -430,8 +470,7 @@ def generate_figures(nutrient_res, c, phi, X, Y,
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Klempt 2024 quantitative benchmark")
+    ap = argparse.ArgumentParser(description="Klempt 2024 quantitative benchmark")
     ap.add_argument("--nutrient-only", action="store_true")
     ap.add_argument("--quick", action="store_true")
     args = ap.parse_args()
@@ -439,9 +478,9 @@ def main():
     _OUT.mkdir(exist_ok=True)
     t0 = time.perf_counter()
 
-    print("="*60)
+    print("=" * 60)
     print("Klempt 2024 Quantitative Benchmark")
-    print("="*60)
+    print("=" * 60)
 
     # Benchmark 1: Nutrient field
     print("\n[1/4] Nutrient field...")
@@ -474,10 +513,23 @@ def main():
         json.dump(all_results, f, indent=2)
 
     # Generate figures
-    generate_figures(nutrient_res, c, phi, X, Y,
-                     growth_res, t, phi_log, phi_total, phi_5sp,
-                     eigen_res, eps_growth, sigma_vm,
-                     sensitivity_res, _OUT)
+    generate_figures(
+        nutrient_res,
+        c,
+        phi,
+        X,
+        Y,
+        growth_res,
+        t,
+        phi_log,
+        phi_total,
+        phi_5sp,
+        eigen_res,
+        eps_growth,
+        sigma_vm,
+        sensitivity_res,
+        _OUT,
+    )
 
     dt = time.perf_counter() - t0
     print(f"\n{'='*60}")

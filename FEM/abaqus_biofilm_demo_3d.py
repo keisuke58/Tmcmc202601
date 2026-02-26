@@ -32,12 +32,12 @@ binary (legacy)
 
 import sys
 import os
-import math
 
 
 # ---------------------------------------------------------------------------
 # Material mapping  (pure Python, no numpy – Abaqus ships Python 2.7)
 # ---------------------------------------------------------------------------
+
 
 def di_to_E(di_val, E_max, E_min, di_scale, exponent=2.0):
     """Power-law continuous modulus mapping.
@@ -67,41 +67,62 @@ def bin_index(di_val, di_min, di_max, n_bins):
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def parse_args(argv):
-    field_csv    = None
-    mapping      = "power"
-    n_bins       = 20
-    e_max        = 10.0e9
-    e_min        = 0.5e9
-    di_exponent  = 2.0
-    di_scale     = 0.0        # 0 → auto: 1.1 * max(DI)
-    di_threshold = 0.5        # used only when mapping == "binary"
-    nu           = 0.30
-    job_name     = "BiofilmDemo3DJob"
+    field_csv = None
+    mapping = "power"
+    n_bins = 20
+    e_max = 10.0e9
+    e_min = 0.5e9
+    di_exponent = 2.0
+    di_scale = 0.0  # 0 → auto: 1.1 * max(DI)
+    di_threshold = 0.5  # used only when mapping == "binary"
+    nu = 0.30
+    job_name = "BiofilmDemo3DJob"
 
     i = 0
     while i < len(argv):
         a = argv[i]
         if a == "--field-csv" and i + 1 < len(argv):
-            field_csv = argv[i + 1]; i += 2; continue
+            field_csv = argv[i + 1]
+            i += 2
+            continue
         if a == "--mapping" and i + 1 < len(argv):
-            mapping = argv[i + 1]; i += 2; continue
+            mapping = argv[i + 1]
+            i += 2
+            continue
         if a == "--n-bins" and i + 1 < len(argv):
-            n_bins = int(argv[i + 1]); i += 2; continue
+            n_bins = int(argv[i + 1])
+            i += 2
+            continue
         if a == "--e-max" and i + 1 < len(argv):
-            e_max = float(argv[i + 1]); i += 2; continue
+            e_max = float(argv[i + 1])
+            i += 2
+            continue
         if a == "--e-min" and i + 1 < len(argv):
-            e_min = float(argv[i + 1]); i += 2; continue
+            e_min = float(argv[i + 1])
+            i += 2
+            continue
         if a == "--di-exponent" and i + 1 < len(argv):
-            di_exponent = float(argv[i + 1]); i += 2; continue
+            di_exponent = float(argv[i + 1])
+            i += 2
+            continue
         if a == "--di-scale" and i + 1 < len(argv):
-            di_scale = float(argv[i + 1]); i += 2; continue
+            di_scale = float(argv[i + 1])
+            i += 2
+            continue
         if a == "--di-threshold" and i + 1 < len(argv):
-            di_threshold = float(argv[i + 1]); i += 2; continue
+            di_threshold = float(argv[i + 1])
+            i += 2
+            continue
         if a == "--nu" and i + 1 < len(argv):
-            nu = float(argv[i + 1]); i += 2; continue
+            nu = float(argv[i + 1])
+            i += 2
+            continue
         if a == "--job-name" and i + 1 < len(argv):
-            job_name = argv[i + 1]; i += 2; continue
+            job_name = argv[i + 1]
+            i += 2
+            continue
         i += 1
 
     if field_csv is None:
@@ -112,16 +133,16 @@ def parse_args(argv):
     if mapping not in ("power", "binary"):
         raise RuntimeError("--mapping must be 'power' or 'binary'")
     return {
-        "field_csv":    field_csv,
-        "mapping":      mapping,
-        "n_bins":       n_bins,
-        "e_max":        e_max,
-        "e_min":        e_min,
-        "di_exponent":  di_exponent,
-        "di_scale":     di_scale,
+        "field_csv": field_csv,
+        "mapping": mapping,
+        "n_bins": n_bins,
+        "e_max": e_max,
+        "e_min": e_min,
+        "di_exponent": di_exponent,
+        "di_scale": di_scale,
         "di_threshold": di_threshold,
-        "nu":           nu,
-        "job_name":     job_name,
+        "nu": nu,
+        "job_name": job_name,
     }
 
 
@@ -129,10 +150,11 @@ def parse_args(argv):
 # CSV reader
 # ---------------------------------------------------------------------------
 
+
 def read_field_csv(path):
     """Return (coords, phi_pg, di_vals) for 3D field CSV."""
-    coords  = []
-    phi_pg  = []
+    coords = []
+    phi_pg = []
     di_vals = []
     with open(path, "r") as f:
         for line in f:
@@ -149,6 +171,7 @@ def read_field_csv(path):
 # ---------------------------------------------------------------------------
 # Model builder
 # ---------------------------------------------------------------------------
+
 
 def build_model(cfg):
     from abaqus import mdb
@@ -167,16 +190,16 @@ def build_model(cfg):
     )
     from regionToolset import Region
 
-    field_csv   = cfg["field_csv"]
-    mapping     = cfg["mapping"]
-    n_bins      = cfg["n_bins"]
-    E_max       = cfg["e_max"]
-    E_min       = cfg["e_min"]
-    exponent    = cfg["di_exponent"]
-    di_scale    = cfg["di_scale"]
-    di_thresh   = cfg["di_threshold"]
-    nu          = cfg["nu"]
-    job_name    = cfg["job_name"]
+    field_csv = cfg["field_csv"]
+    mapping = cfg["mapping"]
+    n_bins = cfg["n_bins"]
+    E_max = cfg["e_max"]
+    E_min = cfg["e_min"]
+    exponent = cfg["di_exponent"]
+    di_scale = cfg["di_scale"]
+    di_thresh = cfg["di_threshold"]
+    nu = cfg["nu"]
+    job_name = cfg["job_name"]
 
     coords, phi_pg, di_vals = read_field_csv(field_csv)
     xs = [c[0] for c in coords]
@@ -185,8 +208,8 @@ def build_model(cfg):
     x_min, x_max = min(xs), max(xs)
     y_min, y_max = min(ys), max(ys)
     z_min, z_max = min(zs), max(zs)
-    di_data_min  = min(di_vals)
-    di_data_max  = max(di_vals)
+    di_data_min = min(di_vals)
+    di_data_max = max(di_vals)
 
     # auto di_scale: stretch the mapping to the actual DI range
     if di_scale <= 0.0:
@@ -217,17 +240,17 @@ def build_model(cfg):
 
     sketch = model.ConstrainedSketch(name="RectSketch3D", sheetSize=10.0)
     sketch.rectangle(point1=(x_min, y_min), point2=(x_max, y_max))
-    part   = model.Part(name="Block3D", dimensionality=THREE_D, type=DEFORMABLE_BODY)
-    depth  = z_max - z_min if z_max > z_min else 1.0
+    part = model.Part(name="Block3D", dimensionality=THREE_D, type=DEFORMABLE_BODY)
+    depth = z_max - z_min if z_max > z_min else 1.0
     part.BaseSolidExtrude(sketch=sketch, depth=depth)
 
     # mesh size from data grid spacing
-    nx_est  = max(len(set(xs)), 2)
-    ny_est  = max(len(set(ys)), 2)
-    nz_est  = max(len(set(zs)), 2)
-    size_x  = (x_max - x_min) / (nx_est - 1)
-    size_y  = (y_max - y_min) / (ny_est - 1)
-    size_z  = depth / (nz_est - 1)
+    nx_est = max(len(set(xs)), 2)
+    ny_est = max(len(set(ys)), 2)
+    nz_est = max(len(set(zs)), 2)
+    size_x = (x_max - x_min) / (nx_est - 1)
+    size_y = (y_max - y_min) / (ny_est - 1)
+    size_z = depth / (nz_est - 1)
     elem_size = min(size_x, size_y, size_z)
     part.seedPart(size=elem_size, deviationFactor=0.1, minSizeFactor=0.1)
     part.generateMesh()
@@ -257,14 +280,14 @@ def build_model(cfg):
         # binary: two materials
         mat_stiff = model.Material(name="MAT_STIFF_3D")
         mat_stiff.Elastic(table=((E_max, nu),))
-        mat_soft  = model.Material(name="MAT_SOFT_3D")
+        mat_soft = model.Material(name="MAT_SOFT_3D")
         mat_soft.Elastic(table=((E_min, nu),))
         model.HomogeneousSolidSection(name="SEC_STIFF_3D", material="MAT_STIFF_3D", thickness=1.0)
-        model.HomogeneousSolidSection(name="SEC_SOFT_3D",  material="MAT_SOFT_3D",  thickness=1.0)
+        model.HomogeneousSolidSection(name="SEC_SOFT_3D", material="MAT_SOFT_3D", thickness=1.0)
 
     # ── assembly ─────────────────────────────────────────────────────────────
     assembly = model.rootAssembly
-    inst     = assembly.Instance(name="BlockInst3D", part=part, dependent=ON)
+    inst = assembly.Instance(name="BlockInst3D", part=part, dependent=ON)
     assembly.translate(instanceList=("BlockInst3D",), vector=(0.0, 0.0, z_min))
 
     # ── element → section assignment ─────────────────────────────────────────
@@ -272,7 +295,7 @@ def build_model(cfg):
         bin_labels = [[] for _ in range(n_bins)]
     else:
         high_labels = []
-        low_labels  = []
+        low_labels = []
 
     for elem in part.elements:
         nodes = elem.getNodes()
@@ -283,7 +306,10 @@ def build_model(cfg):
         ncnt = 0
         for nd in nodes:
             c = nd.coordinates
-            sx += c[0]; sy += c[1]; sz += c[2]; ncnt += 1
+            sx += c[0]
+            sy += c[1]
+            sz += c[2]
+            ncnt += 1
         if ncnt == 0:
             continue
         cx, cy, cz = sx / ncnt, sy / ncnt, sz / ncnt
@@ -292,14 +318,15 @@ def build_model(cfg):
         best_di = None
         best_d2 = 1.0e30
         for (xv, yv, zv), dv in zip(coords, di_vals):
-            d2 = (xv - cx)**2 + (yv - cy)**2 + (zv - cz)**2
+            d2 = (xv - cx) ** 2 + (yv - cy) ** 2 + (zv - cz) ** 2
             if d2 < best_d2:
                 best_d2 = d2
                 best_di = dv
 
         if mapping == "power":
-            b = bin_index(best_di if best_di is not None else di_data_min,
-                          di_data_min, di_data_max, n_bins)
+            b = bin_index(
+                best_di if best_di is not None else di_data_min, di_data_min, di_data_max, n_bins
+            )
             bin_labels[b].append(elem.label)
         else:
             if best_di is None or best_di < di_thresh:
@@ -330,15 +357,25 @@ def build_model(cfg):
         if high_labels:
             seq = part.elements.sequenceFromLabels(labels=high_labels)
             reg = Region(elements=seq)
-            part.SectionAssignment(region=reg, sectionName="SEC_SOFT_3D",
-                                   offset=0.0, offsetType=MIDDLE_SURFACE,
-                                   offsetField="", thicknessAssignment=FROM_SECTION)
+            part.SectionAssignment(
+                region=reg,
+                sectionName="SEC_SOFT_3D",
+                offset=0.0,
+                offsetType=MIDDLE_SURFACE,
+                offsetField="",
+                thicknessAssignment=FROM_SECTION,
+            )
         if low_labels:
             seq = part.elements.sequenceFromLabels(labels=low_labels)
             reg = Region(elements=seq)
-            part.SectionAssignment(region=reg, sectionName="SEC_STIFF_3D",
-                                   offset=0.0, offsetType=MIDDLE_SURFACE,
-                                   offsetField="", thicknessAssignment=FROM_SECTION)
+            part.SectionAssignment(
+                region=reg,
+                sectionName="SEC_STIFF_3D",
+                offset=0.0,
+                offsetType=MIDDLE_SURFACE,
+                offsetField="",
+                thicknessAssignment=FROM_SECTION,
+            )
         print("  High-DI (soft) elements : %d" % len(high_labels))
         print("  Low-DI  (stiff) elements: %d" % len(low_labels))
 
@@ -347,17 +384,24 @@ def build_model(cfg):
 
     # fixed support: face at x = x_min (substratum)
     bottom_faces = inst.faces.getByBoundingBox(
-        xMin=x_min - 1e-6, xMax=x_min + 1e-6,
-        yMin=y_min - 1e-6, yMax=y_max + 1e-6,
-        zMin=z_min - 1e-6, zMax=z_max + 1e-6,
+        xMin=x_min - 1e-6,
+        xMax=x_min + 1e-6,
+        yMin=y_min - 1e-6,
+        yMax=y_max + 1e-6,
+        zMin=z_min - 1e-6,
+        zMax=z_max + 1e-6,
     )
     region_bot = Region(faces=bottom_faces)
     model.DisplacementBC(
         name="BC_FIXED",
         createStepName="Initial",
         region=region_bot,
-        u1=0.0, u2=0.0, u3=0.0,
-        ur1=UNSET, ur2=UNSET, ur3=UNSET,
+        u1=0.0,
+        u2=0.0,
+        u3=0.0,
+        ur1=UNSET,
+        ur2=UNSET,
+        ur3=UNSET,
         amplitude=UNSET,
         distributionType=UNIFORM,
         fieldName="",
@@ -366,16 +410,19 @@ def build_model(cfg):
 
     # pressure load: face at x = x_max (biofilm surface)
     top_faces = inst.faces.getByBoundingBox(
-        xMin=x_max - 1e-6, xMax=x_max + 1e-6,
-        yMin=y_min - 1e-6, yMax=y_max + 1e-6,
-        zMin=z_min - 1e-6, zMax=z_max + 1e-6,
+        xMin=x_max - 1e-6,
+        xMax=x_max + 1e-6,
+        yMin=y_min - 1e-6,
+        yMax=y_max + 1e-6,
+        zMin=z_min - 1e-6,
+        zMax=z_max + 1e-6,
     )
     top_surface = assembly.Surface(name="TOP_SURF_3D", side1Faces=top_faces)
     model.Pressure(
         name="P_TOP_3D",
         createStepName="ApplyLoad",
         region=top_surface,
-        magnitude=1.0e6,   # 1 MPa
+        magnitude=1.0e6,  # 1 MPa
     )
 
     # ── job ──────────────────────────────────────────────────────────────────
@@ -401,6 +448,7 @@ def build_model(cfg):
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main():
     user_argv = sys.argv[1:]

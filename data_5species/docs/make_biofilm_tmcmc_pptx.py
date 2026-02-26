@@ -72,9 +72,7 @@ def _render_latex(
     color: str = "black",
 ) -> str:
     """Render *tex* to a transparent PNG; return the cached file path."""
-    tag = hashlib.md5(
-        f"{tex}|{fontsize}|{dpi}|{color}".encode()
-    ).hexdigest()[:12]
+    tag = hashlib.md5(f"{tex}|{fontsize}|{dpi}|{color}".encode()).hexdigest()[:12]
     path = os.path.join(EQ_DIR, f"eq_{tag}.png")
     if os.path.exists(path):
         return path
@@ -88,9 +86,7 @@ def _render_latex(
         verticalalignment="bottom",
         horizontalalignment="left",
     )
-    fig.savefig(
-        path, dpi=dpi, bbox_inches="tight", pad_inches=0.04, transparent=True
-    )
+    fig.savefig(path, dpi=dpi, bbox_inches="tight", pad_inches=0.04, transparent=True)
     plt.close(fig)
     return path
 
@@ -118,25 +114,19 @@ def _new_slide(prs: Presentation, title: str):
     slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank
 
     # title-bar background
-    bar = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, TITLE_BAR_H
-    )
+    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, TITLE_BAR_H)
     bar.fill.solid()
     bar.fill.fore_color.rgb = NAVY
     bar.line.fill.background()
 
     # accent line below bar
-    acc = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, 0, TITLE_BAR_H, SLIDE_W, Inches(0.04)
-    )
+    acc = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, TITLE_BAR_H, SLIDE_W, Inches(0.04))
     acc.fill.solid()
     acc.fill.fore_color.rgb = ACCENT
     acc.line.fill.background()
 
     # title text
-    tb = slide.shapes.add_textbox(
-        MARGIN_L, Inches(0.18), CONTENT_W, Inches(0.75)
-    )
+    tb = slide.shapes.add_textbox(MARGIN_L, Inches(0.18), CONTENT_W, Inches(0.75))
     tf = tb.text_frame
     tf.word_wrap = True
     p = tf.paragraphs[0]
@@ -147,9 +137,7 @@ def _new_slide(prs: Presentation, title: str):
     p.font.name = FONT
 
     # slide number (footer right)
-    sn = slide.shapes.add_textbox(
-        SLIDE_W - Inches(1.0), FOOTER_Y, Inches(0.6), Inches(0.3)
-    )
+    sn = slide.shapes.add_textbox(SLIDE_W - Inches(1.0), FOOTER_Y, Inches(0.6), Inches(0.3))
     sp = sn.text_frame.paragraphs[0]
     sp.text = str(_slide_counter)
     sp.alignment = PP_ALIGN.RIGHT
@@ -327,9 +315,7 @@ def _add_matrix_pair(
     b_path = _render_latex(b_tex, fontsize=b_fs)
     bw, bh = _img_emu(b_path)
     b_top = top + (ah - bh) // 2 if ah > bh else top
-    slide.shapes.add_picture(
-        b_path, MARGIN_L + int(CONTENT_W * 0.6), b_top, bw, bh
-    )
+    slide.shapes.add_picture(b_path, MARGIN_L + int(CONTENT_W * 0.6), b_top, bw, bh)
     return top + max(ah, bh)
 
 
@@ -354,9 +340,7 @@ def _render_elements(slide, elements) -> int:
     for el in elements:
         kind = el[0]
         if kind == "h":
-            y = _add_text(
-                slide, el[1], y, size=Pt(22), bold=True, color=ACCENT
-            )
+            y = _add_text(slide, el[1], y, size=Pt(22), bold=True, color=ACCENT)
             y += _gap(0.05)
         elif kind == "t":
             sz = Pt(el[2]) if len(el) > 2 else Pt(20)
@@ -396,10 +380,7 @@ _TITLE = {
             "パラメータ推定",
         ],
         "author": "西岡 佳祐",
-        "affil": (
-            "Institut f\u00fcr Kontinuumsmechanik, "
-            "Leibniz Universit\u00e4t Hannover"
-        ),
+        "affil": ("Institut f\u00fcr Kontinuumsmechanik, " "Leibniz Universit\u00e4t Hannover"),
         "date": "February 2026",
     },
     "en": {
@@ -409,10 +390,7 @@ _TITLE = {
             "FOM, ROM, and TMCMC",
         ],
         "author": "Keisuke Nishioka",
-        "affil": (
-            "Institute of Continuum Mechanics, "
-            "Leibniz University Hannover"
-        ),
+        "affil": ("Institute of Continuum Mechanics, " "Leibniz University Hannover"),
         "date": "February 2026",
     },
 }
@@ -450,17 +428,13 @@ def _slide_title(prs: Presentation, lang: str) -> None:
     lw = Inches(6)
     lx = (int(SLIDE_W) - lw) // 2
     ly = cy + Inches(2.8)
-    r = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, lx, ly, lw, Inches(0.04)
-    )
+    r = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, lx, ly, lw, Inches(0.04))
     r.fill.solid()
     r.fill.fore_color.rgb = ACCENT
     r.line.fill.background()
 
     # author block
-    ab = slide.shapes.add_textbox(
-        cx, ly + Inches(0.45), Inches(11), Inches(1.6)
-    )
+    ab = slide.shapes.add_textbox(cx, ly + Inches(0.45), Inches(11), Inches(1.6))
     af = ab.text_frame
     af.word_wrap = True
     for i, (txt, sz, clr) in enumerate(
@@ -499,10 +473,7 @@ _EQ = dict(
         r"\mathbf{g}^{\,n},\,\boldsymbol{\theta}\bigr)"
         r" = \mathbf{0}$"
     ),
-    res_phi_1=(
-        r"$Q_{\phi_i}"
-        r"\;=\;\dfrac{K_p\,(2 - 4\phi_i)}{(\phi_i - 1)^3\,\phi_i^3}$"
-    ),
+    res_phi_1=(r"$Q_{\phi_i}" r"\;=\;\dfrac{K_p\,(2 - 4\phi_i)}{(\phi_i - 1)^3\,\phi_i^3}$"),
     res_phi_2=(
         r"$\quad +\;\dfrac{1}{\eta_i}"
         r"\Bigl[\gamma"
@@ -527,10 +498,7 @@ _EQ = dict(
         r"\,\bigl(A\,(\boldsymbol{\phi}"
         r"\odot\boldsymbol{\psi})\bigr)_{\!i}$"
     ),
-    res_gamma=(
-        r"$Q_{\gamma}"
-        r"\;=\;\displaystyle\sum_{i=1}^{5}\phi_i + \phi_0 - 1$"
-    ),
+    res_gamma=(r"$Q_{\gamma}" r"\;=\;\displaystyle\sum_{i=1}^{5}\phi_i + \phi_0 - 1$"),
     theta_vec=(
         r"$\boldsymbol{\theta}"
         r" = \underbrace{(a_{11},a_{12},a_{22},b_1,b_2)}_{\mathrm{M1}}"
@@ -554,9 +522,7 @@ _EQ = dict(
         r"\;\;\Longrightarrow\;\;"
         r"a_{34}=a_{23}=a_{24}=a_{15}=a_{25}=0$"
     ),
-    n_free=(
-        r"$n_{\mathrm{free}} = 20 - |\mathcal{L}| = 15$"
-    ),
+    n_free=(r"$n_{\mathrm{free}} = 20 - |\mathcal{L}| = 15$"),
     x_fn=r"$x_{\mathrm{FN}} = \phi_4\,\psi_4$",
     hill=(
         r"$h(x_{\mathrm{FN}})"
@@ -564,11 +530,7 @@ _EQ = dict(
         r"{K_{\mathrm{hill}}^{\,n_{\mathrm{hill}}}"
         r" + x_{\mathrm{FN}}^{\,n_{\mathrm{hill}}}}$"
     ),
-    a_eff=(
-        r"$(A_{\mathrm{eff}})_{5j}"
-        r" = h(x_{\mathrm{FN}})\;A_{5j},"
-        r" \qquad j = 1,\dots,5$"
-    ),
+    a_eff=(r"$(A_{\mathrm{eff}})_{5j}" r" = h(x_{\mathrm{FN}})\;A_{5j}," r" \qquad j = 1,\dots,5$"),
     obs_model=(
         r"$y_{k,s}"
         r" = \hat{y}_{k,s}(\boldsymbol{\theta}) + \varepsilon_{k,s},"
@@ -589,10 +551,7 @@ _EQ = dict(
         r"\qquad V \in \mathbb{R}^{12\times r},"
         r"\quad \dim\mathbf{z} = r \ll 12$"
     ),
-    rom_map=(
-        r"$\mathbf{z}_{n+1}"
-        r" = F_n(\mathbf{z}_n;\,\boldsymbol{\theta})$"
-    ),
+    rom_map=(r"$\mathbf{z}_{n+1}" r" = F_n(\mathbf{z}_n;\,\boldsymbol{\theta})$"),
     linearization_update=(
         r"$\boldsymbol{\theta}_0^{(m+1)}"
         r" \;\leftarrow\; \hat{\boldsymbol{\theta}}_{\mathrm{MAP}}^{(m)}"
@@ -611,8 +570,7 @@ _EQ = dict(
         r"\;,\qquad \bar{w}_j = \dfrac{w_j}{\sum_l w_l}$"
     ),
     weight_update=(
-        r"$w_j^{(m)} = p(\mathbf{y}\mid\boldsymbol{\theta}_j)^{\,"
-        r"\beta_{m+1} - \beta_m}$"
+        r"$w_j^{(m)} = p(\mathbf{y}\mid\boldsymbol{\theta}_j)^{\," r"\beta_{m+1} - \beta_m}$"
     ),
     proposal_cov=(
         r"$q(\boldsymbol{\theta}^*\mid\boldsymbol{\theta}_j)"
@@ -668,10 +626,7 @@ _EQ = dict(
         r"\dot{\boldsymbol{\phi}} \cdot \boldsymbol{\eta}"
         r" \cdot \dot{\boldsymbol{\phi}}$"
     ),
-    constraint_gamma=(
-        r"$c = \gamma\!\left("
-        r"\displaystyle\sum_{l=0}^{n} \phi_l - 1\right) = 0$"
-    ),
+    constraint_gamma=(r"$c = \gamma\!\left(" r"\displaystyle\sum_{l=0}^{n} \phi_l - 1\right) = 0$"),
     # ── Penalty barrier + total energy ─────────────────────────
     penalty_barrier=(
         r"$\Psi_p"
@@ -774,25 +729,37 @@ SLIDES_JA: list[tuple[str, list]] = [
         "研究の背景と目的",
         [
             ("h", "背景"),
-            ("b", [
-                "口腔バイオフィルムは複数の細菌種が共存する複雑な微生物群集である.",
-                "種間の相互作用 (協力・競合) がバイオフィルムの構造と病原性を決定する.",
-                "実験データから種間相互作用を定量的に推定することが臨床応用の鍵となる.",
-            ], 18),
+            (
+                "b",
+                [
+                    "口腔バイオフィルムは複数の細菌種が共存する複雑な微生物群集である.",
+                    "種間の相互作用 (協力・競合) がバイオフィルムの構造と病原性を決定する.",
+                    "実験データから種間相互作用を定量的に推定することが臨床応用の鍵となる.",
+                ],
+                18,
+            ),
             ("g", 0.15),
             ("h", "目的"),
-            ("b", [
-                "自由エネルギーに基づく 5 種バイオフィルムの力学モデル (FOM) を構築.",
-                "ROM による高速化と TMCMC によるベイズ推定を組み合わせて,",
-                "種間相互作用パラメータ θ を実験データから確率的に推定する.",
-            ], 18),
+            (
+                "b",
+                [
+                    "自由エネルギーに基づく 5 種バイオフィルムの力学モデル (FOM) を構築.",
+                    "ROM による高速化と TMCMC によるベイズ推定を組み合わせて,",
+                    "種間相互作用パラメータ θ を実験データから確率的に推定する.",
+                ],
+                18,
+            ),
             ("g", 0.15),
             ("h", "アプローチ (3 段階)"),
-            ("b", [
-                "1.  FOM: 自由エネルギーに基づく非線形散逸力学系 → 高精度だが計算コスト大",
-                "2.  ROM: FOM を低次元近似 → forward 評価を高速化",
-                "3.  TMCMC: ROM で尤度を高速評価 → 事後分布 p(θ|y) をサンプリング",
-            ], 18),
+            (
+                "b",
+                [
+                    "1.  FOM: 自由エネルギーに基づく非線形散逸力学系 → 高精度だが計算コスト大",
+                    "2.  ROM: FOM を低次元近似 → forward 評価を高速化",
+                    "3.  TMCMC: ROM で尤度を高速評価 → 事後分布 p(θ|y) をサンプリング",
+                ],
+                18,
+            ),
         ],
     ),
     # ── 3. Species & Interaction Network (NEW) ─────────────────
@@ -800,24 +767,38 @@ SLIDES_JA: list[tuple[str, list]] = [
         "5菌種と相互作用ネットワーク",
         [
             ("h", "対象菌種 (Heine et al., 2025)"),
-            ("b", [
-                "1.  S. oralis  — 初期定着菌 (early colonizer)",
-                "2.  A. naeslundii  — 初期定着菌 (early colonizer)",
-                "3.  Veillonella spp.  — 代謝橋 (metabolic bridge, 乳酸消費)",
-                "4.  F. nucleatum  — 橋渡し菌 (bridge organism)",
-                "5.  P. gingivalis  — 後期定着菌 (late colonizer, 歯周病原菌)",
-            ], 18),
+            (
+                "b",
+                [
+                    "1.  S. oralis  — 初期定着菌 (early colonizer)",
+                    "2.  A. naeslundii  — 初期定着菌 (early colonizer)",
+                    "3.  Veillonella spp.  — 代謝橋 (metabolic bridge, 乳酸消費)",
+                    "4.  F. nucleatum  — 橋渡し菌 (bridge organism)",
+                    "5.  P. gingivalis  — 後期定着菌 (late colonizer, 歯周病原菌)",
+                ],
+                18,
+            ),
             ("g", 0.15),
             ("h", "相互作用ネットワーク (Figure 4C)"),
-            ("b", [
-                "S.o ↔ A.n:  共凝集 (co-aggregation)",
-                "S.o ↔ Vei:   乳酸の供給・消費 (lactate handover)",
-                "S.o ↔ F.n:   ギ酸・酢酸の共生 (formate/acetate symbiosis)",
-                "Vei ↔ P.g:    pH上昇による支援 (pH rise support)",
-                "F.n ↔ P.g:    共凝集・ペプチド供給 (co-aggregation, peptides)",
-            ], 17),
+            (
+                "b",
+                [
+                    "S.o ↔ A.n:  共凝集 (co-aggregation)",
+                    "S.o ↔ Vei:   乳酸の供給・消費 (lactate handover)",
+                    "S.o ↔ F.n:   ギ酸・酢酸の共生 (formate/acetate symbiosis)",
+                    "Vei ↔ P.g:    pH上昇による支援 (pH rise support)",
+                    "F.n ↔ P.g:    共凝集・ペプチド供給 (co-aggregation, peptides)",
+                ],
+                17,
+            ),
             ("g", 0.10),
-            ("tc", "実験的に存在しない相互作用 (5ペア) はゼロに固定 → パラメータ削減", RED_ACCENT, 17, True),
+            (
+                "tc",
+                "実験的に存在しない相互作用 (5ペア) はゼロに固定 → パラメータ削減",
+                RED_ACCENT,
+                17,
+                True,
+            ),
         ],
     ),
     # ── 3. Application to biofilm growth ─────────────────────
@@ -834,10 +815,14 @@ SLIDES_JA: list[tuple[str, list]] = [
             ("h", "エネルギー密度関数 Ψ  (eq.13)"),
             ("e", _EQ["energy_psi"], 22),
             ("g", 0.05),
-            ("b", [
-                "第1項:  栄養素 c* による生菌増加 — 相互作用行列 A が結合強度を記述",
-                "第2項:  抗菌薬 α* による生菌減少 — 減衰行列 B が感受性を記述",
-            ], 16),
+            (
+                "b",
+                [
+                    "第1項:  栄養素 c* による生菌増加 — 相互作用行列 A が結合強度を記述",
+                    "第2項:  抗菌薬 α* による生菌減少 — 減衰行列 B が感受性を記述",
+                ],
+                16,
+            ),
             ("g", 0.08),
             ("h", "散逸関数 Δs  (eq.16)  と  制約関数 c  (eq.18)"),
             ("e", _EQ["dissipation_delta"], 20),
@@ -849,7 +834,11 @@ SLIDES_JA: list[tuple[str, list]] = [
             ("g", 0.05),
             ("e", _EQ["psi_total"], 20),
             ("g", 0.05),
-            ("t", "→  散逸が φ̄ = φψ の時間微分で定義されるため, φ と ψ が深く結合した系となる.", 16),
+            (
+                "t",
+                "→  散逸が φ̄ = φψ の時間微分で定義されるため, φ と ψ が深く結合した系となる.",
+                16,
+            ),
         ],
     ),
     # ── 4. State variables ─────────────────────────────────────
@@ -864,12 +853,15 @@ SLIDES_JA: list[tuple[str, list]] = [
             ("g", 0.08),
             ("e", _EQ["state_vec"]),
             ("g", 0.15),
-            ("s", [
-                (r"$\phi_i(t)$", "種 i のバイオフィルム体積分率  (i = 1, …, 5)"),
-                (r"$\phi_0(t)$", "マトリックス / 水相の体積分率"),
-                (r"$\psi_i(t)$", "種 i の内部構造・密度変数"),
-                (r"$\gamma(t)$", "体積保存を満たすラグランジュ乗数"),
-            ]),
+            (
+                "s",
+                [
+                    (r"$\phi_i(t)$", "種 i のバイオフィルム体積分率  (i = 1, …, 5)"),
+                    (r"$\phi_0(t)$", "マトリックス / 水相の体積分率"),
+                    (r"$\psi_i(t)$", "種 i の内部構造・密度変数"),
+                    (r"$\gamma(t)$", "体積保存を満たすラグランジュ乗数"),
+                ],
+            ),
             ("g", 0.15),
             ("tb", "体積保存の制約"),
             ("g", 0.08),
@@ -886,11 +878,17 @@ SLIDES_JA: list[tuple[str, list]] = [
             ("g", 0.08),
             ("e", _EQ["dissipative"], 28),
             ("g", 0.15),
-            ("s", [
-                (r"$M(\mathbf{g})$", "モビリティ行列 — φ̄ = φψ 結合を含む (η⁻¹ ではない)"),
-                (r"$F(\mathbf{g}) \equiv \Psi_{\mathrm{total}}$", "全エネルギー = 相互作用 Ψ + ペナルティ Ψ_p"),
-                (r"$S(\mathbf{g})$", "ソース項 — 成長・洗い流し等の非保存力"),
-            ]),
+            (
+                "s",
+                [
+                    (r"$M(\mathbf{g})$", "モビリティ行列 — φ̄ = φψ 結合を含む (η⁻¹ ではない)"),
+                    (
+                        r"$F(\mathbf{g}) \equiv \Psi_{\mathrm{total}}$",
+                        "全エネルギー = 相互作用 Ψ + ペナルティ Ψ_p",
+                    ),
+                    (r"$S(\mathbf{g})$", "ソース項 — 成長・洗い流し等の非保存力"),
+                ],
+            ),
             ("g", 0.15),
             ("tb", "時間離散化 — 暗示的オイラー法"),
             ("g", 0.08),
@@ -914,12 +912,16 @@ SLIDES_JA: list[tuple[str, list]] = [
             ("g", 0.05),
             ("e", _EQ["vol_constraint"], 24),
             ("g", 0.15),
-            ("b", [
-                "ペナルティ勾配:  障壁関数 Ψ_p の φᵢ 微分 → ξ ∈ (0,1) を保証",
-                "散逸:  粘性項 (η_φ, ηᵢ) による時間変化の減衰",
-                "制約:  ラグランジュ乗数 γ が体積保存を強制",
-                "相互作用:  c* · A · (φ⊙ψ) による種間結合 (栄養素 c* が駆動)",
-            ], 16),
+            (
+                "b",
+                [
+                    "ペナルティ勾配:  障壁関数 Ψ_p の φᵢ 微分 → ξ ∈ (0,1) を保証",
+                    "散逸:  粘性項 (η_φ, ηᵢ) による時間変化の減衰",
+                    "制約:  ラグランジュ乗数 γ が体積保存を強制",
+                    "相互作用:  c* · A · (φ⊙ψ) による種間結合 (栄養素 c* が駆動)",
+                ],
+                16,
+            ),
         ],
     ),
     # ── 6. Residual phi ────────────────────────────────────────
@@ -935,11 +937,15 @@ SLIDES_JA: list[tuple[str, list]] = [
             ("e", _EQ["res_phi_3"], 24),
             ("g", 0.20),
             ("h", "各項の物理的意味"),
-            ("b", [
-                "Term 1:  ペナルティ障壁 ∂Ψ_p/∂φᵢ — ξ ∈ (0,1) を保証する障壁力",
-                "Term 2:  散逸項 — ラグランジュ乗数 γ と粘性 (η_φ, ηᵢ) による減衰",
-                "Term 3:  種間相互作用 — 栄養素 c* と行列 A による結合 (φ⊙ψ)",
-            ], 17),
+            (
+                "b",
+                [
+                    "Term 1:  ペナルティ障壁 ∂Ψ_p/∂φᵢ — ξ ∈ (0,1) を保証する障壁力",
+                    "Term 2:  散逸項 — ラグランジュ乗数 γ と粘性 (η_φ, ηᵢ) による減衰",
+                    "Term 3:  種間相互作用 — 栄養素 c* と行列 A による結合 (φ⊙ψ)",
+                ],
+                17,
+            ),
         ],
     ),
     # ── 7. Residual psi, gamma ─────────────────────────────────
@@ -952,11 +958,15 @@ SLIDES_JA: list[tuple[str, list]] = [
             ("g", 0.08),
             ("e", _EQ["res_psi_2"], 22),
             ("g", 0.15),
-            ("b", [
-                "Terms 1–2:  ペナルティ障壁 ∂Ψ_p/∂ψᵢ — ψ ∈ (0,1) を保証",
-                "Term 3:  減衰項 — 抗菌薬 α* と減衰率 bᵢ による生存率の低下",
-                "Terms 4–5:  体積分率との結合 + 栄養素 c* による種間相互作用",
-            ], 17),
+            (
+                "b",
+                [
+                    "Terms 1–2:  ペナルティ障壁 ∂Ψ_p/∂ψᵢ — ψ ∈ (0,1) を保証",
+                    "Term 3:  減衰項 — 抗菌薬 α* と減衰率 bᵢ による生存率の低下",
+                    "Terms 4–5:  体積分率との結合 + 栄養素 c* による種間相互作用",
+                ],
+                17,
+            ),
             ("g", 0.15),
             ("tb", "体積保存の制約残差"),
             ("g", 0.08),
@@ -973,12 +983,16 @@ SLIDES_JA: list[tuple[str, list]] = [
             ("g", 0.20),
             ("mp", _EQ["mat_A"], 20, _EQ["mat_B"], 20),
             ("g", 0.25),
-            ("b", [
-                "A は対称行列 (aᵢⱼ = aⱼᵢ):  上三角 15 独立成分",
-                "aᵢⱼ > 0: 種 i と j の協力関係,  aᵢⱼ < 0: 競合関係",
-                "B は対角行列:  各種の減衰率 bᵢ → 5 パラメータ",
-                "合計 20 パラメータを 5 ブロック (M1–M5) に分割",
-            ], 17),
+            (
+                "b",
+                [
+                    "A は対称行列 (aᵢⱼ = aⱼᵢ):  上三角 15 独立成分",
+                    "aᵢⱼ > 0: 種 i と j の協力関係,  aᵢⱼ < 0: 競合関係",
+                    "B は対角行列:  各種の減衰率 bᵢ → 5 パラメータ",
+                    "合計 20 パラメータを 5 ブロック (M1–M5) に分割",
+                ],
+                17,
+            ),
         ],
     ),
     # ── 9. Biological Constraints (NEW) ────────────────────────
@@ -986,17 +1000,25 @@ SLIDES_JA: list[tuple[str, list]] = [
         "生物学的制約によるパラメータ削減",
         [
             ("h", "実験に基づくパラメータ固定 (Nishioka Algorithm)"),
-            ("t", "Heine et al. の実験 (Figure 4C) で相互作用が観測されない 5 ペアをゼロに固定:", 18),
+            (
+                "t",
+                "Heine et al. の実験 (Figure 4C) で相互作用が観測されない 5 ペアをゼロに固定:",
+                18,
+            ),
             ("g", 0.10),
             ("e", _EQ["locked_set"], 20),
             ("g", 0.10),
-            ("b", [
-                "a₃₄ = 0:  Vei ↔ F.n — 直接の代謝経路なし",
-                "a₂₃ = 0:  A.n ↔ Vei — 直接の代謝リンクなし",
-                "a₂₄ = 0:  A.n ↔ F.n — 直接の相互作用なし",
-                "a₁₅ = 0:  S.o ↔ P.g — 直接の相互作用なし",
-                "a₂₅ = 0:  A.n ↔ P.g — 直接の相互作用なし",
-            ], 16),
+            (
+                "b",
+                [
+                    "a₃₄ = 0:  Vei ↔ F.n — 直接の代謝経路なし",
+                    "a₂₃ = 0:  A.n ↔ Vei — 直接の代謝リンクなし",
+                    "a₂₄ = 0:  A.n ↔ F.n — 直接の相互作用なし",
+                    "a₁₅ = 0:  S.o ↔ P.g — 直接の相互作用なし",
+                    "a₂₅ = 0:  A.n ↔ P.g — 直接の相互作用なし",
+                ],
+                16,
+            ),
             ("g", 0.10),
             ("h", "有効パラメータ次元"),
             ("e", _EQ["n_free"], 24),
@@ -1011,18 +1033,25 @@ SLIDES_JA: list[tuple[str, list]] = [
             ("t", "F. nucleatum (種 4) が P. gingivalis (種 5) の橋渡し菌として機能する.", 20),
             ("t", "橋渡し菌が十分に存在しないと, P. gingivalis の相互作用は抑制される.", 18),
             ("g", 0.15),
-            ("s", [
-                (r"$x_{\mathrm{FN}} = \phi_4\,\psi_4$", "F. nucleatum の有効バイオマス"),
-            ]),
+            (
+                "s",
+                [
+                    (r"$x_{\mathrm{FN}} = \phi_4\,\psi_4$", "F. nucleatum の有効バイオマス"),
+                ],
+            ),
             ("g", 0.10),
             ("tb", "ヒル関数"),
             ("g", 0.05),
             ("e", _EQ["hill"], 28),
             ("g", 0.08),
-            ("s", [
-                (r"$K_{\mathrm{hill}}$", "半飽和定数 — ゲートが 50% ON になる濃度"),
-                (r"$n_{\mathrm{hill}}$", "Hill 係数 — 応答の急峻度を制御"),
-            ], 18),
+            (
+                "s",
+                [
+                    (r"$K_{\mathrm{hill}}$", "半飽和定数 — ゲートが 50% ON になる濃度"),
+                    (r"$n_{\mathrm{hill}}$", "Hill 係数 — 応答の急峻度を制御"),
+                ],
+                18,
+            ),
             ("g", 0.10),
             ("tb", "有効相互作用"),
             ("g", 0.05),
@@ -1037,11 +1066,14 @@ SLIDES_JA: list[tuple[str, list]] = [
             ("g", 0.08),
             ("e", _EQ["obs_model"], 24),
             ("g", 0.15),
-            ("s", [
-                (r"$y_{k,s}$", "時刻 t_k, 種 s での観測値"),
-                (r"$\hat{y}_{k,s}(\boldsymbol{\theta})$", "ROM を用いたモデル予測値"),
-                (r"$\sigma_{\mathrm{obs}}$", "観測ノイズの標準偏差"),
-            ]),
+            (
+                "s",
+                [
+                    (r"$y_{k,s}$", "時刻 t_k, 種 s での観測値"),
+                    (r"$\hat{y}_{k,s}(\boldsymbol{\theta})$", "ROM を用いたモデル予測値"),
+                    (r"$\sigma_{\mathrm{obs}}$", "観測ノイズの標準偏差"),
+                ],
+            ),
             ("g", 0.10),
             ("tb", "対数尤度"),
             ("g", 0.08),
@@ -1071,10 +1103,14 @@ SLIDES_JA: list[tuple[str, list]] = [
             ("g", 0.05),
             ("e", _EQ["linearization_update"], 20),
             ("g", 0.08),
-            ("b", [
-                "事後分布が集中するにつれ TSM の近似精度が段階的に向上",
-                "ROM 誤差が閾値未満なら更新をスキップ → FOM 評価コストを削減",
-            ], 17),
+            (
+                "b",
+                [
+                    "事後分布が集中するにつれ TSM の近似精度が段階的に向上",
+                    "ROM 誤差が閾値未満なら更新をスキップ → FOM 評価コストを削減",
+                ],
+                17,
+            ),
         ],
     ),
     # ── 13. TMCMC Details ──────────────────────────────────────
@@ -1105,23 +1141,31 @@ SLIDES_JA: list[tuple[str, list]] = [
         "4段階逐次推定と実験条件",
         [
             ("h", "4段階逐次推定"),
-            ("b", [
-                "Stage 1 (M1):  S.o + A.n  → 5 params (a₁₁, a₁₂, a₂₂, b₁, b₂)",
-                "Stage 2 (M2):  Vei + F.n  → 5 params (a₃₃, a₃₄, a₄₄, b₃, b₄)",
-                "Stage 3 (M3+M4):  Cross + P.g self → 6 params (a₁₃, a₁₄, a₂₃, a₂₄, a₅₅, b₅)",
-                "Stage 4 (M5):  P.g cross → 4 params (a₁₅, a₂₅, a₃₅, a₄₅)",
-            ], 16),
+            (
+                "b",
+                [
+                    "Stage 1 (M1):  S.o + A.n  → 5 params (a₁₁, a₁₂, a₂₂, b₁, b₂)",
+                    "Stage 2 (M2):  Vei + F.n  → 5 params (a₃₃, a₃₄, a₄₄, b₃, b₄)",
+                    "Stage 3 (M3+M4):  Cross + P.g self → 6 params (a₁₃, a₁₄, a₂₃, a₂₄, a₅₅, b₅)",
+                    "Stage 4 (M5):  P.g cross → 4 params (a₁₅, a₂₅, a₃₅, a₄₅)",
+                ],
+                16,
+            ),
             ("g", 0.05),
             ("t", "各ステージ完了後, MAP 推定値を θ_base に固定して次ステージへ:", 17),
             ("e", _EQ["seq_update"], 20),
             ("g", 0.10),
             ("h", "4 実験条件 (Heine et al.)"),
-            ("b", [
-                "Commensal Static:  ロック 9 / 推定 11 — 病原菌ゼロの基本条件",
-                "Dysbiotic Static:   ロック 5 / 推定 15 — 病原菌あり・静的培養",
-                "Commensal HOBIC:  ロック 8 / 推定 12 — フロー培養・S.o 増殖推定",
-                "Dysbiotic HOBIC:   ロック 0 / 推定 20 — 全パラメータ解放 (Surge 再現)",
-            ], 16),
+            (
+                "b",
+                [
+                    "Commensal Static:  ロック 9 / 推定 11 — 病原菌ゼロの基本条件",
+                    "Dysbiotic Static:   ロック 5 / 推定 15 — 病原菌あり・静的培養",
+                    "Commensal HOBIC:  ロック 8 / 推定 12 — フロー培養・S.o 増殖推定",
+                    "Dysbiotic HOBIC:   ロック 0 / 推定 20 — 全パラメータ解放 (Surge 再現)",
+                ],
+                16,
+            ),
             ("g", 0.05),
             ("t", "→  条件ごとにロック集合を変え, 生物学的に妥当な推定空間を構成.", 17),
         ],
@@ -1131,21 +1175,29 @@ SLIDES_JA: list[tuple[str, list]] = [
         "まとめと今後の展望",
         [
             ("h", "まとめ"),
-            ("b", [
-                "FOM:  自由エネルギーに基づく 5 種バイオフィルムの非線形散逸力学系を構築.",
-                "パラメータ削減: 生物学的制約で 20 → 15 自由パラメータに削減.",
-                "ROM (TSM):  FOM を低次元空間で近似 + 線形化点を適応的に更新.",
-                "TMCMC:  適応的 β スケジュール・最適提案共分散・K-step 変異で効率的推定.",
-                "4段階逐次推定:  生物学的グループに基づく分割で安定したベイズ推定.",
-            ], 17),
+            (
+                "b",
+                [
+                    "FOM:  自由エネルギーに基づく 5 種バイオフィルムの非線形散逸力学系を構築.",
+                    "パラメータ削減: 生物学的制約で 20 → 15 自由パラメータに削減.",
+                    "ROM (TSM):  FOM を低次元空間で近似 + 線形化点を適応的に更新.",
+                    "TMCMC:  適応的 β スケジュール・最適提案共分散・K-step 変異で効率的推定.",
+                    "4段階逐次推定:  生物学的グループに基づく分割で安定したベイズ推定.",
+                ],
+                17,
+            ),
             ("g", 0.15),
             ("h", "今後の展望"),
-            ("b", [
-                "実験データへの適用と推定精度の検証.",
-                "モデルエビデンス: TMCMCが自然に提供するベイズファクターでモデルを比較.",
-                "不確実性定量化:  事後分布から予測の信頼区間を定量的に評価.",
-                "多条件推定:  4実験条件 (commensal/dysbiotic × static/HOBIC) に拡張.",
-            ], 17),
+            (
+                "b",
+                [
+                    "実験データへの適用と推定精度の検証.",
+                    "モデルエビデンス: TMCMCが自然に提供するベイズファクターでモデルを比較.",
+                    "不確実性定量化:  事後分布から予測の信頼区間を定量的に評価.",
+                    "多条件推定:  4実験条件 (commensal/dysbiotic × static/HOBIC) に拡張.",
+                ],
+                17,
+            ),
             ("g", 0.10),
             ("h", "モデルエビデンス (TMCMC の副産物)"),
             ("e", _EQ["evidence"], 20),
@@ -1511,25 +1563,37 @@ SLIDES_EN: list[tuple[str, list]] = [
         "Background and Objectives",
         [
             ("h", "Background"),
-            ("b", [
-                "Oral biofilms are complex microbial communities with multiple co-existing species.",
-                "Inter-species interactions (cooperation / competition) govern biofilm structure and pathogenicity.",
-                "Quantitative estimation of these interactions from experimental data is key to clinical applications.",
-            ], 18),
+            (
+                "b",
+                [
+                    "Oral biofilms are complex microbial communities with multiple co-existing species.",
+                    "Inter-species interactions (cooperation / competition) govern biofilm structure and pathogenicity.",
+                    "Quantitative estimation of these interactions from experimental data is key to clinical applications.",
+                ],
+                18,
+            ),
             ("g", 0.15),
             ("h", "Objectives"),
-            ("b", [
-                "Construct a free-energy-based full-order model (FOM) for 5-species biofilm dynamics.",
-                "Combine ROM speed-up with TMCMC Bayesian estimation to infer the",
-                "inter-species interaction parameter θ from experimental data in a probabilistic framework.",
-            ], 18),
+            (
+                "b",
+                [
+                    "Construct a free-energy-based full-order model (FOM) for 5-species biofilm dynamics.",
+                    "Combine ROM speed-up with TMCMC Bayesian estimation to infer the",
+                    "inter-species interaction parameter θ from experimental data in a probabilistic framework.",
+                ],
+                18,
+            ),
             ("g", 0.15),
             ("h", "Approach (3 stages)"),
-            ("b", [
-                "1.  FOM: nonlinear dissipative dynamics based on free energy → accurate but expensive",
-                "2.  ROM: low-dimensional approximation of FOM → fast forward evaluation",
-                "3.  TMCMC: fast likelihood via ROM → sample the posterior p(θ|y)",
-            ], 18),
+            (
+                "b",
+                [
+                    "1.  FOM: nonlinear dissipative dynamics based on free energy → accurate but expensive",
+                    "2.  ROM: low-dimensional approximation of FOM → fast forward evaluation",
+                    "3.  TMCMC: fast likelihood via ROM → sample the posterior p(θ|y)",
+                ],
+                18,
+            ),
         ],
     ),
     # ── 3. Species & Interaction Network (NEW) ─────────────────
@@ -1537,24 +1601,38 @@ SLIDES_EN: list[tuple[str, list]] = [
         "5 Species and Interaction Network",
         [
             ("h", "Species (Heine et al., 2025)"),
-            ("b", [
-                "1.  S. oralis  — early colonizer",
-                "2.  A. naeslundii  — early colonizer",
-                "3.  Veillonella spp.  — metabolic bridge (lactate consumer)",
-                "4.  F. nucleatum  — bridge organism",
-                "5.  P. gingivalis  — late colonizer (periodontal pathogen)",
-            ], 18),
+            (
+                "b",
+                [
+                    "1.  S. oralis  — early colonizer",
+                    "2.  A. naeslundii  — early colonizer",
+                    "3.  Veillonella spp.  — metabolic bridge (lactate consumer)",
+                    "4.  F. nucleatum  — bridge organism",
+                    "5.  P. gingivalis  — late colonizer (periodontal pathogen)",
+                ],
+                18,
+            ),
             ("g", 0.15),
             ("h", "Interaction network (Figure 4C)"),
-            ("b", [
-                "S.o ↔ A.n:  co-aggregation",
-                "S.o ↔ Vei:   lactate production / consumption (lactate handover)",
-                "S.o ↔ F.n:   formate / acetate symbiosis",
-                "Vei ↔ P.g:    pH rise support",
-                "F.n ↔ P.g:    co-aggregation and peptide supply",
-            ], 17),
+            (
+                "b",
+                [
+                    "S.o ↔ A.n:  co-aggregation",
+                    "S.o ↔ Vei:   lactate production / consumption (lactate handover)",
+                    "S.o ↔ F.n:   formate / acetate symbiosis",
+                    "Vei ↔ P.g:    pH rise support",
+                    "F.n ↔ P.g:    co-aggregation and peptide supply",
+                ],
+                17,
+            ),
             ("g", 0.10),
-            ("tc", "5 species pairs with no observed interaction → locked to zero (parameter reduction)", RED_ACCENT, 17, True),
+            (
+                "tc",
+                "5 species pairs with no observed interaction → locked to zero (parameter reduction)",
+                RED_ACCENT,
+                17,
+                True,
+            ),
         ],
     ),
     # ── 3. Application to biofilm growth ─────────────────────
@@ -1571,10 +1649,14 @@ SLIDES_EN: list[tuple[str, list]] = [
             ("h", "Energy density function Ψ  (eq.13)"),
             ("e", _EQ["energy_psi"], 22),
             ("g", 0.05),
-            ("b", [
-                "Term 1:  nutrients c* promote living bacteria growth — matrix A describes coupling",
-                "Term 2:  antibiotics α* reduce viability — matrix B describes susceptibility",
-            ], 16),
+            (
+                "b",
+                [
+                    "Term 1:  nutrients c* promote living bacteria growth — matrix A describes coupling",
+                    "Term 2:  antibiotics α* reduce viability — matrix B describes susceptibility",
+                ],
+                16,
+            ),
             ("g", 0.08),
             ("h", "Dissipation Δs  (eq.16)  and  constraint c  (eq.18)"),
             ("e", _EQ["dissipation_delta"], 20),
@@ -1601,12 +1683,15 @@ SLIDES_EN: list[tuple[str, list]] = [
             ("g", 0.08),
             ("e", _EQ["state_vec"]),
             ("g", 0.15),
-            ("s", [
-                (r"$\phi_i(t)$", "Volume fraction of species i  (i = 1, …, 5)"),
-                (r"$\phi_0(t)$", "Volume fraction of the matrix / aqueous phase"),
-                (r"$\psi_i(t)$", "Internal structure / density variable of species i"),
-                (r"$\gamma(t)$", "Lagrange multiplier enforcing volume conservation"),
-            ]),
+            (
+                "s",
+                [
+                    (r"$\phi_i(t)$", "Volume fraction of species i  (i = 1, …, 5)"),
+                    (r"$\phi_0(t)$", "Volume fraction of the matrix / aqueous phase"),
+                    (r"$\psi_i(t)$", "Internal structure / density variable of species i"),
+                    (r"$\gamma(t)$", "Lagrange multiplier enforcing volume conservation"),
+                ],
+            ),
             ("g", 0.15),
             ("tb", "Volume conservation constraint"),
             ("g", 0.08),
@@ -1623,11 +1708,23 @@ SLIDES_EN: list[tuple[str, list]] = [
             ("g", 0.08),
             ("e", _EQ["dissipative"], 28),
             ("g", 0.15),
-            ("s", [
-                (r"$M(\mathbf{g})$", "Mobility matrix — encodes φ̄ = φψ coupling (not simply η⁻¹)"),
-                (r"$F(\mathbf{g}) \equiv \Psi_{\mathrm{total}}$", "Total energy = interaction Ψ + penalty Ψ_p"),
-                (r"$S(\mathbf{g})$", "Source term — growth, washout, and other non-conservative forces"),
-            ]),
+            (
+                "s",
+                [
+                    (
+                        r"$M(\mathbf{g})$",
+                        "Mobility matrix — encodes φ̄ = φψ coupling (not simply η⁻¹)",
+                    ),
+                    (
+                        r"$F(\mathbf{g}) \equiv \Psi_{\mathrm{total}}$",
+                        "Total energy = interaction Ψ + penalty Ψ_p",
+                    ),
+                    (
+                        r"$S(\mathbf{g})$",
+                        "Source term — growth, washout, and other non-conservative forces",
+                    ),
+                ],
+            ),
             ("g", 0.15),
             ("tb", "Time discretisation — implicit Euler method"),
             ("g", 0.08),
@@ -1651,12 +1748,16 @@ SLIDES_EN: list[tuple[str, list]] = [
             ("g", 0.05),
             ("e", _EQ["vol_constraint"], 24),
             ("g", 0.15),
-            ("b", [
-                "Penalty gradient:  ∂Ψ_p/∂φᵢ — barrier ensuring ξ ∈ (0,1)",
-                "Dissipation:  viscous damping via (η_φ, ηᵢ)",
-                "Constraint:  Lagrange multiplier γ enforces volume conservation",
-                "Interaction:  nutrients c* × matrix A × (φ⊙ψ) inter-species coupling",
-            ], 16),
+            (
+                "b",
+                [
+                    "Penalty gradient:  ∂Ψ_p/∂φᵢ — barrier ensuring ξ ∈ (0,1)",
+                    "Dissipation:  viscous damping via (η_φ, ηᵢ)",
+                    "Constraint:  Lagrange multiplier γ enforces volume conservation",
+                    "Interaction:  nutrients c* × matrix A × (φ⊙ψ) inter-species coupling",
+                ],
+                16,
+            ),
         ],
     ),
     # ── 6. Residual phi ────────────────────────────────────────
@@ -1672,11 +1773,15 @@ SLIDES_EN: list[tuple[str, list]] = [
             ("e", _EQ["res_phi_3"], 24),
             ("g", 0.20),
             ("h", "Physical interpretation of each term"),
-            ("b", [
-                "Term 1:  Penalty barrier ∂Ψ_p/∂φᵢ — ensures ξ ∈ (0,1)",
-                "Term 2:  Dissipation — Lagrange multiplier γ and viscosity (η_φ, ηᵢ)",
-                "Term 3:  Inter-species interaction — nutrients c* and matrix A (φ⊙ψ)",
-            ], 17),
+            (
+                "b",
+                [
+                    "Term 1:  Penalty barrier ∂Ψ_p/∂φᵢ — ensures ξ ∈ (0,1)",
+                    "Term 2:  Dissipation — Lagrange multiplier γ and viscosity (η_φ, ηᵢ)",
+                    "Term 3:  Inter-species interaction — nutrients c* and matrix A (φ⊙ψ)",
+                ],
+                17,
+            ),
         ],
     ),
     # ── 7. Residual psi, gamma ─────────────────────────────────
@@ -1689,11 +1794,15 @@ SLIDES_EN: list[tuple[str, list]] = [
             ("g", 0.08),
             ("e", _EQ["res_psi_2"], 22),
             ("g", 0.15),
-            ("b", [
-                "Terms 1–2:  Penalty barrier ∂Ψ_p/∂ψᵢ — ensures ψ ∈ (0,1)",
-                "Term 3:  Decay — antibiotics α* and rate bᵢ reduce viability",
-                "Terms 4–5:  Coupling with φᵢ + nutrients c* inter-species interaction via A",
-            ], 17),
+            (
+                "b",
+                [
+                    "Terms 1–2:  Penalty barrier ∂Ψ_p/∂ψᵢ — ensures ψ ∈ (0,1)",
+                    "Term 3:  Decay — antibiotics α* and rate bᵢ reduce viability",
+                    "Terms 4–5:  Coupling with φᵢ + nutrients c* inter-species interaction via A",
+                ],
+                17,
+            ),
             ("g", 0.15),
             ("tb", "Volume conservation constraint residual"),
             ("g", 0.08),
@@ -1710,12 +1819,16 @@ SLIDES_EN: list[tuple[str, list]] = [
             ("g", 0.20),
             ("mp", _EQ["mat_A"], 20, _EQ["mat_B"], 20),
             ("g", 0.25),
-            ("b", [
-                "A is symmetric (aᵢⱼ = aⱼᵢ):  15 independent upper-triangular entries",
-                "aᵢⱼ > 0: cooperation between species i and j;  aᵢⱼ < 0: competition",
-                "B is diagonal:  decay rate bᵢ for each species → 5 parameters",
-                "Total: 20 parameters organized in 5 blocks (M1–M5)",
-            ], 17),
+            (
+                "b",
+                [
+                    "A is symmetric (aᵢⱼ = aⱼᵢ):  15 independent upper-triangular entries",
+                    "aᵢⱼ > 0: cooperation between species i and j;  aᵢⱼ < 0: competition",
+                    "B is diagonal:  decay rate bᵢ for each species → 5 parameters",
+                    "Total: 20 parameters organized in 5 blocks (M1–M5)",
+                ],
+                17,
+            ),
         ],
     ),
     # ── 9. Biological Constraints (NEW) ────────────────────────
@@ -1723,43 +1836,73 @@ SLIDES_EN: list[tuple[str, list]] = [
         "Biological Constraints and Parameter Reduction",
         [
             ("h", "Experiment-based parameter locking (Nishioka Algorithm)"),
-            ("t", "Lock 5 interaction parameters to zero where no interaction was observed (Heine et al., Fig. 4C):", 18),
+            (
+                "t",
+                "Lock 5 interaction parameters to zero where no interaction was observed (Heine et al., Fig. 4C):",
+                18,
+            ),
             ("g", 0.10),
             ("e", _EQ["locked_set"], 20),
             ("g", 0.10),
-            ("b", [
-                "a₃₄ = 0:  Vei ↔ F.n — no direct metabolic pathway",
-                "a₂₃ = 0:  A.n ↔ Vei — no direct metabolic link",
-                "a₂₄ = 0:  A.n ↔ F.n — no direct interaction",
-                "a₁₅ = 0:  S.o ↔ P.g — no direct interaction",
-                "a₂₅ = 0:  A.n ↔ P.g — no direct interaction",
-            ], 16),
+            (
+                "b",
+                [
+                    "a₃₄ = 0:  Vei ↔ F.n — no direct metabolic pathway",
+                    "a₂₃ = 0:  A.n ↔ Vei — no direct metabolic link",
+                    "a₂₄ = 0:  A.n ↔ F.n — no direct interaction",
+                    "a₁₅ = 0:  S.o ↔ P.g — no direct interaction",
+                    "a₂₅ = 0:  A.n ↔ P.g — no direct interaction",
+                ],
+                16,
+            ),
             ("g", 0.10),
             ("h", "Effective parameter dimension"),
             ("e", _EQ["n_free"], 24),
             ("g", 0.08),
-            ("t", "→  Improved sampling efficiency + exclusion of biologically implausible estimates.", 18),
+            (
+                "t",
+                "→  Improved sampling efficiency + exclusion of biologically implausible estimates.",
+                18,
+            ),
         ],
     ),
     # ── 10. Hill gating ────────────────────────────────────────
     (
         "Hill-Function Gating Mechanism",
         [
-            ("t", "F. nucleatum (species 4) acts as a bridging organism for P. gingivalis (species 5).", 20),
-            ("t", "Without sufficient F. nucleatum, interactions of P. gingivalis are suppressed.", 18),
+            (
+                "t",
+                "F. nucleatum (species 4) acts as a bridging organism for P. gingivalis (species 5).",
+                20,
+            ),
+            (
+                "t",
+                "Without sufficient F. nucleatum, interactions of P. gingivalis are suppressed.",
+                18,
+            ),
             ("g", 0.15),
-            ("s", [
-                (r"$x_{\mathrm{FN}} = \phi_4\,\psi_4$", "Effective biomass of F. nucleatum"),
-            ]),
+            (
+                "s",
+                [
+                    (r"$x_{\mathrm{FN}} = \phi_4\,\psi_4$", "Effective biomass of F. nucleatum"),
+                ],
+            ),
             ("g", 0.10),
             ("tb", "Hill function"),
             ("g", 0.05),
             ("e", _EQ["hill"], 28),
             ("g", 0.08),
-            ("s", [
-                (r"$K_{\mathrm{hill}}$", "Half-saturation constant — concentration at 50% gating"),
-                (r"$n_{\mathrm{hill}}$", "Hill coefficient — controls steepness of the switch"),
-            ], 18),
+            (
+                "s",
+                [
+                    (
+                        r"$K_{\mathrm{hill}}$",
+                        "Half-saturation constant — concentration at 50% gating",
+                    ),
+                    (r"$n_{\mathrm{hill}}$", "Hill coefficient — controls steepness of the switch"),
+                ],
+                18,
+            ),
             ("g", 0.10),
             ("tb", "Effective interaction"),
             ("g", 0.05),
@@ -1774,11 +1917,14 @@ SLIDES_EN: list[tuple[str, list]] = [
             ("g", 0.08),
             ("e", _EQ["obs_model"], 24),
             ("g", 0.15),
-            ("s", [
-                (r"$y_{k,s}$", "Observation at time t_k, species s"),
-                (r"$\hat{y}_{k,s}(\boldsymbol{\theta})$", "Model prediction via ROM"),
-                (r"$\sigma_{\mathrm{obs}}$", "Standard deviation of the observation noise"),
-            ]),
+            (
+                "s",
+                [
+                    (r"$y_{k,s}$", "Observation at time t_k, species s"),
+                    (r"$\hat{y}_{k,s}(\boldsymbol{\theta})$", "Model prediction via ROM"),
+                    (r"$\sigma_{\mathrm{obs}}$", "Standard deviation of the observation noise"),
+                ],
+            ),
             ("g", 0.10),
             ("tb", "Log-likelihood"),
             ("g", 0.08),
@@ -1797,7 +1943,11 @@ SLIDES_EN: list[tuple[str, list]] = [
             ("g", 0.08),
             ("e", _EQ["rom_approx"], 22),
             ("g", 0.08),
-            ("t", "V is constructed from POD (Proper Orthogonal Decomposition) of FOM snapshots.", 18),
+            (
+                "t",
+                "V is constructed from POD (Proper Orthogonal Decomposition) of FOM snapshots.",
+                18,
+            ),
             ("g", 0.12),
             ("tb", "Linearisation of FOM → time-stepping map"),
             ("g", 0.08),
@@ -1808,10 +1958,14 @@ SLIDES_EN: list[tuple[str, list]] = [
             ("g", 0.05),
             ("e", _EQ["linearization_update"], 20),
             ("g", 0.08),
-            ("b", [
-                "ROM accuracy improves as the posterior concentrates",
-                "Skip update when ROM error is below threshold → reduces FOM evaluation cost",
-            ], 17),
+            (
+                "b",
+                [
+                    "ROM accuracy improves as the posterior concentrates",
+                    "Skip update when ROM error is below threshold → reduces FOM evaluation cost",
+                ],
+                17,
+            ),
         ],
     ),
     # ── 13. TMCMC Details ──────────────────────────────────────
@@ -1842,25 +1996,37 @@ SLIDES_EN: list[tuple[str, list]] = [
         "4-Stage Sequential Estimation and Experimental Conditions",
         [
             ("h", "4-stage sequential estimation"),
-            ("b", [
-                "Stage 1 (M1):  S.o + A.n  → 5 params (a₁₁, a₁₂, a₂₂, b₁, b₂)",
-                "Stage 2 (M2):  Vei + F.n  → 5 params (a₃₃, a₃₄, a₄₄, b₃, b₄)",
-                "Stage 3 (M3+M4):  Cross + P.g self → 6 params (a₁₃, a₁₄, a₂₃, a₂₄, a₅₅, b₅)",
-                "Stage 4 (M5):  P.g cross → 4 params (a₁₅, a₂₅, a₃₅, a₄₅)",
-            ], 16),
+            (
+                "b",
+                [
+                    "Stage 1 (M1):  S.o + A.n  → 5 params (a₁₁, a₁₂, a₂₂, b₁, b₂)",
+                    "Stage 2 (M2):  Vei + F.n  → 5 params (a₃₃, a₃₄, a₄₄, b₃, b₄)",
+                    "Stage 3 (M3+M4):  Cross + P.g self → 6 params (a₁₃, a₁₄, a₂₃, a₂₄, a₅₅, b₅)",
+                    "Stage 4 (M5):  P.g cross → 4 params (a₁₅, a₂₅, a₃₅, a₄₅)",
+                ],
+                16,
+            ),
             ("g", 0.05),
             ("t", "After each stage, fix MAP estimates in θ_base and proceed:", 17),
             ("e", _EQ["seq_update"], 20),
             ("g", 0.10),
             ("h", "4 experimental conditions (Heine et al.)"),
-            ("b", [
-                "Commensal Static:  lock 9 / estimate 11 — pathogen-free baseline",
-                "Dysbiotic Static:   lock 5 / estimate 15 — pathogens present, static culture",
-                "Commensal HOBIC:  lock 8 / estimate 12 — flow culture, S.o growth estimated",
-                "Dysbiotic HOBIC:   lock 0 / estimate 20 — all unlocked (Surge reproduction)",
-            ], 16),
+            (
+                "b",
+                [
+                    "Commensal Static:  lock 9 / estimate 11 — pathogen-free baseline",
+                    "Dysbiotic Static:   lock 5 / estimate 15 — pathogens present, static culture",
+                    "Commensal HOBIC:  lock 8 / estimate 12 — flow culture, S.o growth estimated",
+                    "Dysbiotic HOBIC:   lock 0 / estimate 20 — all unlocked (Surge reproduction)",
+                ],
+                16,
+            ),
             ("g", 0.05),
-            ("t", "→  Lock set varies per condition to ensure biologically valid estimation space.", 17),
+            (
+                "t",
+                "→  Lock set varies per condition to ensure biologically valid estimation space.",
+                17,
+            ),
         ],
     ),
     # ── 15. Summary ────────────────────────────────────────────
@@ -1868,21 +2034,29 @@ SLIDES_EN: list[tuple[str, list]] = [
         "Summary and Outlook",
         [
             ("h", "Summary"),
-            ("b", [
-                "FOM:  Nonlinear dissipative system for 5-species biofilm based on free energy.",
-                "Parameter reduction: biological constraints reduce 20 → 15 free parameters.",
-                "ROM (TSM):  Low-dim approximation + adaptive linearization point update.",
-                "TMCMC:  Adaptive β schedule, optimal proposal covariance, K-step mutation.",
-                "4-stage sequential estimation:  biologically-grouped stages for stable inference.",
-            ], 17),
+            (
+                "b",
+                [
+                    "FOM:  Nonlinear dissipative system for 5-species biofilm based on free energy.",
+                    "Parameter reduction: biological constraints reduce 20 → 15 free parameters.",
+                    "ROM (TSM):  Low-dim approximation + adaptive linearization point update.",
+                    "TMCMC:  Adaptive β schedule, optimal proposal covariance, K-step mutation.",
+                    "4-stage sequential estimation:  biologically-grouped stages for stable inference.",
+                ],
+                17,
+            ),
             ("g", 0.15),
             ("h", "Outlook"),
-            ("b", [
-                "Application to experimental data and validation of estimation accuracy.",
-                "Model evidence: Bayes factor comparison via TMCMC at no extra cost.",
-                "Uncertainty quantification:  credible intervals from the posterior.",
-                "Multi-condition estimation:  all 4 conditions (commensal/dysbiotic × static/HOBIC).",
-            ], 17),
+            (
+                "b",
+                [
+                    "Application to experimental data and validation of estimation accuracy.",
+                    "Model evidence: Bayes factor comparison via TMCMC at no extra cost.",
+                    "Uncertainty quantification:  credible intervals from the posterior.",
+                    "Multi-condition estimation:  all 4 conditions (commensal/dysbiotic × static/HOBIC).",
+                ],
+                17,
+            ),
             ("g", 0.10),
             ("h", "Model evidence (TMCMC byproduct)"),
             ("e", _EQ["evidence"], 20),
@@ -1957,9 +2131,7 @@ def main() -> None:
     for lang, suffix in [("ja", ""), ("en", "_en")]:
         print(f"Building {lang.upper()} presentation ...")
         prs = build(lang)
-        path = os.path.join(
-            SCRIPT_DIR, f"biofilm_fom_rom_tmcmc_nishioka{suffix}.pptx"
-        )
+        path = os.path.join(SCRIPT_DIR, f"biofilm_fom_rom_tmcmc_nishioka{suffix}.pptx")
         prs.save(path)
         print(f"  Saved -> {path}")
     print("Done.")

@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -71,10 +72,15 @@ def build_poster() -> None:
     fig = plt.figure(figsize=(W_INCH, H_INCH), facecolor="#FFFFFF")
     # Grid: title, then rows of panels
     gs = GridSpec(
-        5, 3,
+        5,
+        3,
         figure=fig,
-        left=0.04, right=0.97, top=0.96, bottom=0.04,
-        hspace=0.30, wspace=0.26,
+        left=0.04,
+        right=0.97,
+        top=0.96,
+        bottom=0.04,
+        hspace=0.30,
+        wspace=0.26,
         height_ratios=[0.75, 1.0, 1.0, 1.0, 1.0],
     )
 
@@ -82,9 +88,31 @@ def build_poster() -> None:
     ax_title = fig.add_subplot(gs[0, :])
     ax_title.axis("off")
     ax_title.set_facecolor("#FFFFFF")
-    fig.text(0.5, 0.935, "Oral Biofilm Parameter Estimation & FEM Coupling", ha="center", fontsize=26, fontweight="bold", color="#1A1A2E")
-    fig.text(0.5, 0.895, "TMCMC Bayesian inference → DI field → E_eff(DI) → 3-tooth Abaqus FEM", ha="center", fontsize=14, color="#444455")
-    fig.text(0.5, 0.858, "5 species · 20 parameters · Dysbiotic × HOBIC · ~19.7× displacement ratio", ha="center", fontsize=11, color="#666677")
+    fig.text(
+        0.5,
+        0.935,
+        "Oral Biofilm Parameter Estimation & FEM Coupling",
+        ha="center",
+        fontsize=26,
+        fontweight="bold",
+        color="#1A1A2E",
+    )
+    fig.text(
+        0.5,
+        0.895,
+        "TMCMC Bayesian inference → DI field → E_eff(DI) → 3-tooth Abaqus FEM",
+        ha="center",
+        fontsize=14,
+        color="#444455",
+    )
+    fig.text(
+        0.5,
+        0.858,
+        "5 species · 20 parameters · Dysbiotic × HOBIC · ~19.7× displacement ratio",
+        ha="center",
+        fontsize=11,
+        color="#666677",
+    )
 
     # Row 1: Pipeline full width
     ax_a = fig.add_subplot(gs[1, :])
@@ -94,7 +122,13 @@ def build_poster() -> None:
     ax_a.set_title("A. End-to-end pipeline", fontsize=12, fontweight="bold", color="#1A1A2E", pad=4)
 
     # Row 2: B, C, D
-    for col, (name, label) in enumerate([("fig2_network", "B. Species network"), ("fig4_data_model", "C. Data & model"), ("fig5_positioning", "D. Positioning")]):
+    for col, (name, label) in enumerate(
+        [
+            ("fig2_network", "B. Species network"),
+            ("fig4_data_model", "C. Data & model"),
+            ("fig5_positioning", "D. Positioning"),
+        ]
+    ):
         ax = fig.add_subplot(gs[2, col])
         ax.axis("off")
         im = load_image(name)
@@ -106,10 +140,17 @@ def build_poster() -> None:
     ax_e.axis("off")
     im = load_image("fig8_tmcmc_fem_flow")
     ax_e.imshow(im, aspect="auto", interpolation="lanczos")
-    ax_e.set_title("E. TMCMC → FEM coupling flow", fontsize=12, fontweight="bold", color="#1A1A2E", pad=4)
+    ax_e.set_title(
+        "E. TMCMC → FEM coupling flow", fontsize=12, fontweight="bold", color="#1A1A2E", pad=4
+    )
 
     # Row 4: F, G
-    for col, (name, label) in enumerate([("fig9_coupling_DI_Eeff", "F. DI → E_eff mapping"), ("fig10_coupling_four_conditions", "G. Four conditions → FEM")]):
+    for col, (name, label) in enumerate(
+        [
+            ("fig9_coupling_DI_Eeff", "F. DI → E_eff mapping"),
+            ("fig10_coupling_four_conditions", "G. Four conditions → FEM"),
+        ]
+    ):
         ax = fig.add_subplot(gs[4, col])
         ax.axis("off")
         im = load_image(name)
@@ -117,7 +158,14 @@ def build_poster() -> None:
         ax.set_title(label, fontsize=11, fontweight="bold", color="#1A1A2E", pad=4)
 
     # Footer
-    fig.text(0.5, 0.018, "References: biofilm_3tooth_report.pdf · overview_tmcmc_fem_en.md", ha="center", fontsize=9, color="#888899")
+    fig.text(
+        0.5,
+        0.018,
+        "References: biofilm_3tooth_report.pdf · overview_tmcmc_fem_en.md",
+        ha="center",
+        fontsize=9,
+        color="#888899",
+    )
 
     out_name = "poster_new"
     path_pdf = OUT / f"{out_name}.pdf"

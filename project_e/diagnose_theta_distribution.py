@@ -11,7 +11,6 @@ Usage:
 """
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -105,12 +104,8 @@ def main():
 
         # Key metrics
         mae_post_syn = np.abs(post_mean - syn_mean).mean()
-        mae_post_map = (
-            np.abs(post_mean - theta_map).mean() if theta_map is not None else np.nan
-        )
-        mae_syn_map = (
-            np.abs(syn_mean - theta_map).mean() if theta_map is not None else np.nan
-        )
+        mae_post_map = np.abs(post_mean - theta_map).mean() if theta_map is not None else np.nan
+        mae_syn_map = np.abs(syn_mean - theta_map).mean() if theta_map is not None else np.nan
 
         # Prior width vs posterior width (first 5 free params)
         free_idx = [i for i in range(20) if abs(bounds[i, 1] - bounds[i, 0]) > 1e-12]
@@ -143,9 +138,7 @@ def main():
             print(
                 f"\n  >>> CAUSE: Synthetic θ mean is far from TMCMC posterior mean (MAE={mae_post_syn:.2f})"
             )
-            print(
-                "      Fix: Increase map_frac, decrease map_std_frac, or sample from posterior"
-            )
+            print("      Fix: Increase map_frac, decrease map_std_frac, or sample from posterior")
         if post_width > 0 and syn_width / post_width > 2:
             print(
                 f"\n  >>> CAUSE: Synthetic θ is much wider than posterior ({syn_width/post_width:.1f}x)"
@@ -163,7 +156,7 @@ def main():
     print(f"  theta: {runs_dir / s / 'samples.npy'}")
     if not (runs_dir / s / "data.npy").exists():
         print(
-            f"  [NOTE] dh_baseline has no data.npy — y_obs from dysbiotic_hobic_1000p, theta from dh_baseline"
+            "  [NOTE] dh_baseline has no data.npy — y_obs from dysbiotic_hobic_1000p, theta from dh_baseline"
         )
 
     return 0

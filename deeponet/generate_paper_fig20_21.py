@@ -8,22 +8,18 @@ Fig 21: NUTS vs HMC vs RW TMCMC Comparison
 Requirements: Run e2e_differentiable_pipeline.py and gradient_tmcmc_nuts.py first.
 """
 
-import json
-import sys
 import time
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib.patches import FancyArrowPatch
 import numpy as np
 
 import jax
 import jax.numpy as jnp
-import jax.random as jr
-import equinox as eqx
 
 jax.config.update("jax_enable_x64", False)
 
@@ -33,33 +29,41 @@ OUT_DIR = PROJECT_ROOT / "FEM" / "figures" / "paper_final"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------- shared matplotlib style ----------
-plt.rcParams.update({
-    "font.size": 11,
-    "axes.titlesize": 12,
-    "axes.labelsize": 11,
-    "xtick.labelsize": 9,
-    "ytick.labelsize": 9,
-    "legend.fontsize": 9,
-    "figure.dpi": 150,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "axes.grid": True,
-    "grid.alpha": 0.25,
-})
+plt.rcParams.update(
+    {
+        "font.size": 11,
+        "axes.titlesize": 12,
+        "axes.labelsize": 11,
+        "xtick.labelsize": 9,
+        "ytick.labelsize": 9,
+        "legend.fontsize": 9,
+        "figure.dpi": 150,
+        "savefig.dpi": 300,
+        "savefig.bbox": "tight",
+        "axes.grid": True,
+        "grid.alpha": 0.25,
+    }
+)
 
 # ---------- imports from pipeline ----------
-from deeponet_hamilton import DeepONet
-from dem_elasticity_3d import ElasticityNetwork
 from e2e_differentiable_pipeline import (
-    load_deeponet, load_dem, load_theta_map,
-    deeponet_predict_final, compute_di, di_to_E,
+    load_deeponet,
+    load_dem,
+    load_theta_map,
+    deeponet_predict_final,
+    compute_di,
+    di_to_E,
     dem_predict_max_uy,
-    E_MAX, E_MIN, N_SPECIES, SPECIES,
-    CONDITION_CHECKPOINTS, W, H, D,
+    E_MAX,
+    SPECIES,
+    CONDITION_CHECKPOINTS,
+    W,
+    H,
+    D,
 )
 from gradient_tmcmc_nuts import (
-    tmcmc_engine, load_prior_bounds,
-    make_real_log_likelihood, load_real_data, load_real_sigma,
+    tmcmc_engine,
+    load_prior_bounds,
 )
 
 COND_LABELS = {
@@ -104,8 +108,8 @@ def generate_fig20():
 
         # Sensitivity
         pipeline = lambda t: dem_predict_max_uy(
-            dem_model, di_to_E(compute_di(
-                deeponet_predict_final(don, t, tlo, tw))))
+            dem_model, di_to_E(compute_di(deeponet_predict_final(don, t, tlo, tw)))
+        )
         grads = jax.grad(pipeline)(theta_jax)
 
         # Timing
@@ -113,41 +117,57 @@ def generate_fig20():
         _ = pipeline_jit(theta_jax)
         t0 = time.time()
         for _ in range(200):
-            _ = pipeline_jit(theta_jax); jax.block_until_ready(_)
+            _ = pipeline_jit(theta_jax)
+            jax.block_until_ready(_)
         t_fwd = (time.time() - t0) / 200 * 1000
 
         grad_jit = jax.jit(jax.grad(pipeline))
         _ = grad_jit(theta_jax)
         t0 = time.time()
         for _ in range(200):
-            g = grad_jit(theta_jax); jax.block_until_ready(g)
+            g = grad_jit(theta_jax)
+            jax.block_until_ready(g)
         t_grad = (time.time() - t0) / 200 * 1000
 
         results[cond] = dict(
-            phi=np.array(phi), DI=float(di), E=float(E),
-            uy=float(uy), grads=np.array(grads),
-            t_fwd=t_fwd, t_grad=t_grad)
-        print(f"  {cond}: DI={float(di):.3f}, E={float(E):.0f} Pa, "
-              f"u_y={float(uy)*1000:.2f} μm")
+            phi=np.array(phi),
+            DI=float(di),
+            E=float(E),
+            uy=float(uy),
+            grads=np.array(grads),
+            t_fwd=t_fwd,
+            t_grad=t_grad,
+        )
+        print(f"  {cond}: DI={float(di):.3f}, E={float(E):.0f} Pa, " f"u_y={float(uy)*1000:.2f} μm")
 
     conds = list(results.keys())
     n = len(conds)
 
     # ---- Layout ----
     fig = plt.figure(figsize=(16, 13))
-    gs_top = gridspec.GridSpec(2, n, hspace=0.35, wspace=0.30,
-                               left=0.06, right=0.97, top=0.92, bottom=0.42)
-    gs_bot = gridspec.GridSpec(1, 1, left=0.06, right=0.97,
-                               top=0.36, bottom=0.05)
+    gs_top = gridspec.GridSpec(
+        2, n, hspace=0.35, wspace=0.30, left=0.06, right=0.97, top=0.92, bottom=0.42
+    )
+    gs_bot = gridspec.GridSpec(1, 1, left=0.06, right=0.97, top=0.36, bottom=0.05)
 
-    fig.text(0.5, 0.96,
-             r"End-to-End Differentiable Pipeline: $\theta$ $\rightarrow$ DeepONet "
-             r"$\rightarrow$ DI $\rightarrow$ E(DI) $\rightarrow$ DEM $\rightarrow$ $\mathbf{u}$",
-             ha="center", fontsize=14, fontweight="bold")
-    fig.text(0.5, 0.935,
-             "All steps JAX-differentiable — exact $\\partial u / \\partial \\theta$ "
-             "via single backward pass",
-             ha="center", fontsize=10, color="gray")
+    fig.text(
+        0.5,
+        0.96,
+        r"End-to-End Differentiable Pipeline: $\theta$ $\rightarrow$ DeepONet "
+        r"$\rightarrow$ DI $\rightarrow$ E(DI) $\rightarrow$ DEM $\rightarrow$ $\mathbf{u}$",
+        ha="center",
+        fontsize=14,
+        fontweight="bold",
+    )
+    fig.text(
+        0.5,
+        0.935,
+        "All steps JAX-differentiable — exact $\\partial u / \\partial \\theta$ "
+        "via single backward pass",
+        ha="center",
+        fontsize=10,
+        color="gray",
+    )
 
     # Row 0: Species bar charts
     for col, cond in enumerate(conds):
@@ -158,8 +178,9 @@ def generate_fig20():
         ax.set_xticks(range(5))
         ax.set_xticklabels(SPECIES, fontsize=8)
         ax.set_ylim(0, max(0.5, max(r["phi"]) * 1.2))
-        ax.set_title(f"{COND_LABELS[cond]}\nDI = {r['DI']:.3f}   "
-                     f"E = {r['E']:.0f} Pa", fontsize=10)
+        ax.set_title(
+            f"{COND_LABELS[cond]}\nDI = {r['DI']:.3f}   " f"E = {r['E']:.0f} Pa", fontsize=10
+        )
         if col == 0:
             ax.set_ylabel(r"$\varphi$ (fraction)")
         # Annotate bars
@@ -176,7 +197,7 @@ def generate_fig20():
         E_norm = jnp.float32(r["E"]) / E_MAX
         uy_prof = []
         for yi in y_pts:
-            u = dem_model(jnp.float32(W/2), yi, jnp.float32(D/2), E_norm)
+            u = dem_model(jnp.float32(W / 2), yi, jnp.float32(D / 2), E_norm)
             uy_prof.append(float(u[1]))
         uy_arr = np.array(uy_prof) * 1000  # μm
 
@@ -193,18 +214,39 @@ def generate_fig20():
     bar_w = 0.8 / n
     x_pos = np.arange(20)
     param_labels = [
-        r"$a_{11}$", r"$a_{12}$", r"$a_{13}$", r"$a_{21}$", r"$a_{22}$",
-        r"$a_{23}$", r"$a_{31}$", r"$a_{32}$", r"$a_{33}$", r"$a_{34}$",
-        r"$a_{41}$", r"$a_{42}$", r"$a_{43}$", r"$a_{44}$", r"$a_{45}$",
-        r"$a_{15}$", r"$a_{25}$", r"$a_{35}$", r"$a_{45}^{Pg}$", r"$b_5$",
+        r"$a_{11}$",
+        r"$a_{12}$",
+        r"$a_{13}$",
+        r"$a_{21}$",
+        r"$a_{22}$",
+        r"$a_{23}$",
+        r"$a_{31}$",
+        r"$a_{32}$",
+        r"$a_{33}$",
+        r"$a_{34}$",
+        r"$a_{41}$",
+        r"$a_{42}$",
+        r"$a_{43}$",
+        r"$a_{44}$",
+        r"$a_{45}$",
+        r"$a_{15}$",
+        r"$a_{25}$",
+        r"$a_{35}$",
+        r"$a_{45}^{Pg}$",
+        r"$b_5$",
     ]
 
     for i, cond in enumerate(conds):
         r = results[cond]
-        offset = (i - n/2 + 0.5) * bar_w
-        ax_sens.bar(x_pos + offset, r["grads"], bar_w,
-                    color=COND_COLORS[cond], alpha=0.75,
-                    label=COND_LABELS[cond])
+        offset = (i - n / 2 + 0.5) * bar_w
+        ax_sens.bar(
+            x_pos + offset,
+            r["grads"],
+            bar_w,
+            color=COND_COLORS[cond],
+            alpha=0.75,
+            label=COND_LABELS[cond],
+        )
 
     ax_sens.set_xlabel("Parameter")
     ax_sens.set_ylabel(r"$\partial u_y / \partial \theta_i$")
@@ -212,7 +254,9 @@ def generate_fig20():
         "Exact Sensitivity via JAX Autodiff  "
         f"(Forward: {np.mean([r['t_fwd'] for r in results.values()]):.2f} ms, "
         f"Gradient: {np.mean([r['t_grad'] for r in results.values()]):.2f} ms, "
-        f"Abaqus: ~120 s → 3.8M× speedup)", fontsize=10)
+        f"Abaqus: ~120 s → 3.8M× speedup)",
+        fontsize=10,
+    )
     ax_sens.set_xticks(range(20))
     ax_sens.set_xticklabels(param_labels, fontsize=8)
     ax_sens.legend(ncol=2, fontsize=9, loc="upper left")
@@ -238,8 +282,7 @@ def generate_fig21():
     don, tlo, tw = load_deeponet(condition)
     dem = load_dem()
     prior_bounds = load_prior_bounds(condition)
-    free_dims = np.where(
-        np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12)[0]
+    free_dims = np.where(np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12)[0]
 
     # Synthetic data
     rng = np.random.default_rng(seed)
@@ -252,8 +295,7 @@ def generate_fig21():
     theta_jax = jnp.array(theta_true)
     phi_true = deeponet_predict_final(don, theta_jax, tlo, tw)
     sigma_phi = 0.03
-    obs_phi = jnp.array(
-        np.array(phi_true) + rng.normal(0, sigma_phi, 5), dtype=jnp.float32)
+    obs_phi = jnp.array(np.array(phi_true) + rng.normal(0, sigma_phi, 5), dtype=jnp.float32)
     obs_phi = jnp.clip(obs_phi, 0.0, 1.0)
 
     def log_likelihood(theta):
@@ -269,13 +311,21 @@ def generate_fig21():
     for mut in ["rw", "hmc", "nuts"]:
         print(f"  Running {mut.upper()}...")
         r = tmcmc_engine(
-            log_likelihood, prior_bounds, mutation=mut,
-            n_particles=n_particles, seed=seed,
-            hmc_step_size=0.005, hmc_n_leapfrog=5,
-            nuts_max_depth=6, verbose=False)
+            log_likelihood,
+            prior_bounds,
+            mutation=mut,
+            n_particles=n_particles,
+            seed=seed,
+            hmc_step_size=0.005,
+            hmc_n_leapfrog=5,
+            nuts_max_depth=6,
+            verbose=False,
+        )
         results.append(r)
-        print(f"    → {r['n_stages']} stages, accept={np.mean(r['accept_rates']):.2f}, "
-              f"logL={r['log_likelihoods'].max():.1f}")
+        print(
+            f"    → {r['n_stages']} stages, accept={np.mean(r['accept_rates']):.2f}, "
+            f"logL={r['log_likelihoods'].max():.1f}"
+        )
 
     # ---- Plot ----
     colors = {"RW-TMCMC": "#E53935", "HMC-TMCMC": "#1E88E5", "NUTS-TMCMC": "#43A047"}
@@ -285,16 +335,20 @@ def generate_fig21():
     fig.suptitle(
         f"TMCMC Mutation Kernel Comparison — {COND_LABELS[condition]}\n"
         f"(200 particles, 20 free parameters, synthetic data)",
-        fontsize=13, fontweight="bold")
+        fontsize=13,
+        fontweight="bold",
+    )
 
-    gs = gridspec.GridSpec(2, 4, hspace=0.35, wspace=0.35,
-                           left=0.06, right=0.97, top=0.88, bottom=0.08)
+    gs = gridspec.GridSpec(
+        2, 4, hspace=0.35, wspace=0.35, left=0.06, right=0.97, top=0.88, bottom=0.08
+    )
 
     # (0,0) Beta schedule
     ax = fig.add_subplot(gs[0, 0])
     for r in results:
-        ax.plot(r["betas"], "o-", color=colors[r["label"]],
-                label=labels_short[r["label"]], ms=4, lw=1.5)
+        ax.plot(
+            r["betas"], "o-", color=colors[r["label"]], label=labels_short[r["label"]], ms=4, lw=1.5
+        )
     ax.set_xlabel("Stage")
     ax.set_ylabel(r"$\beta$")
     ax.set_title("(a) Tempering Schedule")
@@ -304,8 +358,14 @@ def generate_fig21():
     ax = fig.add_subplot(gs[0, 1])
     for r in results:
         avg = np.mean(r["accept_rates"])
-        ax.plot(r["accept_rates"], "o-", color=colors[r["label"]],
-                label=f"{labels_short[r['label']]} ({avg:.2f})", ms=4, lw=1.5)
+        ax.plot(
+            r["accept_rates"],
+            "o-",
+            color=colors[r["label"]],
+            label=f"{labels_short[r['label']]} ({avg:.2f})",
+            ms=4,
+            lw=1.5,
+        )
     ax.set_xlabel("Stage")
     ax.set_ylabel("Acceptance Rate")
     ax.set_title("(b) Mutation Acceptance")
@@ -315,9 +375,15 @@ def generate_fig21():
     # (0,2) ESS
     ax = fig.add_subplot(gs[0, 2])
     for r in results:
-        ax.plot(range(1, r["n_stages"]+1), r["ess_history"],
-                "o-", color=colors[r["label"]],
-                label=labels_short[r["label"]], ms=4, lw=1.5)
+        ax.plot(
+            range(1, r["n_stages"] + 1),
+            r["ess_history"],
+            "o-",
+            color=colors[r["label"]],
+            label=labels_short[r["label"]],
+            ms=4,
+            lw=1.5,
+        )
     ax.set_xlabel("Stage")
     ax.set_ylabel("ESS")
     ax.set_title("(c) Effective Sample Size")
@@ -333,7 +399,7 @@ def generate_fig21():
         ["max logL", *[f"{r['log_likelihoods'].max():.1f}" for r in results]],
         ["Time [s]", *[f"{r['total_time']:.1f}" for r in results]],
     ]
-    cell_colors = [["#f0f0f0"]*4] * len(rows)
+    cell_colors = [["#f0f0f0"] * 4] * len(rows)
     # Highlight best in each row
     for i, row in enumerate(rows):
         vals = []
@@ -346,10 +412,14 @@ def generate_fig21():
         cell_colors[i] = ["#f0f0f0"] * 4
         cell_colors[i][best_idx + 1] = "#c8e6c9"  # green highlight
 
-    table = ax.table(cellText=rows, colLabels=headers,
-                     cellColours=cell_colors,
-                     colColours=["#e0e0e0"]*4,
-                     loc="center", cellLoc="center")
+    table = ax.table(
+        cellText=rows,
+        colLabels=headers,
+        cellColours=cell_colors,
+        colColours=["#e0e0e0"] * 4,
+        loc="center",
+        cellLoc="center",
+    )
     table.auto_set_font_size(False)
     table.set_fontsize(10)
     table.scale(1.0, 1.8)
@@ -357,15 +427,19 @@ def generate_fig21():
 
     # Bottom row: Posterior marginals (top 8 free dims)
     show_dims = free_dims[:8]
-    gs_bot = gridspec.GridSpecFromSubplotSpec(1, len(show_dims),
-                                              subplot_spec=gs[1, :],
-                                              wspace=0.25)
+    gs_bot = gridspec.GridSpecFromSubplotSpec(1, len(show_dims), subplot_spec=gs[1, :], wspace=0.25)
     for j, dim in enumerate(show_dims):
         ax = fig.add_subplot(gs_bot[0, j])
         for r in results:
             samples = r["samples"][:, dim]
-            ax.hist(samples, bins=20, alpha=0.45, color=colors[r["label"]],
-                    density=True, label=labels_short[r["label"]] if j == 0 else None)
+            ax.hist(
+                samples,
+                bins=20,
+                alpha=0.45,
+                color=colors[r["label"]],
+                density=True,
+                label=labels_short[r["label"]] if j == 0 else None,
+            )
         # True value
         ax.axvline(theta_true[dim], color="k", ls="--", lw=1, alpha=0.7)
         ax.set_title(f"θ[{dim}]", fontsize=10)

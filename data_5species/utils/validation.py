@@ -23,7 +23,7 @@ def validate_tmcmc_inputs(
 ) -> None:
     """
     Validate inputs for run_TMCMC.
-    
+
     Parameters
     ----------
     log_likelihood : callable
@@ -42,7 +42,7 @@ def validate_tmcmc_inputs(
         Full parameter base vector
     active_indices : List[int], optional
         Active parameter indices
-        
+
     Raises
     ------
     TypeError
@@ -52,25 +52,25 @@ def validate_tmcmc_inputs(
     """
     if not callable(log_likelihood):
         raise TypeError("log_likelihood must be callable")
-    
+
     if not isinstance(prior_bounds, list) or len(prior_bounds) == 0:
         raise ValueError("prior_bounds must be a non-empty list")
-    
+
     for i, (low, high) in enumerate(prior_bounds):
         if not isinstance(low, (int, float)) or not isinstance(high, (int, float)):
             raise TypeError(f"prior_bounds[{i}] must be numeric tuple")
         if low > high:
             raise ValueError(f"prior_bounds[{i}]: lower bound must be <= upper bound")
-    
+
     if n_particles <= 0:
         raise ValueError(f"n_particles must be > 0, got {n_particles}")
-    
+
     if n_stages <= 0:
         raise ValueError(f"n_stages must be > 0, got {n_stages}")
-    
+
     if not (0 < target_ess_ratio <= 1):
         raise ValueError(f"target_ess_ratio must be in (0, 1], got {target_ess_ratio}")
-    
+
     if evaluator is not None:
         if theta_base_full is None:
             raise ValueError("theta_base_full must be provided when evaluator is provided")

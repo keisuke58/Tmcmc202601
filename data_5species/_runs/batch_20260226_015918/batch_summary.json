@@ -1,0 +1,47 @@
+{
+  "timestamp": "20260226_015918",
+  "mode": "sequential",
+  "max_workers": 1,
+  "total_elapsed_seconds": 5.794224500656128,
+  "total_elapsed_minutes": 0.0965704083442688,
+  "conditions": [
+    "Commensal:Static",
+    "Commensal:HOBIC",
+    "Dysbiotic:Static",
+    "Dysbiotic:HOBIC"
+  ],
+  "results": {
+    "Commensal_Static": {
+      "success": false,
+      "output_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/_runs/batch_20260226_015918/Commensal_Static",
+      "error": "index 113 is out of bounds for axis 0 with size 100",
+      "logL_max": null,
+      "converged": null,
+      "elapsed_time": null
+    },
+    "Commensal_HOBIC": {
+      "success": false,
+      "output_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/_runs/batch_20260226_015918/Commensal_HOBIC",
+      "error": "index 113 is out of bounds for axis 0 with size 100",
+      "logL_max": null,
+      "converged": null,
+      "elapsed_time": null
+    },
+    "Dysbiotic_Static": {
+      "success": false,
+      "output_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/_runs/batch_20260226_015918/Dysbiotic_Static",
+      "error": "index 113 is out of bounds for axis 0 with size 100",
+      "logL_max": null,
+      "converged": null,
+      "elapsed_time": null
+    },
+    "Dysbiotic_HOBIC": {
+      "success": false,
+      "output_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/_runs/batch_20260226_015918/Dysbiotic_HOBIC",
+      "error": "index 113 is out of bounds for axis 0 with size 100",
+      "logL_max": null,
+      "converged": null,
+      "elapsed_time": null
+    }
+  }
+}

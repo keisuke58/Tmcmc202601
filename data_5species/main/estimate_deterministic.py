@@ -25,7 +25,6 @@ Usage:
 
 import argparse
 import sys
-import json
 import numpy as np
 import pandas as pd
 import time
@@ -34,7 +33,6 @@ from typing import Dict, Any, List, Tuple, Optional
 from scipy.optimize import minimize, differential_evolution, basinhopping, dual_annealing
 from scipy.stats import qmc  # Latin Hypercube Sampling
 from scipy.optimize import approx_fprime
-import warnings
 
 # Add project root to sys.path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -46,16 +44,15 @@ sys.path.insert(0, str(PROJECT_ROOT / "tmcmc"))
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import (
-    MODEL_CONFIGS,
     setup_logging,
     DebugConfig,
     DebugLevel,
-    PRIOR_BOUNDS_DEFAULT,
 )
 from core import LogLikelihoodEvaluator
 from debug import DebugLogger
-from utils import save_json, save_npy
-from improved_5species_jit import BiofilmNewtonSolver5S, HAS_NUMBA
+from utils import save_json
+from improved_5species_jit import BiofilmNewtonSolver5S
+
 try:
     from data_5species.core.nishioka_model import get_condition_bounds, get_model_constants
 except ImportError:
@@ -65,13 +62,16 @@ except ImportError:
 from estimate_reduced_nishioka import load_experimental_data, convert_days_to_model_time
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
 # =============================================================================
 # Improvement 2: Latin Hypercube Sampling for Multi-Start
 # =============================================================================
-def generate_lhs_samples(bounds: List[Tuple[float, float]], n_samples: int, seed: int = 42) -> np.ndarray:
+def generate_lhs_samples(
+    bounds: List[Tuple[float, float]], n_samples: int, seed: int = 42
+) -> np.ndarray:
     """
     Generate Latin Hypercube Samples within given bounds.
 
@@ -104,7 +104,7 @@ def compute_hessian_and_ci(
     objective_func,
     theta_mle: np.ndarray,
     bounds: List[Tuple[float, float]],
-    confidence_level: float = 0.95
+    confidence_level: float = 0.95,
 ) -> Dict[str, Any]:
     """
     Compute Hessian at MLE and derive confidence intervals.
@@ -189,7 +189,9 @@ def compute_hessian_and_ci(
             min_eig = min(eigenvalues)
             regularization = abs(min_eig) + 1e-6
             hessian_reg = hessian + np.eye(n_params) * regularization
-            logger.warning(f"Hessian not positive definite. Added regularization: {regularization:.2e}")
+            logger.warning(
+                f"Hessian not positive definite. Added regularization: {regularization:.2e}"
+            )
         else:
             hessian_reg = hessian + np.eye(n_params) * 1e-10  # Small regularization
 
@@ -227,9 +229,13 @@ def compute_hessian_and_ci(
     except np.linalg.LinAlgError as e:
         logger.warning(f"Hessian inversion failed: {e}. Using bound-based fallback.")
         cov_matrix = np.eye(n_params) * 0.1
-        std_errors = np.array([(b[1]-b[0])/4 for b in bounds])
-        ci_lower = np.array([max(theta_mle[i] - 1.96*std_errors[i], bounds[i][0]) for i in range(n_params)])
-        ci_upper = np.array([min(theta_mle[i] + 1.96*std_errors[i], bounds[i][1]) for i in range(n_params)])
+        std_errors = np.array([(b[1] - b[0]) / 4 for b in bounds])
+        ci_lower = np.array(
+            [max(theta_mle[i] - 1.96 * std_errors[i], bounds[i][0]) for i in range(n_params)]
+        )
+        ci_upper = np.array(
+            [min(theta_mle[i] + 1.96 * std_errors[i], bounds[i][1]) for i in range(n_params)]
+        )
         success = False
         message = f"Hessian singular: {e}"
         is_positive_definite = False
@@ -246,7 +252,7 @@ def compute_hessian_and_ci(
         "message": message,
         "is_positive_definite": is_positive_definite,
         "condition_number": condition_number,
-        "eigenvalues": eigenvalues.tolist()
+        "eigenvalues": eigenvalues.tolist(),
     }
 
 
@@ -254,9 +260,7 @@ def compute_hessian_and_ci(
 # Improvement 6: Model Selection Metrics (AIC/BIC)
 # =============================================================================
 def compute_model_selection_metrics(
-    logL: float,
-    n_params: int,
-    n_data_points: int
+    logL: float, n_params: int, n_data_points: int
 ) -> Dict[str, float]:
     """
     Compute AIC, AICc, and BIC for model selection.
@@ -284,23 +288,14 @@ def compute_model_selection_metrics(
     # Bayesian Information Criterion
     BIC = k * np.log(n) - 2 * logL
 
-    return {
-        "AIC": AIC,
-        "AICc": AICc,
-        "BIC": BIC,
-        "n_params": k,
-        "n_data_points": n,
-        "logL": logL
-    }
+    return {"AIC": AIC, "AICc": AICc, "BIC": BIC, "n_params": k, "n_data_points": n, "logL": logL}
 
 
 # =============================================================================
 # NEW Improvement: Fit Quality Metrics (R², RMSE, NRMSE)
 # =============================================================================
 def compute_fit_quality_metrics(
-    y_obs: np.ndarray,
-    y_pred: np.ndarray,
-    species_names: List[str] = None
+    y_obs: np.ndarray, y_pred: np.ndarray, species_names: List[str] = None
 ) -> Dict[str, Any]:
     """
     Compute comprehensive fit quality metrics.
@@ -317,10 +312,7 @@ def compute_fit_quality_metrics(
     if species_names is None:
         species_names = [f"Species_{i}" for i in range(n_species)]
 
-    metrics = {
-        "per_species": {},
-        "overall": {}
-    }
+    metrics = {"per_species": {}, "overall": {}}
 
     all_residuals = []
 
@@ -331,7 +323,7 @@ def compute_fit_quality_metrics(
 
         # R² (coefficient of determination)
         ss_res = np.sum(residuals**2)
-        ss_tot = np.sum((obs - np.mean(obs))**2)
+        ss_tot = np.sum((obs - np.mean(obs)) ** 2)
         r2 = 1 - ss_res / (ss_tot + 1e-10) if ss_tot > 1e-10 else 0.0
 
         # RMSE
@@ -354,7 +346,7 @@ def compute_fit_quality_metrics(
             "MAE": float(mae),
             "max_error": float(max_error),
             "mean_obs": float(np.mean(obs)),
-            "mean_pred": float(np.mean(pred))
+            "mean_pred": float(np.mean(pred)),
         }
 
         all_residuals.extend(residuals.tolist())
@@ -364,14 +356,14 @@ def compute_fit_quality_metrics(
     all_obs = y_obs.flatten()
     all_pred = y_pred.flatten()
 
-    ss_res_total = np.sum((all_obs - all_pred)**2)
-    ss_tot_total = np.sum((all_obs - np.mean(all_obs))**2)
+    ss_res_total = np.sum((all_obs - all_pred) ** 2)
+    ss_tot_total = np.sum((all_obs - np.mean(all_obs)) ** 2)
 
     metrics["overall"] = {
         "R2": float(1 - ss_res_total / (ss_tot_total + 1e-10)),
         "RMSE": float(np.sqrt(np.mean(all_residuals**2))),
         "MAE": float(np.mean(np.abs(all_residuals))),
-        "max_error": float(np.max(np.abs(all_residuals)))
+        "max_error": float(np.max(np.abs(all_residuals))),
     }
 
     return metrics
@@ -381,10 +373,7 @@ def compute_fit_quality_metrics(
 # NEW Improvement: Convergence Diagnostics
 # =============================================================================
 def check_convergence_quality(
-    objective_func,
-    theta_mle: np.ndarray,
-    bounds: List[Tuple[float, float]],
-    tol: float = 1e-5
+    objective_func, theta_mle: np.ndarray, bounds: List[Tuple[float, float]], tol: float = 1e-5
 ) -> Dict[str, Any]:
     """
     Check if the optimizer truly converged to a local minimum.
@@ -449,11 +438,8 @@ def check_convergence_quality(
         "at_midpoint": at_midpoint,
         "n_at_midpoint": len(at_midpoint),
         "is_local_minimum": is_local_minimum,
-        "perturbation_test": {
-            "n_better": n_better,
-            "n_worse": n_worse
-        },
-        "warnings": []
+        "perturbation_test": {"n_better": n_better, "n_worse": n_worse},
+        "warnings": [],
     }
 
 
@@ -542,7 +528,9 @@ def generate_recommendations(result: Dict[str, Any], fit_metrics: Dict[str, Any]
         )
 
     if not recommendations:
-        recommendations.append("Results look reasonable. Consider running TMCMC for full posterior.")
+        recommendations.append(
+            "Results look reasonable. Consider running TMCMC for full posterior."
+        )
 
     return recommendations
 
@@ -553,7 +541,7 @@ def compute_profile_likelihood_ci(
     bounds: List[Tuple[float, float]],
     param_idx: int,
     confidence_level: float = 0.95,
-    n_points: int = 20
+    n_points: int = 20,
 ) -> Tuple[float, float]:
     """
     Compute confidence interval using profile likelihood.
@@ -621,10 +609,10 @@ def generate_analysis_report(result: Dict[str, Any], output_dir: Path) -> str:
     """
     theta_map = result["theta_MAP_full"]
     # active_indices = result["active_indices"] # Not used directly, using full map
-    
+
     # Define parameter names and indices (based on BiofilmNewtonSolver5S)
     # 0-4: M1, 5-9: M2, 10-13: M3, 14-15: M4, 16-19: M5
-    
+
     lines = []
     lines.append("==================================================")
     lines.append("       BIOFILM MODEL PARAMETER ANALYSIS           ")
@@ -633,79 +621,105 @@ def generate_analysis_report(result: Dict[str, Any], output_dir: Path) -> str:
     lines.append(f"Log-Likelihood: {result['logL']:.4f}")
     lines.append(f"AICc: {result.get('AICc', np.nan):.2f}")
     lines.append("")
-    
+
     # 1. Growth/Decay Analysis
     lines.append("--- SPECIES GROWTH & DECAY ---")
     species_names = ["S1 (S.o)", "S2 (A.n)", "S3 (Vei)", "S4 (F.n)", "S5 (P.g)"]
-    growth_indices = [0, 2, 5, 7, 14] # a11, a22, a33, a44, a55
+    growth_indices = [0, 2, 5, 7, 14]  # a11, a22, a33, a44, a55
     decay_indices = [3, 4, 8, 9, 15]  # b1, b2, b3, b4, b5
-    
+
     for i, name in enumerate(species_names):
         g_idx = growth_indices[i]
         d_idx = decay_indices[i]
         g_val = theta_map[g_idx]
         d_val = theta_map[d_idx]
-        
+
         status = []
-        if g_val > 1.5: status.append("Rapid Growth")
-        elif g_val < 0.0: status.append("Suppressed")
-        else: status.append("Moderate")
-        
-        if d_val > 1.0: status.append("High Decay")
-        elif d_val < 0.2: status.append("Low Decay")
-        
+        if g_val > 1.5:
+            status.append("Rapid Growth")
+        elif g_val < 0.0:
+            status.append("Suppressed")
+        else:
+            status.append("Moderate")
+
+        if d_val > 1.0:
+            status.append("High Decay")
+        elif d_val < 0.2:
+            status.append("Low Decay")
+
         status_str = ", ".join(status)
         lines.append(f"{name:<10}: Growth={g_val:>6.3f}, Decay={d_val:>6.3f} -> {status_str}")
 
     lines.append("")
-    
+
     # 2. Interaction Analysis
     lines.append("--- STRONG INTERACTIONS (|a_ij| > 0.1) ---")
     # Map of interaction indices to names
     interactions = {
         1: "S1 <-> S2",
         6: "S3 <-> S4",
-        10: "S1 <-> S3", 11: "S1 <-> S4",
-        12: "S2 <-> S3", 13: "S2 <-> S4",
-        16: "S1 <-> S5", 17: "S2 <-> S5",
-        18: "S3 <-> S5", 19: "S4 <-> S5"
+        10: "S1 <-> S3",
+        11: "S1 <-> S4",
+        12: "S2 <-> S3",
+        13: "S2 <-> S4",
+        16: "S1 <-> S5",
+        17: "S2 <-> S5",
+        18: "S3 <-> S5",
+        19: "S4 <-> S5",
     }
-    
+
     found_interaction = False
     # Sort by absolute magnitude
-    sorted_interactions = sorted(interactions.items(), key=lambda x: abs(theta_map[x[0]]), reverse=True)
-    
+    sorted_interactions = sorted(
+        interactions.items(), key=lambda x: abs(theta_map[x[0]]), reverse=True
+    )
+
     for idx, name in sorted_interactions:
         val = theta_map[idx]
         if abs(val) > 0.1:
             type_str = "Cooperation (+)" if val > 0 else "Competition (-)"
             lines.append(f"{name:<10}: {val:>6.3f} ({type_str})")
             found_interaction = True
-            
+
     if not found_interaction:
         lines.append("No strong interactions found.")
-        
+
     lines.append("")
-    
+
     # 3. Parameter Reliability
     if result.get("ci_success", False) and "std_errors" in result:
         lines.append("--- UNCERTAIN PARAMETERS (SE > 0.5) ---")
         THETA_NAMES_FULL = [
-            "a11","a12","a22","b1","b2",
-            "a33","a34","a44","b3","b4",
-            "a13","a14","a23","a24",
-            "a55","b5",
-            "a15","a25","a35","a45"
+            "a11",
+            "a12",
+            "a22",
+            "b1",
+            "b2",
+            "a33",
+            "a34",
+            "a44",
+            "b3",
+            "b4",
+            "a13",
+            "a14",
+            "a23",
+            "a24",
+            "a55",
+            "b5",
+            "a15",
+            "a25",
+            "a35",
+            "a45",
         ]
-        
+
         # result["std_errors"] corresponds to active_indices only?
         # Yes, usually. Need to map back.
         # Check if std_errors is full or active.
         # In main, it is saved as list corresponding to active_indices.
-        
+
         std_errors = result["std_errors"]
         active_indices = result["active_indices"]
-        
+
         has_uncertainty = False
         if len(std_errors) == len(active_indices):
             for i, idx in enumerate(active_indices):
@@ -714,16 +728,16 @@ def generate_analysis_report(result: Dict[str, Any], output_dir: Path) -> str:
                     p_name = THETA_NAMES_FULL[idx]
                     lines.append(f"{p_name:<10}: SE={se:.3f}")
                     has_uncertainty = True
-        
+
         if not has_uncertainty:
             lines.append("All active parameters have SE <= 0.5")
 
     report_text = "\n".join(lines)
-    
+
     # Save to file
     with open(output_dir / "analysis_report.txt", "w") as f:
         f.write(report_text)
-        
+
     return report_text
 
 
@@ -745,7 +759,7 @@ class AdaptiveLinearizationOptimizer:
         theta_base: np.ndarray,
         active_indices: List[int],
         relinearization_threshold: float = 0.5,
-        min_relinearization_interval: int = 50
+        min_relinearization_interval: int = 50,
     ):
         self.evaluator = evaluator
         self.theta_base = theta_base.copy()
@@ -784,9 +798,9 @@ class AdaptiveLinearizationOptimizer:
         theta_full = self._get_full_theta(theta_active)
 
         # Update evaluator's linearization point if it has the method
-        if hasattr(self.evaluator, 'update_linearization_point'):
+        if hasattr(self.evaluator, "update_linearization_point"):
             self.evaluator.update_linearization_point(theta_full)
-        elif hasattr(self.evaluator, 'theta_linearization'):
+        elif hasattr(self.evaluator, "theta_linearization"):
             self.evaluator.theta_linearization = theta_full
 
         self.last_linearization_point = theta_active.copy()
@@ -817,10 +831,7 @@ class AdaptiveLinearizationOptimizer:
 
     def get_stats(self) -> Dict[str, int]:
         """Return optimization statistics."""
-        return {
-            "n_calls": self.n_calls,
-            "n_relinearizations": self.n_relinearizations
-        }
+        return {"n_calls": self.n_calls, "n_relinearizations": self.n_relinearizations}
 
 
 # =============================================================================
@@ -832,7 +843,7 @@ def run_optimizer(
     bounds: List[Tuple[float, float]],
     method: str = "L-BFGS-B",
     maxiter: int = 2000,
-    seed: int = 42
+    seed: int = 42,
 ) -> Dict[str, Any]:
     """
     Run optimization with specified method.
@@ -858,9 +869,9 @@ def run_optimizer(
             res = minimize(
                 objective_func,
                 x0,
-                method='L-BFGS-B',
+                method="L-BFGS-B",
                 bounds=bounds,
-                options={'disp': False, 'maxiter': maxiter, 'ftol': 1e-9, 'gtol': 1e-9}
+                options={"disp": False, "maxiter": maxiter, "ftol": 1e-9, "gtol": 1e-9},
             )
 
         elif method == "Nelder-Mead":
@@ -869,25 +880,25 @@ def run_optimizer(
                 penalty = 0.0
                 for i, (low, high) in enumerate(bounds):
                     if x[i] < low:
-                        penalty += 1e6 * (low - x[i])**2
+                        penalty += 1e6 * (low - x[i]) ** 2
                     elif x[i] > high:
-                        penalty += 1e6 * (x[i] - high)**2
+                        penalty += 1e6 * (x[i] - high) ** 2
                 return objective_func(x) + penalty
 
             res = minimize(
                 bounded_objective,
                 x0,
-                method='Nelder-Mead',
-                options={'disp': False, 'maxiter': maxiter, 'xatol': 1e-8, 'fatol': 1e-8}
+                method="Nelder-Mead",
+                options={"disp": False, "maxiter": maxiter, "xatol": 1e-8, "fatol": 1e-8},
             )
 
         elif method == "Powell":
             res = minimize(
                 objective_func,
                 x0,
-                method='Powell',
+                method="Powell",
                 bounds=bounds,
-                options={'disp': False, 'maxiter': maxiter, 'ftol': 1e-9}
+                options={"disp": False, "maxiter": maxiter, "ftol": 1e-9},
             )
 
         elif method == "DE" or method == "differential_evolution":
@@ -898,24 +909,20 @@ def run_optimizer(
                 maxiter=maxiter,
                 seed=seed,
                 polish=True,  # Use L-BFGS-B to polish final result
-                updating='deferred',
+                updating="deferred",
                 workers=1,
-                disp=False
+                disp=False,
             )
 
         elif method == "basinhopping":
-            minimizer_kwargs = {
-                "method": "L-BFGS-B",
-                "bounds": bounds,
-                "options": {'maxiter': 500}
-            }
+            minimizer_kwargs = {"method": "L-BFGS-B", "bounds": bounds, "options": {"maxiter": 500}}
             res = basinhopping(
                 objective_func,
                 x0,
                 minimizer_kwargs=minimizer_kwargs,
                 niter=maxiter // 10,
                 seed=seed,
-                disp=False
+                disp=False,
             )
 
         elif method == "dual_annealing":
@@ -925,7 +932,7 @@ def run_optimizer(
                 x0=x0,
                 maxiter=maxiter,
                 seed=seed,
-                no_local_search=False
+                no_local_search=False,
             )
 
         else:
@@ -934,14 +941,14 @@ def run_optimizer(
         elapsed = time.time() - start_time
 
         return {
-            "success": bool(getattr(res, 'success', True)),
+            "success": bool(getattr(res, "success", True)),
             "x": res.x,
             "fun": res.fun,
-            "nfev": getattr(res, 'nfev', -1),
-            "nit": getattr(res, 'nit', -1),
-            "message": str(getattr(res, 'message', '')),
+            "nfev": getattr(res, "nfev", -1),
+            "nit": getattr(res, "nit", -1),
+            "message": str(getattr(res, "message", "")),
             "elapsed": elapsed,
-            "method": method
+            "method": method,
         }
 
     except Exception as e:
@@ -954,7 +961,7 @@ def run_optimizer(
             "nit": 0,
             "message": str(e),
             "elapsed": time.time() - start_time,
-            "method": method
+            "method": method,
         }
 
 
@@ -967,7 +974,7 @@ def run_deterministic_estimation(
     args: argparse.Namespace,
     output_dir: Path,
     metadata: Dict[str, Any],
-    phi_init_array: Optional[np.ndarray] = None
+    phi_init_array: Optional[np.ndarray] = None,
 ) -> Dict[str, Any]:
     """
     Run deterministic parameter estimation with improvements:
@@ -1022,7 +1029,7 @@ def run_deterministic_estimation(
     active_bounds = [nishioka_bounds[i] for i in active_indices]
 
     # 3. Create Evaluator
-    sigma_obs = args.sigma_obs if args.sigma_obs else metadata.get('sigma_obs_estimated', 0.05)
+    sigma_obs = args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
 
     evaluator = LogLikelihoodEvaluator(
         solver_kwargs=solver_kwargs,
@@ -1045,7 +1052,7 @@ def run_deterministic_estimation(
         theta_base=theta_base,
         active_indices=active_indices,
         relinearization_threshold=args.relinearization_threshold,
-        min_relinearization_interval=args.min_relinearization_interval
+        min_relinearization_interval=args.min_relinearization_interval,
     )
 
     # 5. Generate Initial Points using LHS (Improvement 2)
@@ -1053,11 +1060,11 @@ def run_deterministic_estimation(
 
     if args.num_starts == 1:
         # Single start: use midpoint
-        x0_samples = np.array([[(b[0] + b[1])/2.0 for b in active_bounds]])
+        x0_samples = np.array([[(b[0] + b[1]) / 2.0 for b in active_bounds]])
     else:
         x0_samples = generate_lhs_samples(active_bounds, args.num_starts, seed=args.seed)
         # Replace first sample with midpoint (deterministic reference)
-        x0_samples[0] = np.array([(b[0] + b[1])/2.0 for b in active_bounds])
+        x0_samples[0] = np.array([(b[0] + b[1]) / 2.0 for b in active_bounds])
 
     # 6. Run Multi-Start Optimization (Improvement 1)
     logger.info(f"Starting {args.optimizer} optimization with {args.num_starts} starts...")
@@ -1084,7 +1091,7 @@ def run_deterministic_estimation(
             bounds=active_bounds,
             method=args.optimizer,
             maxiter=args.maxiter,
-            seed=args.seed + i_start
+            seed=args.seed + i_start,
         )
 
         # Get adaptive optimizer stats
@@ -1114,7 +1121,7 @@ def run_deterministic_estimation(
             "theta_MAP_full": theta_base,
             "logL": -1e20,
             "elapsed_time": elapsed,
-            "n_evaluations": 0
+            "n_evaluations": 0,
         }
 
     logger.info(f"Best LogL: {best_logL:.4f}")
@@ -1133,10 +1140,7 @@ def run_deterministic_estimation(
         return -logL if logL > -1e10 else 1e20
 
     ci_results = compute_hessian_and_ci(
-        clean_objective,
-        optimized_theta_active,
-        active_bounds,
-        confidence_level=0.95
+        clean_objective, optimized_theta_active, active_bounds, confidence_level=0.95
     )
 
     if ci_results["success"]:
@@ -1148,13 +1152,13 @@ def run_deterministic_estimation(
     # 8b. Check convergence quality (NEW)
     logger.info("Checking convergence quality...")
     convergence_check = check_convergence_quality(
-        clean_objective,
-        optimized_theta_active,
-        active_bounds
+        clean_objective, optimized_theta_active, active_bounds
     )
 
     if convergence_check["n_at_midpoint"] > 0:
-        logger.warning(f"WARNING: {convergence_check['n_at_midpoint']} parameters at midpoint - may indicate poor sensitivity")
+        logger.warning(
+            f"WARNING: {convergence_check['n_at_midpoint']} parameters at midpoint - may indicate poor sensitivity"
+        )
     if convergence_check["n_at_boundary"] > 0:
         logger.warning(f"WARNING: {convergence_check['n_at_boundary']} parameters at boundary")
     if not convergence_check["is_local_minimum"]:
@@ -1163,9 +1167,7 @@ def run_deterministic_estimation(
     # 9. Compute Model Selection Metrics (Improvement 6)
     n_data_points = data.size  # Total number of observations
     model_metrics = compute_model_selection_metrics(
-        logL=best_logL,
-        n_params=n_params,
-        n_data_points=n_data_points
+        logL=best_logL, n_params=n_params, n_data_points=n_data_points
     )
 
     logger.info(f"Model Selection: AIC={model_metrics['AIC']:.2f}, BIC={model_metrics['BIC']:.2f}")
@@ -1182,7 +1184,6 @@ def run_deterministic_estimation(
         "n_evaluations": sum(r.get("nfev", 0) for r in all_results),
         "n_starts": args.num_starts,
         "all_results_logL": [-r["fun"] for r in all_results],
-
         # Confidence Intervals (Improvement 3 - IMPROVED)
         "std_errors": ci_results["std_errors"],
         "ci_lower": ci_results["ci_lower"],
@@ -1190,20 +1191,18 @@ def run_deterministic_estimation(
         "ci_success": ci_results["success"],
         "hessian_condition_number": ci_results.get("condition_number", np.inf),
         "hessian_is_positive_definite": ci_results.get("is_positive_definite", False),
-
         # Model Selection (Improvement 6)
         "AIC": model_metrics["AIC"],
         "AICc": model_metrics["AICc"],
         "BIC": model_metrics["BIC"],
         "n_params": n_params,
         "n_data_points": n_data_points,
-
         # Adaptive Linearization Stats (Improvement 4)
-        "total_relinearizations": sum(r.get("adaptive_stats", {}).get("n_relinearizations", 0) for r in all_results),
-
+        "total_relinearizations": sum(
+            r.get("adaptive_stats", {}).get("n_relinearizations", 0) for r in all_results
+        ),
         # Convergence Diagnostics (NEW)
         "convergence": convergence_check,
-
         # Metadata
         "active_indices": active_indices,
         "locked_indices": LOCKED_INDICES,
@@ -1212,6 +1211,7 @@ def run_deterministic_estimation(
     }
 
     return result
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -1229,87 +1229,123 @@ Examples:
   # Global search with Basin-Hopping
   python estimate_deterministic.py --condition Dysbiotic --cultivation Static \\
       --optimizer basinhopping --num-starts 5
-        """
+        """,
     )
 
     # Experimental condition
-    parser.add_argument("--condition", type=str, default="Commensal",
-                        choices=["Commensal", "Dysbiotic"],
-                        help="Experimental condition")
-    parser.add_argument("--cultivation", type=str, default="Static",
-                        choices=["Static", "HOBIC"],
-                        help="Cultivation method")
+    parser.add_argument(
+        "--condition",
+        type=str,
+        default="Commensal",
+        choices=["Commensal", "Dysbiotic"],
+        help="Experimental condition",
+    )
+    parser.add_argument(
+        "--cultivation",
+        type=str,
+        default="Static",
+        choices=["Static", "HOBIC"],
+        help="Cultivation method",
+    )
 
     # Solver parameters
-    parser.add_argument("--dt", type=float, default=1e-4,
-                        help="Time step for solver")
-    parser.add_argument("--maxtimestep", type=int, default=2500,
-                        help="Maximum number of time steps")
-    parser.add_argument("--c-const", type=float, default=25.0,
-                        help="c constant for model")
-    parser.add_argument("--alpha-const", type=float, default=0.0,
-                        help="alpha constant for model")
-    parser.add_argument("--phi-init", type=float, default=0.02,
-                        help="Initial phi value")
+    parser.add_argument("--dt", type=float, default=1e-4, help="Time step for solver")
+    parser.add_argument(
+        "--maxtimestep", type=int, default=2500, help="Maximum number of time steps"
+    )
+    parser.add_argument("--c-const", type=float, default=25.0, help="c constant for model")
+    parser.add_argument("--alpha-const", type=float, default=0.0, help="alpha constant for model")
+    parser.add_argument("--phi-init", type=float, default=0.02, help="Initial phi value")
 
     # Data loading
-    parser.add_argument("--start-from-day", type=int, default=1,
-                        help="Start fitting from this day")
-    parser.add_argument("--use-absolute-volume", action="store_true",
-                        help="Use absolute volume instead of fractions")
-    parser.add_argument("--sigma-obs", type=float, default=None,
-                        help="Observation noise (auto-estimated if not provided)")
+    parser.add_argument("--start-from-day", type=int, default=1, help="Start fitting from this day")
+    parser.add_argument(
+        "--use-absolute-volume",
+        action="store_true",
+        help="Use absolute volume instead of fractions",
+    )
+    parser.add_argument(
+        "--sigma-obs",
+        type=float,
+        default=None,
+        help="Observation noise (auto-estimated if not provided)",
+    )
 
     # Output
-    parser.add_argument("--output-dir", type=str, default="deterministic_results",
-                        help="Output directory for results")
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="deterministic_results",
+        help="Output directory for results",
+    )
 
     # Optimization settings (Improvement 1)
-    parser.add_argument("--optimizer", type=str, default="L-BFGS-B",
-                        choices=["L-BFGS-B", "Nelder-Mead", "Powell", "DE",
-                                 "differential_evolution", "basinhopping", "dual_annealing"],
-                        help="Optimization method")
-    parser.add_argument("--num-starts", type=int, default=1,
-                        help="Number of multi-start runs (LHS sampling)")
-    parser.add_argument("--maxiter", type=int, default=2000,
-                        help="Maximum iterations per optimization run")
-    parser.add_argument("--seed", type=int, default=42,
-                        help="Random seed for reproducibility")
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="L-BFGS-B",
+        choices=[
+            "L-BFGS-B",
+            "Nelder-Mead",
+            "Powell",
+            "DE",
+            "differential_evolution",
+            "basinhopping",
+            "dual_annealing",
+        ],
+        help="Optimization method",
+    )
+    parser.add_argument(
+        "--num-starts", type=int, default=1, help="Number of multi-start runs (LHS sampling)"
+    )
+    parser.add_argument(
+        "--maxiter", type=int, default=2000, help="Maximum iterations per optimization run"
+    )
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
 
     # Adaptive Linearization (Improvement 4)
-    parser.add_argument("--relinearization-threshold", type=float, default=0.5,
-                        help="Relative distance threshold for relinearization")
-    parser.add_argument("--min-relinearization-interval", type=int, default=50,
-                        help="Minimum calls between relinearizations")
+    parser.add_argument(
+        "--relinearization-threshold",
+        type=float,
+        default=0.5,
+        help="Relative distance threshold for relinearization",
+    )
+    parser.add_argument(
+        "--min-relinearization-interval",
+        type=int,
+        default=50,
+        help="Minimum calls between relinearizations",
+    )
 
     # Legacy (kept for compatibility)
-    parser.add_argument("--random-init", action="store_true",
-                        help="[Deprecated] Use --num-starts > 1 instead")
-    
+    parser.add_argument(
+        "--random-init", action="store_true", help="[Deprecated] Use --num-starts > 1 instead"
+    )
+
     args = parser.parse_args()
-    
+
     setup_logging()
-    
+
     # Output setup
     output_dir = DATA_5SPECIES_ROOT / args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Load Data
     data, days, sigma_obs, phi_init_exp, metadata = load_experimental_data(
-        DATA_5SPECIES_ROOT, 
+        DATA_5SPECIES_ROOT,
         condition=args.condition,
         cultivation=args.cultivation,
-        start_from_day=args.start_from_day
+        start_from_day=args.start_from_day,
     )
-    
+
     # Time conversion
     t_model, idx_sparse = convert_days_to_model_time(days, args.dt, args.maxtimestep)
-    
+
     # Run Estimation
     result = run_deterministic_estimation(
         data, idx_sparse, args, output_dir, metadata, phi_init_array=phi_init_exp
     )
-    
+
     # Save Results
     save_json(output_dir / "theta_MLE.json", result["theta_MAP_full"].tolist())
 
@@ -1344,25 +1380,27 @@ Examples:
 
     # Save parameter table with CIs as CSV
     param_names = [f"theta_{i}" for i in result["active_indices"]]
-    param_df = pd.DataFrame({
-        "index": result["active_indices"],
-        "name": param_names,
-        "MLE": result["MAP"],
-        "std_error": result["std_errors"],
-        "ci_lower_95": result["ci_lower"],
-        "ci_upper_95": result["ci_upper"],
-    })
+    param_df = pd.DataFrame(
+        {
+            "index": result["active_indices"],
+            "name": param_names,
+            "MLE": result["MAP"],
+            "std_error": result["std_errors"],
+            "ci_lower_95": result["ci_lower"],
+            "ci_upper_95": result["ci_upper"],
+        }
+    )
     param_df.to_csv(output_dir / "parameter_estimates.csv", index=False)
 
     # Print readable result
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("DETERMINISTIC ESTIMATION RESULTS (Improved v2)")
-    print("="*70)
+    print("=" * 70)
     print(f"Condition:      {args.condition} {args.cultivation}")
     print(f"Optimizer:      {args.optimizer} ({args.num_starts} starts)")
     print(f"Success:        {result['success']}")
     print(f"Elapsed Time:   {result['elapsed_time']:.2f}s")
-    print("-"*70)
+    print("-" * 70)
     print("LIKELIHOOD & MODEL SELECTION:")
     print(f"  Log-Likelihood: {result['logL']:.4f}")
     print(f"  AIC:            {result['AIC']:.2f}")
@@ -1370,23 +1408,23 @@ Examples:
     print(f"  BIC:            {result['BIC']:.2f}")
     print(f"  n_params:       {result['n_params']}")
     print(f"  n_data_points:  {result['n_data_points']}")
-    print("-"*70)
+    print("-" * 70)
     print("ADAPTIVE LINEARIZATION:")
     print(f"  Total Relinearizations: {result['total_relinearizations']}")
-    print("-"*70)
+    print("-" * 70)
     print("PARAMETER ESTIMATES (with 95% CI):")
-    print("-"*70)
+    print("-" * 70)
     print(f"{'Index':<8} {'MLE':>12} {'Std.Err':>12} {'CI_low':>12} {'CI_high':>12}")
-    print("-"*70)
+    print("-" * 70)
     for i, idx in enumerate(result["active_indices"]):
         mle_val = result["MAP"][i]
         se_val = result["std_errors"][i]
         ci_l = result["ci_lower"][i]
         ci_h = result["ci_upper"][i]
         print(f"theta_{idx:<3} {mle_val:>12.6f} {se_val:>12.6f} {ci_l:>12.6f} {ci_h:>12.6f}")
-    print("="*70)
+    print("=" * 70)
     print(f"\nResults saved to: {output_dir}")
-    print("="*70)
+    print("=" * 70)
 
     # 11. Automated Analysis (Improvement 7)
     try:
@@ -1397,12 +1435,12 @@ Examples:
 
     # 12. Generate Recommendations (NEW)
     recommendations = generate_recommendations(result, fit_metrics)
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("RECOMMENDATIONS:")
-    print("="*70)
+    print("=" * 70)
     for i, rec in enumerate(recommendations, 1):
         print(f"{i}. {rec}")
-    print("="*70)
+    print("=" * 70)
 
     # 7. Visualization
     logger.info("Generating fit plots...")
@@ -1422,7 +1460,7 @@ Examples:
     else:
         solver_kwargs["phi_init"] = args.phi_init
 
-    active_species_idx = model_constants['active_species']
+    active_species_idx = model_constants["active_species"]
 
     logger.info("Running full simulation for plotting...")
     solver = BiofilmNewtonSolver5S(**solver_kwargs)
@@ -1443,7 +1481,7 @@ Examples:
 
     # Compute fit quality metrics (NEW)
     logger.info("Computing fit quality metrics...")
-    species_names = ['S.o', 'A.n', 'Vei', 'F.n', 'P.g']
+    species_names = ["S.o", "A.n", "Vei", "F.n", "P.g"]
 
     # Extract predicted values at observation times
     y_pred_at_obs = np.zeros_like(data)
@@ -1457,23 +1495,29 @@ Examples:
     save_json(output_dir / "fit_quality_metrics.json", fit_metrics)
 
     # Print fit quality
-    print("\n" + "-"*70)
+    print("\n" + "-" * 70)
     print("FIT QUALITY METRICS:")
-    print("-"*70)
+    print("-" * 70)
     print(f"{'Species':<10} {'R²':>8} {'RMSE':>10} {'NRMSE':>10} {'MAE':>10}")
-    print("-"*70)
+    print("-" * 70)
     for sp_name in species_names:
         if sp_name in fit_metrics["per_species"]:
             m = fit_metrics["per_species"][sp_name]
-            print(f"{sp_name:<10} {m['R2']:>8.4f} {m['RMSE']:>10.6f} {m['NRMSE']:>10.4f} {m['MAE']:>10.6f}")
-    print("-"*70)
-    print(f"{'Overall':<10} {fit_metrics['overall']['R2']:>8.4f} {fit_metrics['overall']['RMSE']:>10.6f} {'-':>10} {fit_metrics['overall']['MAE']:>10.6f}")
-    print("="*70)
+            print(
+                f"{sp_name:<10} {m['R2']:>8.4f} {m['RMSE']:>10.6f} {m['NRMSE']:>10.4f} {m['MAE']:>10.6f}"
+            )
+    print("-" * 70)
+    print(
+        f"{'Overall':<10} {fit_metrics['overall']['R2']:>8.4f} {fit_metrics['overall']['RMSE']:>10.6f} {'-':>10} {fit_metrics['overall']['MAE']:>10.6f}"
+    )
+    print("=" * 70)
 
     # Convergence warnings
     conv = result.get("convergence", {})
     if conv.get("n_at_midpoint", 0) > 0:
-        print(f"\n⚠️  WARNING: {conv['n_at_midpoint']} parameters at midpoint (indices: {conv.get('at_midpoint', [])})")
+        print(
+            f"\n⚠️  WARNING: {conv['n_at_midpoint']} parameters at midpoint (indices: {conv.get('at_midpoint', [])})"
+        )
         print("   This may indicate parameter unidentifiability or flat likelihood surface.")
     if conv.get("n_at_boundary", 0) > 0:
         print(f"\n⚠️  WARNING: {conv['n_at_boundary']} parameters at boundary")
@@ -1482,8 +1526,8 @@ Examples:
     # Manual plot
     import matplotlib.pyplot as plt
 
-    colors = ['#1f77b4', '#2ca02c', '#ff7f0e', '#9467bd', '#d62728']  # Better colors
-    species_names = ['S.o', 'A.n', 'Vei', 'F.n', 'P.g']
+    colors = ["#1f77b4", "#2ca02c", "#ff7f0e", "#9467bd", "#d62728"]  # Better colors
+    species_names = ["S.o", "A.n", "Vei", "F.n", "P.g"]
 
     # Calculate day scale
     day_scale = t_model[-1] / days[-1] if days[-1] > 0 else 1.0
@@ -1498,18 +1542,33 @@ Examples:
         if sp_idx >= 5:
             continue
         # Experimental data
-        ax1.scatter(days, data[:, i], label=f"{species_names[sp_idx]} (Exp)",
-                    color=colors[sp_idx], marker='o', s=50, alpha=0.8)
+        ax1.scatter(
+            days,
+            data[:, i],
+            label=f"{species_names[sp_idx]} (Exp)",
+            color=colors[sp_idx],
+            marker="o",
+            s=50,
+            alpha=0.8,
+        )
         # Simulation
-        ax1.plot(t_days_sim, y_sim[:, sp_idx], label=f"{species_names[sp_idx]} (Sim)",
-                 color=colors[sp_idx], linestyle='-', linewidth=2)
+        ax1.plot(
+            t_days_sim,
+            y_sim[:, sp_idx],
+            label=f"{species_names[sp_idx]} (Sim)",
+            color=colors[sp_idx],
+            linestyle="-",
+            linewidth=2,
+        )
 
-    ax1.set_title(f"Model Fit: {args.condition} {args.cultivation}\n"
-                  f"LogL={result['logL']:.2f}, AIC={result['AIC']:.1f}, BIC={result['BIC']:.1f}",
-                  fontsize=11)
+    ax1.set_title(
+        f"Model Fit: {args.condition} {args.cultivation}\n"
+        f"LogL={result['logL']:.2f}, AIC={result['AIC']:.1f}, BIC={result['BIC']:.1f}",
+        fontsize=11,
+    )
     ax1.set_xlabel("Days")
     ax1.set_ylabel("Volume Fraction")
-    ax1.legend(loc='upper right', fontsize=8, ncol=2)
+    ax1.legend(loc="upper right", fontsize=8, ncol=2)
     ax1.grid(True, alpha=0.3)
     ax1.set_xlim(left=0)
     ax1.set_ylim(bottom=0)
@@ -1526,22 +1585,31 @@ Examples:
     # Error bars
     errors = np.array([mle_vals - ci_lower, ci_upper - mle_vals])
 
-    bars = ax2.bar(x_pos, mle_vals, color='steelblue', alpha=0.7, edgecolor='black')
-    ax2.errorbar(x_pos, mle_vals, yerr=errors, fmt='none', ecolor='red',
-                 capsize=3, capthick=1.5, linewidth=1.5)
+    bars = ax2.bar(x_pos, mle_vals, color="steelblue", alpha=0.7, edgecolor="black")
+    ax2.errorbar(
+        x_pos,
+        mle_vals,
+        yerr=errors,
+        fmt="none",
+        ecolor="red",
+        capsize=3,
+        capthick=1.5,
+        linewidth=1.5,
+    )
 
-    ax2.axhline(y=0, color='gray', linestyle='--', linewidth=0.8)
+    ax2.axhline(y=0, color="gray", linestyle="--", linewidth=0.8)
     ax2.set_xticks(x_pos)
-    ax2.set_xticklabels([f"$\\theta_{{{i}}}$" for i in result["active_indices"]],
-                        fontsize=9, rotation=45)
+    ax2.set_xticklabels(
+        [f"$\\theta_{{{i}}}$" for i in result["active_indices"]], fontsize=9, rotation=45
+    )
     ax2.set_ylabel("Parameter Value")
     ax2.set_title("MLE Estimates with 95% CI", fontsize=11)
-    ax2.grid(True, alpha=0.3, axis='y')
+    ax2.grid(True, alpha=0.3, axis="y")
 
     plt.tight_layout()
 
     plot_path = output_dir / "fit_plot.png"
-    plt.savefig(plot_path, dpi=150, bbox_inches='tight')
+    plt.savefig(plot_path, dpi=150, bbox_inches="tight")
     plt.close()
     logger.info(f"Saved fit plot to {plot_path}")
 
@@ -1552,18 +1620,23 @@ Examples:
         all_logL = result["all_results_logL"]
         x_starts = np.arange(1, len(all_logL) + 1)
 
-        ax3.bar(x_starts, all_logL, color='lightblue', edgecolor='black')
-        ax3.axhline(y=result["logL"], color='red', linestyle='--',
-                    label=f'Best: {result["logL"]:.2f}', linewidth=2)
+        ax3.bar(x_starts, all_logL, color="lightblue", edgecolor="black")
+        ax3.axhline(
+            y=result["logL"],
+            color="red",
+            linestyle="--",
+            label=f'Best: {result["logL"]:.2f}',
+            linewidth=2,
+        )
 
         ax3.set_xlabel("Start #")
         ax3.set_ylabel("Log-Likelihood")
         ax3.set_title(f"Multi-Start Results ({args.optimizer})")
         ax3.legend()
-        ax3.grid(True, alpha=0.3, axis='y')
+        ax3.grid(True, alpha=0.3, axis="y")
 
         multistart_path = output_dir / "multistart_comparison.png"
-        plt.savefig(multistart_path, dpi=150, bbox_inches='tight')
+        plt.savefig(multistart_path, dpi=150, bbox_inches="tight")
         plt.close()
         logger.info(f"Saved multi-start plot to {multistart_path}")
 
@@ -1580,8 +1653,8 @@ Examples:
 
         # Residual plot
         ax.scatter(days, residuals[:, i], color=colors[i], s=60, alpha=0.8)
-        ax.axhline(y=0, color='gray', linestyle='--', linewidth=1)
-        ax.fill_between(days, -0.02, 0.02, alpha=0.2, color='green', label='±0.02')
+        ax.axhline(y=0, color="gray", linestyle="--", linewidth=1)
+        ax.fill_between(days, -0.02, 0.02, alpha=0.2, color="green", label="±0.02")
 
         ax.set_xlabel("Days")
         ax.set_ylabel("Residual")
@@ -1590,12 +1663,12 @@ Examples:
 
     # Summary in last subplot
     ax_sum = axes3[5]
-    ax_sum.axis('off')
+    ax_sum.axis("off")
 
-    summary_text = "FIT QUALITY SUMMARY\n" + "="*30 + "\n\n"
+    summary_text = "FIT QUALITY SUMMARY\n" + "=" * 30 + "\n\n"
     for sp_name in species_names:
-        m = fit_metrics['per_species'][sp_name]
-        status = "✓" if m['R2'] > 0.8 else ("~" if m['R2'] > 0.5 else "✗")
+        m = fit_metrics["per_species"][sp_name]
+        status = "✓" if m["R2"] > 0.8 else ("~" if m["R2"] > 0.5 else "✗")
         summary_text += f"{status} {sp_name}: R²={m['R2']:.3f}, RMSE={m['RMSE']:.4f}\n"
 
     summary_text += f"\n{'='*30}\n"
@@ -1607,17 +1680,24 @@ Examples:
     if conv.get("n_at_midpoint", 0) > 0:
         summary_text += f"\n⚠️ {conv['n_at_midpoint']} params at midpoint"
     if not conv.get("is_local_minimum", True):
-        summary_text += f"\n⚠️ May not be local minimum"
+        summary_text += "\n⚠️ May not be local minimum"
 
-    ax_sum.text(0.1, 0.9, summary_text, transform=ax_sum.transAxes,
-                fontsize=10, verticalalignment='top', fontfamily='monospace',
-                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+    ax_sum.text(
+        0.1,
+        0.9,
+        summary_text,
+        transform=ax_sum.transAxes,
+        fontsize=10,
+        verticalalignment="top",
+        fontfamily="monospace",
+        bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
+    )
 
     plt.suptitle(f"Residual Analysis: {args.condition} {args.cultivation}", fontsize=12)
     plt.tight_layout()
 
     residual_path = output_dir / "residual_analysis.png"
-    plt.savefig(residual_path, dpi=150, bbox_inches='tight')
+    plt.savefig(residual_path, dpi=150, bbox_inches="tight")
     plt.close()
     logger.info(f"Saved residual analysis to {residual_path}")
 
@@ -1632,25 +1712,26 @@ Examples:
 
         param_labels = [f"θ{i}" for i in result["active_indices"]]
 
-        bars = ax4.barh(param_labels, sensitivity, color='steelblue', alpha=0.7)
+        bars = ax4.barh(param_labels, sensitivity, color="steelblue", alpha=0.7)
         ax4.set_xlabel("Relative Sensitivity (higher = more identifiable)")
         ax4.set_title("Parameter Identifiability")
-        ax4.grid(True, alpha=0.3, axis='x')
+        ax4.grid(True, alpha=0.3, axis="x")
 
         # Color code by identifiability
         for bar, sens in zip(bars, sensitivity):
             if sens < 1:
-                bar.set_color('red')
+                bar.set_color("red")
                 bar.set_alpha(0.5)
             elif sens < 10:
-                bar.set_color('orange')
+                bar.set_color("orange")
             else:
-                bar.set_color('green')
+                bar.set_color("green")
 
         sensitivity_path = output_dir / "parameter_sensitivity.png"
-        plt.savefig(sensitivity_path, dpi=150, bbox_inches='tight')
+        plt.savefig(sensitivity_path, dpi=150, bbox_inches="tight")
         plt.close()
         logger.info(f"Saved sensitivity plot to {sensitivity_path}")
+
 
 if __name__ == "__main__":
     main()

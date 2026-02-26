@@ -31,7 +31,7 @@
 ### 1-1. Finite element modeling of the periodontal ligament under a realistic kinetic loading of the jaw system
 
 - 概要（日本語）
-  - 咀嚼時の実際の顎運動（kinematic loading）を与えた patient-specific 下顎 FEM を構築し，  
+  - 咀嚼時の実際の顎運動（kinematic loading）を与えた patient-specific 下顎 FEM を構築し，
     PDL の材料モデルの違いが歯周組織の応力・変形に与える影響を調べた研究。
   - 動的 FEM（時間変化する咀嚼サイクル）を用いて，PDL の力学特性が全顎レベルの応力場に与える役割を評価している。
 - 差分（自分の研究との違い）
@@ -41,7 +41,7 @@
 ### 1-2. McCormack et al., 2017, PLOS ONE — Inclusion of periodontal ligament fibres in mandibular finite element models leads to an increase in alveolar bone strains
 
 - 概要（日本語）
-  - 下顎 FEM において，PDL を単なる等方性材料として扱う場合と，繊維構造を明示的に含める場合を比較し，  
+  - 下顎 FEM において，PDL を単なる等方性材料として扱う場合と，繊維構造を明示的に含める場合を比較し，
     歯槽骨のひずみ分布がどの程度変化するかを検証した研究。
   - PDL の詳細な構造モデリングが，骨リモデリングに関連する応力・ひずみの評価に重要であることを示している。
 - 差分
@@ -73,7 +73,7 @@
 ### 2-1. O’Donnell et al., 2014, BMC Oral Health — Development of an in vitro periodontal biofilm model for assessing inflammatory responses
 
 - 概要
-  - 多菌種の歯周バイオフィルムと宿主細胞を共培養する in vitro モデルを構築し，  
+  - 多菌種の歯周バイオフィルムと宿主細胞を共培養する in vitro モデルを構築し，
     各種オーラルケア製品が炎症応答に与える影響を評価するプラットフォームを提案した研究。
   - 歯周病における菌叢構成と宿主応答の関係を，工学的な実験系で再現することに焦点を当てている。
 - 差分
@@ -83,7 +83,7 @@
 ### 2-2. 2024, Frontiers 系 — Modelling periodontitis in vitro: engineering strategies for oral biofilms
 
 - 概要
-  - 歯周炎・口腔バイオフィルムの in vitro モデルに関する総説で，  
+  - 歯周炎・口腔バイオフィルムの in vitro モデルに関する総説で，
     表面特性，流体環境，ガス環境，せん断力，宿主細胞との相互作用など，工学的設計要素を体系的に整理している。
   - periodontitis の病態を再現するために，どのような環境要因をどのスケールで制御すべきかを議論している。
 - 差分
@@ -125,7 +125,7 @@
 ### 3-1. Editorial: Applications of digital twin technology in dentistry, Frontiers in Bioengineering and Biotechnology, 2025
 
 - 概要
-  - デジタルツイン技術の歯科応用（矯正，インプラント，口腔外科など）を概観したエディトリアル。  
+  - デジタルツイン技術の歯科応用（矯正，インプラント，口腔外科など）を概観したエディトリアル。
   - aligner 治療における歯の移動シミュレーションや，歯–PDL 複合体のデジタルツインを用いた抜歯力学解析など，複数の研究を紹介している。
 - 差分
   - デジタルツインは主に硬組織・PDL・装置の力学シミュレーションとして用いられており，歯周バイオフィルムや菌叢ダイナミクスを統合した例はない。
@@ -143,7 +143,7 @@
 ### 3-3. AI レビュー：Redefining oral healthcare through artificial intelligence, BMC Artificial Intelligence, 2025
 
 - 概要
-  - カリエス・歯周病・口腔がんなどに対する AI 診断支援，矯正・補綴のプランニング，ロボット手術など，  
+  - カリエス・歯周病・口腔がんなどに対する AI 診断支援，矯正・補綴のプランニング，ロボット手術など，
     歯科医療における AI 応用を広くレビューした論文。
   - 電子カルテや画像データを統合した decision-support system や，デジタルツイン概念への言及も含まれる。
 - 差分
@@ -173,4 +173,3 @@
 - それらを通じた「バイオフィルム応力場とリスクの不確実性評価」
 
 を一体化する点で，既存の FEM／バイオフィルム／デジタルツイン研究の間をブリッジする新しい枠組みとして位置づけられる。
-

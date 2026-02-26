@@ -19,10 +19,10 @@ import numpy as np
 class TimingStats:
     """
     Lightweight timing aggregator (seconds + call counts) for metrics.json.
-    
+
     Tracks wall time spent in different code sections, useful for performance
     analysis and optimization.
-    
+
     Examples
     --------
     >>> stats = TimingStats()
@@ -31,14 +31,14 @@ class TimingStats:
     ...     pass
     >>> print(stats.get_s("computation"))
     """
-    
+
     seconds: Dict[str, float] = field(default_factory=lambda: defaultdict(float))
     counts: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
 
     def add(self, name: str, dt_s: float) -> None:
         """
         Add a timing measurement.
-        
+
         Parameters
         ----------
         name : str
@@ -56,12 +56,12 @@ class TimingStats:
     def get_s(self, name: str) -> float:
         """
         Get total time spent in an operation.
-        
+
         Parameters
         ----------
         name : str
             Operation name
-            
+
         Returns
         -------
         float
@@ -72,7 +72,7 @@ class TimingStats:
     def snapshot(self) -> Dict[str, Any]:
         """
         Create a snapshot of current timing statistics.
-        
+
         Returns
         -------
         Dict[str, Any]
@@ -89,14 +89,14 @@ class TimingStats:
 def timed(stats: Optional[TimingStats], name: str):
     """
     Context manager to accumulate wall time into TimingStats.
-    
+
     Parameters
     ----------
     stats : TimingStats, optional
         Timing statistics object. If None, timing is not tracked.
     name : str
         Operation name for this timing measurement
-        
+
     Examples
     --------
     >>> stats = TimingStats()

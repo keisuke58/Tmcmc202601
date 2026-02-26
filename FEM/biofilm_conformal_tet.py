@@ -83,7 +83,6 @@ ANALYSIS MODES
 """
 
 from __future__ import print_function, division
-import sys
 import os
 import struct
 import argparse
@@ -100,6 +99,7 @@ except ImportError:
 # ============================================================================
 # 1. STL READER
 # ============================================================================
+
 
 def read_stl(path):
     """
@@ -126,7 +126,7 @@ def _read_stl_binary(path):
     with open(path, "rb") as f:
         f.read(80)  # header
         n_tri = struct.unpack("<I", f.read(4))[0]
-        faces_verts  = np.zeros((n_tri, 3, 3), dtype=np.float64)
+        faces_verts = np.zeros((n_tri, 3, 3), dtype=np.float64)
         face_normals = np.zeros((n_tri, 3), dtype=np.float64)
         for i in range(n_tri):
             data = struct.unpack("<12fH", f.read(50))
@@ -162,6 +162,7 @@ def _read_stl_ascii(path):
 # 2. VERTEX DEDUPLICATION
 # ============================================================================
 
+
 def deduplicate_vertices(faces_verts, tol=1e-4):
     """
     Deduplicate vertices using rounded keys.
@@ -170,7 +171,7 @@ def deduplicate_vertices(faces_verts, tol=1e-4):
         faces : (F, 3) int     – face connectivity (0-indexed)
     """
     F = len(faces_verts)
-    raw = faces_verts.reshape(-1, 3)   # (3F, 3)
+    raw = faces_verts.reshape(-1, 3)  # (3F, 3)
 
     # Round to tolerance grid
     scale = 1.0 / tol
@@ -195,6 +196,7 @@ def deduplicate_vertices(faces_verts, tol=1e-4):
 # 3. VERTEX NORMALS (area-weighted, using stored STL face normals as sign guide)
 # ============================================================================
 
+
 def compute_vertex_normals(verts, faces, face_normals_stored=None):
     """
     Compute area-weighted vertex normals.
@@ -205,19 +207,19 @@ def compute_vertex_normals(verts, faces, face_normals_stored=None):
     V = len(verts)
     vnorms = np.zeros((V, 3), dtype=np.float64)
 
-    e1 = verts[faces[:, 1]] - verts[faces[:, 0]]   # (F,3)
-    e2 = verts[faces[:, 2]] - verts[faces[:, 0]]   # (F,3)
-    cross = np.cross(e1, e2)                        # (F,3)
-    areas = 0.5 * np.linalg.norm(cross, axis=1)    # (F,)
+    e1 = verts[faces[:, 1]] - verts[faces[:, 0]]  # (F,3)
+    e2 = verts[faces[:, 2]] - verts[faces[:, 0]]  # (F,3)
+    cross = np.cross(e1, e2)  # (F,3)
+    areas = 0.5 * np.linalg.norm(cross, axis=1)  # (F,)
     # Unit face normals from cross product
     lens = np.linalg.norm(cross, axis=1, keepdims=True)
     lens = np.where(lens < 1e-14, 1.0, lens)
-    fnorms = cross / lens                            # (F,3)
+    fnorms = cross / lens  # (F,3)
 
     # Flip if stored normals disagree (sign consistency)
     if face_normals_stored is not None:
         dot = np.sum(fnorms * face_normals_stored, axis=1)  # (F,)
-        flip = (dot < 0).astype(float) * -2 + 1            # ±1
+        flip = (dot < 0).astype(float) * -2 + 1  # ±1
         fnorms = fnorms * flip[:, np.newaxis]
 
     # Accumulate area-weighted normals to vertices
@@ -234,6 +236,7 @@ def compute_vertex_normals(verts, faces, face_normals_stored=None):
 # ============================================================================
 # 4. LAPLACIAN SMOOTHING (optional, for offset self-intersection fix)
 # ============================================================================
+
 
 def build_adjacency(faces, V):
     """Return adjacency list (list of sets) for V vertices and given faces."""
@@ -293,6 +296,7 @@ def laplacian_smooth_offset(outer_verts, inner_verts, faces, iterations=3, lam=0
 # 5. MULTI-LAYER PRISM-TO-TET MESHING
 # ============================================================================
 
+
 def build_tet_mesh(verts_inner, verts_outer, faces, n_layers):
     """
     Build a multi-layer conformal tetrahedral mesh between two surfaces.
@@ -336,18 +340,18 @@ def build_tet_mesh(verts_inner, verts_outer, faces, n_layers):
 
     idx = 0
     for k in range(n_layers):
-        bot_off = k * V          # global index offset for bottom layer
-        top_off = (k + 1) * V   # global index offset for top layer
+        bot_off = k * V  # global index offset for bottom layer
+        top_off = (k + 1) * V  # global index offset for top layer
 
         for f_i, (i0, i1, i2) in enumerate(faces):
             B0, B1, B2 = bot_off + i0, bot_off + i1, bot_off + i2
             T0, T1, T2 = top_off + i0, top_off + i1, top_off + i2
 
             # Canonical 3-tet split of prism {B0,B1,B2,T0,T1,T2}
-            tets[idx]     = [B0, B1, B2, T2]
+            tets[idx] = [B0, B1, B2, T2]
             tets[idx + 1] = [B0, B1, T2, T1]
             tets[idx + 2] = [B0, T1, T2, T0]
-            tet_layers[idx]     = k
+            tet_layers[idx] = k
             tet_layers[idx + 1] = k
             tet_layers[idx + 2] = k
             idx += 3
@@ -361,6 +365,7 @@ def build_tet_mesh(verts_inner, verts_outer, faces, n_layers):
 # ============================================================================
 # 6. DI FIELD READER
 # ============================================================================
+
 
 def read_di_csv(path):
     """
@@ -387,7 +392,7 @@ def read_di_csv(path):
                 if xi_col is not None and di_col is not None:
                     continue
                 else:
-                    xi_col = di_col = None   # no valid header yet
+                    xi_col = di_col = None  # no valid header yet
                 continue
             try:
                 xs.append(float(row[xi_col]))
@@ -400,6 +405,7 @@ def read_di_csv(path):
 # ============================================================================
 # 7. DI BIN ASSIGNMENT PER TET
 # ============================================================================
+
 
 def assign_di_bins(
     tet_layers: np.ndarray,
@@ -439,7 +445,7 @@ def assign_di_bins(
     x_range = x_max - x_min if x_max > x_min else 1.0
 
     di_max = di_vals_field.max() if len(di_vals_field) else 1.0
-    bin_w  = di_max / n_bins if n_bins > 0 else 1.0
+    bin_w = di_max / n_bins if n_bins > 0 else 1.0
 
     # Build 1D KD-tree on x-coordinates of DI field
     tree_1d = cKDTree(xs_field.reshape(-1, 1))
@@ -447,7 +453,7 @@ def assign_di_bins(
     tet_bins = np.zeros(len(tet_layers), dtype=np.int32)
     for i, layer in enumerate(tet_layers):
         rho_norm = (layer + 0.5) / n_layers
-        x_query  = x_min + rho_norm * x_range
+        x_query = x_min + rho_norm * x_range
         _, nn_idx = tree_1d.query([[x_query]])
         di_val = di_vals_field[nn_idx[0]]
         b = int(di_val / bin_w)
@@ -470,6 +476,7 @@ def assign_di_bins(
 # 8. OUTER FACE LOAD COMPUTATION (concentrated forces from pressure)
 # ============================================================================
 
+
 def compute_outer_face_loads(verts_outer, faces, pressure, vnorms_outer):
     """
     Compute per-node concentrated forces on the outer surface due to
@@ -488,7 +495,7 @@ def compute_outer_face_loads(verts_outer, faces, pressure, vnorms_outer):
     Returns:
         node_forces : dict  { node_idx (0-based) : np.array(fx, fy, fz) [N] }
     """
-    Pa_to_Nmm2 = 1.0e-6   # 1 Pa = 1e-6 N/mm²; area in mm² → force in N
+    Pa_to_Nmm2 = 1.0e-6  # 1 Pa = 1e-6 N/mm²; area in mm² → force in N
     node_forces = {}
     for i0, i1, i2 in faces:
         v0 = verts_outer[i0]
@@ -497,7 +504,7 @@ def compute_outer_face_loads(verts_outer, faces, pressure, vnorms_outer):
         e1 = v1 - v0
         e2 = v2 - v0
         cross = np.cross(e1, e2)
-        area  = 0.5 * np.linalg.norm(cross)  # mm²
+        area = 0.5 * np.linalg.norm(cross)  # mm²
         if area < 1e-20:
             continue
         # Inward surface normal (toward tooth) = average outward normal flipped
@@ -508,7 +515,7 @@ def compute_outer_face_loads(verts_outer, faces, pressure, vnorms_outer):
         n_inward = -(n_avg / n_len)
         # Total force on this face [N]; divide by 3 for nodal contribution
         f_total_N = pressure * Pa_to_Nmm2 * area
-        f_node    = (f_total_N / 3.0) * n_inward
+        f_node = (f_total_N / 3.0) * n_inward
 
         for vi in [i0, i1, i2]:
             if vi not in node_forces:
@@ -521,6 +528,7 @@ def compute_outer_face_loads(verts_outer, faces, pressure, vnorms_outer):
 # ============================================================================
 # 9. ABAQUS C3D4 INP WRITER
 # ============================================================================
+
 
 def _write_nset(f, name, indices, indent=""):
     """Write *Nset block. indices are 1-based."""
@@ -548,13 +556,31 @@ def _write_elset(f, name, labels):
         f.write(", ".join(row) + "\n")
 
 
-def write_abaqus_inp(out_path, nodes, tets, tet_bins, inner_nodes, outer_nodes,
-                     bin_E_stiff, aniso_ratio, nu, n_bins,
-                     pressure, bc_mode,
-                     verts_outer, faces, vnorms_outer,
-                     stl_path, di_csv_path, n_layers, thickness,
-                     nlgeom=False, growth_eigenstrain=0.0,
-                     T_nodes=None, neo_hookean=False):
+def write_abaqus_inp(
+    out_path,
+    nodes,
+    tets,
+    tet_bins,
+    inner_nodes,
+    outer_nodes,
+    bin_E_stiff,
+    aniso_ratio,
+    nu,
+    n_bins,
+    pressure,
+    bc_mode,
+    verts_outer,
+    faces,
+    vnorms_outer,
+    stl_path,
+    di_csv_path,
+    n_layers,
+    thickness,
+    nlgeom=False,
+    growth_eigenstrain=0.0,
+    T_nodes=None,
+    neo_hookean=False,
+):
     """
     Write a complete Abaqus C3D4 INP file.
 
@@ -562,19 +588,19 @@ def write_abaqus_inp(out_path, nodes, tets, tet_bins, inner_nodes, outer_nodes,
     Element numbering: 1-based.
     """
     N_nodes = len(nodes)
-    N_tets  = len(tets)
+    N_tets = len(tets)
 
     # Bot / Top node sets (by z-coordinate of inner surface vertices)
     z_inner = nodes[inner_nodes, 2]
     z_min = z_inner.min()
     z_max = z_inner.max()
-    z_tol = (z_max - z_min) * 0.02 + 0.1   # 2% of height + 0.1 mm
+    z_tol = (z_max - z_min) * 0.02 + 0.1  # 2% of height + 0.1 mm
 
     # Collect bot/top nodes from ALL layers (full column fix at bot/top)
     bot_nodes_set = set()
     top_nodes_set = set()
     for k in range(n_layers + 1):
-        off = k * len(verts_outer)   # verts_outer same size as verts_inner
+        off = k * len(verts_outer)  # verts_outer same size as verts_inner
         V = len(verts_outer)
         for vi in range(V):
             z = nodes[off + vi, 2]
@@ -598,8 +624,10 @@ def write_abaqus_inp(out_path, nodes, tets, tet_bins, inner_nodes, outer_nodes,
         f.write("** biofilm_conformal_tet.py – Conformal C3D4 biofilm mesh\n")
         f.write("** STL   : %s\n" % os.path.basename(stl_path))
         f.write("** DI CSV: %s\n" % os.path.basename(di_csv_path))
-        f.write("** Thickness: %.3f mm  Layers: %d  Total nodes: %d  Total tets: %d\n" % (
-            thickness, n_layers, N_nodes, N_tets))
+        f.write(
+            "** Thickness: %.3f mm  Layers: %d  Total nodes: %d  Total tets: %d\n"
+            % (thickness, n_layers, N_nodes, N_tets)
+        )
         f.write("** Inner face: tooth STL surface (zero penetration by construction)\n")
         f.write("**\n")
         f.write("*Heading\n")
@@ -615,7 +643,7 @@ def write_abaqus_inp(out_path, nodes, tets, tet_bins, inner_nodes, outer_nodes,
         # ── Elements (C3D4) ───────────────────────────────────────────────────
         f.write("*Element, type=C3D4\n")
         for i, tet in enumerate(tets):
-            n1, n2, n3, n4 = tet + 1   # 1-based
+            n1, n2, n3, n4 = tet + 1  # 1-based
             f.write(" %d, %d, %d, %d, %d\n" % (i + 1, n1, n2, n3, n4))
         f.write("**\n")
 
@@ -659,13 +687,17 @@ def write_abaqus_inp(out_path, nodes, tets, tet_bins, inner_nodes, outer_nodes,
         if growth_eigenstrain > 0.0:
             f.write("** *Expansion added for growth eigenstrain thermal analogy\n")
             if T_nodes is not None:
-                f.write("** SPATIAL: T_node(x)=T_mean*DI(x)/DI_mean, T_mean=%.6g\n" % (
-                    growth_eigenstrain / 3.0))
+                f.write(
+                    "** SPATIAL: T_node(x)=T_mean*DI(x)/DI_mean, T_mean=%.6g\n"
+                    % (growth_eigenstrain / 3.0)
+                )
             else:
-                f.write("** UNIFORM: alpha_T=1.0, T_growth=%.6g => eps_growth=%.6g per direction\n" % (
-                    growth_eigenstrain / 3.0, growth_eigenstrain / 3.0))
+                f.write(
+                    "** UNIFORM: alpha_T=1.0, T_growth=%.6g => eps_growth=%.6g per direction\n"
+                    % (growth_eigenstrain / 3.0, growth_eigenstrain / 3.0)
+                )
         for b in range(n_bins):
-            E_MPa = bin_E_stiff[b] * 1e-6   # Pa → MPa (Abaqus mm/N/MPa system)
+            E_MPa = bin_E_stiff[b] * 1e-6  # Pa → MPa (Abaqus mm/N/MPa system)
             E_MPa = max(E_MPa, 1e-8)
             f.write("*Material, name=MAT_ANISO_%02d\n" % b)
             if neo_hookean:
@@ -728,15 +760,19 @@ def write_abaqus_inp(out_path, nodes, tets, tet_bins, inner_nodes, outer_nodes,
             eps_growth = growth_eigenstrain / 3.0
             spatial_mode = T_nodes is not None
             f.write("** =====  STEP 1: GROWTH EIGENSTRAIN (thermal analogy)  =====\n")
-            f.write("** alpha_final=%.4g  eps_growth=%.4g per direction\n" % (
-                growth_eigenstrain, eps_growth))
+            f.write(
+                "** alpha_final=%.4g  eps_growth=%.4g per direction\n"
+                % (growth_eigenstrain, eps_growth)
+            )
             f.write("** F_g = (1+alpha)I  →  T_growth = eps_growth = alpha/3\n")
             f.write("** alpha_T=1.0 → eps_thermal = T = eps_growth  (isotropic, stress-free)\n")
             if spatial_mode:
                 T_mean = T_nodes.mean()
                 f.write("** SPATIAL MODE: T_node(x) = T_mean*DI(x)/DI_mean\n")
-                f.write("**   T_mean=%.4g  T_min=%.4g  T_max=%.4g\n" % (
-                    T_mean, T_nodes.min(), T_nodes.max()))
+                f.write(
+                    "**   T_mean=%.4g  T_min=%.4g  T_max=%.4g\n"
+                    % (T_mean, T_nodes.min(), T_nodes.max())
+                )
             f.write("*Step, name=GROWTH, nlgeom=%s\n" % nlgeom_str)
             f.write(" Growth-induced eigenstrain: constrained expansion by tooth adhesion\n")
             f.write("*Static\n")
@@ -779,11 +815,13 @@ def write_abaqus_inp(out_path, nodes, tets, tet_bins, inner_nodes, outer_nodes,
 
         # Concentrated forces on outer face nodes (simulating distributed pressure)
         # Unit: Pa * 1e-6 * mm² = N  (Abaqus mm/N/MPa system)
-        f.write("** Concentrated forces: pressure=%.3g Pa (=%.4g MPa), forces in N\n" % (
-            pressure, pressure * 1e-6))
+        f.write(
+            "** Concentrated forces: pressure=%.3g Pa (=%.4g MPa), forces in N\n"
+            % (pressure, pressure * 1e-6)
+        )
         f.write("*Cload\n")
         for vi, fvec in sorted(outer_node_forces.items()):
-            ni = outer_nodes[vi] + 1   # 1-based global node number
+            ni = outer_nodes[vi] + 1  # 1-based global node number
             if abs(fvec[0]) > 1e-20:
                 f.write(" %d, 1, %.8g\n" % (ni, fvec[0]))
             if abs(fvec[1]) > 1e-20:
@@ -808,29 +846,44 @@ def write_abaqus_inp(out_path, nodes, tets, tet_bins, inner_nodes, outer_nodes,
 # 10. VALIDATION REPORT
 # ============================================================================
 
-def write_validation_report(out_path, nodes, tets, tet_layers, tet_bins,
-                             inner_nodes, outer_nodes, verts_inner, verts_outer,
-                             bin_E_stiff, n_bins, n_layers, thickness, pressure, bc_mode):
+
+def write_validation_report(
+    out_path,
+    nodes,
+    tets,
+    tet_layers,
+    tet_bins,
+    inner_nodes,
+    outer_nodes,
+    verts_inner,
+    verts_outer,
+    bin_E_stiff,
+    n_bins,
+    n_layers,
+    thickness,
+    pressure,
+    bc_mode,
+):
     """Write a plain-text validation summary alongside the INP."""
     V = len(verts_inner)
     F = len(tets) // (n_layers * 3)
 
     # Tet quality: min edge ratio
-    tet_verts = nodes[tets]   # (N_tets, 4, 3)
+    tet_verts = nodes[tets]  # (N_tets, 4, 3)
     edges = []
-    for i, j in [(0,1),(0,2),(0,3),(1,2),(1,3),(2,3)]:
+    for i, j in [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]:
         e = tet_verts[:, i, :] - tet_verts[:, j, :]
         edges.append(np.linalg.norm(e, axis=1))
-    edges = np.stack(edges, axis=1)   # (N_tets, 6)
+    edges = np.stack(edges, axis=1)  # (N_tets, 6)
     e_min = edges.min(axis=1)
     e_max = edges.max(axis=1)
-    quality = e_min / (e_max + 1e-14)   # aspect ratio (ideal tet = 1.0)
+    quality = e_min / (e_max + 1e-14)  # aspect ratio (ideal tet = 1.0)
 
     # Tet volume (signed, using triple product)
     a = tet_verts[:, 1] - tet_verts[:, 0]
     b = tet_verts[:, 2] - tet_verts[:, 0]
     c = tet_verts[:, 3] - tet_verts[:, 0]
-    vols = np.einsum('ij,ij->i', a, np.cross(b, c)) / 6.0
+    vols = np.einsum("ij,ij->i", a, np.cross(b, c)) / 6.0
     n_neg = (vols < 0).sum()
 
     # Depth check: mean distance inner→outer
@@ -851,8 +904,9 @@ def write_validation_report(out_path, nodes, tets, tet_layers, tet_bins,
         f.write("  Total nodes  : %d\n" % len(nodes))
         f.write("  Total C3D4   : %d\n" % len(tets))
         f.write("  Neg-volume   : %d  (should be 0)\n" % n_neg)
-        f.write("  Aspect ratio : min=%.4f  mean=%.4f  (ideal=1.0)\n" % (
-            quality.min(), quality.mean()))
+        f.write(
+            "  Aspect ratio : min=%.4f  mean=%.4f  (ideal=1.0)\n" % (quality.min(), quality.mean())
+        )
         f.write("  Volume range : %.4g .. %.4g mm^3\n" % (vols.min(), vols.max()))
         f.write("\n")
         f.write("DI Bins\n")
@@ -877,54 +931,95 @@ def write_validation_report(out_path, nodes, tets, tet_layers, tet_bins,
 # 11. MAIN
 # ============================================================================
 
+
 def parse_args():
     p = argparse.ArgumentParser(description="Conformal tetrahedral biofilm mesh from tooth STL")
-    p.add_argument("--stl",         required=True,           help="Tooth STL file")
-    p.add_argument("--di-csv",      required=True,           help="DI field CSV (from export_for_abaqus.py)")
-    p.add_argument("--out",         required=True,           help="Output Abaqus INP file")
-    p.add_argument("--thickness",   type=float, default=0.5, help="Biofilm thickness (mm)")
-    p.add_argument("--n-layers",    type=int,   default=4,   help="Layers through thickness")
-    p.add_argument("--n-bins",      type=int,   default=20,  help="DI material bins")
-    p.add_argument("--e-max",       type=float, default=10e9)
-    p.add_argument("--e-min",       type=float, default=0.5e9)
-    p.add_argument("--di-scale",    type=float, default=DI_SCALE_DEFAULT,
-                    help="DI normalization scale (default from material_models)")
-    p.add_argument("--di-exp",      type=float, default=2.0)
-    p.add_argument("--nu",          type=float, default=0.30)
+    p.add_argument("--stl", required=True, help="Tooth STL file")
+    p.add_argument("--di-csv", required=True, help="DI field CSV (from export_for_abaqus.py)")
+    p.add_argument("--out", required=True, help="Output Abaqus INP file")
+    p.add_argument("--thickness", type=float, default=0.5, help="Biofilm thickness (mm)")
+    p.add_argument("--n-layers", type=int, default=4, help="Layers through thickness")
+    p.add_argument("--n-bins", type=int, default=20, help="DI material bins")
+    p.add_argument("--e-max", type=float, default=10e9)
+    p.add_argument("--e-min", type=float, default=0.5e9)
+    p.add_argument(
+        "--di-scale",
+        type=float,
+        default=DI_SCALE_DEFAULT,
+        help="DI normalization scale (default from material_models)",
+    )
+    p.add_argument("--di-exp", type=float, default=2.0)
+    p.add_argument("--nu", type=float, default=0.30)
     p.add_argument("--aniso-ratio", type=float, default=0.5)
-    p.add_argument("--pressure",    type=float, default=1.0e6, help="Outer face pressure (Pa)")
-    p.add_argument("--bc-mode",     default="inner_fixed",
-                   choices=["inner_fixed", "bot_fixed", "none"],
-                   help="inner_fixed=tooth adhesion BC; bot_fixed=gum BC; none=no BC")
-    p.add_argument("--smooth-iter", type=int,   default=3,   help="Laplacian smoothing iters (0=off)")
-    p.add_argument("--dedup-tol",   type=float, default=1e-4, help="Vertex dedup tolerance (mm)")
-    p.add_argument("--validate",    action="store_true",     help="Write validation report")
-    p.add_argument("--mode",        default="substrate",
-                   choices=["substrate", "biofilm"],
-                   help=("substrate: GPa-scale tooth/PDL surface material (default); "
-                         "biofilm: Pa-scale EPS matrix material (Klempt et al. 2024). "
-                         "Sets E_max/E_min/pressure/thickness unless overridden explicitly."))
-    p.add_argument("--growth-eigenstrain", type=float, default=0.0, dest="growth_eigenstrain",
-                   help=("alpha_final from 0D ODE integration: alpha_final = k_alpha * "
-                         "integral(phi_avg, 0, t_end). Thermal analogy: *Expansion alpha_T=1.0 "
-                         "+ *Temperature T=eps_growth (=alpha/3) in GROWTH step. "
-                         "Compute from compute_alpha_eigenstrain.py. Default 0.0 = no eigenstrain."))
-    p.add_argument("--nutrient-factor", type=float, default=1.0, dest="nutrient_factor",
-                   help=("Monod nutrient correction: alpha_eff = alpha_final * nutrient_factor. "
-                         "Default 1.0 = no correction (nutrient abundant). "
-                         "Conservative oral cavity estimate: 0.75. "
-                         "Accounts for Klempt 2024 nutrient depletion (ċ = -g·c·φ)."))
-    p.add_argument("--spatial-eigenstrain", default=None, dest="spatial_eigenstrain",
-                   metavar="COND",
-                   help=("Condition name to load spatially resolved DI(x) field from "
-                         "_di_credible/{COND}/. If set, GROWTH step uses per-node "
-                         "*Temperature: T_node(x) = T_mean * DI(x)/DI_mean. "
-                         "Requires --growth-eigenstrain > 0. "
-                         "Available: commensal_static, commensal_hobic, dh_baseline, dysbiotic_static."))
-    p.add_argument("--di-credible-dir", default="_di_credible", dest="di_credible_dir",
-                   help="Base directory for DI credible interval npy data (default: _di_credible)")
-    p.add_argument("--neo-hookean", action="store_true", dest="neo_hookean",
-                   help="Use Neo-Hookean hyperelastic material instead of linear elastic")
+    p.add_argument("--pressure", type=float, default=1.0e6, help="Outer face pressure (Pa)")
+    p.add_argument(
+        "--bc-mode",
+        default="inner_fixed",
+        choices=["inner_fixed", "bot_fixed", "none"],
+        help="inner_fixed=tooth adhesion BC; bot_fixed=gum BC; none=no BC",
+    )
+    p.add_argument("--smooth-iter", type=int, default=3, help="Laplacian smoothing iters (0=off)")
+    p.add_argument("--dedup-tol", type=float, default=1e-4, help="Vertex dedup tolerance (mm)")
+    p.add_argument("--validate", action="store_true", help="Write validation report")
+    p.add_argument(
+        "--mode",
+        default="substrate",
+        choices=["substrate", "biofilm"],
+        help=(
+            "substrate: GPa-scale tooth/PDL surface material (default); "
+            "biofilm: Pa-scale EPS matrix material (Klempt et al. 2024). "
+            "Sets E_max/E_min/pressure/thickness unless overridden explicitly."
+        ),
+    )
+    p.add_argument(
+        "--growth-eigenstrain",
+        type=float,
+        default=0.0,
+        dest="growth_eigenstrain",
+        help=(
+            "alpha_final from 0D ODE integration: alpha_final = k_alpha * "
+            "integral(phi_avg, 0, t_end). Thermal analogy: *Expansion alpha_T=1.0 "
+            "+ *Temperature T=eps_growth (=alpha/3) in GROWTH step. "
+            "Compute from compute_alpha_eigenstrain.py. Default 0.0 = no eigenstrain."
+        ),
+    )
+    p.add_argument(
+        "--nutrient-factor",
+        type=float,
+        default=1.0,
+        dest="nutrient_factor",
+        help=(
+            "Monod nutrient correction: alpha_eff = alpha_final * nutrient_factor. "
+            "Default 1.0 = no correction (nutrient abundant). "
+            "Conservative oral cavity estimate: 0.75. "
+            "Accounts for Klempt 2024 nutrient depletion (ċ = -g·c·φ)."
+        ),
+    )
+    p.add_argument(
+        "--spatial-eigenstrain",
+        default=None,
+        dest="spatial_eigenstrain",
+        metavar="COND",
+        help=(
+            "Condition name to load spatially resolved DI(x) field from "
+            "_di_credible/{COND}/. If set, GROWTH step uses per-node "
+            "*Temperature: T_node(x) = T_mean * DI(x)/DI_mean. "
+            "Requires --growth-eigenstrain > 0. "
+            "Available: commensal_static, commensal_hobic, dh_baseline, dysbiotic_static."
+        ),
+    )
+    p.add_argument(
+        "--di-credible-dir",
+        default="_di_credible",
+        dest="di_credible_dir",
+        help="Base directory for DI credible interval npy data (default: _di_credible)",
+    )
+    p.add_argument(
+        "--neo-hookean",
+        action="store_true",
+        dest="neo_hookean",
+        help="Use Neo-Hookean hyperelastic material instead of linear elastic",
+    )
     return p.parse_args()
 
 
@@ -935,7 +1030,7 @@ def main():
     # Only applies when the user did NOT explicitly pass the flag.
     # Detection: compare against the hard-coded substrate defaults.
     _SUBSTRATE_DEFAULTS = dict(e_max=10e9, e_min=0.5e9, pressure=1.0e6, thickness=0.5)
-    _BIOFILM_DEFAULTS   = dict(e_max=1000.0, e_min=10.0, pressure=100.0, thickness=0.2)
+    _BIOFILM_DEFAULTS = dict(e_max=1000.0, e_min=10.0, pressure=100.0, thickness=0.2)
     if args.mode == "biofilm":
         for attr, sub_val in _SUBSTRATE_DEFAULTS.items():
             if abs(getattr(args, attr) - sub_val) < sub_val * 1e-9:
@@ -947,8 +1042,7 @@ def main():
     print("  STL    : %s" % args.stl)
     print("  DI CSV : %s" % args.di_csv)
     print("  Out    : %s" % args.out)
-    print("  thick  : %.3f mm  layers=%d  n_bins=%d" % (
-        args.thickness, args.n_layers, args.n_bins))
+    print("  thick  : %.3f mm  layers=%d  n_bins=%d" % (args.thickness, args.n_layers, args.n_bins))
     print("  E_max  : %.3g Pa  E_min: %.3g Pa" % (args.e_max, args.e_min))
     print("  BC     : %s  pressure=%.3g Pa" % (args.bc_mode, args.pressure))
     if args.neo_hookean:
@@ -974,9 +1068,10 @@ def main():
     # Re-deduplicate face_normals_stored to match new face ordering
     # Each row of faces_verts corresponds to same row of face_normals_stored
     vnorms_inner = compute_vertex_normals(verts_inner, faces, face_normals_stored)
-    print("    Normal magnitude range: %.4f .. %.4f" % (
-        np.linalg.norm(vnorms_inner, axis=1).min(),
-        np.linalg.norm(vnorms_inner, axis=1).max()))
+    print(
+        "    Normal magnitude range: %.4f .. %.4f"
+        % (np.linalg.norm(vnorms_inner, axis=1).min(), np.linalg.norm(vnorms_inner, axis=1).max())
+    )
 
     # ── Step 4: Offset outer surface ──────────────────────────────────────────
     print("[4] Creating outer offset surface (thickness=%.3f mm) ..." % args.thickness)
@@ -986,10 +1081,10 @@ def main():
     if args.smooth_iter > 0:
         print("[5] Laplacian smoothing (%d iters) ..." % args.smooth_iter)
         verts_outer = laplacian_smooth_offset(
-            verts_outer_raw, verts_inner, faces,
-            iterations=args.smooth_iter, lam=0.5)
+            verts_outer_raw, verts_inner, faces, iterations=args.smooth_iter, lam=0.5
+        )
         d_before = np.linalg.norm(verts_outer_raw - verts_inner, axis=1).mean()
-        d_after  = np.linalg.norm(verts_outer - verts_inner, axis=1).mean()
+        d_after = np.linalg.norm(verts_outer - verts_inner, axis=1).mean()
         print("    Mean thickness: %.4f mm → %.4f mm" % (d_before, d_after))
     else:
         print("[5] Smoothing skipped.")
@@ -1001,7 +1096,8 @@ def main():
     # ── Step 6: Build tet mesh ────────────────────────────────────────────────
     print("[6] Building multi-layer prism-to-tet mesh (%d layers) ..." % args.n_layers)
     nodes, tets, tet_layers, inner_nodes, outer_nodes = build_tet_mesh(
-        verts_inner, verts_outer, faces, args.n_layers)
+        verts_inner, verts_outer, faces, args.n_layers
+    )
     print("    Nodes: %d  C3D4 tets: %d" % (len(nodes), len(tets)))
 
     # Quick volume check
@@ -1009,7 +1105,7 @@ def main():
     a = tv[:, 1] - tv[:, 0]
     b = tv[:, 2] - tv[:, 0]
     c = tv[:, 3] - tv[:, 0]
-    vols = np.einsum('ij,ij->i', a, np.cross(b, c)) / 6.0
+    vols = np.einsum("ij,ij->i", a, np.cross(b, c)) / 6.0
     n_neg = (vols < 0).sum()
     print("    Negative-volume tets: %d (target: 0)" % n_neg)
     if n_neg > 0:
@@ -1019,28 +1115,37 @@ def main():
         bad = vols < 0
         tets[bad, 2], tets[bad, 3] = tets[bad, 3].copy(), tets[bad, 2].copy()
         # Recompute volumes from updated tets
-        tv2  = nodes[tets]
-        a2   = tv2[:, 1] - tv2[:, 0]
-        b2   = tv2[:, 2] - tv2[:, 0]
-        c2   = tv2[:, 3] - tv2[:, 0]
-        vols2 = np.einsum('ij,ij->i', a2, np.cross(b2, c2)) / 6.0
+        tv2 = nodes[tets]
+        a2 = tv2[:, 1] - tv2[:, 0]
+        b2 = tv2[:, 2] - tv2[:, 0]
+        c2 = tv2[:, 3] - tv2[:, 0]
+        vols2 = np.einsum("ij,ij->i", a2, np.cross(b2, c2)) / 6.0
         print("    After flip: %d negative-volume tets" % (vols2 < 0).sum())
 
     # ── Step 7: DI field mapping ──────────────────────────────────────────────
     print("[7] Reading DI field CSV ...")
     xs_field, di_vals_field = read_di_csv(args.di_csv)
-    print("    Field points: %d  x=[%.4f, %.4f]  DI=[%.5f, %.5f]" % (
-        len(xs_field), xs_field.min(), xs_field.max(),
-        di_vals_field.min(), di_vals_field.max()))
+    print(
+        "    Field points: %d  x=[%.4f, %.4f]  DI=[%.5f, %.5f]"
+        % (len(xs_field), xs_field.min(), xs_field.max(), di_vals_field.min(), di_vals_field.max())
+    )
 
     print("[7] Assigning DI bins ...")
     tet_bins, bin_E_stiff = assign_di_bins(
-        tet_layers, args.n_layers, xs_field, di_vals_field,
-        args.n_bins, args.di_scale, args.di_exp, args.e_max, args.e_min)
+        tet_layers,
+        args.n_layers,
+        xs_field,
+        di_vals_field,
+        args.n_bins,
+        args.di_scale,
+        args.di_exp,
+        args.e_max,
+        args.e_min,
+    )
     for b in range(args.n_bins):
         n_b = (tet_bins == b).sum()
         if n_b > 0:
-            print("    Bin %02d: E_stiff=%.3f GPa  n_tets=%d" % (b, bin_E_stiff[b]/1e9, n_b))
+            print("    Bin %02d: E_stiff=%.3f GPa  n_tets=%d" % (b, bin_E_stiff[b] / 1e9, n_b))
 
     # ── Step 7b: Growth eigenstrain preparation ───────────────────────────────
     # Apply nutrient correction factor to alpha_final
@@ -1052,8 +1157,9 @@ def main():
         print("[7b] Growth eigenstrain:")
         print("    alpha_final    = %.4g" % args.growth_eigenstrain)
         if abs(args.nutrient_factor - 1.0) > 1e-9:
-            print("    nutrient_factor= %.4g  →  alpha_eff=%.4g" % (
-                args.nutrient_factor, alpha_eff))
+            print(
+                "    nutrient_factor= %.4g  →  alpha_eff=%.4g" % (args.nutrient_factor, alpha_eff)
+            )
         print("    eps_growth_eff = %.4g per direction" % eps_growth_eff)
 
         # Spatial eigenstrain: load DI(x) and compute per-node T_node(x)
@@ -1061,19 +1167,19 @@ def main():
             cond = args.spatial_eigenstrain
             di_cred_path = os.path.join(args.di_credible_dir, cond)
             coords_npy = os.path.join(di_cred_path, "coords.npy")
-            diq_npy    = os.path.join(di_cred_path, "di_quantiles.npy")
+            diq_npy = os.path.join(di_cred_path, "di_quantiles.npy")
             if not os.path.exists(coords_npy) or not os.path.exists(diq_npy):
                 print("  WARNING: DI field not found at %s" % di_cred_path)
                 print("           Falling back to uniform T_growth.")
             else:
                 coords_di = np.load(coords_npy)  # (3375, 3) in [0,1]³
-                di_q      = np.load(diq_npy)     # (3, 3375)  rows: p05/p50/p95
-                di_p50    = di_q[1]               # p50 DI spatial field
-                di_mean   = di_p50.mean()
+                di_q = np.load(diq_npy)  # (3, 3375)  rows: p05/p50/p95
+                di_p50 = di_q[1]  # p50 DI spatial field
+                di_mean = di_p50.mean()
 
                 # Normalize all mesh nodes to [0,1]³ using STL bounding box
-                bbox_min   = verts_inner.min(axis=0)
-                bbox_max   = verts_inner.max(axis=0)
+                bbox_min = verts_inner.min(axis=0)
+                bbox_max = verts_inner.max(axis=0)
                 bbox_range = bbox_max - bbox_min
                 bbox_range = np.where(bbox_range < 1e-14, 1.0, bbox_range)
                 nodes_norm = (nodes - bbox_min) / bbox_range
@@ -1084,39 +1190,72 @@ def main():
                 _, idx_di = tree_di.query(nodes_norm)  # (N_nodes,)
 
                 # T_node(x) = T_mean * DI(x) / DI_mean
-                T_mean  = eps_growth_eff   # = alpha_eff / 3
+                T_mean = eps_growth_eff  # = alpha_eff / 3
                 T_nodes = T_mean * (di_p50[idx_di] / di_mean)
 
                 print("    SPATIAL eigenstrain from _di_credible/%s" % cond)
-                print("    DI_mean=%.5g  T_mean=%.5g  T_min=%.5g  T_max=%.5g" % (
-                    di_mean, T_nodes.mean(), T_nodes.min(), T_nodes.max()))
+                print(
+                    "    DI_mean=%.5g  T_mean=%.5g  T_min=%.5g  T_max=%.5g"
+                    % (di_mean, T_nodes.mean(), T_nodes.min(), T_nodes.max())
+                )
 
     # ── Step 8: Write INP ─────────────────────────────────────────────────────
     print("[8] Writing Abaqus INP ...")
     if alpha_eff > 0.0:
-        mode_str = "spatial DI(%s)" % args.spatial_eigenstrain if args.spatial_eigenstrain else "uniform"
-        print("  Eigenstrain: alpha_eff=%.4g  eps_growth=%.4g  mode=%s" % (
-            alpha_eff, alpha_eff / 3.0, mode_str))
+        mode_str = (
+            "spatial DI(%s)" % args.spatial_eigenstrain if args.spatial_eigenstrain else "uniform"
+        )
+        print(
+            "  Eigenstrain: alpha_eff=%.4g  eps_growth=%.4g  mode=%s"
+            % (alpha_eff, alpha_eff / 3.0, mode_str)
+        )
     write_abaqus_inp(
-        args.out, nodes, tets, tet_bins, inner_nodes, outer_nodes,
-        bin_E_stiff, args.aniso_ratio, args.nu, args.n_bins,
-        args.pressure, args.bc_mode,
-        verts_outer, faces, vnorms_outer,
-        args.stl, args.di_csv, args.n_layers, args.thickness,
+        args.out,
+        nodes,
+        tets,
+        tet_bins,
+        inner_nodes,
+        outer_nodes,
+        bin_E_stiff,
+        args.aniso_ratio,
+        args.nu,
+        args.n_bins,
+        args.pressure,
+        args.bc_mode,
+        verts_outer,
+        faces,
+        vnorms_outer,
+        args.stl,
+        args.di_csv,
+        args.n_layers,
+        args.thickness,
         nlgeom=(args.mode == "biofilm"),
         growth_eigenstrain=alpha_eff,
         T_nodes=T_nodes,
-        neo_hookean=args.neo_hookean)
+        neo_hookean=args.neo_hookean,
+    )
 
     # ── Step 9: Validation report ─────────────────────────────────────────────
     if args.validate:
         print("[9] Writing validation report ...")
         rep_path = args.out.replace(".inp", "_validation.txt")
         write_validation_report(
-            rep_path, nodes, tets, tet_layers, tet_bins,
-            inner_nodes, outer_nodes, verts_inner, verts_outer,
-            bin_E_stiff, args.n_bins, args.n_layers, args.thickness,
-            args.pressure, args.bc_mode)
+            rep_path,
+            nodes,
+            tets,
+            tet_layers,
+            tet_bins,
+            inner_nodes,
+            outer_nodes,
+            verts_inner,
+            verts_outer,
+            bin_E_stiff,
+            args.n_bins,
+            args.n_layers,
+            args.thickness,
+            args.pressure,
+            args.bc_mode,
+        )
 
     print("\nDone.")
     print("  Nodes   : %d" % len(nodes))

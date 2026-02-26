@@ -36,6 +36,7 @@ import os
 # Material mapping
 # ---------------------------------------------------------------------------
 
+
 def di_to_E(di_val, E_max, E_min, di_scale, exponent=2.0):
     """Power-law continuous modulus mapping."""
     if di_scale <= 0.0:
@@ -60,41 +61,62 @@ def bin_index(di_val, di_min, di_max, n_bins):
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def parse_args(argv):
-    field_csv    = None
-    mapping      = "power"
-    n_bins       = 20
-    e_max        = 10.0e9
-    e_min        = 0.5e9
-    di_exponent  = 2.0
-    di_scale     = 0.0
+    field_csv = None
+    mapping = "power"
+    n_bins = 20
+    e_max = 10.0e9
+    e_min = 0.5e9
+    di_exponent = 2.0
+    di_scale = 0.0
     di_threshold = 0.5
-    nu           = 0.30
-    job_name     = "BiofilmDemoJob"
+    nu = 0.30
+    job_name = "BiofilmDemoJob"
 
     i = 0
     while i < len(argv):
         a = argv[i]
         if a == "--field-csv" and i + 1 < len(argv):
-            field_csv = argv[i + 1]; i += 2; continue
+            field_csv = argv[i + 1]
+            i += 2
+            continue
         if a == "--mapping" and i + 1 < len(argv):
-            mapping = argv[i + 1]; i += 2; continue
+            mapping = argv[i + 1]
+            i += 2
+            continue
         if a == "--n-bins" and i + 1 < len(argv):
-            n_bins = int(argv[i + 1]); i += 2; continue
+            n_bins = int(argv[i + 1])
+            i += 2
+            continue
         if a == "--e-max" and i + 1 < len(argv):
-            e_max = float(argv[i + 1]); i += 2; continue
+            e_max = float(argv[i + 1])
+            i += 2
+            continue
         if a == "--e-min" and i + 1 < len(argv):
-            e_min = float(argv[i + 1]); i += 2; continue
+            e_min = float(argv[i + 1])
+            i += 2
+            continue
         if a == "--di-exponent" and i + 1 < len(argv):
-            di_exponent = float(argv[i + 1]); i += 2; continue
+            di_exponent = float(argv[i + 1])
+            i += 2
+            continue
         if a == "--di-scale" and i + 1 < len(argv):
-            di_scale = float(argv[i + 1]); i += 2; continue
+            di_scale = float(argv[i + 1])
+            i += 2
+            continue
         if a == "--di-threshold" and i + 1 < len(argv):
-            di_threshold = float(argv[i + 1]); i += 2; continue
+            di_threshold = float(argv[i + 1])
+            i += 2
+            continue
         if a == "--nu" and i + 1 < len(argv):
-            nu = float(argv[i + 1]); i += 2; continue
+            nu = float(argv[i + 1])
+            i += 2
+            continue
         if a == "--job-name" and i + 1 < len(argv):
-            job_name = argv[i + 1]; i += 2; continue
+            job_name = argv[i + 1]
+            i += 2
+            continue
         i += 1
 
     if field_csv is None:
@@ -105,16 +127,16 @@ def parse_args(argv):
     if mapping not in ("power", "binary"):
         raise RuntimeError("--mapping must be 'power' or 'binary'")
     return {
-        "field_csv":    field_csv,
-        "mapping":      mapping,
-        "n_bins":       n_bins,
-        "e_max":        e_max,
-        "e_min":        e_min,
-        "di_exponent":  di_exponent,
-        "di_scale":     di_scale,
+        "field_csv": field_csv,
+        "mapping": mapping,
+        "n_bins": n_bins,
+        "e_max": e_max,
+        "e_min": e_min,
+        "di_exponent": di_exponent,
+        "di_scale": di_scale,
         "di_threshold": di_threshold,
-        "nu":           nu,
-        "job_name":     job_name,
+        "nu": nu,
+        "job_name": job_name,
     }
 
 
@@ -122,10 +144,11 @@ def parse_args(argv):
 # CSV reader
 # ---------------------------------------------------------------------------
 
+
 def read_field_csv(path):
     """Return (coords, phi_pg, di_vals) for 2D field CSV."""
-    coords  = []
-    phi_pg  = []
+    coords = []
+    phi_pg = []
     di_vals = []
     with open(path, "r") as f:
         for line in f:
@@ -142,6 +165,7 @@ def read_field_csv(path):
 # ---------------------------------------------------------------------------
 # Model builder
 # ---------------------------------------------------------------------------
+
 
 def build_model(cfg):
     from abaqus import mdb
@@ -160,24 +184,24 @@ def build_model(cfg):
     )
     from regionToolset import Region
 
-    field_csv   = cfg["field_csv"]
-    mapping     = cfg["mapping"]
-    n_bins      = cfg["n_bins"]
-    E_max       = cfg["e_max"]
-    E_min       = cfg["e_min"]
-    exponent    = cfg["di_exponent"]
-    di_scale    = cfg["di_scale"]
-    di_thresh   = cfg["di_threshold"]
-    nu          = cfg["nu"]
-    job_name    = cfg["job_name"]
+    field_csv = cfg["field_csv"]
+    mapping = cfg["mapping"]
+    n_bins = cfg["n_bins"]
+    E_max = cfg["e_max"]
+    E_min = cfg["e_min"]
+    exponent = cfg["di_exponent"]
+    di_scale = cfg["di_scale"]
+    di_thresh = cfg["di_threshold"]
+    nu = cfg["nu"]
+    job_name = cfg["job_name"]
 
     coords, phi_pg, di_vals = read_field_csv(field_csv)
     xs = [c[0] for c in coords]
     ys = [c[1] for c in coords]
     x_min, x_max = min(xs), max(xs)
     y_min, y_max = min(ys), max(ys)
-    di_data_min  = min(di_vals)
-    di_data_max  = max(di_vals)
+    di_data_min = min(di_vals)
+    di_data_max = max(di_vals)
 
     if di_scale <= 0.0:
         di_scale = 1.1 * di_data_max if di_data_max > 0.0 else 1.0
@@ -206,13 +230,13 @@ def build_model(cfg):
 
     sketch = model.ConstrainedSketch(name="RectSketch", sheetSize=10.0)
     sketch.rectangle(point1=(x_min, y_min), point2=(x_max, y_max))
-    part   = model.Part(name="Block2D", dimensionality=TWO_D_PLANAR, type=DEFORMABLE_BODY)
+    part = model.Part(name="Block2D", dimensionality=TWO_D_PLANAR, type=DEFORMABLE_BODY)
     part.BaseShell(sketch=sketch)
 
-    nx_est    = max(len(set(xs)), 2)
-    ny_est    = max(len(set(ys)), 2)
-    size_x    = (x_max - x_min) / (nx_est - 1)
-    size_y    = (y_max - y_min) / (ny_est - 1)
+    nx_est = max(len(set(xs)), 2)
+    ny_est = max(len(set(ys)), 2)
+    size_x = (x_max - x_min) / (nx_est - 1)
+    size_y = (y_max - y_min) / (ny_est - 1)
     elem_size = min(size_x, size_y)
     part.seedPart(size=elem_size, deviationFactor=0.1, minSizeFactor=0.1)
     part.generateMesh()
@@ -234,21 +258,21 @@ def build_model(cfg):
     else:
         mat_stiff = model.Material(name="MAT_STIFF")
         mat_stiff.Elastic(table=((E_max, nu),))
-        mat_soft  = model.Material(name="MAT_SOFT")
+        mat_soft = model.Material(name="MAT_SOFT")
         mat_soft.Elastic(table=((E_min, nu),))
         model.HomogeneousSolidSection(name="SEC_STIFF", material="MAT_STIFF", thickness=1.0)
-        model.HomogeneousSolidSection(name="SEC_SOFT",  material="MAT_SOFT",  thickness=1.0)
+        model.HomogeneousSolidSection(name="SEC_SOFT", material="MAT_SOFT", thickness=1.0)
 
     # ── assembly ─────────────────────────────────────────────────────────────
     assembly = model.rootAssembly
-    inst     = assembly.Instance(name="BlockInst", part=part, dependent=ON)
+    inst = assembly.Instance(name="BlockInst", part=part, dependent=ON)
 
     # ── element → section assignment ─────────────────────────────────────────
     if mapping == "power":
         bin_labels = [[] for _ in range(n_bins)]
     else:
         high_labels = []
-        low_labels  = []
+        low_labels = []
 
     for elem in part.elements:
         nodes = elem.getNodes()
@@ -258,7 +282,9 @@ def build_model(cfg):
         ncnt = 0
         for nd in nodes:
             x_nd, y_nd, _ = nd.coordinates
-            sx += x_nd; sy += y_nd; ncnt += 1
+            sx += x_nd
+            sy += y_nd
+            ncnt += 1
         if ncnt == 0:
             continue
         cx, cy = sx / ncnt, sy / ncnt
@@ -266,14 +292,15 @@ def build_model(cfg):
         best_di = None
         best_d2 = 1.0e30
         for (xv, yv), dv in zip(coords, di_vals):
-            d2 = (xv - cx)**2 + (yv - cy)**2
+            d2 = (xv - cx) ** 2 + (yv - cy) ** 2
             if d2 < best_d2:
                 best_d2 = d2
                 best_di = dv
 
         if mapping == "power":
-            b = bin_index(best_di if best_di is not None else di_data_min,
-                          di_data_min, di_data_max, n_bins)
+            b = bin_index(
+                best_di if best_di is not None else di_data_min, di_data_min, di_data_max, n_bins
+            )
             bin_labels[b].append(elem.label)
         else:
             if best_di is None or best_di < di_thresh:
@@ -303,15 +330,25 @@ def build_model(cfg):
         if high_labels:
             seq = part.elements.sequenceFromLabels(labels=high_labels)
             reg = Region(elements=seq)
-            part.SectionAssignment(region=reg, sectionName="SEC_SOFT",
-                                   offset=0.0, offsetType=MIDDLE_SURFACE,
-                                   offsetField="", thicknessAssignment=FROM_SECTION)
+            part.SectionAssignment(
+                region=reg,
+                sectionName="SEC_SOFT",
+                offset=0.0,
+                offsetType=MIDDLE_SURFACE,
+                offsetField="",
+                thicknessAssignment=FROM_SECTION,
+            )
         if low_labels:
             seq = part.elements.sequenceFromLabels(labels=low_labels)
             reg = Region(elements=seq)
-            part.SectionAssignment(region=reg, sectionName="SEC_STIFF",
-                                   offset=0.0, offsetType=MIDDLE_SURFACE,
-                                   offsetField="", thicknessAssignment=FROM_SECTION)
+            part.SectionAssignment(
+                region=reg,
+                sectionName="SEC_STIFF",
+                offset=0.0,
+                offsetType=MIDDLE_SURFACE,
+                offsetField="",
+                thicknessAssignment=FROM_SECTION,
+            )
         print("  High-DI (soft) elements : %d" % len(high_labels))
         print("  Low-DI  (stiff) elements: %d" % len(low_labels))
 
@@ -319,34 +356,51 @@ def build_model(cfg):
     model.StaticStep(name="ApplyLoad", previous="Initial")
 
     bottom_edges = inst.edges.getByBoundingBox(
-        xMin=x_min - 1e-6, xMax=x_max + 1e-6,
-        yMin=y_min - 1e-6, yMax=y_min + 1e-6,
+        xMin=x_min - 1e-6,
+        xMax=x_max + 1e-6,
+        yMin=y_min - 1e-6,
+        yMax=y_min + 1e-6,
     )
     region_bot = Region(edges=bottom_edges)
     model.DisplacementBC(
-        name="BC_BOTTOM", createStepName="Initial",
-        region=region_bot, u1=0.0, u2=0.0, ur3=UNSET,
-        amplitude=UNSET, distributionType=UNIFORM, fieldName="", localCsys=None,
+        name="BC_BOTTOM",
+        createStepName="Initial",
+        region=region_bot,
+        u1=0.0,
+        u2=0.0,
+        ur3=UNSET,
+        amplitude=UNSET,
+        distributionType=UNIFORM,
+        fieldName="",
+        localCsys=None,
     )
 
     top_edges = inst.edges.getByBoundingBox(
-        xMin=x_min - 1e-6, xMax=x_max + 1e-6,
-        yMin=y_max - 1e-6, yMax=y_max + 1e-6,
+        xMin=x_min - 1e-6,
+        xMax=x_max + 1e-6,
+        yMin=y_max - 1e-6,
+        yMax=y_max + 1e-6,
     )
     top_surface = assembly.Surface(name="TOP_SURF", side1Edges=top_edges)
     model.Pressure(
-        name="P_TOP", createStepName="ApplyLoad",
-        region=top_surface, magnitude=1.0e6,
+        name="P_TOP",
+        createStepName="ApplyLoad",
+        region=top_surface,
+        magnitude=1.0e6,
     )
 
     # ── job ──────────────────────────────────────────────────────────────────
     if job_name in mdb.jobs.keys():
         del mdb.jobs[job_name]
     job = mdb.Job(
-        name=job_name, model=model_name,
-        type=ANALYSIS, explicitPrecision=SINGLE,
+        name=job_name,
+        model=model_name,
+        type=ANALYSIS,
+        explicitPrecision=SINGLE,
         description="Biofilm 2D continuous DI mapping",
-        multiprocessingMode=DEFAULT, numCpus=1, numDomains=1,
+        multiprocessingMode=DEFAULT,
+        numCpus=1,
+        numDomains=1,
     )
     job.writeInput()
     print("Submitting job:", job_name)
@@ -358,6 +412,7 @@ def build_model(cfg):
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main():
     user_argv = sys.argv[1:]

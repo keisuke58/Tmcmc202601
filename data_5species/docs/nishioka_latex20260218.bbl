@@ -1,28 +1,106 @@
 \begin{thebibliography}{10}
 
-\bibitem{Heine2025PeriImplant}
-The~Heine Lab et~al.
-\newblock Multi-species biofilm interactions on peri-implant surfaces.
-\newblock {\em Journal of Clinical Periodontology}, 2025.
-\newblock Experimental data for 5-species oral biofilm.
+\bibitem{Soleimani2016SPHBiofilm}
+Meisam Soleimani, Peter Wriggers, Meike Stiesch, et~al.
+\newblock Numerical simulation and experimental validation of biofilm in a
+  multi-physics framework using an {SPH} based method.
+\newblock {\em Computational Mechanics}, 58(4):619--633, 2016.
+
+\bibitem{Soleimani2019ViscoElasticGrowth}
+Meisam Soleimani.
+\newblock Finite strain visco-elastic growth driven by nutrient diffusion:
+  theory, {FEM} implementation and an application to the biofilm growth.
+\newblock {\em Computational Mechanics}, 64:1289--1301, 2019.
+
+\bibitem{Soleimani2020AnisotropicGrowth}
+Meisam Soleimani, Nikhil Muthyala, Michele Marino, and Peter Wriggers.
+\newblock A novel stress-induced anisotropic growth model driven by nutrient
+  diffusion: Theory, {FEM} implementation and applications in bio-mechanical
+  problems.
+\newblock {\em Journal of the Mechanics and Physics of Solids}, 144:104097,
+  2020.
+
+\bibitem{Klempt2023PAMMBiofilm}
+Felix Klempt, Meisam Soleimani, and Philipp Junker.
+\newblock Numerical comparison of biofilm growth models using prominent
+  modeling approaches.
+\newblock {\em PAMM}, 22(1):e202200054, 2023.
 
 \bibitem{JunkerBalzani2021ExtendedHamilton}
 Philipp Junker and Daniel Balzani.
-\newblock A new variational approach for the thermodynamic topology
-  optimization of hyperelastic structures.
-\newblock {\em Computer Methods in Applied Mechanics and Engineering}, 2021.
+\newblock An extended {Hamilton} principle as unifying theory for coupled
+  problems and dissipative microstructure evolution.
+\newblock {\em Continuum Mechanics and Thermodynamics}, 33(4):1931--1956, 2021.
+
+\bibitem{JunkerBodeHackl2025Holistic}
+Philipp Junker, Tobias Bode, and Klaus Hackl.
+\newblock On a holistic variational formulation for material modeling including
+  dissipative evolution.
+\newblock {\em Journal of the Mechanics and Physics of Solids}, 200:106133,
+  2025.
+
+\bibitem{Klempt2024ContinuumGrowth}
+Felix Klempt, Meisam Soleimani, Peter Wriggers, and Philipp Junker.
+\newblock A {Hamilton} principle-based model for diffusion-driven biofilm
+  growth.
+\newblock {\em Biomechanics and Modeling in Mechanobiology}, 23(6):2091--2113,
+  2024.
 
 \bibitem{Klempt2025ContinuumBiofilm}
-Henrike Klempt, Philipp Junker, and Peter Wriggers.
-\newblock A continuum model for multi-species biofilm growth based on the
-  extended {Hamilton} principle.
-\newblock {\em Computer Methods in Applied Mechanics and Engineering}, 2025.
+Felix Klempt, Hendrik Geisler, Meisam Soleimani, and Philipp Junker.
+\newblock A continuum multi-species biofilm model with a novel interaction
+  scheme.
+\newblock 2025.
+\newblock arXiv:2509.01274.
+
+\bibitem{Bode2025ConstraintConforming}
+Tobias Bode, Meisam Soleimani, Cem Erdogan, Klaus Hackl, Peter Wriggers, and
+  Philipp Junker.
+\newblock On constraint-conforming numerical discretizations in constitutive
+  material modeling.
+\newblock {\em Computational Mechanics}, 75(3):1015--1031, 2025.
+
+\bibitem{Heine2025PeriImplant}
+Nils Heine, Kristina Bittroff, Szymon~P. Szafranski, et~al.
+\newblock Influence of species composition and cultivation condition on
+  peri-implant biofilm dysbiosis in vitro.
+\newblock {\em Frontiers in Oral Health}, 6, 2025.
+
+\bibitem{Kommerein2018HOBIC}
+Nadine Kommerein, Katharina Doll, Nico~S. Stumpp, and Meike Stiesch.
+\newblock Development and characterization of an oral multispecies biofilm
+  implant flow chamber model.
+\newblock {\em PLOS ONE}, 13(5):e0196967, 2018.
+
+\bibitem{Soleimani2023CoAggregation}
+Meisam Soleimani, Szymon~P. Szafranski, Taoran Qu, Rumjhum Mukherjee, Meike
+  Stiesch, Peter Wriggers, and Philipp Junker.
+\newblock Numerical and experimental investigation of multi-species bacterial
+  co-aggregation.
+\newblock {\em Scientific Reports}, 13:11839, 2023.
+
+\bibitem{Mukherjee2025PgTitanium}
+Rumjhum Mukherjee, Felix Klempt, Florian Fuchs, Katharina Doll-Nikutta, Meisam
+  Soleimani, Peter Wriggers, Philipp Junker, Meike Stiesch, and Szymon~P.
+  Szafranski.
+\newblock Biofilm development of \textit{{P}orphyromonas gingivalis} on
+  titanium surfaces in response to 1,4-dihydroxy-2-naphthoic acid --- a hybrid
+  in vitro--in silico approach.
+\newblock {\em Microbiology Spectrum}, 13(10):e00410--25, 2025.
 
 \bibitem{Fritsch2025BayesianMicrofilms}
-Arne Fritsch et~al.
-\newblock Bayesian updating for bacterial microfilms under hybrid
-  uncertainties.
-\newblock {\em Computational Mechanics}, 2025.
+Lukas Fritsch, Hendrik Geisler, Jan Grashorn, Felix Klempt, Meisam Soleimani,
+  Matteo Broggi, Philipp Junker, and Michael Beer.
+\newblock Bayesian updating of constitutive parameters under hybrid
+  uncertainties with a novel surrogate model applied to biofilms.
+\newblock 2025.
+\newblock arXiv:2512.15145.
+
+\bibitem{GeislerJunker2025TSM}
+Hendrik Geisler, Cem Erdogan, Jan Nagel, et~al.
+\newblock A new paradigm for the efficient inclusion of stochasticity in
+  engineering simulations: Time-separated stochastic mechanics.
+\newblock {\em Computational Mechanics}, 75(1):211--235, 2025.
 
 \bibitem{Kolenbrander2010OralMultispecies}
 Paul~E. Kolenbrander, Robert~J. Palmer~Jr., Saravanan Periasamy, and
@@ -128,6 +206,14 @@ Takuji Ohmura, Junichi Wakita, and Shigeyuki Nishimura.
 \newblock Spatially resolved correlation between polysaccharide distribution
   and local elastic modulus in living {3D} biofilms.
 \newblock {\em Soft Matter}, 2024.
+
+\bibitem{Soleimani2025Atherosclerosis}
+Meisam Soleimani, Danial Pourbandari, Melody Chemaly, Philipp Junker, Axel
+  Haverich, and Peter Wriggers.
+\newblock Combining inflammation and tissue turnover in the modeling of
+  atherosclerosis development following the outside-in disease approach.
+\newblock {\em International Journal for Numerical Methods in Biomedical
+  Engineering}, 41(12):e70131, 2025.
 
 \bibitem{Bradbury2018JAX}
 James Bradbury, Roy Frostig, Peter Hawkins, Matthew~James Johnson, Chris Leary,

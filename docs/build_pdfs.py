@@ -72,7 +72,9 @@ def _build_one(latexmk: str, tex_path: Path, *, force: bool, engine: str) -> Non
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--force", action="store_true", default=False, help="Force rebuild (latexmk -g)")
+    ap.add_argument(
+        "--force", action="store_true", default=False, help="Force rebuild (latexmk -g)"
+    )
     args = ap.parse_args()
 
     repo_root = Path(__file__).resolve().parents[1]
@@ -93,7 +95,11 @@ def main() -> int:
             # Docs under docs/: use xelatex for CJK. English versions under docs/ can use pdflatex.
             # Auto summaries: use pdflatex.
             if t.parent == docs:
-                engine = "xelatex" if t.name.endswith(".tex") and not t.name.endswith("_en.tex") else "pdflatex"
+                engine = (
+                    "xelatex"
+                    if t.name.endswith(".tex") and not t.name.endswith("_en.tex")
+                    else "pdflatex"
+                )
             else:
                 engine = "pdflatex"
             _build_one(latexmk, t, force=bool(args.force), engine=engine)
@@ -118,4 +124,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

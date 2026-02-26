@@ -110,8 +110,9 @@ def _compute_centroid_xy(nodes):
     return sx / n, sy / n
 
 
-def _probe_radial(nodes, cx, cy, z_min, z_max, fractions,
-                  inst_name, u_field, s_field, node_to_elems, odb_name):
+def _probe_radial(
+    nodes, cx, cy, z_min, z_max, fractions, inst_name, u_field, s_field, node_to_elems, odb_name
+):
     """
     Sample stress/displacement along the radial direction (r = distance from
     tooth-centre in XY) at mid-height.  fraction=0 is the inner surface
@@ -120,11 +121,10 @@ def _probe_radial(nodes, cx, cy, z_min, z_max, fractions,
     Returns rows in the same format as the axis-aligned depth probe.
     """
     z_mid = 0.5 * (z_min + z_max)
-    z_tol = 0.15 * max(z_max - z_min, 1.0)   # ±15 % of Z span for mid-height band
+    z_tol = 0.15 * max(z_max - z_min, 1.0)  # ±15 % of Z span for mid-height band
 
     # Restrict to mid-height band so we don't accidentally snap to top/bot caps
-    mid_nodes = [nd for nd in nodes
-                 if abs(nd.coordinates[2] - z_mid) <= z_tol]
+    mid_nodes = [nd for nd in nodes if abs(nd.coordinates[2] - z_mid) <= z_tol]
     if not mid_nodes:
         mid_nodes = list(nodes)
 
@@ -170,21 +170,31 @@ def _probe_radial(nodes, cx, cy, z_min, z_max, fractions,
                     for k in range(min(6, len(comps))):
                         s_comps[k] = comps[k]
                     m = getattr(v, "mises", None)
-                    if m is not None and not (
-                        isinstance(m, float) and math.isnan(m)
-                    ):
+                    if m is not None and not (isinstance(m, float) and math.isnan(m)):
                         mises = m
                     break
             break
 
-        rows.append([
-            odb_name, "depth_profile", frac,
-            bx, by, bz,
-            u_vec[0], u_vec[1], u_vec[2],
-            s_comps[0], s_comps[1], s_comps[2],
-            s_comps[3], s_comps[4], s_comps[5],
-            mises,
-        ])
+        rows.append(
+            [
+                odb_name,
+                "depth_profile",
+                frac,
+                bx,
+                by,
+                bz,
+                u_vec[0],
+                u_vec[1],
+                u_vec[2],
+                s_comps[0],
+                s_comps[1],
+                s_comps[2],
+                s_comps[3],
+                s_comps[4],
+                s_comps[5],
+                mises,
+            ]
+        )
     return rows
 
 
@@ -301,9 +311,7 @@ def extract_odb(path):
                 print("  %s: no boundary nodes" % label_loc)
                 continue
             if planar:
-                node = _find_center_node_2d(
-                    b_nodes, span_axis, span_min, span_max
-                )
+                node = _find_center_node_2d(b_nodes, span_axis, span_min, span_max)
             else:
                 node = _find_center_node_3d(
                     b_nodes,
@@ -319,10 +327,7 @@ def extract_odb(path):
                 continue
             n_label = node.label
             cx, cy, cz = node.coordinates
-            print(
-                "  %s: node label=%d coord=(%.6e, %.6e, %.6e)"
-                % (label_loc, n_label, cx, cy, cz)
-            )
+            print("  %s: node label=%d coord=(%.6e, %.6e, %.6e)" % (label_loc, n_label, cx, cy, cz))
             if u_field is not None:
                 u_vec = None
                 for v in u_field.values:
@@ -350,18 +355,25 @@ def extract_odb(path):
                     mises = getattr(s_val, "mises", None)
                     print("    element label=%d" % e_target)
                     print("    S =", _format_list(comps))
-                    if mises is not None and not (
-                        isinstance(mises, float) and math.isnan(mises)
-                    ):
+                    if mises is not None and not (isinstance(mises, float) and math.isnan(mises)):
                         print("    S_Mises = %.6e" % mises)
         if geom == "crown" and not planar:
             # Radial probe: inner surface (tooth) → outer surface (biofilm)
             cx_c, cy_c = _compute_centroid_xy(nodes)
             print("  Crown radial probe: centroid=(%.4f, %.4f)" % (cx_c, cy_c))
             radial_rows = _probe_radial(
-                nodes, cx_c, cy_c, z_min, z_max, [0.0, 0.5, 1.0],
-                inst_name, u_field, s_field, node_to_elems,
-                os.path.basename(path))
+                nodes,
+                cx_c,
+                cy_c,
+                z_min,
+                z_max,
+                [0.0, 0.5, 1.0],
+                inst_name,
+                u_field,
+                s_field,
+                node_to_elems,
+                os.path.basename(path),
+            )
             rows.extend(radial_rows)
         elif depth_span > 0.0:
             mid_a = 0.5 * (span_min_a + span_max_a)
@@ -422,9 +434,7 @@ def extract_odb(path):
                         for i in range(min(6, len(comps))):
                             s_comps[i] = comps[i]
                         m = getattr(s_val, "mises", None)
-                        if m is not None and not (
-                            isinstance(m, float) and math.isnan(m)
-                        ):
+                        if m is not None and not (isinstance(m, float) and math.isnan(m)):
                             mises = m
                 rows.append(
                     [
@@ -453,9 +463,7 @@ def extract_odb(path):
 
 def main(argv):
     if len(argv) < 2:
-        print(
-            "Usage: abq2024 python compare_biofilm_abaqus.py [OUT.csv] ODB1 [ODB2 ...]"
-        )
+        print("Usage: abq2024 python compare_biofilm_abaqus.py [OUT.csv] ODB1 [ODB2 ...]")
         return 1
     out_csv = None
     start = 1

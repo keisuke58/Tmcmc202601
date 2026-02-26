@@ -23,7 +23,6 @@ Usage:
 import argparse
 import time
 from pathlib import Path
-from functools import partial
 
 import numpy as np
 import jax
@@ -37,12 +36,13 @@ import optax
 # Model
 # ============================================================
 
+
 class BranchNet(eqx.Module):
     """Branch network: θ (20) → R^(p * n_species)."""
+
     layers: list
 
-    def __init__(self, in_dim: int, hidden: int, p: int, n_species: int,
-                 n_layers: int = 3, *, key):
+    def __init__(self, in_dim: int, hidden: int, p: int, n_species: int, n_layers: int = 3, *, key):
         keys = jr.split(key, n_layers + 2)
         out_dim = p * n_species
         layers = [eqx.nn.Linear(in_dim, hidden, key=keys[0])]
@@ -61,11 +61,11 @@ class BranchNet(eqx.Module):
 
 class TrunkNet(eqx.Module):
     """Trunk network: t (1) → R^(p * n_species)."""
+
     layers: list
     proj: eqx.nn.Linear  # project input dim to hidden for residual
 
-    def __init__(self, p: int, n_species: int, hidden: int,
-                 n_layers: int = 3, *, key):
+    def __init__(self, p: int, n_species: int, hidden: int, n_layers: int = 3, *, key):
         keys = jr.split(key, n_layers + 3)
         out_dim = p * n_species
         self.proj = eqx.nn.Linear(1, hidden, key=keys[0])
@@ -85,12 +85,21 @@ class TrunkNet(eqx.Module):
 
 class DeepONet(eqx.Module):
     """DeepONet for multi-output (5 species)."""
+
     branch: BranchNet
     trunk: TrunkNet
     bias: jnp.ndarray
 
-    def __init__(self, theta_dim: int = 20, n_species: int = 5,
-                 p: int = 64, hidden: int = 128, n_layers: int = 3, *, key):
+    def __init__(
+        self,
+        theta_dim: int = 20,
+        n_species: int = 5,
+        p: int = 64,
+        hidden: int = 128,
+        n_layers: int = 3,
+        *,
+        key,
+    ):
         k1, k2 = jr.split(key)
         self.branch = BranchNet(theta_dim, hidden, p, n_species, n_layers=n_layers, key=k1)
         self.trunk = TrunkNet(p, n_species, hidden, n_layers=n_layers, key=k2)
@@ -109,10 +118,10 @@ class DeepONet(eqx.Module):
         """
         n_species = self.bias.shape[0]
         b = self.branch(theta)  # (p * n_species,)
-        tr = self.trunk(t)      # (p * n_species,)
+        tr = self.trunk(t)  # (p * n_species,)
         p = b.shape[0] // n_species
 
-        b = b.reshape(n_species, p)   # (5, p)
+        b = b.reshape(n_species, p)  # (5, p)
         tr = tr.reshape(n_species, p)  # (5, p)
 
         # Dot product per species
@@ -141,12 +150,13 @@ class DeepONet(eqx.Module):
 # Data loading & normalization
 # ============================================================
 
+
 def load_data(path: str):
     """Load training data and compute normalization stats."""
     data = np.load(path)
-    theta = data["theta"]   # (N, 20)
-    phi = data["phi"]       # (N, T, 5)
-    t = data["t"]           # (T,)
+    theta = data["theta"]  # (N, 20)
+    phi = data["phi"]  # (N, T, 5)
+    t = data["t"]  # (T,)
     bounds = data["bounds"]  # (20, 2)
 
     # Normalize theta to [0, 1]
@@ -161,8 +171,11 @@ def load_data(path: str):
     t_norm = (t - t_min) / (t_max - t_min + 1e-12)
 
     stats = {
-        "theta_lo": lo, "theta_hi": hi, "theta_width": width,
-        "t_min": t_min, "t_max": t_max,
+        "theta_lo": lo,
+        "theta_hi": hi,
+        "theta_width": width,
+        "t_min": t_min,
+        "t_max": t_max,
     }
 
     return (
@@ -177,6 +190,7 @@ def load_data(path: str):
 # Training
 # ============================================================
 
+
 @eqx.filter_jit
 def loss_fn(model, theta_batch, phi_batch, t_grid, w_constraint=0.1):
     """
@@ -188,6 +202,7 @@ def loss_fn(model, theta_batch, phi_batch, t_grid, w_constraint=0.1):
         t_grid: (T,)
         w_constraint: weight for φ ∈ [0,1] penalty
     """
+
     def single_loss(theta, phi_true):
         phi_pred = model.predict_trajectory(theta, t_grid, clip=False)  # (T, 5) raw
         mse = jnp.mean((phi_pred - phi_true) ** 2)
@@ -204,8 +219,7 @@ def loss_fn(model, theta_batch, phi_batch, t_grid, w_constraint=0.1):
 
 
 @eqx.filter_jit
-def train_step(model, opt_state, theta_batch, phi_batch, t_grid, optimizer,
-               w_constraint=0.1):
+def train_step(model, opt_state, theta_batch, phi_batch, t_grid, optimizer, w_constraint=0.1):
     loss, grads = eqx.filter_value_and_grad(loss_fn)(
         model, theta_batch, phi_batch, t_grid, w_constraint
     )
@@ -289,9 +303,7 @@ def train(
             batch_idx = perm[i * batch_size : (i + 1) * batch_size]
             tb = theta_train[batch_idx]
             pb = phi_train[batch_idx]
-            model, opt_state, loss = train_step(
-                model, opt_state, tb, pb, t_grid, optimizer
-            )
+            model, opt_state, loss = train_step(model, opt_state, tb, pb, t_grid, optimizer)
             epoch_loss += float(loss)
 
         epoch_loss /= max(n_batches, 1)
@@ -317,9 +329,11 @@ def train(
 
         if (epoch + 1) % 10 == 0 or epoch == 0:
             elapsed = time.time() - t0
-            print(f"  Epoch {epoch+1:4d}/{n_epochs}  "
-                  f"train={epoch_loss:.6f}  val={val_loss:.6f}  "
-                  f"best={best_val_loss:.6f}  [{elapsed:.0f}s]{marker}")
+            print(
+                f"  Epoch {epoch+1:4d}/{n_epochs}  "
+                f"train={epoch_loss:.6f}  val={val_loss:.6f}  "
+                f"best={best_val_loss:.6f}  [{elapsed:.0f}s]{marker}"
+            )
 
     # Save final + losses
     eqx.tree_serialise_leaves(str(ckpt_dir / "final.eqx"), model)
@@ -334,11 +348,20 @@ def train(
 
     # Save architecture config for reproducibility
     import json
-    arch_cfg = {"p": p, "hidden": hidden, "n_layers": n_layers,
-                "theta_dim": int(theta.shape[1]), "n_species": int(phi.shape[2]),
-                "n_params": int(n_params), "n_train": int(n_train),
-                "n_epochs": n_epochs, "batch_size": batch_size, "lr": lr,
-                "best_val_loss": float(best_val_loss)}
+
+    arch_cfg = {
+        "p": p,
+        "hidden": hidden,
+        "n_layers": n_layers,
+        "theta_dim": int(theta.shape[1]),
+        "n_species": int(phi.shape[2]),
+        "n_params": int(n_params),
+        "n_train": int(n_train),
+        "n_epochs": n_epochs,
+        "batch_size": batch_size,
+        "lr": lr,
+        "best_val_loss": float(best_val_loss),
+    }
     with open(ckpt_dir / "config.json", "w") as f:
         json.dump(arch_cfg, f, indent=2)
 
@@ -352,6 +375,7 @@ def train(
 # ============================================================
 # Evaluation
 # ============================================================
+
 
 def evaluate(checkpoint: str, data_path: str, p: int = 64, hidden: int = 128, n_layers: int = 3):
     """Evaluate model on test data, including constraint violation stats."""
@@ -375,6 +399,7 @@ def evaluate(checkpoint: str, data_path: str, p: int = 64, hidden: int = 128, n_
             phi_min = jnp.min(phi_pred)
             phi_max = jnp.max(phi_pred)
             return mse, mae, rel, n_neg, n_over, phi_min, phi_max
+
         return jax.vmap(single)(theta_all, phi_all)
 
     mse, mae, rel, n_neg, n_over, phi_min, phi_max = compute_errors(theta, phi, t_grid)
@@ -384,13 +409,17 @@ def evaluate(checkpoint: str, data_path: str, p: int = 64, hidden: int = 128, n_
     print(f"{'Species':<15} {'MSE':>10} {'MAE':>10} {'Rel.Err':>10}")
     print("-" * 47)
     for i, sp in enumerate(species):
-        print(f"{sp:<15} {float(mse[:, i].mean()):>10.6f} "
-              f"{float(mae[:, i].mean()):>10.6f} "
-              f"{float(rel[:, i].mean()):>10.4f}")
+        print(
+            f"{sp:<15} {float(mse[:, i].mean()):>10.6f} "
+            f"{float(mae[:, i].mean()):>10.6f} "
+            f"{float(rel[:, i].mean()):>10.4f}"
+        )
 
-    print(f"\n{'Overall':<15} {float(mse.mean()):>10.6f} "
-          f"{float(mae.mean()):>10.6f} "
-          f"{float(rel.mean()):>10.4f}")
+    print(
+        f"\n{'Overall':<15} {float(mse.mean()):>10.6f} "
+        f"{float(mae.mean()):>10.6f} "
+        f"{float(rel.mean()):>10.4f}"
+    )
 
     # Constraint violation statistics
     total_neg = int(n_neg.sum())
@@ -400,7 +429,7 @@ def evaluate(checkpoint: str, data_path: str, p: int = 64, hidden: int = 128, n_
     global_max = float(phi_max.max())
     pct_neg = 100.0 * total_neg / total_vals
     pct_over = 100.0 * total_over / total_vals
-    print(f"\nConstraint violation (raw output, no clipping):")
+    print("\nConstraint violation (raw output, no clipping):")
     print(f"  φ < 0: {total_neg}/{total_vals} ({pct_neg:.2f}%)")
     print(f"  φ > 1: {total_over}/{total_vals} ({pct_over:.2f}%)")
     print(f"  φ range: [{global_min:.4f}, {global_max:.4f}]")
@@ -410,10 +439,18 @@ def evaluate(checkpoint: str, data_path: str, p: int = 64, hidden: int = 128, n_
 # Benchmark: DeepONet vs ODE solver speed
 # ============================================================
 
-def benchmark(checkpoint: str, data_path: str, n_bench: int = 1000,
-              p: int = 64, hidden: int = 128, n_layers: int = 3):
+
+def benchmark(
+    checkpoint: str,
+    data_path: str,
+    n_bench: int = 1000,
+    p: int = 64,
+    hidden: int = 128,
+    n_layers: int = 3,
+):
     """Compare inference speed: DeepONet vs numba ODE solver."""
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent / "tmcmc" / "program2602"))
     sys.path.insert(0, str(Path(__file__).parent.parent / "tmcmc"))
     from improved_5species_jit import BiofilmNewtonSolver5S
@@ -451,9 +488,17 @@ def benchmark(checkpoint: str, data_path: str, n_bench: int = 1000,
 
     # Benchmark ODE solver
     solver = BiofilmNewtonSolver5S(
-        dt=1e-5, maxtimestep=500, eps=1e-6, Kp1=1e-4,
-        c_const=100.0, alpha_const=100.0, phi_init=0.2,
-        K_hill=0.05, n_hill=4.0, max_newton_iter=50, use_numba=True,
+        dt=1e-5,
+        maxtimestep=500,
+        eps=1e-6,
+        Kp1=1e-4,
+        c_const=100.0,
+        alpha_const=100.0,
+        phi_init=0.2,
+        K_hill=0.05,
+        n_hill=4.0,
+        max_newton_iter=50,
+        use_numba=True,
     )
     # Warmup
     solver.run_deterministic(theta_raw[0])
@@ -478,10 +523,18 @@ def benchmark(checkpoint: str, data_path: str, n_bench: int = 1000,
 # Visualization
 # ============================================================
 
-def plot_results(checkpoint: str, data_path: str, n_examples: int = 6,
-                 p: int = 64, hidden: int = 128, n_layers: int = 3):
+
+def plot_results(
+    checkpoint: str,
+    data_path: str,
+    n_examples: int = 6,
+    p: int = 64,
+    hidden: int = 128,
+    n_layers: int = 3,
+):
     """Plot predicted vs true trajectories."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -516,6 +569,7 @@ def plot_results(checkpoint: str, data_path: str, n_examples: int = 6,
 
     # Legend
     from matplotlib.lines import Line2D
+
     legend_elements = []
     for s in range(5):
         legend_elements.append(Line2D([0], [0], color=colors[s], label=species[s]))
@@ -542,13 +596,14 @@ def plot_results(checkpoint: str, data_path: str, n_examples: int = 6,
         ax2.legend()
         ax2.set_title("Training History")
         fig2.savefig(Path(checkpoint).parent / "training_curve.png", dpi=150)
-        print(f"Saved training curve")
+        print("Saved training curve")
         plt.close()
 
 
 # ============================================================
 # Main
 # ============================================================
+
 
 def main():
     parser = argparse.ArgumentParser(description="DeepONet for Hamilton ODE")
@@ -608,9 +663,18 @@ def main():
     elif args.command == "eval":
         evaluate(args.checkpoint, args.data, p=args.p, hidden=args.hidden, n_layers=args.n_layers)
     elif args.command == "benchmark":
-        benchmark(args.checkpoint, args.data, args.n_bench, p=args.p, hidden=args.hidden, n_layers=args.n_layers)
+        benchmark(
+            args.checkpoint,
+            args.data,
+            args.n_bench,
+            p=args.p,
+            hidden=args.hidden,
+            n_layers=args.n_layers,
+        )
     elif args.command == "plot":
-        plot_results(args.checkpoint, args.data, p=args.p, hidden=args.hidden, n_layers=args.n_layers)
+        plot_results(
+            args.checkpoint, args.data, p=args.p, hidden=args.hidden, n_layers=args.n_layers
+        )
     else:
         parser.print_help()
 

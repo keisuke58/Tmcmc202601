@@ -15556,16 +15556,16 @@
 *Solid Section, elset=_PickedSet6, orientation=Ori-1, material=MAT_ANISO_07
 ,
 *End Part
-**  
+**
 **
 ** ASSEMBLY
 **
 *Assembly, name=Assembly
-**  
+**
 *Instance, name=BioInst, part=Biofilm
           0.,           0., 20.7283573150635
 *End Instance
-**  
+**
 *Nset, nset=_PickedSet3, internal, instance=BioInst
   289,  290,  291,  292,  293,  294,  295,  296,  585,  586,  587,  588,  589,  590,  591,  592
   881,  882,  883,  884,  885,  886,  887,  888, 1177, 1178, 1179, 1180, 1181, 1182, 1183, 1184
@@ -15610,9 +15610,9 @@
 *Surface, type=ELEMENT, name=_PickedSurf4, internal
 __PickedSurf4_S3, S3
 *End Assembly
-** 
+**
 ** MATERIALS
-** 
+**
 *Material, name=MAT_ANISO_00
 *Elastic, type=ENGINEERING CONSTANTS
  9.66586e+09, 4.83293e+09, 4.83293e+09,         0.3,         0.3,         0.3, 3.71764e+09, 3.71764e+09
@@ -15693,37 +15693,37 @@ __PickedSurf4_S3, S3
 *Elastic, type=ENGINEERING CONSTANTS
  1.39822e+09, 6.99109e+08, 6.99109e+08,         0.3,         0.3,         0.3, 5.37776e+08, 5.37776e+08
  2.68888e+08,
-** 
+**
 ** BOUNDARY CONDITIONS
-** 
+**
 ** Name: FIX_BOT Type: Displacement/Rotation
 *Boundary
 _PickedSet3, 1, 1
 _PickedSet3, 2, 2
 _PickedSet3, 3, 3
 ** ----------------------------------------------------------------
-** 
+**
 ** STEP: LOAD
-** 
+**
 *Step, name=LOAD, nlgeom=NO
 *Static
 0.1, 1., 1e-05, 1.
-** 
+**
 ** LOADS
-** 
+**
 ** Name: PRESS   Type: Pressure
 *Dsload
 _PickedSurf4, P, 1e+06
-** 
+**
 ** OUTPUT REQUESTS
-** 
+**
 *Restart, write, frequency=0
-** 
+**
 ** FIELD OUTPUT: F-Output-1
-** 
+**
 *Output, field, variable=PRESELECT
-** 
+**
 ** HISTORY OUTPUT: H-Output-1
-** 
+**
 *Output, history, variable=PRESELECT
 *End Step

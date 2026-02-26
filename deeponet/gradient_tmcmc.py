@@ -21,12 +21,11 @@ Usage:
 
 import argparse
 import json
-import sys
 import time
 from pathlib import Path
-from functools import partial
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,7 +33,6 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import jax.random as jr
-import equinox as eqx
 
 jax.config.update("jax_enable_x64", False)
 
@@ -43,22 +41,22 @@ SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 
 # Import pipeline components
-from deeponet_hamilton import DeepONet
-from dem_elasticity_3d import ElasticityNetwork
 from e2e_differentiable_pipeline import (
-    load_deeponet, load_dem, load_theta_map,
-    deeponet_predict_final, compute_di, di_to_E,
+    load_deeponet,
+    load_dem,
+    deeponet_predict_final,
+    compute_di,
+    di_to_E,
     dem_predict_max_uy,
-    E_MAX, E_MIN, W, H, D, N_SPECIES, SPECIES,
-    CONDITION_CHECKPOINTS, CONDITION_RUNS,
 )
 
 
 # ============================================================
 # Differentiable Log-Likelihood
 # ============================================================
-def make_differentiable_log_likelihood(don_model, theta_lo, theta_width,
-                                       dem_model, observed_uy, sigma_obs=0.05):
+def make_differentiable_log_likelihood(
+    don_model, theta_lo, theta_width, dem_model, observed_uy, sigma_obs=0.05
+):
     """
     Create a JAX-differentiable log-likelihood function.
 
@@ -75,6 +73,7 @@ def make_differentiable_log_likelihood(don_model, theta_lo, theta_width,
     Returns:
         log_likelihood(theta) function (JAX-differentiable)
     """
+
     def log_likelihood(theta):
         # Forward pipeline
         phi = deeponet_predict_final(don_model, theta, theta_lo, theta_width)
@@ -90,12 +89,20 @@ def make_differentiable_log_likelihood(don_model, theta_lo, theta_width,
     return log_likelihood
 
 
-def make_multi_output_log_likelihood(don_model, theta_lo, theta_width,
-                                      dem_model, observed_phi, sigma_phi=0.02,
-                                      observed_uy=None, sigma_uy=0.05):
+def make_multi_output_log_likelihood(
+    don_model,
+    theta_lo,
+    theta_width,
+    dem_model,
+    observed_phi,
+    sigma_phi=0.02,
+    observed_uy=None,
+    sigma_uy=0.05,
+):
     """
     Multi-output likelihood: species fractions + displacement.
     """
+
     def log_likelihood(theta):
         phi = deeponet_predict_final(don_model, theta, theta_lo, theta_width)
 
@@ -118,8 +125,7 @@ def make_multi_output_log_likelihood(don_model, theta_lo, theta_width,
 # ============================================================
 # HMC Kernel (Leapfrog integrator)
 # ============================================================
-def hmc_step(key, theta, log_prob_and_grad, step_size, n_leapfrog,
-             bounds_lo, bounds_hi):
+def hmc_step(key, theta, log_prob_and_grad, step_size, n_leapfrog, bounds_lo, bounds_hi):
     """
     Single HMC step with leapfrog integration and reflection at bounds.
 
@@ -141,7 +147,7 @@ def hmc_step(key, theta, log_prob_and_grad, step_size, n_leapfrog,
 
     # Current energy
     logp_current, grad_current = log_prob_and_grad(theta)
-    H_current = -logp_current + 0.5 * jnp.sum(momentum ** 2)
+    H_current = -logp_current + 0.5 * jnp.sum(momentum**2)
 
     # Leapfrog integration
     q = theta
@@ -170,7 +176,7 @@ def hmc_step(key, theta, log_prob_and_grad, step_size, n_leapfrog,
     p = -p
 
     # Accept/reject
-    H_proposed = -logp_proposed + 0.5 * jnp.sum(p ** 2)
+    H_proposed = -logp_proposed + 0.5 * jnp.sum(p**2)
     log_alpha = H_current - H_proposed
 
     # Metropolis correction
@@ -256,7 +262,7 @@ def tmcmc_hmc(
             w = db * logL
             w = w - w.max()
             w = np.exp(w)
-            return (np.sum(w) ** 2) / np.sum(w ** 2)
+            return (np.sum(w) ** 2) / np.sum(w**2)
 
         db_lo, db_hi = 0.0, 1.0 - beta
         for _ in range(50):
@@ -277,7 +283,7 @@ def tmcmc_hmc(
         w = (beta_new - beta) * logL
         w = w - w.max()
         w = np.exp(w)
-        ess_val = (np.sum(w) ** 2) / np.sum(w ** 2)
+        ess_val = (np.sum(w) ** 2) / np.sum(w**2)
         w = w / w.sum()
 
         # Resample
@@ -304,9 +310,13 @@ def tmcmc_hmc(
             theta_i = jnp.array(particles[i])
 
             new_theta, accepted, new_logp = hmc_step(
-                k_i, theta_i, tempered_logp_and_grad,
-                adapted_step, hmc_n_leapfrog,
-                bounds_lo, bounds_hi,
+                k_i,
+                theta_i,
+                tempered_logp_and_grad,
+                adapted_step,
+                hmc_n_leapfrog,
+                bounds_lo,
+                bounds_hi,
             )
 
             if bool(accepted):
@@ -322,10 +332,12 @@ def tmcmc_hmc(
         accept_rates.append(ar)
         ess_history.append(ess_val)
 
-        print(f"  Stage {stage:2d}: beta={beta:.4f}, "
-              f"accept={ar:.2f}, ESS={ess_val:.0f}, "
-              f"logL=[{logL.min():.1f}, {logL.max():.1f}], "
-              f"{dt:.1f}s")
+        print(
+            f"  Stage {stage:2d}: beta={beta:.4f}, "
+            f"accept={ar:.2f}, ESS={ess_val:.0f}, "
+            f"logL=[{logL.min():.1f}, {logL.max():.1f}], "
+            f"{dt:.1f}s"
+        )
 
     total_time = time.time() - t0
     best_idx = np.argmax(logL)
@@ -393,7 +405,7 @@ def tmcmc_rw(
             w = db * logL
             w = w - w.max()
             w = np.exp(w)
-            return (np.sum(w) ** 2) / np.sum(w ** 2)
+            return (np.sum(w) ** 2) / np.sum(w**2)
 
         db_lo, db_hi = 0.0, 1.0 - beta
         for _ in range(50):
@@ -412,7 +424,7 @@ def tmcmc_rw(
         w = (beta_new - beta) * logL
         w = w - w.max()
         w = np.exp(w)
-        ess_val = (np.sum(w) ** 2) / np.sum(w ** 2)
+        ess_val = (np.sum(w) ** 2) / np.sum(w**2)
         w = w / w.sum()
 
         idx = rng.choice(n_particles, size=n_particles, p=w)
@@ -452,10 +464,12 @@ def tmcmc_rw(
         accept_rates.append(ar)
         ess_history.append(ess_val)
 
-        print(f"  Stage {stage:2d}: beta={beta:.4f}, "
-              f"accept={ar:.2f}, ESS={ess_val:.0f}, "
-              f"logL=[{logL.min():.1f}, {logL.max():.1f}], "
-              f"{dt:.1f}s")
+        print(
+            f"  Stage {stage:2d}: beta={beta:.4f}, "
+            f"accept={ar:.2f}, ESS={ess_val:.0f}, "
+            f"logL=[{logL.min():.1f}, {logL.max():.1f}], "
+            f"{dt:.1f}s"
+        )
 
     total_time = time.time() - t0
     best_idx = np.argmax(logL)
@@ -479,8 +493,11 @@ def tmcmc_rw(
 # ============================================================
 def plot_comparison(result_rw, result_hmc, theta_true, condition, free_dims):
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    fig.suptitle(f"TMCMC Comparison: Random-Walk vs HMC Mutation\n"
-                 f"Condition: {condition}", fontsize=14, fontweight="bold")
+    fig.suptitle(
+        f"TMCMC Comparison: Random-Walk vs HMC Mutation\n" f"Condition: {condition}",
+        fontsize=14,
+        fontweight="bold",
+    )
 
     colors = {"RW-TMCMC": "#F44336", "HMC-TMCMC": "#2196F3"}
 
@@ -497,8 +514,13 @@ def plot_comparison(result_rw, result_hmc, theta_true, condition, free_dims):
     # 2. Acceptance rates
     ax = axes[0, 1]
     for r in [result_rw, result_hmc]:
-        ax.plot(r["accept_rates"], "o-", color=colors[r["label"]],
-                label=f"{r['label']} (avg={np.mean(r['accept_rates']):.2f})", ms=4)
+        ax.plot(
+            r["accept_rates"],
+            "o-",
+            color=colors[r["label"]],
+            label=f"{r['label']} (avg={np.mean(r['accept_rates']):.2f})",
+            ms=4,
+        )
     ax.set_xlabel("Stage")
     ax.set_ylabel("Acceptance Rate")
     ax.set_title("Mutation Acceptance")
@@ -509,25 +531,39 @@ def plot_comparison(result_rw, result_hmc, theta_true, condition, free_dims):
     # 3. Summary bar chart
     ax = axes[0, 2]
     metrics = ["Stages", "Time [s]", "Avg Accept"]
-    rw_vals = [result_rw["n_stages"], result_rw["total_time"],
-               np.mean(result_rw["accept_rates"])]
-    hmc_vals = [result_hmc["n_stages"], result_hmc["total_time"],
-                np.mean(result_hmc["accept_rates"])]
+    rw_vals = [result_rw["n_stages"], result_rw["total_time"], np.mean(result_rw["accept_rates"])]
+    hmc_vals = [
+        result_hmc["n_stages"],
+        result_hmc["total_time"],
+        np.mean(result_hmc["accept_rates"]),
+    ]
 
     x = np.arange(len(metrics))
     w = 0.35
-    ax.bar(x - w/2, rw_vals, w, color=colors["RW-TMCMC"], label="RW", alpha=0.8)
-    ax.bar(x + w/2, hmc_vals, w, color=colors["HMC-TMCMC"], label="HMC", alpha=0.8)
+    ax.bar(x - w / 2, rw_vals, w, color=colors["RW-TMCMC"], label="RW", alpha=0.8)
+    ax.bar(x + w / 2, hmc_vals, w, color=colors["HMC-TMCMC"], label="HMC", alpha=0.8)
     ax.set_xticks(x)
     ax.set_xticklabels(metrics)
     ax.legend()
     ax.set_title("Performance Summary")
 
     for i, (rv, hv) in enumerate(zip(rw_vals, hmc_vals)):
-        ax.text(i - w/2, rv + 0.02 * max(rw_vals + hmc_vals), f"{rv:.2f}",
-                ha='center', va='bottom', fontsize=8)
-        ax.text(i + w/2, hv + 0.02 * max(rw_vals + hmc_vals), f"{hv:.2f}",
-                ha='center', va='bottom', fontsize=8)
+        ax.text(
+            i - w / 2,
+            rv + 0.02 * max(rw_vals + hmc_vals),
+            f"{rv:.2f}",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+        )
+        ax.text(
+            i + w / 2,
+            hv + 0.02 * max(rw_vals + hmc_vals),
+            f"{hv:.2f}",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+        )
 
     # 4-5. Posterior marginals (top 6 free dims)
     show_dims = free_dims[:6]
@@ -537,10 +573,22 @@ def plot_comparison(result_rw, result_hmc, theta_true, condition, free_dims):
         rw_samples = result_rw["samples"][:, dim]
         hmc_samples = result_hmc["samples"][:, dim]
 
-        ax_post.hist(rw_samples, bins=20, alpha=0.3, color=colors["RW-TMCMC"],
-                     density=True, label="RW" if i == 0 else None)
-        ax_post.hist(hmc_samples, bins=20, alpha=0.3, color=colors["HMC-TMCMC"],
-                     density=True, label="HMC" if i == 0 else None)
+        ax_post.hist(
+            rw_samples,
+            bins=20,
+            alpha=0.3,
+            color=colors["RW-TMCMC"],
+            density=True,
+            label="RW" if i == 0 else None,
+        )
+        ax_post.hist(
+            hmc_samples,
+            bins=20,
+            alpha=0.3,
+            color=colors["HMC-TMCMC"],
+            density=True,
+            label="HMC" if i == 0 else None,
+        )
 
     ax_post.set_title(f"Posterior Marginals (θ[{show_dims[0]}])")
     ax_post.legend()
@@ -554,26 +602,43 @@ def plot_comparison(result_rw, result_hmc, theta_true, condition, free_dims):
     w = 0.25
 
     ax.bar(x - w, theta_true[dims_show], w, color="gray", alpha=0.6, label="True")
-    ax.bar(x, result_rw["theta_MAP"][dims_show], w,
-           color=colors["RW-TMCMC"], alpha=0.8, label="RW MAP")
-    ax.bar(x + w, result_hmc["theta_MAP"][dims_show], w,
-           color=colors["HMC-TMCMC"], alpha=0.8, label="HMC MAP")
+    ax.bar(
+        x, result_rw["theta_MAP"][dims_show], w, color=colors["RW-TMCMC"], alpha=0.8, label="RW MAP"
+    )
+    ax.bar(
+        x + w,
+        result_hmc["theta_MAP"][dims_show],
+        w,
+        color=colors["HMC-TMCMC"],
+        alpha=0.8,
+        label="HMC MAP",
+    )
     ax.set_xticks(x)
     ax.set_xticklabels([f"θ[{d}]" for d in dims_show], fontsize=8)
     ax.legend(fontsize=8)
     ax.set_title("MAP Estimates vs True")
-    ax.grid(True, alpha=0.3, axis='y')
+    ax.grid(True, alpha=0.3, axis="y")
 
     # 6. Log-likelihood convergence
     ax = axes[1, 2]
     for r in [result_rw, result_hmc]:
         # Per-stage mean logL (approximate from final samples)
-        ax.plot(range(1, r["n_stages"] + 1),
-                [np.mean(r["log_likelihoods"])] * r["n_stages"],
-                "--", color=colors[r["label"]], alpha=0.5)
+        ax.plot(
+            range(1, r["n_stages"] + 1),
+            [np.mean(r["log_likelihoods"])] * r["n_stages"],
+            "--",
+            color=colors[r["label"]],
+            alpha=0.5,
+        )
         # ESS history
-        ax.plot(range(1, r["n_stages"] + 1), r["ess_history"],
-                "o-", color=colors[r["label"]], label=f"{r['label']} ESS", ms=4)
+        ax.plot(
+            range(1, r["n_stages"] + 1),
+            r["ess_history"],
+            "o-",
+            color=colors[r["label"]],
+            label=f"{r['label']} ESS",
+            ms=4,
+        )
     ax.set_xlabel("Stage")
     ax.set_ylabel("ESS")
     ax.set_title("Effective Sample Size")
@@ -635,13 +700,14 @@ def main(condition="Dysbiotic_HOBIC", n_particles=200, seed=42):
     E_true = di_to_E(di_true)
     uy_true = dem_predict_max_uy(dem_model, E_true)
 
-    print(f"  True: φ={np.array(phi_true)}, DI={float(di_true):.3f}, "
-          f"E={float(E_true):.0f} Pa, u_y={float(uy_true)*1000:.2f} μm")
+    print(
+        f"  True: φ={np.array(phi_true)}, DI={float(di_true):.3f}, "
+        f"E={float(E_true):.0f} Pa, u_y={float(uy_true)*1000:.2f} μm"
+    )
 
     # Add noise to observations
     sigma_phi = 0.03
-    observed_phi = jnp.array(np.array(phi_true) + rng.normal(0, sigma_phi, 5),
-                             dtype=jnp.float32)
+    observed_phi = jnp.array(np.array(phi_true) + rng.normal(0, sigma_phi, 5), dtype=jnp.float32)
     observed_phi = jnp.clip(observed_phi, 0.0, 1.0)
 
     sigma_uy = 0.0001  # 0.1 μm noise
@@ -649,9 +715,14 @@ def main(condition="Dysbiotic_HOBIC", n_particles=200, seed=42):
 
     # Create differentiable log-likelihood
     log_likelihood = make_multi_output_log_likelihood(
-        don_model, theta_lo, theta_width, dem_model,
-        observed_phi, sigma_phi=sigma_phi,
-        observed_uy=jnp.float32(observed_uy), sigma_uy=sigma_uy,
+        don_model,
+        theta_lo,
+        theta_width,
+        dem_model,
+        observed_phi,
+        sigma_phi=sigma_phi,
+        observed_uy=jnp.float32(observed_uy),
+        sigma_uy=sigma_uy,
     )
 
     # Warmup JIT
@@ -662,8 +733,10 @@ def main(condition="Dysbiotic_HOBIC", n_particles=200, seed=42):
 
     # Run standard TMCMC (Random-Walk)
     result_rw = tmcmc_rw(
-        log_likelihood, prior_bounds,
-        n_particles=n_particles, seed=seed,
+        log_likelihood,
+        prior_bounds,
+        n_particles=n_particles,
+        seed=seed,
         label="RW-TMCMC",
     )
 
@@ -672,7 +745,8 @@ def main(condition="Dysbiotic_HOBIC", n_particles=200, seed=42):
         log_likelihood,
         jax.value_and_grad(log_likelihood),
         prior_bounds,
-        n_particles=n_particles, seed=seed,
+        n_particles=n_particles,
+        seed=seed,
         hmc_step_size=0.005,
         hmc_n_leapfrog=5,
         label="HMC-TMCMC",
@@ -684,21 +758,24 @@ def main(condition="Dysbiotic_HOBIC", n_particles=200, seed=42):
     print("=" * 70)
     print(f"{'Metric':<25} {'RW-TMCMC':>12} {'HMC-TMCMC':>12} {'Ratio':>10}")
     print("-" * 65)
-    print(f"{'Total time [s]':<25} {result_rw['total_time']:>12.1f} "
-          f"{result_hmc['total_time']:>12.1f} "
-          f"{result_rw['total_time']/result_hmc['total_time']:>10.1f}x")
-    print(f"{'Stages':<25} {result_rw['n_stages']:>12d} "
-          f"{result_hmc['n_stages']:>12d}")
-    print(f"{'Avg acceptance':<25} {np.mean(result_rw['accept_rates']):>12.3f} "
-          f"{np.mean(result_hmc['accept_rates']):>12.3f}")
-    print(f"{'Final max logL':<25} {result_rw['log_likelihoods'].max():>12.1f} "
-          f"{result_hmc['log_likelihoods'].max():>12.1f}")
+    print(
+        f"{'Total time [s]':<25} {result_rw['total_time']:>12.1f} "
+        f"{result_hmc['total_time']:>12.1f} "
+        f"{result_rw['total_time']/result_hmc['total_time']:>10.1f}x"
+    )
+    print(f"{'Stages':<25} {result_rw['n_stages']:>12d} " f"{result_hmc['n_stages']:>12d}")
+    print(
+        f"{'Avg acceptance':<25} {np.mean(result_rw['accept_rates']):>12.3f} "
+        f"{np.mean(result_hmc['accept_rates']):>12.3f}"
+    )
+    print(
+        f"{'Final max logL':<25} {result_rw['log_likelihoods'].max():>12.1f} "
+        f"{result_hmc['log_likelihoods'].max():>12.1f}"
+    )
 
     # MAP error
-    rw_err = np.sqrt(np.mean((result_rw["theta_MAP"][free_dims] -
-                               theta_true[free_dims]) ** 2))
-    hmc_err = np.sqrt(np.mean((result_hmc["theta_MAP"][free_dims] -
-                                theta_true[free_dims]) ** 2))
+    rw_err = np.sqrt(np.mean((result_rw["theta_MAP"][free_dims] - theta_true[free_dims]) ** 2))
+    hmc_err = np.sqrt(np.mean((result_hmc["theta_MAP"][free_dims] - theta_true[free_dims]) ** 2))
     print(f"{'MAP RMSE (free dims)':<25} {rw_err:>12.4f} {hmc_err:>12.4f}")
 
     # Plot

@@ -1,5 +1,5 @@
 ==================================================
-       BIOFILM MODEL PARAMETER ANALYSIS           
+       BIOFILM MODEL PARAMETER ANALYSIS
 ==================================================
 Condition: Commensal Static
 Log-Likelihood: 35.0840

@@ -29,16 +29,16 @@ import stat
 
 TEMPLATES = {
     "crown": {
-        "src_inp":  "OJ_Crown_T23_b050.inp",
+        "src_inp": "OJ_Crown_T23_b050.inp",
         "src_beta": 0.50,
         "src_name": "OJ_Crown_T23_b050",
-        "tgt_pat":  "OJ_Crown_T23_b{b}",
+        "tgt_pat": "OJ_Crown_T23_b{b}",
     },
     "slit": {
-        "src_inp":  "OJ_Slit_T3031_b050.inp",
+        "src_inp": "OJ_Slit_T3031_b050.inp",
         "src_beta": 0.50,
         "src_name": "OJ_Slit_T3031_b050",
-        "tgt_pat":  "OJ_Slit_T3031_b{b}",
+        "tgt_pat": "OJ_Slit_T3031_b{b}",
     },
 }
 
@@ -54,9 +54,7 @@ def _bstr(beta):
 # Material rewriter
 # ---------------------------------------------------------------------------
 
-_EC_HEADER_RE = re.compile(
-    r"^\s*\*Elastic\s*,\s*type\s*=\s*ENGINEERING\s+CONSTANTS\s*$", re.I
-)
+_EC_HEADER_RE = re.compile(r"^\s*\*Elastic\s*,\s*type\s*=\s*ENGINEERING\s+CONSTANTS\s*$", re.I)
 
 
 def _rewrite_materials(text, new_beta):
@@ -85,27 +83,35 @@ def _rewrite_materials(text, new_beta):
             parts = [p.strip() for p in ec_line.split(",")]
             if len(parts) >= 8:
                 try:
-                    E1   = float(parts[0])
+                    E1 = float(parts[0])
                     # parts[1] = E2 (old, discarded)
                     # parts[2] = E3 (old, discarded)
                     nu12 = float(parts[3])
                     nu13 = float(parts[4])
                     nu23 = float(parts[5])
-                    G12  = float(parts[6])   # E1 / (2*(1+nu)), unchanged
-                    G13  = float(parts[7])   # same as G12
+                    G12 = float(parts[6])  # E1 / (2*(1+nu)), unchanged
+                    G13 = float(parts[7])  # same as G12
                 except ValueError:
                     # Unexpected format – keep as-is and skip
                     out.append(ec_line)
                     i += 1
                     continue
 
-                new_E2  = new_beta * E1
-                new_E3  = new_beta * E1
-                new_G23 = new_beta * G12   # = new_E2 / (2*(1+nu))
+                new_E2 = new_beta * E1
+                new_E3 = new_beta * E1
+                new_G23 = new_beta * G12  # = new_E2 / (2*(1+nu))
 
                 # Reformat to match Abaqus style (space-prefixed, e-notation)
-                new_ec = (" %g, %g, %g, %g, %g, %g, %g, %g"
-                          % (E1, new_E2, new_E3, nu12, nu13, nu23, G12, G13))
+                new_ec = " %g, %g, %g, %g, %g, %g, %g, %g" % (
+                    E1,
+                    new_E2,
+                    new_E3,
+                    nu12,
+                    nu13,
+                    nu23,
+                    G12,
+                    G13,
+                )
                 out.append(new_ec)
                 i += 1
 
@@ -129,6 +135,7 @@ def _rewrite_materials(text, new_beta):
 # INP file builder
 # ---------------------------------------------------------------------------
 
+
 def make_inp(src_path, src_beta, src_name, new_beta, new_name):
     with open(src_path) as f:
         text = f.read()
@@ -146,6 +153,7 @@ def make_inp(src_path, src_beta, src_name, new_beta, new_name):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main():
     dry_run = "--dry-run" in sys.argv
@@ -168,7 +176,7 @@ def main():
         sys.exit(1)
 
     fem_dir = os.path.dirname(os.path.abspath(__file__))
-    jobs = []   # list of (new_name, inp_basename)
+    jobs = []  # list of (new_name, inp_basename)
 
     for geom in geoms:
         tmpl = TEMPLATES[geom]
@@ -178,9 +186,9 @@ def main():
             continue
 
         for beta in NEW_BETAS:
-            b_str    = _bstr(beta)
+            b_str = _bstr(beta)
             new_name = tmpl["tgt_pat"].format(b=b_str)
-            new_inp  = os.path.join(fem_dir, new_name + ".inp")
+            new_inp = os.path.join(fem_dir, new_name + ".inp")
 
             if os.path.isfile(new_inp):
                 print("skip (exists): %s" % new_inp)
@@ -188,15 +196,13 @@ def main():
                 continue
 
             print("generating %s  (beta=%.2f)" % (new_name, beta))
-            text = make_inp(src_path, tmpl["src_beta"], tmpl["src_name"],
-                            beta, new_name)
+            text = make_inp(src_path, tmpl["src_beta"], tmpl["src_name"], beta, new_name)
             if dry_run:
                 print("  [dry-run] would write %s" % new_inp)
             else:
                 with open(new_inp, "w") as f:
                     f.write(text)
-                print("  wrote %s  (%d lines)" % (
-                    new_inp, text.count("\n")))
+                print("  wrote %s  (%d lines)" % (new_inp, text.count("\n")))
             jobs.append((new_name, new_name + ".inp"))
 
     if not jobs:
@@ -217,8 +223,7 @@ def main():
     ]
     for name, inp_base in jobs:
         sh_lines.append("echo '=== %s ==='" % name)
-        sh_lines.append(
-            "abaqus job=%s inp=%s cpus=1 interactive" % (name, inp_base))
+        sh_lines.append("abaqus job=%s inp=%s cpus=1 interactive" % (name, inp_base))
         sh_lines.append("")
 
     sh_content = "\n".join(sh_lines) + "\n"
@@ -228,8 +233,7 @@ def main():
     else:
         with open(sh_path, "w") as f:
             f.write(sh_content)
-        os.chmod(sh_path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP |
-                 stat.S_IROTH | stat.S_IXOTH)
+        os.chmod(sh_path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
         print("\nShell script: %s" % sh_path)
         print("Submit with:  bash %s" % sh_path)
 

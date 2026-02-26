@@ -37,48 +37,54 @@ import os
 
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 # ── ディレクトリ設定 ──────────────────────────────────────────────────────────
-_HERE     = os.path.dirname(os.path.abspath(__file__))
-IN_DIR    = os.path.join(_HERE, "_multiscale_results")
-OUT_DIR   = os.path.join(_HERE, "_abaqus_input")
+_HERE = os.path.dirname(os.path.abspath(__file__))
+IN_DIR = os.path.join(_HERE, "_multiscale_results")
+OUT_DIR = os.path.join(_HERE, "_abaqus_input")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # ── 条件メタデータ ───────────────────────────────────────────────────────────
 CONDITIONS_META = {
-    "commensal_static" : {"color": "#1f77b4", "label": "Commensal Static"},
-    "commensal_hobic"  : {"color": "#2ca02c", "label": "Commensal HOBIC"},
-    "dysbiotic_static" : {"color": "#ff7f0e", "label": "Dysbiotic Static"},
-    "dysbiotic_hobic"  : {"color": "#d62728", "label": "Dysbiotic HOBIC"},
+    "commensal_static": {"color": "#1f77b4", "label": "Commensal Static"},
+    "commensal_hobic": {"color": "#2ca02c", "label": "Commensal HOBIC"},
+    "dysbiotic_static": {"color": "#ff7f0e", "label": "Dysbiotic Static"},
+    "dysbiotic_hobic": {"color": "#d62728", "label": "Dysbiotic HOBIC"},
 }
 
 # E モデル定義
 E_MODELS = {
-    "di":        {"col": "E_di",        "label": "DI model",
-                  "desc": "entropy-based Dysbiotic Index"},
-    "phi_pg":    {"col": "E_phi_pg",    "label": r"$\varphi_{Pg}$ model",
-                  "desc": "Pg-specific Hill sigmoid"},
-    "virulence": {"col": "E_virulence", "label": "Virulence model",
-                  "desc": "Pg+Fn weighted Hill sigmoid"},
+    "di": {"col": "E_di", "label": "DI model", "desc": "entropy-based Dysbiotic Index"},
+    "phi_pg": {
+        "col": "E_phi_pg",
+        "label": r"$\varphi_{Pg}$ model",
+        "desc": "Pg-specific Hill sigmoid",
+    },
+    "virulence": {
+        "col": "E_virulence",
+        "label": "Virulence model",
+        "desc": "Pg+Fn weighted Hill sigmoid",
+    },
 }
 
-NU = 0.45          # ポアソン比
-ALPHA_TH = 1.0     # 熱膨張係数
+NU = 0.45  # ポアソン比
+ALPHA_TH = 1.0  # 熱膨張係数
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CSV 読み込み
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _read_commented_csv(path: str) -> dict:
     with open(path, "r", encoding="utf-8") as f:
         lines = [l.rstrip("\n") for l in f if not l.startswith("#")]
     cols = lines[0].split(",")
     data = np.array(
-        [[float(v) for v in l.split(",")]
-         for l in lines[1:] if l.strip()],
+        [[float(v) for v in l.split(",")] for l in lines[1:] if l.strip()],
         dtype=np.float64,
     )
     return {col: data[:, i] for i, col in enumerate(cols)}
@@ -94,14 +100,14 @@ def load_csv(condition_key: str) -> dict | None:
             print(f"  [{condition_key}] CSV ロード {tag}: {os.path.basename(path)}")
 
             result = {
-                "depth_mm"   : d["depth_mm"],
-                "depth_norm" : d["depth_norm"],
+                "depth_mm": d["depth_mm"],
+                "depth_norm": d["depth_norm"],
                 "alpha_monod": d["alpha_monod"],
-                "eps_growth" : d["eps_growth"],
-                "phi_total"  : d["phi_total"],
-                "c"          : d["c"],
-                "path"       : path,
-                "suffix"     : suffix,
+                "eps_growth": d["eps_growth"],
+                "phi_total": d["phi_total"],
+                "c": d["c"],
+                "path": path,
+                "suffix": suffix,
             }
 
             # 3 E モデルのカラムを読み込む (存在すれば)
@@ -130,6 +136,7 @@ def load_csv(condition_key: str) -> dict | None:
 # Abaqus .inp 生成
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def generate_abaqus_inp(
     data: dict,
     condition_key: str,
@@ -153,14 +160,14 @@ def generate_abaqus_inp(
     path : str — 出力 .inp ファイルのパス
     """
     depth_mm = data["depth_mm"]
-    eps_gr   = data["eps_growth"]
-    N        = len(depth_mm)
+    eps_gr = data["eps_growth"]
+    N = len(depth_mm)
 
-    E_mean   = float(E_Pa_arr.mean())
-    eps_max  = float(eps_gr.max())
-    eps_min  = float(eps_gr.min())
+    E_mean = float(E_Pa_arr.mean())
+    eps_max = float(eps_gr.max())
+    eps_min = float(eps_gr.min())
 
-    sigma_tooth  = -E_Pa_arr[0]  * eps_gr[0]
+    sigma_tooth = -E_Pa_arr[0] * eps_gr[0]
     sigma_saliva = -E_Pa_arr[-1] * eps_gr[-1]
 
     model_desc = E_MODELS[model_key]["desc"]
@@ -169,9 +176,9 @@ def generate_abaqus_inp(
 
     # ── ヘッダ ──
     lines += [
-        f"**",
+        "**",
         f"** {'='*60}",
-        f"** BIOFILM 1D EIGENSTRAIN BAR",
+        "** BIOFILM 1D EIGENSTRAIN BAR",
         f"** Condition: {condition_key}  ({label})",
         f"** E model: {model_key}  ({model_desc})",
         f"** E_mean = {E_mean:.1f} Pa,  nu = {NU:.2f}",
@@ -179,9 +186,9 @@ def generate_abaqus_inp(
         f"** sigma_tooth: {sigma_tooth:.4f} Pa",
         f"** sigma_saliva: {sigma_saliva:.4f} Pa",
         f"** {'='*60}",
-        f"*HEADING",
+        "*HEADING",
         f"Biofilm 1D eigenstrain ({condition_key}, E_model={model_key})",
-        f"**",
+        "**",
     ]
 
     # ── 節点 (z 軸方向) ──
@@ -190,7 +197,7 @@ def generate_abaqus_inp(
         lines.append(f"{i+1:5d},  0.000000,  0.000000,  {d:.8f}")
 
     # ── 要素 (T3D2) ──
-    lines += [f"*ELEMENT, TYPE=T3D2, ELSET=BIOFILM_BAR"]
+    lines += ["*ELEMENT, TYPE=T3D2, ELSET=BIOFILM_BAR"]
     for i in range(N - 1):
         lines.append(f"{i+1:5d},  {i+1},  {i+2}")
 
@@ -198,9 +205,9 @@ def generate_abaqus_inp(
     lines += [
         "*NSET, NSET=TOOTH_SURFACE",
         "1",
-        f"*NSET, NSET=SALIVA_SURFACE",
+        "*NSET, NSET=SALIVA_SURFACE",
         f"{N}",
-        f"*NSET, NSET=ALL_NODES, GENERATE",
+        "*NSET, NSET=ALL_NODES, GENERATE",
         f"1, {N}, 1",
     ]
 
@@ -256,7 +263,7 @@ def generate_abaqus_inp(
     ]
 
     fname = f"biofilm_1d_bar_{condition_key}_{model_key}.inp"
-    path  = os.path.join(OUT_DIR, fname)
+    path = os.path.join(OUT_DIR, fname)
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -268,16 +275,17 @@ def generate_abaqus_inp(
 # 固有ひずみフィールド CSV
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def export_field_csv(data: dict, condition_key: str) -> str:
     """3 E モデルの応力を含む CSV を書き出す。"""
     depth_mm = data["depth_mm"]
-    eps_gr   = data["eps_growth"]
-    N        = len(depth_mm)
+    eps_gr = data["eps_growth"]
+    N = len(depth_mm)
 
     header_parts = [
         f"# Abaqus eigenstrain field — {condition_key}",
-        f"# 3 E models: DI, phi_Pg, Virulence",
-        "node_id,depth_mm,eps_growth,DeltaT"
+        "# 3 E models: DI, phi_Pg, Virulence",
+        "node_id,depth_mm,eps_growth,DeltaT",
     ]
 
     E_cols = {}
@@ -299,7 +307,7 @@ def export_field_csv(data: dict, condition_key: str) -> str:
         rows.append(row)
 
     fname = f"eigenstrain_field_{condition_key}.csv"
-    path  = os.path.join(OUT_DIR, fname)
+    path = os.path.join(OUT_DIR, fname)
     with open(path, "w") as f:
         f.write(header + "\n".join(rows) + "\n")
 
@@ -310,6 +318,7 @@ def export_field_csv(data: dict, condition_key: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # 3モデル比較図
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def plot_comparison_3model(all_data: dict) -> str:
     """
@@ -324,11 +333,11 @@ def plot_comparison_3model(all_data: dict) -> str:
     model_labels = ["DI model", r"$\varphi_{Pg}$ model", "Virulence model"]
 
     for ckey, data in all_data.items():
-        meta  = CONDITIONS_META[ckey]
-        col   = meta["color"]
-        lbl   = meta["label"]
+        meta = CONDITIONS_META[ckey]
+        col = meta["color"]
+        lbl = meta["label"]
         depth = data["depth_mm"]
-        eps   = data["eps_growth"]
+        eps = data["eps_growth"]
         suffix_tag = " [H]" if data["suffix"] == "_hybrid" else ""
 
         # Row 1, Col 1: eps_growth
@@ -338,7 +347,7 @@ def plot_comparison_3model(all_data: dict) -> str:
         for j, mk in enumerate(model_keys[:2]):
             ecol = E_MODELS[mk]["col"]
             if ecol in data:
-                axes[0, j+1].plot(depth, data[ecol], color=col, lw=2, label=lbl)
+                axes[0, j + 1].plot(depth, data[ecol], color=col, lw=2, label=lbl)
 
         # Row 2: σ for each model
         for j, mk in enumerate(model_keys):
@@ -354,11 +363,11 @@ def plot_comparison_3model(all_data: dict) -> str:
     axes[0, 0].grid(alpha=0.3)
 
     for j, (mk, ml) in enumerate(zip(model_keys[:2], model_labels[:2])):
-        axes[0, j+1].set_ylabel("E [Pa]")
-        axes[0, j+1].set_title(f"({'bc'[j]}) E: {ml}")
-        axes[0, j+1].legend(fontsize=7)
-        axes[0, j+1].grid(alpha=0.3)
-        axes[0, j+1].set_ylim(bottom=0)
+        axes[0, j + 1].set_ylabel("E [Pa]")
+        axes[0, j + 1].set_title(f"({'bc'[j]}) E: {ml}")
+        axes[0, j + 1].legend(fontsize=7)
+        axes[0, j + 1].grid(alpha=0.3)
+        axes[0, j + 1].set_ylim(bottom=0)
 
     for j, (mk, ml) in enumerate(zip(model_keys, model_labels)):
         axes[1, j].set_xlabel("Depth [mm]")
@@ -373,7 +382,8 @@ def plot_comparison_3model(all_data: dict) -> str:
     fig.suptitle(
         "3-Model Comparison: Eigenstrain, Modulus, and Prestress\n"
         "DI (entropy-based) vs $\\varphi_{Pg}$ (mechanism) vs Virulence (Pg+Fn)",
-        fontsize=11, fontweight="bold"
+        fontsize=11,
+        fontweight="bold",
     )
     plt.tight_layout()
 
@@ -387,6 +397,7 @@ def plot_comparison_3model(all_data: dict) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # サマリテキスト
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def write_summary_3model(all_data: dict) -> str:
     """3モデルの最大圧縮応力サマリ。"""
@@ -435,6 +446,7 @@ def write_summary_3model(all_data: dict) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # メイン
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def main():
     print("=" * 70)

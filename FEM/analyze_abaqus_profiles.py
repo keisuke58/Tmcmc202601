@@ -65,9 +65,7 @@ def diff_between_conditions(summary: pd.DataFrame) -> pd.DataFrame:
             "depth_frac": depth,
         }
         for m in ["S11", "S22", "S33", "S_Mises"]:
-            row[f"{m}_diff_cs_minus_dh"] = float(
-                r_cs[f"{m}_mean"] - r_dh[f"{m}_mean"]
-            )
+            row[f"{m}_diff_cs_minus_dh"] = float(r_cs[f"{m}_mean"] - r_dh[f"{m}_mean"])
         rows.append(row)
     if not rows:
         return pd.DataFrame()

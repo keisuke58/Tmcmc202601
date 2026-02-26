@@ -3,7 +3,8 @@
 Run with: abq2024 python _extract_3d_fields.py <odb_path> <out_csv>
 """
 from __future__ import print_function
-import sys, os, csv
+import sys
+import csv
 
 try:
     from odbAccess import openOdb
@@ -33,8 +34,11 @@ if u_field is not None:
     for val in u_field.values:
         inst = val.instance.name if val.instance else "ASSEMBLY"
         u_lookup[(inst, val.nodeLabel)] = (
-            float(val.data[0]), float(val.data[1]), float(val.data[2]),
-            float(val.magnitude))
+            float(val.data[0]),
+            float(val.data[1]),
+            float(val.data[2]),
+            float(val.magnitude),
+        )
 
 # Build stress lookup at nodes (ELEMENT_NODAL position for nodal averaging)
 mises_lookup = {}
@@ -43,7 +47,7 @@ if s_field is not None:
         s_nodal = s_field.getSubset(position=s_field.values[0].position)
         for val in s_field.values:
             inst = val.instance.name if val.instance else "ASSEMBLY"
-            key = (inst, val.nodeLabel if hasattr(val, 'nodeLabel') else 0)
+            key = (inst, val.nodeLabel if hasattr(val, "nodeLabel") else 0)
             m = float(val.mises) if val.mises is not None else 0.0
             # Keep max mises per node (multiple integration points map to same node)
             if key not in mises_lookup or m > mises_lookup[key]:
@@ -55,20 +59,18 @@ if s_field is not None:
 print("Writing:", out_csv)
 with open(out_csv, "w") as f:
     writer = csv.writer(f)
-    writer.writerow(["instance", "node_id", "x", "y", "z",
-                     "ux", "uy", "uz", "u_mag"])
+    writer.writerow(["instance", "node_id", "x", "y", "z", "ux", "uy", "uz", "u_mag"])
     for inst_name in sorted(odb.rootAssembly.instances.keys()):
         inst = odb.rootAssembly.instances[inst_name]
         for node in inst.nodes:
             coords = node.coordinates
             key = (inst_name, node.label)
             u = u_lookup.get(key, (0.0, 0.0, 0.0, 0.0))
-            writer.writerow([inst_name, node.label,
-                             coords[0], coords[1], coords[2],
-                             u[0], u[1], u[2], u[3]])
+            writer.writerow(
+                [inst_name, node.label, coords[0], coords[1], coords[2], u[0], u[1], u[2], u[3]]
+            )
 
-n_total = sum(len(odb.rootAssembly.instances[i].nodes)
-              for i in odb.rootAssembly.instances.keys())
+n_total = sum(len(odb.rootAssembly.instances[i].nodes) for i in odb.rootAssembly.instances.keys())
 print("  Exported %d nodes" % n_total)
 odb.close()
 print("Done.")

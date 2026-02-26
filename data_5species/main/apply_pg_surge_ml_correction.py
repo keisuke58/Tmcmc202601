@@ -143,12 +143,12 @@ def train_mlp(mlp: PgingivalisSurgeMLP, X, y, epochs=2000, lr=5e-2):
         diff = y_pred_flat - y
         grad_y = (2.0 / N) * diff
         tanh_z2 = np.tanh(z2)
-        dy_dz2 = mlp.output_scale * (1.0 - tanh_z2 ** 2)
+        dy_dz2 = mlp.output_scale * (1.0 - tanh_z2**2)
         grad_z2 = grad_y.reshape(-1, 1) * dy_dz2
         grad_W2 = h.T @ grad_z2
         grad_b2 = grad_z2.sum(axis=0)
         dh = grad_z2 @ mlp.W2.T
-        dz1 = dh * (1.0 - h ** 2)
+        dz1 = dh * (1.0 - h**2)
         grad_W1 = X.T @ dz1
         grad_b1 = dz1.sum(axis=0)
         mlp.W1 -= lr * grad_W1
@@ -282,12 +282,12 @@ def train_mlp_weighted(mlp: PgingivalisSurgeMLP, X, y, w, epochs=4000, lr=5e-2, 
         diff = y_pred_vec - y_vec
         grad_y = (2.0 / s) * w_vec * diff
         tanh_z2 = np.tanh(z2)
-        dy_dz2 = mlp.output_scale * (1.0 - tanh_z2 ** 2)
+        dy_dz2 = mlp.output_scale * (1.0 - tanh_z2**2)
         grad_z2 = grad_y * dy_dz2
         grad_W2 = h.T @ grad_z2
         grad_b2 = grad_z2.sum(axis=0)
         dh = grad_z2 @ mlp.W2.T
-        dz1 = dh * (1.0 - h ** 2)
+        dz1 = dh * (1.0 - h**2)
         grad_W1 = X.T @ dz1
         grad_b1 = dz1.sum(axis=0)
         if l2 > 0.0:
@@ -385,6 +385,7 @@ def run_hobic_m5_scan(run_dir: Path):
         K_hill=K_hill,
         n_hill=n_hill,
     )
+
     def simulate(theta_vec):
         t_arr, g_arr = solver.solve(theta_vec)
         phi = g_arr[:, 0:5]
@@ -394,6 +395,7 @@ def run_hobic_m5_scan(run_dir: Path):
         idx_map = [np.argmin(np.abs(t_model_days - d)) for d in t_days]
         phibar_obs = phibar[idx_map, :]
         return phibar_obs
+
     phibar_base = simulate(theta_full)
     pg_data = data_points[:, 4]
     pg_base = phibar_base[:, 4]
@@ -412,11 +414,21 @@ def run_hobic_m5_scan(run_dir: Path):
     theta_b5_m5_up[19] *= 1.5
     phibar_b5_m5 = simulate(theta_b5_m5_up)
     pg_b5_m5 = phibar_b5_m5[:, 4]
+
     def rmse_all(y):
         return float(np.sqrt(np.mean((y - pg_data) ** 2)))
+
     def rmse_late(y):
         return float(np.sqrt(np.mean((y[-2:] - pg_data[-2:]) ** 2)))
-    print("Base   RMSE_all", rmse_all(pg_base), "RMSE_late2", rmse_late(pg_base), "Pg_final", pg_base[-1])
+
+    print(
+        "Base   RMSE_all",
+        rmse_all(pg_base),
+        "RMSE_late2",
+        rmse_late(pg_base),
+        "Pg_final",
+        pg_base[-1],
+    )
     print("b5x1.5 RMSE_all", rmse_all(pg_b5), "RMSE_late2", rmse_late(pg_b5), "Pg_final", pg_b5[-1])
     print("M5x1.5 RMSE_all", rmse_all(pg_m5), "RMSE_late2", rmse_late(pg_m5), "Pg_final", pg_m5[-1])
     print(

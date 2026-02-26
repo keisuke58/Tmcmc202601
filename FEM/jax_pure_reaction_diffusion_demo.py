@@ -12,11 +12,7 @@ def solve_pde(D, n_steps=500, N=64, dt=1e-4, k=1.0, s0=10.0):
 
     def laplacian(u):
         interior = (
-            u[:-2, 1:-1]
-            + u[2:, 1:-1]
-            + u[1:-1, :-2]
-            + u[1:-1, 2:]
-            - 4.0 * u[1:-1, 1:-1]
+            u[:-2, 1:-1] + u[2:, 1:-1] + u[1:-1, :-2] + u[1:-1, 2:] - 4.0 * u[1:-1, 1:-1]
         ) / (dx * dx)
         z = jnp.zeros_like(u)
         z = z.at[1:-1, 1:-1].set(interior)
@@ -64,4 +60,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

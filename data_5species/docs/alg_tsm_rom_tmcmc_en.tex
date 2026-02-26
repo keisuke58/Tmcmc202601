@@ -40,7 +40,7 @@ where $w_{i}^{(s,c)} \propto \exp\!\left((\beta_s - \beta_{s-1}) \, \ell_{i}^{(s
     \FOR{$i = 1, \dots, N$}
         \STATE Compute incremental weight
         \[
-            \tilde{w}_{i}^{(s,c)} \leftarrow 
+            \tilde{w}_{i}^{(s,c)} \leftarrow
             \exp\!\left((\beta_s - \beta_{s-1}) \, \ell_{i}^{(s-1,c)}\right)
         \]
     \ENDFOR
@@ -63,13 +63,13 @@ where $w_{i}^{(s,c)} \propto \exp\!\left((\beta_s - \beta_{s-1}) \, \ell_{i}^{(s
             \[
                 \alpha = \min\left\{1,
                 \exp\!\Big(
-                    \beta_s (\ell^\star - \ell_{i}^{(s,c)}) 
+                    \beta_s (\ell^\star - \ell_{i}^{(s,c)})
                     + \log p(\theta^\star) - \log p(\theta_{i}^{(s,c)})
                 \Big)
                 \right\}
             \]
             \STATE With probability $\alpha$, set
-            $\theta_{i}^{(s,c)} \leftarrow \theta^\star,\ 
+            $\theta_{i}^{(s,c)} \leftarrow \theta^\star,\
              \ell_{i}^{(s,c)} \leftarrow \ell^\star$
         \ENDFOR
     \ENDFOR

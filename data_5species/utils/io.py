@@ -6,7 +6,6 @@ Extracted from case2_tmcmc_linearization.py for better modularity.
 
 from __future__ import annotations
 
-import inspect
 import json
 import zlib
 from datetime import datetime
@@ -19,12 +18,12 @@ import numpy as np
 def code_crc32(path: Path) -> str:
     """
     Generate a stable fingerprint of a file (hex crc32).
-    
+
     Parameters
     ----------
     path : Path
         Path to the file
-        
+
     Returns
     -------
     str
@@ -40,7 +39,7 @@ def code_crc32(path: Path) -> str:
 def save_npy(path: Path, arr: np.ndarray) -> None:
     """
     Save numpy array with automatic parent directory creation.
-    
+
     Parameters
     ----------
     path : Path
@@ -55,12 +54,12 @@ def save_npy(path: Path, arr: np.ndarray) -> None:
 def to_jsonable(obj: Any) -> Any:
     """
     Best-effort conversion of numpy-heavy objects into JSON-serializable types.
-    
+
     Parameters
     ----------
     obj : Any
         Object to convert
-        
+
     Returns
     -------
     Any
@@ -87,7 +86,7 @@ def to_jsonable(obj: Any) -> Any:
 def save_json(path: Path, payload: Dict[str, Any]) -> None:
     """
     Save JSON with numpy-safe conversion and automatic directory creation.
-    
+
     Parameters
     ----------
     path : Path
@@ -103,7 +102,7 @@ def save_json(path: Path, payload: Dict[str, Any]) -> None:
 def write_csv(path: Path, header: List[str], rows: List[List[Any]]) -> None:
     """
     Write a small CSV file with automatic directory creation.
-    
+
     Parameters
     ----------
     path : Path
@@ -114,7 +113,7 @@ def write_csv(path: Path, header: List[str], rows: List[List[Any]]) -> None:
         Data rows
     """
     import csv
-    
+
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -139,7 +138,7 @@ def save_likelihood_meta(
     """
     Persist a minimal, machine-readable description of the likelihood definition
     used for this run so results can be audited/recomputed later.
-    
+
     Parameters
     ----------
     run_dir : Path
@@ -166,12 +165,13 @@ def save_likelihood_meta(
     """
     if script_path is None:
         import inspect
+
         frame = inspect.currentframe()
         if frame is not None and frame.f_back is not None:
             script_path = Path(frame.f_back.f_globals.get("__file__", ""))
         else:
             script_path = Path("unknown")
-    
+
     meta = {
         "run_id": run_id,
         "model": model,

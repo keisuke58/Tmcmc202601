@@ -7,6 +7,7 @@ and produces a comparison figure.
 """
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,21 +15,27 @@ import jax
 import jax.numpy as jnp
 import jax.random as jr
 import equinox as eqx
-from pathlib import Path
 
 jax.config.update("jax_enable_x64", False)
 
 # Import model classes
 from dem_elasticity_3d import (
-    ElasticityNetwork, generate_E_field_3d as dem_gen_E,
-    W, H, D, E_MAX, E_MIN, NU, P_APPLIED, strain_energy_density,
+    ElasticityNetwork,
+    generate_E_field_3d as dem_gen_E,
+    W,
+    H,
+    D,
+    E_MAX,
+    E_MIN,
+    P_APPLIED,
 )
 from pinn_elasticity_3d import (
-    ElasticityPINN3D, pde_residual_3d,
-    generate_E_field_3d as pinn_gen_E,
+    ElasticityPINN3D,
+    pde_residual_3d,
 )
 from pifo_elasticity_3d import (
-    FNO3d, get_grid, spectral_derivative_3d,
+    FNO3d,
+    get_grid,
 )
 
 
@@ -71,8 +78,10 @@ def load_models():
 
 def predict_pointwise(model, X, Y, Z, E_norm):
     """Predict displacement for point-wise models (DEM / PINN)."""
+
     def predict_single(x, y, z, e):
         return model(x, y, z, e)
+
     return jax.vmap(jax.vmap(predict_single))(X, Y, Z, E_norm)
 
 
@@ -96,7 +105,7 @@ def compute_analytical_1d(E_vals_1d, y_vals):
     for i in range(ny - 1, -1, -1):
         # Integrate from y to H
         dy_seg = np.diff(y_vals[i:])
-        E_seg = 0.5 * (E_vals_1d[i:-1] + E_vals_1d[i+1:])
+        E_seg = 0.5 * (E_vals_1d[i:-1] + E_vals_1d[i + 1 :])
         if len(dy_seg) > 0:
             uy[i] = np.sum(P_APPLIED / E_seg * dy_seg)
     return uy
@@ -131,9 +140,7 @@ def main():
     param_counts = {}
 
     for name, model in models.items():
-        n_params = sum(
-            x.size for x in jax.tree.leaves(eqx.filter(model, eqx.is_array))
-        )
+        n_params = sum(x.size for x in jax.tree.leaves(eqx.filter(model, eqx.is_array)))
         param_counts[name] = n_params
 
         if name in ("DEM", "PINN"):
@@ -149,7 +156,9 @@ def main():
             X3, Y3, Z3 = get_grid(res)
             E3 = jax.vmap(
                 jax.vmap(jax.vmap(E_fn)),
-            )(X3, Y3, Z3)  # (res, res, res)
+            )(
+                X3, Y3, Z3
+            )  # (res, res, res)
             u_3d, _, _, _ = predict_fno(model, E3, res)
             # Extract z-slice (nearest index)
             iz = res // 2
@@ -176,9 +185,12 @@ def main():
         if name in ("DEM", "PINN"):
             uy_vals = []
             for yy in y_prof:
-                u = model(jnp.float32(x_mid), jnp.float32(yy),
-                          jnp.float32(z_mid),
-                          jnp.float32(E_fn(x_mid, yy, z_mid) / E_MAX))
+                u = model(
+                    jnp.float32(x_mid),
+                    jnp.float32(yy),
+                    jnp.float32(z_mid),
+                    jnp.float32(E_fn(x_mid, yy, z_mid) / E_MAX),
+                )
                 uy_vals.append(float(u[1]))
             profiles[name] = np.array(uy_vals)
         elif name == "PI-FNO":
@@ -196,9 +208,9 @@ def main():
     n_test = 200
     key_test = jr.PRNGKey(777)
     k1, k2, k3 = jr.split(key_test, 3)
-    x_t = jr.uniform(k1, (n_test,), minval=0.05*W, maxval=0.95*W)
-    y_t = jr.uniform(k2, (n_test,), minval=0.05*H, maxval=0.95*H)
-    z_t = jr.uniform(k3, (n_test,), minval=0.05*D, maxval=0.95*D)
+    x_t = jr.uniform(k1, (n_test,), minval=0.05 * W, maxval=0.95 * W)
+    y_t = jr.uniform(k2, (n_test,), minval=0.05 * H, maxval=0.95 * H)
+    z_t = jr.uniform(k3, (n_test,), minval=0.05 * D, maxval=0.95 * D)
     E_t = jax.vmap(E_fn)(x_t, y_t, z_t)
 
     residuals = {}
@@ -206,9 +218,11 @@ def main():
         if name not in models:
             continue
         model = models[name]
+
         def single_res(x, y, z, E):
             div_sig, _, _ = pde_residual_3d(model, x, y, z, E)
             return jnp.sum(div_sig**2)
+
         res_vals = jax.vmap(single_res)(x_t, y_t, z_t, E_t)
         residuals[name] = np.array(res_vals)
 
@@ -219,19 +233,22 @@ def main():
     colors = {"DEM": "#2196F3", "PI-FNO": "#FF9800", "PINN": "#4CAF50"}
 
     fig = plt.figure(figsize=(18, 14))
-    fig.suptitle("3D Elasticity: DEM vs PI-FNO vs PINN Comparison\n"
-                 f"Domain {W}x{H}x{D} mm, E=[{E_MIN},{E_MAX}] Pa, "
-                 f"P={P_APPLIED} Pa, slice z={z_slice:.2f}",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle(
+        "3D Elasticity: DEM vs PI-FNO vs PINN Comparison\n"
+        f"Domain {W}x{H}x{D} mm, E=[{E_MIN},{E_MAX}] Pa, "
+        f"P={P_APPLIED} Pa, slice z={z_slice:.2f}",
+        fontsize=14,
+        fontweight="bold",
+    )
 
     # --- Row 1: E field + Uy for each model ---
-    gs = fig.add_gridspec(3, n_models + 1, hspace=0.35, wspace=0.3,
-                          left=0.06, right=0.96, top=0.90, bottom=0.06)
+    gs = fig.add_gridspec(
+        3, n_models + 1, hspace=0.35, wspace=0.3, left=0.06, right=0.96, top=0.90, bottom=0.06
+    )
 
     # E field
     ax_e = fig.add_subplot(gs[0, 0])
-    c = ax_e.contourf(np.array(X), np.array(Y), np.array(E_vals),
-                      levels=20, cmap="viridis")
+    c = ax_e.contourf(np.array(X), np.array(Y), np.array(E_vals), levels=20, cmap="viridis")
     plt.colorbar(c, ax=ax_e, label="E [Pa]")
     ax_e.set_title("Stiffness E(x,y)")
     ax_e.set_ylabel("y [mm]")
@@ -251,16 +268,13 @@ def main():
 
     # --- Row 2: 1D Profile + Residual comparison ---
     ax_prof = fig.add_subplot(gs[1, :2])
-    ax_prof.plot(y_prof * 1000, uy_analytical * 1000, "k--", lw=2,
-                 label="Analytical (1D approx)")
+    ax_prof.plot(y_prof * 1000, uy_analytical * 1000, "k--", lw=2, label="Analytical (1D approx)")
     for name, prof in profiles.items():
         if isinstance(prof, tuple):
             yy, uu = prof
-            ax_prof.plot(yy * 1000, uu * 1000, "o-", color=colors[name],
-                         ms=3, label=name)
+            ax_prof.plot(yy * 1000, uu * 1000, "o-", color=colors[name], ms=3, label=name)
         else:
-            ax_prof.plot(y_prof * 1000, prof * 1000, "-", color=colors[name],
-                         lw=2, label=name)
+            ax_prof.plot(y_prof * 1000, prof * 1000, "-", color=colors[name], lw=2, label=name)
     ax_prof.set_xlabel("y [um]")
     ax_prof.set_ylabel("Uy [um]")
     ax_prof.set_title("Vertical Displacement Profile (x=W/2, z=D/2)")
@@ -270,8 +284,13 @@ def main():
     # Residual histogram
     ax_res = fig.add_subplot(gs[1, 2:])
     for name, rv in residuals.items():
-        ax_res.hist(np.log10(rv + 1e-30), bins=30, alpha=0.6,
-                    color=colors[name], label=f"{name} (med={np.median(rv):.2e})")
+        ax_res.hist(
+            np.log10(rv + 1e-30),
+            bins=30,
+            alpha=0.6,
+            color=colors[name],
+            label=f"{name} (med={np.median(rv):.2e})",
+        )
     ax_res.set_xlabel("log10(PDE residual)")
     ax_res.set_ylabel("Count")
     ax_res.set_title("PDE Residual Distribution (interior)")
@@ -286,7 +305,7 @@ def main():
         else:
             Xp, Yp = np.array(X), np.array(Y)
         Ux, Uy = data["Ux"], data["Uy"]
-        U_mag = np.sqrt(Ux**2 + Uy**2 + data["Uz"]**2)
+        U_mag = np.sqrt(Ux**2 + Uy**2 + data["Uz"] ** 2)
 
         max_u = np.max(np.abs(U_mag)) + 1e-20
         scale = 0.15 / max_u
@@ -318,10 +337,8 @@ def main():
             med_str = f"{med_res:.2e}"
         else:
             med_str = str(med_res)
-        table_data.append([name, f"{param_counts[name]:,}",
-                           f"{max_uy:.4e}", med_str])
-    tab = ax_tab.table(cellText=table_data, colLabels=headers,
-                       loc="center", cellLoc="center")
+        table_data.append([name, f"{param_counts[name]:,}", f"{max_uy:.4e}", med_str])
+    tab = ax_tab.table(cellText=table_data, colLabels=headers, loc="center", cellLoc="center")
     tab.auto_set_font_size(False)
     tab.set_fontsize(10)
     tab.scale(1.2, 1.5)
@@ -338,12 +355,15 @@ def main():
     for name in results:
         max_uy = np.max(np.abs(results[name]["Uy"]))
         med_res = np.median(residuals[name]) if name in residuals else None
-        print(f"  {name:8s}: params={param_counts[name]:>8,}  "
-              f"max|Uy|={max_uy:.4e}  "
-              f"med_res={med_res:.2e}" if med_res else
-              f"  {name:8s}: params={param_counts[name]:>8,}  "
-              f"max|Uy|={max_uy:.4e}  "
-              f"med_res=N/A (grid-based)")
+        print(
+            f"  {name:8s}: params={param_counts[name]:>8,}  "
+            f"max|Uy|={max_uy:.4e}  "
+            f"med_res={med_res:.2e}"
+            if med_res
+            else f"  {name:8s}: params={param_counts[name]:>8,}  "
+            f"max|Uy|={max_uy:.4e}  "
+            f"med_res=N/A (grid-based)"
+        )
 
 
 if __name__ == "__main__":

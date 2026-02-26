@@ -71,7 +71,7 @@ BiofilmTSM Analytical.solve tsm() supports:
 • Linearization OFF (early exploration): full non-linear TSM evaluation
 • Linearization ON (later stages): speed up via x(θ) ≈x(θ0) + ∂x
 ∂θ
-
+
 θ0(θ −θ0)
 • Linearization point update: update linearization point(θnew) invalidates caches and
 recomputes x(0)(θ0) and x(1)

@@ -11,18 +11,10 @@ from pathlib import Path
 BASE = "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/_runs"
 
 RUNS = {
-    "Commensal_HOBIC": os.path.join(
-        BASE, "Commensal_HOBIC_20260208_002100", "theta_MAP.json"
-    ),
-    "Dysbiotic_HOBIC": os.path.join(
-        BASE, "Dysbiotic_HOBIC_20260208_002100", "theta_MAP.json"
-    ),
-    "Commensal_Static": os.path.join(
-        BASE, "Commensal_Static_20260208_002100", "theta_MAP.json"
-    ),
-    "Dysbiotic_Static": os.path.join(
-        BASE, "Dysbiotic_Static_20260207_203752", "theta_MAP.json"
-    ),
+    "Commensal_HOBIC": os.path.join(BASE, "Commensal_HOBIC_20260208_002100", "theta_MAP.json"),
+    "Dysbiotic_HOBIC": os.path.join(BASE, "Dysbiotic_HOBIC_20260208_002100", "theta_MAP.json"),
+    "Commensal_Static": os.path.join(BASE, "Commensal_Static_20260208_002100", "theta_MAP.json"),
+    "Dysbiotic_Static": os.path.join(BASE, "Dysbiotic_Static_20260207_203752", "theta_MAP.json"),
 }
 
 
@@ -83,9 +75,7 @@ def main():
                     f"Unknown theta_MAP.json format for {cond}: keys={list(theta_map.keys())}"
                 )
         else:
-            raise ValueError(
-                f"Unknown theta_MAP.json format for {cond}: type={type(theta_map)}"
-            )
+            raise ValueError(f"Unknown theta_MAP.json format for {cond}: type={type(theta_map)}")
 
         A_mats[cond] = theta_to_A(theta_vec)
 
@@ -100,10 +90,7 @@ def main():
     conds = list(A_mats.keys())
 
     print("\nPairwise comparisons of A matrices:")
-    print(
-        "cond1 vs cond2 : corr(A1, A2),  "
-        "rel_F_diff = ||A1-A2||_F / max(||A1||_F, ||A2||_F)"
-    )
+    print("cond1 vs cond2 : corr(A1, A2),  " "rel_F_diff = ||A1-A2||_F / max(||A1||_F, ||A2||_F)")
 
     n_cond = len(conds)
     corr_mat = np.eye(n_cond)
@@ -203,7 +190,9 @@ def main():
         ax_b2.set_xlim(0.0, max(rel_values) * 1.1 if rel_values else 1.0)
 
         fig_bar.tight_layout()
-        fig_bar.savefig(out_dir / "A_matrix_pairwise_corr_relF_bar.png", dpi=300, bbox_inches="tight")
+        fig_bar.savefig(
+            out_dir / "A_matrix_pairwise_corr_relF_bar.png", dpi=300, bbox_inches="tight"
+        )
         plt.close(fig_bar)
 
 

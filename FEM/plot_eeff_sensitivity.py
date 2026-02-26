@@ -21,29 +21,28 @@ import os
 import csv
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_DEFAULT_CSV = os.path.join(_HERE, "_eeff_sensitivity_runs",
-                             "eeff_sensitivity_summary.csv")
+_DEFAULT_CSV = os.path.join(_HERE, "_eeff_sensitivity_runs", "eeff_sensitivity_summary.csv")
 _FIG_DIR = os.path.join(_HERE, "figures")
 
-TEETH  = ["T23", "T30", "T31"]
+TEETH = ["T23", "T30", "T31"]
 COLORS = {"T23": "#1f77b4", "T30": "#ff7f0e", "T31": "#2ca02c"}
 
 PARAM_LABELS = {
-    "Emax":     r"$E_{\mathrm{max}}$ (MPa)",
-    "Emin":     r"$E_{\mathrm{min}}$ (MPa)",
-    "DI_EXP":   r"$\alpha$ (DI exponent)",
+    "Emax": r"$E_{\mathrm{max}}$ (MPa)",
+    "Emin": r"$E_{\mathrm{min}}$ (MPa)",
+    "DI_EXP": r"$\alpha$ (DI exponent)",
     "DI_SCALE": r"$s_{\mathrm{DI}}$ (DI scale)",
 }
 
 PARAM_COLS = {
-    "Emax":     "E_max_MPa",
-    "Emin":     "E_min_MPa",
-    "DI_EXP":   "DI_EXP",
+    "Emax": "E_max_MPa",
+    "Emin": "E_min_MPa",
+    "DI_EXP": "DI_EXP",
     "DI_SCALE": "DI_SCALE",
 }
 
@@ -75,23 +74,24 @@ def to_float(s):
 def parse_rows(rows):
     data = {}
     for row in rows:
-        lbl   = row["label"]
+        lbl = row["label"]
         ptype = row["param_type"]
         entry = {
-            "label":    lbl,
+            "label": lbl,
             "E_max_MPa": to_float(row["E_max_MPa"]),
             "E_min_MPa": to_float(row["E_min_MPa"]),
-            "DI_EXP":   to_float(row["DI_EXP"]),
+            "DI_EXP": to_float(row["DI_EXP"]),
             "DI_SCALE": to_float(row["DI_SCALE"]),
         }
         for tooth in TEETH:
-            entry[f"{tooth}_mises"]  = to_float(row.get(f"{tooth}_mises_med", "nan"))
+            entry[f"{tooth}_mises"] = to_float(row.get(f"{tooth}_mises_med", "nan"))
             entry[f"{tooth}_u_outer"] = to_float(row.get(f"{tooth}_u_outer_med", "nan"))
         data.setdefault(ptype, []).append(entry)
     return data
 
 
 # ── SensFig1: Displacement sensitivity ────────────────────────────────────────
+
 
 def plot_sensitivity(data, metric_key, ylabel, title, fig_path, scale=1.0):
     """4-panel sensitivity plot for one metric (mises or u_outer)."""
@@ -116,8 +116,15 @@ def plot_sensitivity(data, metric_key, ylabel, title, fig_path, scale=1.0):
             for tooth in TEETH:
                 by = bl_row[f"{tooth}_{metric_key}"] * scale
                 ax.axvline(bx, color="gray", linestyle="--", alpha=0.4)
-                ax.plot(bx, by, "D", color=COLORS[tooth], markersize=9,
-                        markeredgecolor="k", markeredgewidth=0.8)
+                ax.plot(
+                    bx,
+                    by,
+                    "D",
+                    color=COLORS[tooth],
+                    markersize=9,
+                    markeredgecolor="k",
+                    markeredgewidth=0.8,
+                )
 
         ax.set_xlabel(PARAM_LABELS[ptype])
         ax.set_ylabel(ylabel)
@@ -133,6 +140,7 @@ def plot_sensitivity(data, metric_key, ylabel, title, fig_path, scale=1.0):
 
 
 # ── SensFig3: Tornado chart ────────────────────────────────────────────────────
+
 
 def plot_tornado(data, fig_path):
     """
@@ -155,24 +163,23 @@ def plot_tornado(data, fig_path):
         print("  [warn] Tornado: baseline not found.")
         return
 
-    bars = []   # (label, pct_low, pct_high)
+    bars = []  # (label, pct_low, pct_high)
     param_order = ["Emax", "Emin", "DI_EXP", "DI_SCALE"]
-    param_nice  = [r"$E_{\mathrm{max}}$ (7.5→12.5 MPa)",
-                   r"$E_{\mathrm{min}}$ (0.25→1.0 MPa)",
-                   r"$\alpha$ (1.0→3.0)",
-                   r"$s_{\mathrm{DI}}$ (0.019→0.032)"]
+    param_nice = [
+        r"$E_{\mathrm{max}}$ (7.5→12.5 MPa)",
+        r"$E_{\mathrm{min}}$ (0.25→1.0 MPa)",
+        r"$\alpha$ (1.0→3.0)",
+        r"$s_{\mathrm{DI}}$ (0.019→0.032)",
+    ]
 
     for ptype in param_order:
-        rows = sorted(data.get(ptype, []),
-                      key=lambda r: r[PARAM_COLS[ptype]])
+        rows = sorted(data.get(ptype, []), key=lambda r: r[PARAM_COLS[ptype]])
         if len(rows) < 3:
             bars.append((ptype, 0.0, 0.0))
             continue
-        u_low  = rows[0]["T23_u_outer"]
+        u_low = rows[0]["T23_u_outer"]
         u_high = rows[-1]["T23_u_outer"]
-        bars.append((ptype,
-                     100.0 * (u_low  - bl_ref) / bl_ref,
-                     100.0 * (u_high - bl_ref) / bl_ref))
+        bars.append((ptype, 100.0 * (u_low - bl_ref) / bl_ref, 100.0 * (u_high - bl_ref) / bl_ref))
 
     fig, ax = plt.subplots(figsize=(9, 5))
     y_pos = np.arange(len(bars))
@@ -181,20 +188,35 @@ def plot_tornado(data, fig_path):
     for i, ((ptype, pct_lo, pct_hi), nice) in enumerate(zip(bars, param_nice)):
         lo_c = "#d62728" if pct_lo < 0 else "#2ca02c"
         hi_c = "#2ca02c" if pct_hi > 0 else "#d62728"
-        ax.barh(i - bar_h/2, pct_lo, height=bar_h, color=lo_c,
-                edgecolor="k", linewidth=0.5,
-                label="Low" if i == 0 else "_")
-        ax.barh(i + bar_h/2, pct_hi, height=bar_h, color=hi_c,
-                edgecolor="k", linewidth=0.5,
-                label="High" if i == 0 else "_")
+        ax.barh(
+            i - bar_h / 2,
+            pct_lo,
+            height=bar_h,
+            color=lo_c,
+            edgecolor="k",
+            linewidth=0.5,
+            label="Low" if i == 0 else "_",
+        )
+        ax.barh(
+            i + bar_h / 2,
+            pct_hi,
+            height=bar_h,
+            color=hi_c,
+            edgecolor="k",
+            linewidth=0.5,
+            label="High" if i == 0 else "_",
+        )
 
     ax.set_yticks(y_pos)
     ax.set_yticklabels(param_nice, fontsize=11)
     ax.axvline(0, color="k", linewidth=1.2)
     ax.set_xlabel("% change in T23 $|U|_{\mathrm{outer}}$ from baseline", fontsize=11)
-    ax.set_title("P9 Sensitivity Tornado — DI→$E_{\mathrm{eff}}$ Parameters\n"
-                 "(snap-20, $t=0.05$; baseline: $E_{\max}$=10, $E_{\min}$=0.5, "
-                 r"$\alpha$=2, $s_{\mathrm{DI}}$=0.0258)", fontsize=11)
+    ax.set_title(
+        "P9 Sensitivity Tornado — DI→$E_{\mathrm{eff}}$ Parameters\n"
+        "(snap-20, $t=0.05$; baseline: $E_{\max}$=10, $E_{\min}$=0.5, "
+        r"$\alpha$=2, $s_{\mathrm{DI}}$=0.0258)",
+        fontsize=11,
+    )
     ax.legend(fontsize=10)
     ax.grid(axis="x", alpha=0.3)
     fig.tight_layout()
@@ -205,20 +227,24 @@ def plot_tornado(data, fig_path):
 
 # ── SensFig4: E_eff(DI) model curves ─────────────────────────────────────────
 
+
 def plot_eeff_curves(data, fig_path):
     """E_eff(DI) curves for all 12 parameter combinations."""
     di_arr = np.linspace(0, 0.06, 500)
     fig, axes = plt.subplots(1, 4, figsize=(18, 5), sharey=True)
 
     param_order = ["Emax", "Emin", "DI_EXP", "DI_SCALE"]
-    param_nice  = [r"$E_{\mathrm{max}}$ sweep", r"$E_{\mathrm{min}}$ sweep",
-                   r"$\alpha$ sweep", r"$s_{\mathrm{DI}}$ sweep"]
+    param_nice = [
+        r"$E_{\mathrm{max}}$ sweep",
+        r"$E_{\mathrm{min}}$ sweep",
+        r"$\alpha$ sweep",
+        r"$s_{\mathrm{DI}}$ sweep",
+    ]
 
     cmap = plt.cm.viridis
 
     for ax, ptype, nice in zip(axes, param_order, param_nice):
-        rows = sorted(data.get(ptype, []),
-                      key=lambda r: r[PARAM_COLS[ptype]])
+        rows = sorted(data.get(ptype, []), key=lambda r: r[PARAM_COLS[ptype]])
         vals = [r[PARAM_COLS[ptype]] for r in rows]
         vmin, vmax = min(vals), max(vals)
 
@@ -226,28 +252,35 @@ def plot_eeff_curves(data, fig_path):
             E_max = row["E_max_MPa"]
             E_min = row["E_min_MPa"]
             alpha = row["DI_EXP"]
-            s_DI  = row["DI_SCALE"]
+            s_DI = row["DI_SCALE"]
             r_arr = np.clip(di_arr / s_DI, 0.0, 1.0)
             E_eff = E_max * (1.0 - r_arr) ** alpha + E_min * r_arr
             c = cmap((vals[i] - vmin) / max(vmax - vmin, 1e-15))
             lbl = f"{PARAM_COLS[ptype]}={vals[i]:.4g}"
             is_base = row["label"] == BASELINE_LABELS[ptype]
-            ax.plot(di_arr, E_eff, color=c,
-                    linewidth=2.5 if is_base else 1.2,
-                    linestyle="-" if is_base else "--",
-                    label=lbl)
+            ax.plot(
+                di_arr,
+                E_eff,
+                color=c,
+                linewidth=2.5 if is_base else 1.2,
+                linestyle="-" if is_base else "--",
+                label=lbl,
+            )
 
-        ax.axvline(0.025778, color="k", linestyle=":", alpha=0.5,
-                   label=r"$s_{\mathrm{DI}}$ baseline")
+        ax.axvline(
+            0.025778, color="k", linestyle=":", alpha=0.5, label=r"$s_{\mathrm{DI}}$ baseline"
+        )
         ax.set_xlabel("DI")
         ax.set_ylabel(r"$E_{\mathrm{eff}}$ (MPa)")
         ax.set_title(nice)
         ax.legend(fontsize=8)
         ax.grid(True, alpha=0.3)
 
-    fig.suptitle(r"P9 Material curves $E_{\mathrm{eff}}(\mathrm{DI})$ "
-                 r"for all sensitivity runs (snap-20 DI range: 0–0.06)",
-                 fontsize=12)
+    fig.suptitle(
+        r"P9 Material curves $E_{\mathrm{eff}}(\mathrm{DI})$ "
+        r"for all sensitivity runs (snap-20 DI range: 0–0.06)",
+        fontsize=12,
+    )
     fig.tight_layout()
     fig.savefig(fig_path, dpi=150)
     plt.close(fig)
@@ -256,9 +289,10 @@ def plot_eeff_curves(data, fig_path):
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--csv",     default=_DEFAULT_CSV)
+    ap.add_argument("--csv", default=_DEFAULT_CSV)
     ap.add_argument("--out-dir", default=_FIG_DIR)
     args = ap.parse_args()
 
@@ -278,8 +312,7 @@ def main():
         data,
         metric_key="u_outer",
         ylabel=r"$|U|_{\mathrm{outer}}$ median (mm)",
-        title=r"P9 SensFig1 — Outer-surface displacement sensitivity "
-              r"(snap-20, $t = 0.05$)",
+        title=r"P9 SensFig1 — Outer-surface displacement sensitivity " r"(snap-20, $t = 0.05$)",
         fig_path=os.path.join(args.out_dir, "SensFig1_displacement_sensitivity.png"),
         scale=1.0,
     )
@@ -290,7 +323,7 @@ def main():
         metric_key="mises",
         ylabel="MISES median (MPa)",
         title=r"P9 SensFig2 — von Mises stress sensitivity "
-              r"(snap-20, force-controlled BC → expect flat)",
+        r"(snap-20, force-controlled BC → expect flat)",
         fig_path=os.path.join(args.out_dir, "SensFig2_mises_sensitivity.png"),
         scale=1.0,
     )
@@ -323,8 +356,7 @@ def main():
 
     printed = set()
     for ptype in ["Emax", "Emin", "DI_EXP", "DI_SCALE"]:
-        rows_p = sorted(data.get(ptype, []),
-                        key=lambda r: r[PARAM_COLS[ptype]])
+        rows_p = sorted(data.get(ptype, []), key=lambda r: r[PARAM_COLS[ptype]])
         for r in rows_p:
             lbl = r["label"]
             if lbl in printed:

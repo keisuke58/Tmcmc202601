@@ -91,9 +91,7 @@ def residual(g_new, g_prev, params):
     phi0dot = (phi0_new - phi0_old) / dt
     psidot = (psi_new - psi_old) / dt
     Ia = A @ (phi_new * psi_new)
-    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (active_mask[4] == 1).astype(
-        jnp.float64
-    )
+    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (active_mask[4] == 1).astype(jnp.float64)
     fn = jnp.maximum(phi_new[3] * psi_new[3], 0.0)
     num = fn**n_hill
     den = K_hill**n_hill + num
@@ -104,10 +102,9 @@ def residual(g_new, g_prev, params):
     def body_i_phi(carry, i):
         Q_local = carry
         active = active_mask[i] == 1
+
         def active_branch():
-            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / (
-                (phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3
-            )
+            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / ((phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3)
             t2 = (1.0 / Eta[i]) * (
                 gamma_new
                 + (EtaPhi[i] + Eta[i] * psi_new[i] ** 2) * phidot[i]
@@ -115,32 +112,33 @@ def residual(g_new, g_prev, params):
             )
             t3 = (c / Eta[i]) * psi_new[i] * Ia[i]
             return Q_local.at[i].set(t1 + t2 - t3)
+
         def inactive_branch():
             return Q_local.at[i].set(phi_new[i])
+
         return jax.lax.cond(active, active_branch, inactive_branch), None
 
     Q, _ = jax.lax.scan(body_i_phi, Q, jnp.arange(5))
     Q = Q.at[5].set(
-        gamma_new
-        + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new ** 3)
-        + phi0dot
+        gamma_new + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new**3) + phi0dot
     )
 
     def body_i_psi(carry, i):
         Q_local = carry
         active = active_mask[i] == 1
+
         def active_branch():
-            t1 = (-2.0 * Kp1) / (
-                (psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3
-            ) - (2.0 * Kp1) / (
+            t1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3) - (2.0 * Kp1) / (
                 (psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2
             )
             t2 = (b_diag[i] * alpha / Eta[i]) * psi_new[i]
             t3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i] ** 2 * psidot[i]
             t4 = (c / Eta[i]) * phi_new[i] * Ia[i]
             return Q_local.at[6 + i].set(t1 + t2 + t3 - t4)
+
         def inactive_branch():
             return Q_local.at[6 + i].set(psi_new[i])
+
         return jax.lax.cond(active, active_branch, inactive_branch), None
 
     Q, _ = jax.lax.scan(body_i_psi, Q, jnp.arange(5))
@@ -172,17 +170,21 @@ def clip_state(g, active_mask):
 def newton_step(g_prev, params):
     active_mask = params["active_mask"]
     n_steps = 6
+
     def body(carry, _):
         g = carry
         g = clip_state(g, active_mask)
+
         def F(gg):
             return residual(gg, g_prev, params)
+
         Q = F(g)
         J = jax.jacfwd(F)(g)
         delta = jnp.linalg.solve(J, -Q)
         g_next = g + delta
         g_next = clip_state(g_next, active_mask)
         return g_next, None
+
     g0 = clip_state(g_prev, active_mask)
     g_final, _ = jax.lax.scan(body, g0, jnp.arange(n_steps))
     return g_final
@@ -193,8 +195,10 @@ newton_step_vmap = jax.jit(jax.vmap(newton_step, in_axes=(0, None)))
 
 def reaction_step(G, params):
     n_sub = params["n_react_sub"]
+
     def body(carry, _):
         return newton_step_vmap(carry, params), None
+
     G_final, _ = jax.lax.scan(body, G, jnp.arange(n_sub))
     return G_final
 
@@ -206,11 +210,7 @@ def diffusion_step(G, params):
     phi = G[:, 0:5]
     N = phi.shape[0]
     lap = jnp.zeros_like(phi)
-    interior = (
-        phi[0 : N - 2, :]
-        + phi[2:N, :]
-        - 2.0 * phi[1 : N - 1, :]
-    ) / (dx * dx)
+    interior = (phi[0 : N - 2, :] + phi[2:N, :] - 2.0 * phi[1 : N - 1, :]) / (dx * dx)
     lap = lap.at[1 : N - 1, :].set(interior)
     phi_new = phi + dt_diff * D_eff * lap
     phi_new = jnp.clip(phi_new, 0.0, 1.0)
@@ -226,6 +226,7 @@ def make_initial_state(N, active_mask):
     x = jnp.linspace(0.0, 1.0, N)
     G = jnp.zeros((N, 12), dtype=jnp.float64)
     phi_base = jnp.array([0.12, 0.12, 0.08, 0.05, 0.0])
+
     def init_node(xk):
         phi = phi_base
         fn_val = 0.05 + 0.1 * jnp.exp(-15.0 * xk)
@@ -246,6 +247,7 @@ def make_initial_state(N, active_mask):
         g = g.at[6:11].set(psi)
         g = g.at[11].set(0.0)
         return g
+
     G = jax.vmap(init_node)(x)
     return G
 

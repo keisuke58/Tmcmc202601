@@ -1,0 +1,31 @@
+{
+  "run_id": "20260129_001957_paper_seed42",
+  "model": "M3",
+  "observable": "phibar = phi * psi",
+  "likelihood": {
+    "family": "Gaussian",
+    "var_total": "sig + sigma_obs^2 (clipped at 1e-20)",
+    "logL": "sum_{i,j} [-0.5*log(2*pi*var_total_ij) - 0.5*(data_ij-mu_ij)^2/var_total_ij]"
+  },
+  "sigma_obs": 0.01,
+  "cov_rel": 0.005,
+  "rho": 0.0,
+  "n_data": 20,
+  "active_species": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "active_indices": [
+    10,
+    11,
+    12,
+    13
+  ],
+  "script": {
+    "path": "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/main/case2_main.py",
+    "crc32": "431accda"
+  },
+  "created_at": "2026-01-29 00:20:09"
+}

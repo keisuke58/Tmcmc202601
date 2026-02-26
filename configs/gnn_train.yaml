@@ -1,0 +1,25 @@
+# Hydra config for GNN training (gnn/train.py)
+# Usage: python train.py --config-path ../configs --config-name gnn_train
+
+defaults: []
+
+data:
+  path: data/train_gnn_N10000.npz
+  checkpoint_dir: data/checkpoints
+
+model:
+  hidden: 128
+  layers: 4
+  dropout: 0.2
+
+train:
+  epochs: 1000
+  batch_size: 64
+  lr: 0.001
+  weight_decay: 0.01
+  patience: 100
+  seed: 42
+
+mlflow:
+  enabled: false
+  experiment: gnn_aij

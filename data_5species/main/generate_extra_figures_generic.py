@@ -24,11 +24,11 @@ from pathlib import Path
 import csv
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.colors import TwoSlopeNorm
-from matplotlib.patches import FancyBboxPatch
 import numpy as np
 
 # -- Project imports --
@@ -64,7 +64,7 @@ if not RUN_DIR.exists():
 
 OUT_DIR = RUN_DIR
 # If figures are usually in the root of run_dir or in figures/ subdir?
-# The original script output to current directory. 
+# The original script output to current directory.
 # But let's check if previous script used 'figures' subdir.
 # The user said "run in each folder to create many images". Usually images are in the run folder directly or figures/.
 # The original script had: path = OUT_DIR / "Fig_A01..."
@@ -114,23 +114,54 @@ SPECIES_NAMES = [
     r"$P.\ gingivalis$",
 ]
 SPECIES_SHORT = ["So", "An", "Vd", "Fn", "Pg"]
-COLORS = ['#1f77b4', '#2ca02c', '#9467bd', '#ff7f0e', '#d62728']
+COLORS = ["#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#d62728"]
 
 THETA_NAMES = [
-    "a11","a12","a22","b1","b2",
-    "a33","a34","a44","b3","b4",
-    "a13","a14","a23","a24",
-    "a55","b5",
-    "a15","a25","a35","a45",
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45",
 ]
 
-BLOCK_NAMES  = ["M1", "M1", "M1", "M1", "M1",
-                "M2", "M2", "M2", "M2", "M2",
-                "M3", "M3", "M3", "M3",
-                "M4", "M4",
-                "M5", "M5", "M5", "M5"]
-BLOCK_COLORS = {"M1": "#1f77b4", "M2": "#2ca02c", "M3": "#9467bd",
-                "M4": "#ff7f0e", "M5": "#d62728"}
+BLOCK_NAMES = [
+    "M1",
+    "M1",
+    "M1",
+    "M1",
+    "M1",
+    "M2",
+    "M2",
+    "M2",
+    "M2",
+    "M2",
+    "M3",
+    "M3",
+    "M3",
+    "M3",
+    "M4",
+    "M4",
+    "M5",
+    "M5",
+    "M5",
+    "M5",
+]
+BLOCK_COLORS = {"M1": "#1f77b4", "M2": "#2ca02c", "M3": "#9467bd", "M4": "#ff7f0e", "M5": "#d62728"}
 
 N_POSTERIOR_DRAWS = 100  # draws for posterior bands
 ACTIVE_SPECIES = [0, 1, 2, 3, 4]
@@ -140,15 +171,36 @@ def theta_to_matrices(theta):
     """Convert theta(20) -> A(5x5), b(5)."""
     A = np.zeros((5, 5))
     b = np.zeros(5)
-    A[0,0]=theta[0]; A[0,1]=theta[1]; A[1,0]=theta[1]; A[1,1]=theta[2]
-    b[0]=theta[3]; b[1]=theta[4]
-    A[2,2]=theta[5]; A[2,3]=theta[6]; A[3,2]=theta[6]; A[3,3]=theta[7]
-    b[2]=theta[8]; b[3]=theta[9]
-    A[0,2]=theta[10]; A[2,0]=theta[10]; A[0,3]=theta[11]; A[3,0]=theta[11]
-    A[1,2]=theta[12]; A[2,1]=theta[12]; A[1,3]=theta[13]; A[3,1]=theta[13]
-    A[4,4]=theta[14]; b[4]=theta[15]
-    A[0,4]=theta[16]; A[4,0]=theta[16]; A[1,4]=theta[17]; A[4,1]=theta[17]
-    A[2,4]=theta[18]; A[4,2]=theta[18]; A[3,4]=theta[19]; A[4,3]=theta[19]
+    A[0, 0] = theta[0]
+    A[0, 1] = theta[1]
+    A[1, 0] = theta[1]
+    A[1, 1] = theta[2]
+    b[0] = theta[3]
+    b[1] = theta[4]
+    A[2, 2] = theta[5]
+    A[2, 3] = theta[6]
+    A[3, 2] = theta[6]
+    A[3, 3] = theta[7]
+    b[2] = theta[8]
+    b[3] = theta[9]
+    A[0, 2] = theta[10]
+    A[2, 0] = theta[10]
+    A[0, 3] = theta[11]
+    A[3, 0] = theta[11]
+    A[1, 2] = theta[12]
+    A[2, 1] = theta[12]
+    A[1, 3] = theta[13]
+    A[3, 1] = theta[13]
+    A[4, 4] = theta[14]
+    b[4] = theta[15]
+    A[0, 4] = theta[16]
+    A[4, 0] = theta[16]
+    A[1, 4] = theta[17]
+    A[4, 1] = theta[17]
+    A[2, 4] = theta[18]
+    A[4, 2] = theta[18]
+    A[3, 4] = theta[19]
+    A[4, 3] = theta[19]
     return A, b
 
 
@@ -217,7 +269,7 @@ for k, si in enumerate(draw_idx):
     if (k + 1) % 25 == 0:
         print(f"  ... {k+1}/{len(draw_idx)} done")
 phibar_draws = np.array(phibar_draws)  # (N, n_time, 5)
-x_draws = np.array(x_draws)            # (N, n_time, 12)
+x_draws = np.array(x_draws)  # (N, n_time, 12)
 
 print("All simulations complete. Generating figures...\n")
 
@@ -229,14 +281,12 @@ def fig_a01_interaction_heatmap():
     A_map, b_map = theta_to_matrices(theta_MAP)
     A_mean, b_mean = theta_to_matrices(theta_mean)
 
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5.5),
-                             gridspec_kw={"width_ratios": [5, 5, 1.2]})
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5.5), gridspec_kw={"width_ratios": [5, 5, 1.2]})
 
     vmax = max(abs(A_map).max(), abs(A_mean).max())
     norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
 
-    for ax, A, title in [(axes[0], A_map, "MAP Estimate"),
-                          (axes[1], A_mean, "Posterior Mean")]:
+    for ax, A, title in [(axes[0], A_map, "MAP Estimate"), (axes[1], A_mean, "Posterior Mean")]:
         im = ax.imshow(A, cmap="RdBu_r", norm=norm, aspect="equal")
         ax.set_xticks(range(5))
         ax.set_yticks(range(5))
@@ -245,8 +295,15 @@ def fig_a01_interaction_heatmap():
         ax.set_title(title, fontsize=14, fontweight="bold")
         for i in range(5):
             for j in range(5):
-                ax.text(j, i, f"{A[i,j]:.2f}", ha="center", va="center",
-                        fontsize=9, color="white" if abs(A[i,j]) > vmax*0.6 else "black")
+                ax.text(
+                    j,
+                    i,
+                    f"{A[i,j]:.2f}",
+                    ha="center",
+                    va="center",
+                    fontsize=9,
+                    color="white" if abs(A[i, j]) > vmax * 0.6 else "black",
+                )
 
     # Decay vector bar chart
     ax3 = axes[2]
@@ -261,8 +318,12 @@ def fig_a01_interaction_heatmap():
     ax3.grid(True, alpha=0.3, axis="x")
     ax3.invert_yaxis()
 
-    fig.suptitle(f"{TITLE_PREFIX}: Species Interaction Matrix A & Decay b",
-                 fontsize=15, fontweight="bold", y=1.02)
+    fig.suptitle(
+        f"{TITLE_PREFIX}: Species Interaction Matrix A & Decay b",
+        fontsize=15,
+        fontweight="bold",
+        y=1.02,
+    )
     plt.tight_layout()
     path = OUT_DIR / "Fig_A01_interaction_matrix_heatmap.png"
     plt.savefig(path, dpi=200, bbox_inches="tight")
@@ -290,8 +351,16 @@ def fig_a02_per_species_panel():
         ax.fill_between(t_plot, q25[:, i], q75[:, i], alpha=0.3, color=c, label="25-75%")
         ax.plot(t_plot, q50[:, i], color=c, linewidth=2, label="Median")
         ax.plot(t_plot, phibar_map[:, i], "--", color="black", linewidth=1.5, label="MAP")
-        ax.scatter(t_days, data[:, i], s=80, color=c, edgecolors="black",
-                   zorder=10, linewidth=1.5, label="Data")
+        ax.scatter(
+            t_days,
+            data[:, i],
+            s=80,
+            color=c,
+            edgecolors="black",
+            zorder=10,
+            linewidth=1.5,
+            label="Data",
+        )
         ax.set_title(f"{SPECIES_NAMES[i]}", fontsize=14)
         ax.set_xlabel("Days", fontsize=12)
         ax.set_ylabel(r"$\bar{\varphi}$", fontsize=13)
@@ -301,8 +370,9 @@ def fig_a02_per_species_panel():
         ax.set_xlim(t_days.min() - 1, t_days.max() + 1)
 
     axes_flat[5].axis("off")
-    fig.suptitle(f"{TITLE_PREFIX}: Per-Species Posterior Predictive Fits",
-                 fontsize=16, fontweight="bold")
+    fig.suptitle(
+        f"{TITLE_PREFIX}: Per-Species Posterior Predictive Fits", fontsize=16, fontweight="bold"
+    )
     plt.tight_layout()
     path = OUT_DIR / "Fig_A02_per_species_panel.png"
     plt.savefig(path, dpi=200, bbox_inches="tight")
@@ -316,9 +386,11 @@ def fig_a02_per_species_panel():
 def fig_a03_state_decomposition():
     fig, axes = plt.subplots(3, 5, figsize=(25, 12), sharex=True)
 
-    row_labels = [r"$\varphi_i$ (space occupied)",
-                  r"$\psi_i$ (living fraction)",
-                  r"$\bar{\varphi}_i = \varphi_i \cdot \psi_i$"]
+    row_labels = [
+        r"$\varphi_i$ (space occupied)",
+        r"$\psi_i$ (living fraction)",
+        r"$\bar{\varphi}_i = \varphi_i \cdot \psi_i$",
+    ]
 
     for i, sp in enumerate(ACTIVE_SPECIES):
         c = COLORS[sp]
@@ -360,8 +432,11 @@ def fig_a03_state_decomposition():
         for ax in row:
             ax.grid(True, alpha=0.3)
 
-    fig.suptitle(rf"{TITLE_PREFIX}: State Decomposition ($\varphi$, $\psi$, $\bar{{\varphi}}$)",
-                 fontsize=16, fontweight="bold")
+    fig.suptitle(
+        rf"{TITLE_PREFIX}: State Decomposition ($\varphi$, $\psi$, $\bar{{\varphi}}$)",
+        fontsize=16,
+        fontweight="bold",
+    )
     plt.tight_layout()
     path = OUT_DIR / "Fig_A03_state_decomposition.png"
     plt.savefig(path, dpi=200, bbox_inches="tight")
@@ -385,8 +460,9 @@ def fig_a04_stacked_area():
     ax.stackplot(t_plot, fractions.T, labels=SPECIES_SHORT, colors=COLORS, alpha=0.8)
     for i in range(5):
         obs_frac = data[:, i] / data.sum(axis=1)
-        ax.scatter(t_days, obs_frac, color=COLORS[i], edgecolors="black",
-                   s=60, zorder=10, linewidth=1.5)
+        ax.scatter(
+            t_days, obs_frac, color=COLORS[i], edgecolors="black", s=60, zorder=10, linewidth=1.5
+        )
     ax.set_xlabel("Days", fontsize=12)
     ax.set_ylabel("Relative Abundance", fontsize=12)
     ax.set_title("MAP Estimate", fontsize=14, fontweight="bold")
@@ -404,8 +480,16 @@ def fig_a04_stacked_area():
     width = 1.5
     bottom = np.zeros(len(t_days))
     for i in range(5):
-        ax.bar(t_days, obs_frac[:, i], width, bottom=bottom,
-               color=COLORS[i], label=SPECIES_SHORT[i], alpha=0.8, edgecolor="white")
+        ax.bar(
+            t_days,
+            obs_frac[:, i],
+            width,
+            bottom=bottom,
+            color=COLORS[i],
+            label=SPECIES_SHORT[i],
+            alpha=0.8,
+            edgecolor="white",
+        )
         bottom += obs_frac[:, i]
     ax.set_xlabel("Days", fontsize=12)
     ax.set_ylabel("Relative Abundance", fontsize=12)
@@ -415,8 +499,7 @@ def fig_a04_stacked_area():
     ax.legend(loc="center right", fontsize=10)
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle(f"{TITLE_PREFIX}: Species Composition Over Time",
-                 fontsize=15, fontweight="bold")
+    fig.suptitle(f"{TITLE_PREFIX}: Species Composition Over Time", fontsize=15, fontweight="bold")
     plt.tight_layout()
     path = OUT_DIR / "Fig_A04_species_composition.png"
     plt.savefig(path, dpi=200, bbox_inches="tight")
@@ -436,8 +519,7 @@ def fig_a05_violin_plots():
         "M5: Pg\nCross-interactions": list(range(16, 20)),
     }
 
-    fig, axes = plt.subplots(1, 5, figsize=(24, 7),
-                             gridspec_kw={"width_ratios": [5, 5, 4, 2, 4]})
+    fig, axes = plt.subplots(1, 5, figsize=(24, 7), gridspec_kw={"width_ratios": [5, 5, 4, 2, 4]})
 
     block_items = list(blocks.items())
     block_clr = list(BLOCK_COLORS.values())
@@ -448,7 +530,9 @@ def fig_a05_violin_plots():
         parts = ax.violinplot(
             [samples[:, j] for j in indices],
             positions=range(n_p),
-            showmeans=True, showmedians=True, showextrema=False,
+            showmeans=True,
+            showmedians=True,
+            showextrema=False,
         )
         for pc in parts["bodies"]:
             pc.set_facecolor(block_clr[bi])
@@ -469,16 +553,19 @@ def fig_a05_violin_plots():
 
     # Custom legend
     from matplotlib.lines import Line2D
+
     legend_elements = [
         Line2D([0], [0], color="red", lw=2, label="Mean"),
         Line2D([0], [0], color="black", lw=2, label="Median"),
-        Line2D([0], [0], marker="D", color="w", markerfacecolor="green",
-               markersize=8, label="MAP"),
+        Line2D([0], [0], marker="D", color="w", markerfacecolor="green", markersize=8, label="MAP"),
     ]
     axes[-1].legend(handles=legend_elements, fontsize=10, loc="upper right")
 
-    fig.suptitle(f"{TITLE_PREFIX}: Posterior Parameter Distributions by Block",
-                 fontsize=15, fontweight="bold")
+    fig.suptitle(
+        f"{TITLE_PREFIX}: Posterior Parameter Distributions by Block",
+        fontsize=15,
+        fontweight="bold",
+    )
     plt.tight_layout()
     path = OUT_DIR / "Fig_A05_parameter_violins.png"
     plt.savefig(path, dpi=200, bbox_inches="tight")
@@ -506,16 +593,24 @@ def fig_a06_correlation_matrix():
     for i in range(20):
         for j in range(20):
             if abs(corr[i, j]) > 0.3 and i != j:
-                ax.text(j, i, f"{corr[i,j]:.2f}", ha="center", va="center",
-                        fontsize=7, color="white" if abs(corr[i,j]) > 0.6 else "black")
+                ax.text(
+                    j,
+                    i,
+                    f"{corr[i,j]:.2f}",
+                    ha="center",
+                    va="center",
+                    fontsize=7,
+                    color="white" if abs(corr[i, j]) > 0.6 else "black",
+                )
 
     # Block separators
     for pos in [5, 10, 14, 16]:
         ax.axhline(pos - 0.5, color="black", linewidth=1.5)
         ax.axvline(pos - 0.5, color="black", linewidth=1.5)
 
-    ax.set_title(f"{TITLE_PREFIX}: Posterior Parameter Correlation Matrix",
-                 fontsize=14, fontweight="bold")
+    ax.set_title(
+        f"{TITLE_PREFIX}: Posterior Parameter Correlation Matrix", fontsize=14, fontweight="bold"
+    )
     plt.tight_layout()
     path = OUT_DIR / "Fig_A06_correlation_matrix.png"
     plt.savefig(path, dpi=200, bbox_inches="tight")
@@ -533,10 +628,16 @@ def fig_a07_log_likelihood():
     # Panel 1: logL histogram
     ax1 = fig.add_subplot(gs[0])
     ax1.hist(logL, bins=50, density=True, color="steelblue", alpha=0.7, edgecolor="white")
-    ax1.axvline(logL.max(), color="red", linestyle="--", linewidth=2,
-                label=f"Max logL = {logL.max():.2f}")
-    ax1.axvline(logL.mean(), color="orange", linestyle="--", linewidth=2,
-                label=f"Mean logL = {logL.mean():.2f}")
+    ax1.axvline(
+        logL.max(), color="red", linestyle="--", linewidth=2, label=f"Max logL = {logL.max():.2f}"
+    )
+    ax1.axvline(
+        logL.mean(),
+        color="orange",
+        linestyle="--",
+        linewidth=2,
+        label=f"Mean logL = {logL.mean():.2f}",
+    )
     ax1.set_xlabel("Log-Likelihood", fontsize=12)
     ax1.set_ylabel("Density", fontsize=12)
     ax1.set_title("Posterior Log-Likelihood Distribution", fontsize=13, fontweight="bold")
@@ -570,8 +671,12 @@ def fig_a07_log_likelihood():
     ax3.legend(fontsize=9)
     ax3.grid(True, alpha=0.3)
 
-    fig.suptitle(f"{TITLE_PREFIX}: Log-Likelihood & Posterior Structure",
-                 fontsize=15, fontweight="bold", y=1.02)
+    fig.suptitle(
+        f"{TITLE_PREFIX}: Log-Likelihood & Posterior Structure",
+        fontsize=15,
+        fontweight="bold",
+        y=1.02,
+    )
     plt.tight_layout()
     path = OUT_DIR / "Fig_A07_loglikelihood_landscape.png"
     plt.savefig(path, dpi=200, bbox_inches="tight")
@@ -612,8 +717,7 @@ def fig_a08_ppc():
         # Overlay observed data
         for sp in range(5):
             ax.plot(sp, data[t_idx, sp], "ko", markersize=10, zorder=10)
-            ax.plot(sp, data[t_idx, sp], "o", color=COLORS[sp],
-                    markersize=7, zorder=11)
+            ax.plot(sp, data[t_idx, sp], "o", color=COLORS[sp], markersize=7, zorder=11)
 
         ax.set_xticks(range(5))
         ax.set_xticklabels(SPECIES_SHORT, fontsize=11)
@@ -621,8 +725,11 @@ def fig_a08_ppc():
         ax.grid(True, alpha=0.3, axis="y")
 
     axes[0].set_ylabel(r"$\bar{\varphi}$", fontsize=14)
-    fig.suptitle(f"{TITLE_PREFIX}: Posterior Predictive Check (boxes = model, dots = data)",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle(
+        f"{TITLE_PREFIX}: Posterior Predictive Check (boxes = model, dots = data)",
+        fontsize=14,
+        fontweight="bold",
+    )
     plt.tight_layout()
     path = OUT_DIR / "Fig_A08_posterior_predictive_check.png"
     plt.savefig(path, dpi=200, bbox_inches="tight")
@@ -640,12 +747,19 @@ def fig_a09_map_vs_mean():
     ax = axes[0]
     for i, sp in enumerate(ACTIVE_SPECIES):
         c = COLORS[sp]
-        ax.plot(t_plot, phibar_map[:, i], "-", color=c, linewidth=2.5,
-                label=f"{SPECIES_SHORT[i]} MAP")
-        ax.plot(t_plot, phibar_mean[:, i], "--", color=c, linewidth=1.5,
-                alpha=0.8, label=f"{SPECIES_SHORT[i]} Mean")
-        ax.scatter(t_days, data[:, i], color=c, edgecolors="black",
-                   s=60, zorder=10, linewidth=1.2)
+        ax.plot(
+            t_plot, phibar_map[:, i], "-", color=c, linewidth=2.5, label=f"{SPECIES_SHORT[i]} MAP"
+        )
+        ax.plot(
+            t_plot,
+            phibar_mean[:, i],
+            "--",
+            color=c,
+            linewidth=1.5,
+            alpha=0.8,
+            label=f"{SPECIES_SHORT[i]} Mean",
+        )
+        ax.scatter(t_days, data[:, i], color=c, edgecolors="black", s=60, zorder=10, linewidth=1.2)
     ax.set_xlabel("Days", fontsize=12)
     ax.set_ylabel(r"$\bar{\varphi}$", fontsize=13)
     ax.set_title("MAP (solid) vs Mean (dashed) Fits", fontsize=14, fontweight="bold")
@@ -662,10 +776,8 @@ def fig_a09_map_vs_mean():
     rmse_mean_sp = fm["Mean"]["rmse_per_species"]
     x_pos = np.arange(5)
     width = 0.35
-    bars1 = ax.bar(x_pos - width/2, rmse_map_sp, width, label="MAP",
-                   color="steelblue", alpha=0.8)
-    bars2 = ax.bar(x_pos + width/2, rmse_mean_sp, width, label="Mean",
-                   color="coral", alpha=0.8)
+    bars1 = ax.bar(x_pos - width / 2, rmse_map_sp, width, label="MAP", color="steelblue", alpha=0.8)
+    bars2 = ax.bar(x_pos + width / 2, rmse_mean_sp, width, label="Mean", color="coral", alpha=0.8)
     ax.set_xticks(x_pos)
     ax.set_xticklabels(SPECIES_SHORT, fontsize=12)
     ax.set_ylabel("RMSE", fontsize=12)
@@ -674,14 +786,20 @@ def fig_a09_map_vs_mean():
     ax.grid(True, alpha=0.3, axis="y")
 
     # Add total RMSE text
-    ax.text(0.98, 0.95,
-            f"Total RMSE\nMAP:  {fm['MAP']['rmse_total']:.4f}\nMean: {fm['Mean']['rmse_total']:.4f}",
-            transform=ax.transAxes, fontsize=10, verticalalignment="top",
-            horizontalalignment="right",
-            bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8))
+    ax.text(
+        0.98,
+        0.95,
+        f"Total RMSE\nMAP:  {fm['MAP']['rmse_total']:.4f}\nMean: {fm['Mean']['rmse_total']:.4f}",
+        transform=ax.transAxes,
+        fontsize=10,
+        verticalalignment="top",
+        horizontalalignment="right",
+        bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8),
+    )
 
-    fig.suptitle(f"{TITLE_PREFIX}: MAP vs Posterior Mean Comparison",
-                 fontsize=15, fontweight="bold")
+    fig.suptitle(
+        f"{TITLE_PREFIX}: MAP vs Posterior Mean Comparison", fontsize=15, fontweight="bold"
+    )
     plt.tight_layout()
     path = OUT_DIR / "Fig_A09_MAP_vs_Mean_comparison.png"
     plt.savefig(path, dpi=200, bbox_inches="tight")
@@ -724,15 +842,17 @@ def fig_a10_convergence_dashboard():
             reader = csv.DictReader(f)
             for row in reader:
                 chain = int(row["chain"])
-                stage_data.setdefault(chain, []).append({
-                    "stage": int(row["stage"]),
-                    "beta": float(row["beta"]),
-                    "delta_beta": float(row["delta_beta"]),
-                    "ess": float(row["ess"]),
-                    "acc_rate": float(row["accept_rate"]),
-                    "logL_min": float(row["logL_min"]),
-                    "logL_max": float(row["logL_max"]),
-                })
+                stage_data.setdefault(chain, []).append(
+                    {
+                        "stage": int(row["stage"]),
+                        "beta": float(row["beta"]),
+                        "delta_beta": float(row["delta_beta"]),
+                        "ess": float(row["ess"]),
+                        "acc_rate": float(row["accept_rate"]),
+                        "logL_min": float(row["logL_min"]),
+                        "logL_max": float(row["logL_max"]),
+                    }
+                )
 
     fig = plt.figure(figsize=(18, 12))
     gs = gridspec.GridSpec(2, 3, hspace=0.35, wspace=0.3)
@@ -764,7 +884,9 @@ def fig_a10_convergence_dashboard():
     ax3 = fig.add_subplot(gs[0, 2])
     for chain, stages in stage_data.items():
         ess_vals = [s["ess"] for s in stages]
-        ax3.plot(range(len(ess_vals)), ess_vals, "^-", label=f"Chain {chain}", linewidth=2, markersize=6)
+        ax3.plot(
+            range(len(ess_vals)), ess_vals, "^-", label=f"Chain {chain}", linewidth=2, markersize=6
+        )
     ax3.axhline(500, color="red", linestyle="--", alpha=0.5, label="Target ESS")
     ax3.set_xlabel("Stage", fontsize=12)
     ax3.set_ylabel("ESS", fontsize=12)
@@ -809,9 +931,16 @@ def fig_a10_convergence_dashboard():
         f"Max |logL|:    {logL.max():.3f}\n"
         f"Converged:     {rs.get('converged', 'N/A')}\n"
     )
-    ax5.text(0.1, 0.95, summary_text, transform=ax5.transAxes,
-             fontsize=12, verticalalignment="top", fontfamily="monospace",
-             bbox=dict(boxstyle="round", facecolor="lightyellow", alpha=0.8))
+    ax5.text(
+        0.1,
+        0.95,
+        summary_text,
+        transform=ax5.transAxes,
+        fontsize=12,
+        verticalalignment="top",
+        fontfamily="monospace",
+        bbox=dict(boxstyle="round", facecolor="lightyellow", alpha=0.8),
+    )
 
     # Panel 6: delta_beta per stage
     ax6 = fig.add_subplot(gs[1, 2])
@@ -824,8 +953,7 @@ def fig_a10_convergence_dashboard():
     ax6.legend(fontsize=10)
     ax6.grid(True, alpha=0.3)
 
-    fig.suptitle(f"{TITLE_PREFIX}: TMCMC Convergence Dashboard",
-                 fontsize=16, fontweight="bold")
+    fig.suptitle(f"{TITLE_PREFIX}: TMCMC Convergence Dashboard", fontsize=16, fontweight="bold")
     path = OUT_DIR / "Fig_A10_convergence_dashboard.png"
     plt.savefig(path, dpi=200, bbox_inches="tight")
     plt.close()

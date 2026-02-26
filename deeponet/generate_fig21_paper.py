@@ -11,6 +11,7 @@ Uses saved results from nuts_4condition_comparison.json.
 import json
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -38,8 +39,8 @@ hmc_improvement = [h / r for h, r in zip(hmc_accept, rw_accept)]
 fig, axes = plt.subplots(1, 3, figsize=(14, 4.5), gridspec_kw={"width_ratios": [3, 2, 2]})
 
 # Colors
-c_rw = "#E53935"    # red
-c_hmc = "#1E88E5"   # blue
+c_rw = "#E53935"  # red
+c_hmc = "#1E88E5"  # blue
 c_nuts = "#43A047"  # green
 
 # (a) Acceptance rate bar chart
@@ -48,13 +49,39 @@ x = np.arange(len(conditions))
 w = 0.25
 ax.bar(x - w, rw_accept, w, color=c_rw, alpha=0.85, label="RW", edgecolor="white", linewidth=0.5)
 ax.bar(x, hmc_accept, w, color=c_hmc, alpha=0.85, label="HMC", edgecolor="white", linewidth=0.5)
-ax.bar(x + w, nuts_accept, w, color=c_nuts, alpha=0.85, label="NUTS", edgecolor="white", linewidth=0.5)
+ax.bar(
+    x + w, nuts_accept, w, color=c_nuts, alpha=0.85, label="NUTS", edgecolor="white", linewidth=0.5
+)
 
 # Value labels
 for i in range(len(conditions)):
-    ax.text(x[i] - w, rw_accept[i] + 0.015, f"{rw_accept[i]:.2f}", ha='center', va='bottom', fontsize=7, color=c_rw)
-    ax.text(x[i], hmc_accept[i] + 0.015, f"{hmc_accept[i]:.2f}", ha='center', va='bottom', fontsize=7, color=c_hmc)
-    ax.text(x[i] + w, nuts_accept[i] + 0.015, f"{nuts_accept[i]:.2f}", ha='center', va='bottom', fontsize=7, color=c_nuts)
+    ax.text(
+        x[i] - w,
+        rw_accept[i] + 0.015,
+        f"{rw_accept[i]:.2f}",
+        ha="center",
+        va="bottom",
+        fontsize=7,
+        color=c_rw,
+    )
+    ax.text(
+        x[i],
+        hmc_accept[i] + 0.015,
+        f"{hmc_accept[i]:.2f}",
+        ha="center",
+        va="bottom",
+        fontsize=7,
+        color=c_hmc,
+    )
+    ax.text(
+        x[i] + w,
+        nuts_accept[i] + 0.015,
+        f"{nuts_accept[i]:.2f}",
+        ha="center",
+        va="bottom",
+        fontsize=7,
+        color=c_nuts,
+    )
 
 ax.set_xticks(x)
 ax.set_xticklabels(short_labels, fontsize=9)
@@ -73,10 +100,22 @@ ax.plot(free_dims, nuts_improvement, "o-", color=c_nuts, ms=8, lw=2, label="NUTS
 
 # Annotate
 for i, d in enumerate(free_dims):
-    ax.annotate(f"{nuts_improvement[i]:.2f}×", (d, nuts_improvement[i]),
-                textcoords="offset points", xytext=(8, 5), fontsize=8, color=c_nuts)
-    ax.annotate(f"{hmc_improvement[i]:.2f}×", (d, hmc_improvement[i]),
-                textcoords="offset points", xytext=(8, -10), fontsize=8, color=c_hmc)
+    ax.annotate(
+        f"{nuts_improvement[i]:.2f}×",
+        (d, nuts_improvement[i]),
+        textcoords="offset points",
+        xytext=(8, 5),
+        fontsize=8,
+        color=c_nuts,
+    )
+    ax.annotate(
+        f"{hmc_improvement[i]:.2f}×",
+        (d, hmc_improvement[i]),
+        textcoords="offset points",
+        xytext=(8, -10),
+        fontsize=8,
+        color=c_hmc,
+    )
 
 ax.set_xlabel("Free Parameters (d)", fontsize=11)
 ax.set_ylabel("Accept Ratio vs RW", fontsize=11)
@@ -93,7 +132,9 @@ nuts_time = [data["conditions"][c]["NUTS"]["time_s"] for c in conditions]
 
 ax.bar(x - w, rw_time, w, color=c_rw, alpha=0.85, label="RW", edgecolor="white", linewidth=0.5)
 ax.bar(x, hmc_time, w, color=c_hmc, alpha=0.85, label="HMC", edgecolor="white", linewidth=0.5)
-ax.bar(x + w, nuts_time, w, color=c_nuts, alpha=0.85, label="NUTS", edgecolor="white", linewidth=0.5)
+ax.bar(
+    x + w, nuts_time, w, color=c_nuts, alpha=0.85, label="NUTS", edgecolor="white", linewidth=0.5
+)
 
 ax.set_xticks(x)
 ax.set_xticklabels(short_labels, fontsize=9)
@@ -116,11 +157,37 @@ fig2, axes2 = plt.subplots(1, 3, figsize=(14, 4.5), gridspec_kw={"width_ratios":
 ax = axes2[0]
 ax.bar(x - w, rw_accept, w, color=c_rw, alpha=0.85, label="RW", edgecolor="white", linewidth=0.5)
 ax.bar(x, hmc_accept, w, color=c_hmc, alpha=0.85, label="HMC", edgecolor="white", linewidth=0.5)
-ax.bar(x + w, nuts_accept, w, color=c_nuts, alpha=0.85, label="NUTS", edgecolor="white", linewidth=0.5)
+ax.bar(
+    x + w, nuts_accept, w, color=c_nuts, alpha=0.85, label="NUTS", edgecolor="white", linewidth=0.5
+)
 for i in range(len(conditions)):
-    ax.text(x[i] - w, rw_accept[i] + 0.015, f"{rw_accept[i]:.2f}", ha='center', va='bottom', fontsize=7, color=c_rw)
-    ax.text(x[i], hmc_accept[i] + 0.015, f"{hmc_accept[i]:.2f}", ha='center', va='bottom', fontsize=7, color=c_hmc)
-    ax.text(x[i] + w, nuts_accept[i] + 0.015, f"{nuts_accept[i]:.2f}", ha='center', va='bottom', fontsize=7, color=c_nuts)
+    ax.text(
+        x[i] - w,
+        rw_accept[i] + 0.015,
+        f"{rw_accept[i]:.2f}",
+        ha="center",
+        va="bottom",
+        fontsize=7,
+        color=c_rw,
+    )
+    ax.text(
+        x[i],
+        hmc_accept[i] + 0.015,
+        f"{hmc_accept[i]:.2f}",
+        ha="center",
+        va="bottom",
+        fontsize=7,
+        color=c_hmc,
+    )
+    ax.text(
+        x[i] + w,
+        nuts_accept[i] + 0.015,
+        f"{nuts_accept[i]:.2f}",
+        ha="center",
+        va="bottom",
+        fontsize=7,
+        color=c_nuts,
+    )
 ax.set_xticks(x)
 ax.set_xticklabels(short_labels, fontsize=9)
 ax.set_ylabel("Acceptance Rate", fontsize=11)
@@ -134,10 +201,22 @@ ax = axes2[1]
 ax.plot(free_dims, hmc_improvement, "s-", color=c_hmc, ms=8, lw=2, label="HMC/RW", zorder=3)
 ax.plot(free_dims, nuts_improvement, "o-", color=c_nuts, ms=8, lw=2, label="NUTS/RW", zorder=3)
 for i, d in enumerate(free_dims):
-    ax.annotate(f"{nuts_improvement[i]:.2f}×", (d, nuts_improvement[i]),
-                textcoords="offset points", xytext=(8, 5), fontsize=8, color=c_nuts)
-    ax.annotate(f"{hmc_improvement[i]:.2f}×", (d, hmc_improvement[i]),
-                textcoords="offset points", xytext=(8, -10), fontsize=8, color=c_hmc)
+    ax.annotate(
+        f"{nuts_improvement[i]:.2f}×",
+        (d, nuts_improvement[i]),
+        textcoords="offset points",
+        xytext=(8, 5),
+        fontsize=8,
+        color=c_nuts,
+    )
+    ax.annotate(
+        f"{hmc_improvement[i]:.2f}×",
+        (d, hmc_improvement[i]),
+        textcoords="offset points",
+        xytext=(8, -10),
+        fontsize=8,
+        color=c_hmc,
+    )
 ax.set_xlabel("Free Parameters (d)", fontsize=11)
 ax.set_ylabel("Accept Ratio vs RW", fontsize=11)
 ax.set_title("(b) Improvement vs Dimensionality", fontsize=11, fontweight="bold")
@@ -148,7 +227,9 @@ ax.set_ylim(0.8, 2.5)
 ax = axes2[2]
 ax.bar(x - w, rw_time, w, color=c_rw, alpha=0.85, label="RW", edgecolor="white", linewidth=0.5)
 ax.bar(x, hmc_time, w, color=c_hmc, alpha=0.85, label="HMC", edgecolor="white", linewidth=0.5)
-ax.bar(x + w, nuts_time, w, color=c_nuts, alpha=0.85, label="NUTS", edgecolor="white", linewidth=0.5)
+ax.bar(
+    x + w, nuts_time, w, color=c_nuts, alpha=0.85, label="NUTS", edgecolor="white", linewidth=0.5
+)
 ax.set_xticks(x)
 ax.set_xticklabels(short_labels, fontsize=9)
 ax.set_ylabel("Wall Time [s]", fontsize=11)

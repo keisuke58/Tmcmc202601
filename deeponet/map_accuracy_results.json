@@ -1,0 +1,30 @@
+[
+  {
+    "condition": "Commensal_Static",
+    "status": "ok",
+    "mse": 0.021256856620311737,
+    "mae": 0.11957814544439316,
+    "rel_err_pct": 61.64142608642578
+  },
+  {
+    "condition": "Commensal_HOBIC",
+    "status": "ok",
+    "mse": 0.008850079961121082,
+    "mae": 0.08557937294244766,
+    "rel_err_pct": 44.104217529296875
+  },
+  {
+    "condition": "Dysbiotic_Static",
+    "status": "ok",
+    "mse": 0.014220085926353931,
+    "mae": 0.10060501098632812,
+    "rel_err_pct": 51.83189392089844
+  },
+  {
+    "condition": "Dysbiotic_HOBIC",
+    "status": "ok",
+    "mse": 0.001457488164305687,
+    "mae": 0.021995196118950844,
+    "rel_err_pct": 11.180624008178711
+  }
+]

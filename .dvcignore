@@ -1,0 +1,8 @@
+# DVC: ignore these when tracking (same as .gitignore)
+__pycache__/
+*.pyc
+.venv/
+venv/
+.git/
+*.log
+.DS_Store

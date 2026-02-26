@@ -100,6 +100,7 @@ def main():
     if args.plot:
         try:
             import matplotlib
+
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
 

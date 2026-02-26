@@ -30,21 +30,21 @@
 \definecolor{backcolour}{rgb}{0.95,0.95,0.92}
 
 \lstdefinestyle{mystyle}{
-    backgroundcolor=\color{backcolour},   
+    backgroundcolor=\color{backcolour},
     commentstyle=\color{codegreen},
     keywordstyle=\color{magenta},
     numberstyle=\tiny\color{codegray},
     stringstyle=\color{codepurple},
     basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    numbers=left,                    
-    numbersep=5pt,                  
-    showspaces=false,                
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
     showstringspaces=false,
-    showtabs=false,                  
+    showtabs=false,
     tabsize=2
 }
 
@@ -77,7 +77,11 @@ We present a complete multiscale pipeline that bridges Bayesian parameter estima
 \section{Introduction}
 %==============================================================================
 
-Understanding the dynamics of multi-species biofilms is crucial for the prevention and treatment of oral diseases. Heine et al. \cite{Heine2025PeriImplant} investigated the interactions of five major oral bacterial species associated with peri-implantitis. Based on these experimental findings and the extended Hamilton principle proposed by Junker and Balzani \cite{JunkerBalzani2021ExtendedHamilton}, Klempt et al. \cite{Klempt2025ContinuumBiofilm} developed a continuum model for multi-species biofilms with a novel interaction scheme. Furthermore, Fritsch et al. \cite{Fritsch2025BayesianMicrofilms} discussed Bayesian updating methods for bacterial microfilms under hybrid uncertainties using a novel surrogate model.
+Understanding the dynamics of multi-species biofilms is crucial for the prevention and treatment of oral diseases. Computational modelling of biofilm mechanics has progressed from smoothed-particle hydrodynamics approaches \cite{Soleimani2016SPHBiofilm} through finite-strain visco-elastic growth models \cite{Soleimani2019ViscoElasticGrowth} and stress-induced anisotropic growth formulations \cite{Soleimani2020AnisotropicGrowth} to the multi-species Hamilton framework used in the present work. Klempt et al.~\cite{Klempt2023PAMMBiofilm} compared several of these biofilm growth models and identified the Hamilton variational approach as particularly well-suited for multi-species systems.
+
+Based on the extended Hamilton principle proposed by Junker and Balzani \cite{JunkerBalzani2021ExtendedHamilton} --- whose holistic variational formulation for dissipative systems has recently been generalised in~\cite{JunkerBodeHackl2025Holistic} --- Klempt et al.~\cite{Klempt2024ContinuumGrowth} developed a Hamilton principle-based model for diffusion-driven biofilm growth, subsequently extending it to a continuum multi-species framework with a novel interaction scheme \cite{Klempt2025ContinuumBiofilm}. The numerical discretisation follows the constraint-conforming approach of Bode et al.~\cite{Bode2025ConstraintConforming}, ensuring that the volume-fraction constraint $\sum\phi_\ell = 1$ is satisfied at the discrete level.
+
+On the experimental side, Heine et al.~\cite{Heine2025PeriImplant} investigated the interactions of five major oral bacterial species associated with peri-implantitis, building on the HOBIC (Hannover Oral BIofilm Chamber) flow chamber developed by Kommerein et al.~\cite{Kommerein2018HOBIC}. Soleimani et al.~\cite{Soleimani2023CoAggregation} provided numerical and experimental validation of multi-species bacterial co-aggregation, while Mukherjee et al.~\cite{Mukherjee2025PgTitanium} studied \textit{P.~gingivalis} biofilm development on titanium surfaces using a hybrid \textit{in vitro}--\textit{in silico} approach. Furthermore, Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms} discussed Bayesian updating methods for bacterial microfilms under hybrid uncertainties using a novel surrogate model, employing the time-separated stochastic mechanics framework of Geisler et al.~\cite{GeislerJunker2025TSM}.
 
 The 5-species biofilm model describes the dynamics of bacterial populations through an interaction matrix $\mathbf{A}$ and decay vector $\mathbf{b}$. However, the standard parameter estimation approach estimates all 20 parameters freely, which can lead to:
 
@@ -200,7 +204,7 @@ The following species pairs have no direct interaction according to experimental
 
 \subsection{Governing Equations}
 
-The 5-species biofilm model describes the dynamics of bacterial volume fractions $\phi_i$ and viability fractions $\psi_i$ through a coupled ODE system. The interaction term for species $i$ is:
+The 5-species biofilm model \cite{Klempt2024ContinuumGrowth, Klempt2025ContinuumBiofilm} describes the dynamics of bacterial volume fractions $\phi_i$ and viability fractions $\psi_i$ through a coupled ODE system. The interaction term for species $i$ is:
 \begin{equation}
 I_i = \sum_{j=0}^{4} A_{ij} \phi_j \psi_j
 \end{equation}
@@ -209,7 +213,7 @@ where $A_{ij}$ represents the effect of species $j$ on species $i$, and $\phi_j 
 \subsection{F.~nucleatum Bridge Gate (Hill Function Extension)}
 \label{sec:hill_gate}
 
-In the base model, the interaction term $I_4$ for \textit{P.~gingivalis} (species 4) treats all cross-species effects as linear. However, experimental evidence indicates that P.~gingivalis colonisation depends critically on prior establishment of \textit{F.~nucleatum} (species 3) as a ``bridge organism'' \cite{Kolenbrander2010OralMultispecies}. To capture this biological prerequisite, we introduce a Hill-type gating function that modulates the effective interaction received by P.~gingivalis:
+In the base model, the interaction term $I_4$ for \textit{P.~gingivalis} (species 4) treats all cross-species effects as linear. However, experimental evidence indicates that P.~gingivalis colonisation depends critically on prior establishment of \textit{F.~nucleatum} (species 3) as a ``bridge organism'' \cite{Kolenbrander2010OralMultispecies, Soleimani2023CoAggregation, Mukherjee2025PgTitanium}. To capture this biological prerequisite, we introduce a Hill-type gating function that modulates the effective interaction received by P.~gingivalis:
 \begin{equation}
   I_4^{\mathrm{gated}} = h(\phi_3 \psi_3)\;\sum_{j=0}^{4} A_{4j}\,\phi_j\psi_j, \qquad
   h(x) = \frac{x^n}{K^n + x^n}
@@ -591,7 +595,7 @@ For the experiments reported here ($C=2$ chains, $N=150$ particles), the inter-c
 \subsection{Taylor Series Method (TSM) Surrogate}
 \label{sec:tsm}
 
-Each TMCMC stage requires $O(N \times N_{\mathrm{MCMC}})$ evaluations of the forward model, which involves solving the 10-dimensional coupled ODE system~(\ref{eq:ode}) over 2500 time steps per evaluation. To reduce the computational burden, we employ a first-order Taylor Series Method (TSM) as a reduced-order surrogate for the log-likelihood \cite{Fritsch2025BayesianMicrofilms}.
+Each TMCMC stage requires $O(N \times N_{\mathrm{MCMC}})$ evaluations of the forward model, which involves solving the 10-dimensional coupled ODE system~(\ref{eq:ode}) over 2500 time steps per evaluation. To reduce the computational burden, we employ a first-order Taylor Series Method (TSM) as a reduced-order surrogate for the log-likelihood \cite{GeislerJunker2025TSM, Fritsch2025BayesianMicrofilms}.
 
 Given a linearisation point $\boldsymbol{\theta}_0$ (updated periodically during TMCMC), the forward model prediction at a nearby parameter $\boldsymbol{\theta}$ is approximated by:
 \begin{equation}
@@ -630,7 +634,7 @@ The Hill gate parameters $K$ and $n$ (Section~\ref{sec:hill_gate}) control the F
 \label{sec:conditions}
 %==============================================================================
 
-The parameter estimation strategy adapts to four distinct experimental conditions, varying the cultivation method (Static vs. HOBIC) and the community state (Commensal vs. Dysbiotic). Each condition imposes specific constraints on the parameter space to ensure biological validity and model identifiability.
+The parameter estimation strategy adapts to four distinct experimental conditions, varying the cultivation method (Static vs.\ HOBIC \cite{Kommerein2018HOBIC}) and the community state (Commensal vs.\ Dysbiotic). Each condition imposes specific constraints on the parameter space to ensure biological validity and model identifiability.
 
 \begin{figure}[htbp]
     \centering
@@ -693,22 +697,22 @@ The number of estimated parameters ($N_{est}$) differs across conditions, calcul
 \subsection{Detailed Locking Logic}
 
 \begin{enumerate}
-    \item \textbf{Commensal Static}: 
+    \item \textbf{Commensal Static}:
     Strict locking is applied to reproduce the stable commensal state. In addition to the standard structural locks (5), growth rates for late colonizers (Red/Purple) and their interactions with early colonizers are locked to zero ($N_{locked}=9$).
     \begin{quote}
     \small "Based on qPCR data showing \textit{P. gingivalis} and \textit{F. nucleatum} were undetectable or below detection limits (Heine et al., Table S8) \cite{Heine2025PeriImplant}."
     \end{quote}
-    
-    \item \textbf{Dysbiotic Static}: 
+
+    \item \textbf{Dysbiotic Static}:
     Represents the transition to a pathogen-rich state. Locking is relaxed to allow estimation of key pathogen growth and interaction parameters, maintaining only the structural locks ($N_{locked}=5$).
     \begin{quote}
     \small "Metabolite accumulation in static culture limits the dynamic interactions observed in flow conditions (Heine et al., Discussion) \cite{Heine2025PeriImplant}."
     \end{quote}
-    
-    \item \textbf{Commensal HOBIC}: 
+
+    \item \textbf{Commensal HOBIC}:
     Similar to Commensal Static but adapted for the HOBIC flow environment. Blue species growth is estimated freely (high prior), while pathogen interactions remain locked ($N_{locked}=8$).
-    
-    \item \textbf{Dysbiotic HOBIC (The "Surge" Model)}: 
+
+    \item \textbf{Dysbiotic HOBIC (The "Surge" Model)}:
     This is the critical validation case. \textbf{All parameter locks, including the standard structural locks, are released} ($N_{locked}=0$, $N_{est}=20$). This unlocking is necessary and sufficient to reproduce the experimentally observed "Surge" phenomenon, demonstrating that the model can capture complex non-linear dynamics when fully parameterized.
     \begin{quote}
     \small "To capture the complex metabolic cross-feeding (lactate, pH, vitamins) and co-aggregation described in the metabolic map (Heine et al., Fig 4C) \cite{Heine2025PeriImplant}."
@@ -1199,6 +1203,7 @@ In addition to the pairwise comparison, we examined the Frobenius norm $\lVert \
 %==============================================================================
 
 A key novelty of this work is the propagation of TMCMC-calibrated microbial parameters to macroscale mechanical fields.
+While earlier biofilm FEM models coupled growth with visco-elastic constitutive behaviour \cite{Soleimani2019ViscoElasticGrowth} or stress-induced anisotropic nutrient transport \cite{Soleimani2020AnisotropicGrowth}, the present pipeline is, to our knowledge, the first to couple Bayesian-inferred species interactions to macroscale stress via a community-level bridging variable.
 We construct a three-stage pipeline:
 \begin{enumerate}
   \item \textbf{0D Hamilton ODE}: For each posterior sample $\boldsymbol{\theta}^{(k)}$, the 5-species Hamilton model~(\ref{eq:ode}) with Hill gate~(\ref{eq:hill_gate}) is solved for species volume fractions $\varphi_i(t)$ and a global Dysbiosis Index $\mathrm{DI}_\text{0D}$.
@@ -1353,7 +1358,7 @@ Dysbiotic HOBIC   & 705.1 & 0.140 & 108.8 & 11.9 & 0.121 \\
 \label{sec:3d_fem}
 %==============================================================================
 
-To assess the mechanical consequences of microbial dysbiosis on a realistic geometry, we perform 3D linear-elastic FEM simulations on a patient-specific tooth model (T23, upper left canine).
+To assess the mechanical consequences of microbial dysbiosis on a realistic geometry, we perform 3D linear-elastic FEM simulations on a patient-specific tooth model (T23, upper left canine). The growth--mechanics coupling follows a similar philosophy to recent tissue-turnover models applied in atherosclerosis \cite{Soleimani2025Atherosclerosis}, where biologically driven volume changes are translated into eigenstrain fields for structural analysis.
 
 \subsection{Mesh and Boundary Conditions}
 
@@ -1683,6 +1688,21 @@ The biologically-constrained parameter reduction (locking absent interactions to
   \item \textbf{Identifiability}: By reducing the effective dimension from 20 to 15 parameters, the TMCMC sampler converges more efficiently and produces tighter posteriors.
   \item \textbf{Physical plausibility}: The $a_{35}$ parameter (Veillonella $\to$ P.~gingivalis) is constrained to $[0,5]$ rather than $[0,30]$, preventing non-physical estimates (e.g., $a_{35} = 17.3$ in the unconstrained baseline) while still allowing the biologically relevant cooperative interaction to be captured ($a_{35} = 3.56$ in the mild-weight run, consistent with moderate pH-mediated support).
 \end{enumerate}
+
+\subsection{Theoretical Consistency with Klempt et al.}
+\label{sec:consistency}
+
+The present framework is built upon the continuum multi-species biofilm model of Klempt et al.~\cite{Klempt2025ContinuumBiofilm}, itself grounded in the extended Hamilton principle of Junker and Balzani~\cite{JunkerBalzani2021ExtendedHamilton} and its predecessor for single-species diffusion-driven growth~\cite{Klempt2024ContinuumGrowth}. A systematic comparison reveals full theoretical consistency:
+
+\begin{enumerate}
+  \item \textbf{Variational principle}: Both formulations derive the governing equations from $\delta\int(G + C + D)\,\mathrm{d}t = 0$, where $G$, $C$, $D$ denote the Gibbs energy, constraint, and dissipation contributions, respectively.
+  \item \textbf{Free energy and dissipation}: The bilinear free energy $\Psi = -\tfrac{1}{2}c^{*}\bar{\varphi}^T\mathbf{A}\bar{\varphi} + \tfrac{1}{2}\alpha^{*}\boldsymbol{\psi}^T\mathbf{B}\boldsymbol{\psi}$ and quadratic dissipation $\Delta^{s} = \tfrac{1}{2}\dot{\bar{\varphi}}^T\boldsymbol{\eta}\dot{\bar{\varphi}}$ are identical in structure. In the present work, the nutrient scaling $c^{*}$ and antibiotic scaling $\alpha^{*}$ are absorbed into the effective parameters $\mathbf{A}$ and $\mathbf{b}$, which is exact under constant cultivation conditions.
+  \item \textbf{Interaction matrix symmetry}: The symmetry $A_{ij} = A_{ji}$ arises from the variational structure (Section~\ref{sec:symmetric_A}) and is preserved in both formulations.
+  \item \textbf{Volume constraint}: The saturation constraint $\sum_{\ell=0}^{n}\phi_{\ell} = 1$ with Lagrange multiplier $\gamma$ is treated identically; the constraint-conforming discretisation follows~\cite{Bode2025ConstraintConforming}.
+  \item \textbf{Barrier penalty}: The barrier term $K_{p1} = 10^{-4}$ in our Q-vector corresponds to $K_{p,i} = \eta_i \cdot 10^{-4}$ in~\cite{Klempt2025ContinuumBiofilm} with $\eta_i = 1$.
+\end{enumerate}
+
+\noindent The present work extends Klempt et al.\ in four directions that are compatible with the underlying variational structure: (i)~the Hill-type gating function for P.~gingivalis (Section~\ref{sec:hill_gate}), a nonlinear modification of the interaction term that preserves Newton convergence; (ii)~spatial extension to 2D/3D FEM via operator splitting (Section~\ref{sec:fem_pipeline}), where the reaction step at each node is the 0D Hamilton model of~\cite{Klempt2025ContinuumBiofilm}; (iii)~TMCMC Bayesian estimation of the interaction matrix, adding an inverse-problem layer to the same forward model; and (iv)~DI-dependent elastic modulus for mechanical coupling, a post-processing extension absent from the original formulation. None of these extensions introduce contradictions with the parent model.
 
 \subsection{Multiscale Stress Implications}
 

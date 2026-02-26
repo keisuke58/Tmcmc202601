@@ -6,7 +6,6 @@ Reads summary.json from each condition's CI run and generates
 a publication-quality cross-condition comparison figure.
 """
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -39,6 +38,7 @@ def load_sensitivity(cond):
 
 def plot_comparison(results):
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -49,11 +49,13 @@ def plot_comparison(results):
         return
 
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    colors = {"dh_baseline": "#1f77b4",
-              "baseline_original_bounds": "#d62728",
-              "commensal_static": "#2ca02c",
-              "commensal_hobic": "#ff7f0e",
-              "dysbiotic_static": "#9467bd"}
+    colors = {
+        "dh_baseline": "#1f77b4",
+        "baseline_original_bounds": "#d62728",
+        "commensal_static": "#2ca02c",
+        "commensal_hobic": "#ff7f0e",
+        "dysbiotic_static": "#9467bd",
+    }
     x = np.arange(n)
     bar_colors = [colors.get(c, "#333333") for c in conds]
 
@@ -73,8 +75,16 @@ def plot_comparison(results):
     means = [results[c]["di_mean_global"] for c in conds]
     widths = [results[c]["di_ci_width"] for c in conds]
     ax.bar(x, means, color=bar_colors, alpha=0.8, edgecolor="k", linewidth=0.5)
-    ax.errorbar(x, means, yerr=[w / 2 for w in widths], fmt="none",
-                ecolor="k", capsize=5, capthick=1.5, linewidth=1.5)
+    ax.errorbar(
+        x,
+        means,
+        yerr=[w / 2 for w in widths],
+        fmt="none",
+        ecolor="k",
+        capsize=5,
+        capthick=1.5,
+        linewidth=1.5,
+    )
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=8)
     ax.set_ylabel("DI (global mean)", fontsize=11)
@@ -86,8 +96,16 @@ def plot_comparison(results):
     means = [results[c]["epg_mean_pa"] for c in conds]
     widths = [results[c]["epg_ci_width_pa"] for c in conds]
     ax.bar(x, means, color=bar_colors, alpha=0.8, edgecolor="k", linewidth=0.5)
-    ax.errorbar(x, means, yerr=[w / 2 for w in widths], fmt="none",
-                ecolor="k", capsize=5, capthick=1.5, linewidth=1.5)
+    ax.errorbar(
+        x,
+        means,
+        yerr=[w / 2 for w in widths],
+        fmt="none",
+        ecolor="k",
+        capsize=5,
+        capthick=1.5,
+        linewidth=1.5,
+    )
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=8)
     ax.set_ylabel("$E_{\\phi_{Pg}}$ [Pa]", fontsize=11)
@@ -99,8 +117,16 @@ def plot_comparison(results):
     means = [results[c]["evir_mean_pa"] for c in conds]
     widths = [results[c]["evir_ci_width_pa"] for c in conds]
     ax.bar(x, means, color=bar_colors, alpha=0.8, edgecolor="k", linewidth=0.5)
-    ax.errorbar(x, means, yerr=[w / 2 for w in widths], fmt="none",
-                ecolor="k", capsize=5, capthick=1.5, linewidth=1.5)
+    ax.errorbar(
+        x,
+        means,
+        yerr=[w / 2 for w in widths],
+        fmt="none",
+        ecolor="k",
+        capsize=5,
+        capthick=1.5,
+        linewidth=1.5,
+    )
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=8)
     ax.set_ylabel("$E_{vir}$ [Pa]", fontsize=11)
@@ -129,9 +155,16 @@ def plot_comparison(results):
             s = all_sens.get(c, {})
             vals = [abs(s.get(p, {}).get("spearman_di_mean", 0)) for p in params]
             offset = (i - (n - 1) / 2) * width
-            ax.bar(xp + offset, vals, width * 0.9,
-                   color=colors.get(c, "#333"), alpha=0.8,
-                   label=c.replace("_", " "), edgecolor="k", linewidth=0.3)
+            ax.bar(
+                xp + offset,
+                vals,
+                width * 0.9,
+                color=colors.get(c, "#333"),
+                alpha=0.8,
+                label=c.replace("_", " "),
+                edgecolor="k",
+                linewidth=0.3,
+            )
         ax.set_xticks(xp)
         ax.set_xticklabels(params, fontsize=9, rotation=30)
         ax.set_ylabel("|Spearman $\\rho$|", fontsize=11)
@@ -139,8 +172,15 @@ def plot_comparison(results):
         ax.legend(fontsize=8)
         ax.grid(True, alpha=0.3, axis="y")
     else:
-        ax.text(0.5, 0.5, "No sensitivity data", ha="center", va="center",
-                transform=ax.transAxes, fontsize=12)
+        ax.text(
+            0.5,
+            0.5,
+            "No sensitivity data",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontsize=12,
+        )
 
     # (e) DI CI width comparison
     ax = axes[1, 1]
@@ -159,22 +199,26 @@ def plot_comparison(results):
     col_labels = ["Condition", "DI mean", "DI CI", "E_Pg [Pa]", "n_samples"]
     for c in conds:
         r = results[c]
-        cell_text.append([
-            c.replace("_", " "),
-            f"{r['di_mean_global']:.4f}",
-            f"{r['di_ci_width']:.4f}",
-            f"{r['epg_mean_pa']:.1f}",
-            str(r["n_samples"]),
-        ])
-    table = ax.table(cellText=cell_text, colLabels=col_labels,
-                     loc="center", cellLoc="center")
+        cell_text.append(
+            [
+                c.replace("_", " "),
+                f"{r['di_mean_global']:.4f}",
+                f"{r['di_ci_width']:.4f}",
+                f"{r['epg_mean_pa']:.1f}",
+                str(r["n_samples"]),
+            ]
+        )
+    table = ax.table(cellText=cell_text, colLabels=col_labels, loc="center", cellLoc="center")
     table.auto_set_font_size(False)
     table.set_fontsize(9)
     table.scale(1.0, 1.5)
     ax.set_title("(f) Summary", fontsize=12, weight="bold", pad=20)
 
-    fig.suptitle("Cross-Condition Posterior Uncertainty Comparison (50 samples, 90% CI)",
-                 fontsize=14, weight="bold")
+    fig.suptitle(
+        "Cross-Condition Posterior Uncertainty Comparison (50 samples, 90% CI)",
+        fontsize=14,
+        weight="bold",
+    )
     fig.tight_layout(rect=[0, 0, 1, 0.94])
 
     out = _OUT_BASE / "cross_condition_ci_comparison.png"
@@ -195,8 +239,10 @@ if __name__ == "__main__":
     results.pop("baseline_original_bounds", None)
     print(f"Found {len(results)} conditions: {list(results.keys())}")
     for c, r in results.items():
-        print(f"  {c}: DI={r['di_mean_global']:.6f} (CI={r['di_ci_width']:.6f}), "
-              f"E_Pg={r['epg_mean_pa']:.1f} Pa, n={r['n_samples']}")
+        print(
+            f"  {c}: DI={r['di_mean_global']:.6f} (CI={r['di_ci_width']:.6f}), "
+            f"E_Pg={r['epg_mean_pa']:.1f} Pa, n={r['n_samples']}"
+        )
     if len(results) >= 2:
         plot_comparison(results)
     else:

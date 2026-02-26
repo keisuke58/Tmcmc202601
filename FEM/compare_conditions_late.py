@@ -20,9 +20,9 @@ Usage
   python3 compare_conditions_late.py
 """
 import os
-import csv
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -32,16 +32,16 @@ _FIGS = os.path.join(_HERE, "figures")
 os.makedirs(_FIGS, exist_ok=True)
 
 # ── Material model (mirrors biofilm_3tooth_assembly.py) ────────────────────────
-E_MAX    = 10.0
-E_MIN    = 0.5
-ALPHA    = 2.0
+E_MAX = 10.0
+E_MIN = 0.5
+ALPHA = 2.0
 DI_SCALE = 0.025778
 
 CONDS = [
-    {"key": "dh_baseline",      "label": "DH-baseline\n(dysbiotic)",  "color": "#d62728"},
-    {"key": "commensal_static",  "label": "Commensal-static",          "color": "#2ca02c"},
-    {"key": "Dysbiotic_Static",  "label": "Dysbiotic-static",          "color": "#ff7f0e"},
-    {"key": "Commensal_HOBIC",   "label": "Commensal-HOBIC",           "color": "#1f77b4"},
+    {"key": "dh_baseline", "label": "DH-baseline\n(dysbiotic)", "color": "#d62728"},
+    {"key": "commensal_static", "label": "Commensal-static", "color": "#2ca02c"},
+    {"key": "Dysbiotic_Static", "label": "Dysbiotic-static", "color": "#ff7f0e"},
+    {"key": "Commensal_HOBIC", "label": "Commensal-HOBIC", "color": "#1f77b4"},
 ]
 TEETH = ["T23", "T30", "T31"]
 
@@ -101,7 +101,7 @@ print("  Late-time (t≈0.5) 4-condition FEM comparison")
 print("=" * 62)
 
 elem_data = {}
-di_data   = {}
+di_data = {}
 
 print("\n[Loading data]")
 for c in CONDS:
@@ -112,7 +112,7 @@ for c in CONDS:
     di, r_pg, t = load_di_late(key)
     di_data[key] = {"di": di, "r_pg": r_pg, "t": t}
     n_elem = len(ed["mises"]) if ed else 0
-    n_di   = len(di) if di is not None else 0
+    n_di = len(di) if di is not None else 0
     print(f"  {key:30s}  elems={n_elem:6d}  di_pts={n_di}  t={t}")
 
 
@@ -123,7 +123,9 @@ fig, axes = plt.subplots(1, 3, figsize=(15, 6), sharey=False)
 fig.suptitle(
     "Late-time FEM: von Mises Stress per Tooth (t ≈ 0.5)\n"
     "1 MPa inward pressure · 437,472 C3D4 elements per condition",
-    fontsize=12, fontweight="bold")
+    fontsize=12,
+    fontweight="bold",
+)
 
 summary = {}  # key → tooth → (median, max)
 
@@ -131,7 +133,7 @@ for ax, tooth in zip(axes, TEETH):
     vals, colors, labels = [], [], []
     for c in CONDS:
         key = c["key"]
-        ed  = elem_data[key]
+        ed = elem_data[key]
         if ed is None:
             continue
         m = ed["mises"][ed["tooth"] == tooth]
@@ -141,18 +143,27 @@ for ax, tooth in zip(axes, TEETH):
         summary.setdefault(key, {})[tooth] = (float(np.median(m)), float(m.max()))
 
     xs = np.arange(len(vals))
-    vp = ax.violinplot(vals, positions=xs, widths=0.55,
-                       showmedians=True, showextrema=True)
+    vp = ax.violinplot(vals, positions=xs, widths=0.55, showmedians=True, showextrema=True)
     for body, col in zip(vp["bodies"], colors):
-        body.set_facecolor(col); body.set_alpha(0.55)
-    vp["cmedians"].set_color("black"); vp["cmedians"].set_linewidth(2)
+        body.set_facecolor(col)
+        body.set_alpha(0.55)
+    vp["cmedians"].set_color("black")
+    vp["cmedians"].set_linewidth(2)
     for part in ["cbars", "cmins", "cmaxes"]:
         vp[part].set_color("gray")
 
     # Annotate medians
     for i, (v, col) in enumerate(zip(vals, colors)):
-        ax.text(xs[i], np.median(v) + 0.01, f"{np.median(v):.3f}",
-                ha="center", va="bottom", fontsize=7, color=col, fontweight="bold")
+        ax.text(
+            xs[i],
+            np.median(v) + 0.01,
+            f"{np.median(v):.3f}",
+            ha="center",
+            va="bottom",
+            fontsize=7,
+            color=col,
+            fontweight="bold",
+        )
 
     ax.set_xticks(xs)
     ax.set_xticklabels(labels, fontsize=8)
@@ -160,10 +171,8 @@ for ax, tooth in zip(axes, TEETH):
     ax.set_title(f"Tooth {tooth}", fontsize=11)
     ax.grid(axis="y", alpha=0.3)
 
-handles = [mpatches.Patch(color=c["color"], label=c["label"].replace("\n", " "))
-           for c in CONDS]
-fig.legend(handles=handles, loc="lower center", ncol=4, fontsize=9,
-           bbox_to_anchor=(0.5, -0.02))
+handles = [mpatches.Patch(color=c["color"], label=c["label"].replace("\n", " ")) for c in CONDS]
+fig.legend(handles=handles, loc="lower center", ncol=4, fontsize=9, bbox_to_anchor=(0.5, -0.02))
 fig.tight_layout(rect=[0, 0.06, 1, 1])
 out1 = os.path.join(_FIGS, "LateFig1_mises_violin.png")
 fig.savefig(out1, dpi=150, bbox_inches="tight")
@@ -178,7 +187,9 @@ fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 fig.suptitle(
     "Late-time Dysbiotic Index (DI) Field  —  t ≈ 0.5\n"
     "(n = 3375 spatial grid points per condition)",
-    fontsize=12, fontweight="bold")
+    fontsize=12,
+    fontweight="bold",
+)
 
 ax_h, ax_b = axes
 bins_di = np.linspace(0.0, 0.55, 80)
@@ -186,28 +197,40 @@ bins_di = np.linspace(0.0, 0.55, 80)
 di_lists, di_labels, di_colors = [], [], []
 for c in CONDS:
     key = c["key"]
-    di  = di_data[key]["di"]
-    t   = di_data[key]["t"]
+    di = di_data[key]["di"]
+    t = di_data[key]["t"]
     if di is None:
         continue
     col = c["color"]
     lbl = c["label"].replace("\n", " ")
-    ax_h.hist(di, bins=bins_di, color=col, alpha=0.55, density=True,
-              label=f"{lbl}  (μ={di.mean():.4f})", edgecolor="none")
+    ax_h.hist(
+        di,
+        bins=bins_di,
+        color=col,
+        alpha=0.55,
+        density=True,
+        label=f"{lbl}  (μ={di.mean():.4f})",
+        edgecolor="none",
+    )
     ax_h.axvline(di.mean(), color=col, lw=1.5, ls="--", alpha=0.9)
-    di_lists.append(di); di_labels.append(c["label"]); di_colors.append(col)
-    print(f"  {key:30s}  t={t:.2f}  DI mean={di.mean():.4f}  max={di.max():.4f}"
-          f"  r_pg mean={di_data[key]['r_pg'].mean():.4f}")
+    di_lists.append(di)
+    di_labels.append(c["label"])
+    di_colors.append(col)
+    print(
+        f"  {key:30s}  t={t:.2f}  DI mean={di.mean():.4f}  max={di.max():.4f}"
+        f"  r_pg mean={di_data[key]['r_pg'].mean():.4f}"
+    )
 
 ax_h.set_xlabel("Dysbiotic Index (DI)", fontsize=10)
 ax_h.set_ylabel("Probability density", fontsize=10)
 ax_h.set_title("DI histogram (dashed = mean)", fontsize=10)
-ax_h.legend(fontsize=8); ax_h.grid(alpha=0.3)
+ax_h.legend(fontsize=8)
+ax_h.grid(alpha=0.3)
 
-bp = ax_b.boxplot(di_lists, patch_artist=True, notch=False,
-                  medianprops=dict(color="black", lw=2))
+bp = ax_b.boxplot(di_lists, patch_artist=True, notch=False, medianprops=dict(color="black", lw=2))
 for patch, col in zip(bp["boxes"], di_colors):
-    patch.set_facecolor(col); patch.set_alpha(0.65)
+    patch.set_facecolor(col)
+    patch.set_alpha(0.65)
 ax_b.set_xticklabels(di_labels, fontsize=8)
 ax_b.set_ylabel("DI", fontsize=10)
 ax_b.set_title("DI boxplot (late, t≈0.5)", fontsize=10)
@@ -228,39 +251,50 @@ fig.suptitle(
     r"Effective Young's Modulus $E_\mathrm{eff}$ — Late-time DI"
     "\n"
     r"$E_\mathrm{eff} = 10(1-r)^2 + 0.5r$,  $r = \min(\mathrm{DI}/0.025778,\,1)$",
-    fontsize=11, fontweight="bold")
+    fontsize=11,
+    fontweight="bold",
+)
 
 ax_h, ax_s = axes
 bins_e = np.linspace(E_MIN - 0.1, E_MAX + 0.1, 70)
 
 for c in CONDS:
     key = c["key"]
-    di  = di_data[key]["di"]
+    di = di_data[key]["di"]
     if di is None:
         continue
     eeff = di_to_eeff(di)
-    col  = c["color"]
-    lbl  = c["label"].replace("\n", " ")
-    ax_h.hist(eeff, bins=bins_e, color=col, alpha=0.5, density=True,
-              label=f"{lbl}  (μ={eeff.mean():.2f} MPa)", edgecolor="none")
+    col = c["color"]
+    lbl = c["label"].replace("\n", " ")
+    ax_h.hist(
+        eeff,
+        bins=bins_e,
+        color=col,
+        alpha=0.5,
+        density=True,
+        label=f"{lbl}  (μ={eeff.mean():.2f} MPa)",
+        edgecolor="none",
+    )
     ax_h.axvline(eeff.mean(), color=col, lw=1.5, ls="--", alpha=0.9)
-    print(f"  {key:30s}  E_eff mean={eeff.mean():.3f}  median={np.median(eeff):.3f}"
-          f"  min={eeff.min():.3f}  max={eeff.max():.3f}")
+    print(
+        f"  {key:30s}  E_eff mean={eeff.mean():.3f}  median={np.median(eeff):.3f}"
+        f"  min={eeff.min():.3f}  max={eeff.max():.3f}"
+    )
 
 ax_h.set_xlabel("E_eff (MPa)", fontsize=10)
 ax_h.set_ylabel("Probability density", fontsize=10)
 ax_h.set_title("E_eff histogram (late DI)", fontsize=10)
-ax_h.legend(fontsize=8); ax_h.grid(alpha=0.3)
+ax_h.legend(fontsize=8)
+ax_h.grid(alpha=0.3)
 
 # DI vs E_eff scatter for dh_baseline and commensal_static
 for c in CONDS[:2]:
-    key  = c["key"]
-    di   = di_data[key]["di"]
+    key = c["key"]
+    di = di_data[key]["di"]
     if di is None:
         continue
     eeff = di_to_eeff(di)
-    ax_s.scatter(di, eeff, s=5, c=c["color"], alpha=0.4,
-                 label=c["label"].replace("\n", " "))
+    ax_s.scatter(di, eeff, s=5, c=c["color"], alpha=0.4, label=c["label"].replace("\n", " "))
 
 di_curve = np.linspace(0.0, 0.55, 300)
 ax_s.plot(di_curve, di_to_eeff(di_curve), "k-", lw=1.2, label="Model curve")
@@ -268,7 +302,8 @@ ax_s.axvline(DI_SCALE, color="gray", ls=":", lw=1, label=f"DI_scale={DI_SCALE:.4
 ax_s.set_xlabel("DI", fontsize=10)
 ax_s.set_ylabel("E_eff (MPa)", fontsize=10)
 ax_s.set_title("DI → E_eff mapping\n(DH-baseline vs Commensal-static)", fontsize=10)
-ax_s.legend(fontsize=8); ax_s.grid(alpha=0.3)
+ax_s.legend(fontsize=8)
+ax_s.grid(alpha=0.3)
 
 fig.tight_layout()
 out3 = os.path.join(_FIGS, "LateFig3_eeff_comparison.png")
@@ -281,13 +316,15 @@ print(f"  Saved: {out3}")
 print("\n[LateFig4] ΔMISES = DH-baseline minus each condition ...")
 
 ref_key = "dh_baseline"
-ref_ed  = elem_data[ref_key]
+ref_ed = elem_data[ref_key]
 
 fig, axes = plt.subplots(1, 3, figsize=(16, 5))
 fig.suptitle(
     "ΔMISES = DH-baseline − other condition (per DI bin, per tooth)\n"
     "Positive (red) → DH-baseline is MORE stressed; Negative (blue) → LESS stressed",
-    fontsize=11, fontweight="bold")
+    fontsize=11,
+    fontweight="bold",
+)
 
 for ax, tooth in zip(axes, TEETH):
     ref_m = ref_ed["mises"][ref_ed["tooth"] == tooth]
@@ -300,7 +337,7 @@ for ax, tooth in zip(axes, TEETH):
 
     for oi, c in enumerate([c for c in CONDS if c["key"] != ref_key]):
         key = c["key"]
-        ed  = elem_data[key]
+        ed = elem_data[key]
         if ed is None:
             continue
         delta = []
@@ -312,8 +349,14 @@ for ax, tooth in zip(axes, TEETH):
             else:
                 delta.append(0.0)
         bar_colors = ["#d62728" if v > 0 else "#1f77b4" for v in delta]
-        ax.bar(xs_offset + offsets[oi], delta, width,
-               color=bar_colors, alpha=0.75, label=c["label"].replace("\n", " "))
+        ax.bar(
+            xs_offset + offsets[oi],
+            delta,
+            width,
+            color=bar_colors,
+            alpha=0.75,
+            label=c["label"].replace("\n", " "),
+        )
 
     ax.axhline(0, color="black", lw=0.8)
     ax.set_xticks(xs_offset)
@@ -338,39 +381,55 @@ print("\n[LateFig5] Summary table ...")
 fig, ax = plt.subplots(figsize=(14, 5))
 ax.axis("off")
 fig.suptitle(
-    "Late-time FEM Summary  (t ≈ 0.5, 1 MPa inward pressure)",
-    fontsize=12, fontweight="bold")
+    "Late-time FEM Summary  (t ≈ 0.5, 1 MPa inward pressure)", fontsize=12, fontweight="bold"
+)
 
-col_labels = ["Condition", "t", "DI_mean", "DI_max", "r_pg_mean",
-              "E_eff_mean\n(MPa)", "T23 MISES\nmedian (MPa)",
-              "T30 MISES\nmedian (MPa)", "T31 MISES\nmedian (MPa)"]
+col_labels = [
+    "Condition",
+    "t",
+    "DI_mean",
+    "DI_max",
+    "r_pg_mean",
+    "E_eff_mean\n(MPa)",
+    "T23 MISES\nmedian (MPa)",
+    "T30 MISES\nmedian (MPa)",
+    "T31 MISES\nmedian (MPa)",
+]
 rows = []
 for c in CONDS:
     key = c["key"]
-    di  = di_data[key]["di"]
-    t   = di_data[key]["t"]
+    di = di_data[key]["di"]
+    t = di_data[key]["t"]
     rpg = di_data[key]["r_pg"]
-    ed  = elem_data[key]
+    ed = elem_data[key]
     eeff = di_to_eeff(di) if di is not None else np.array([float("nan")])
 
     m_t23 = np.median(ed["mises"][ed["tooth"] == "T23"]) if ed else float("nan")
     m_t30 = np.median(ed["mises"][ed["tooth"] == "T30"]) if ed else float("nan")
     m_t31 = np.median(ed["mises"][ed["tooth"] == "T31"]) if ed else float("nan")
 
-    rows.append([
-        c["label"].replace("\n", " "),
-        f"{t:.2f}" if t else "—",
-        f"{di.mean():.4f}" if di is not None else "—",
-        f"{di.max():.4f}"  if di is not None else "—",
-        f"{rpg.mean():.4f}" if rpg is not None else "—",
-        f"{eeff.mean():.3f}",
-        f"{m_t23:.4f}", f"{m_t30:.4f}", f"{m_t31:.4f}",
-    ])
-    print(f"  {key:28s}  DI={di.mean():.4f}  E={eeff.mean():.3f}"
-          f"  T23={m_t23:.4f}  T30={m_t30:.4f}  T31={m_t31:.4f}")
+    rows.append(
+        [
+            c["label"].replace("\n", " "),
+            f"{t:.2f}" if t else "—",
+            f"{di.mean():.4f}" if di is not None else "—",
+            f"{di.max():.4f}" if di is not None else "—",
+            f"{rpg.mean():.4f}" if rpg is not None else "—",
+            f"{eeff.mean():.3f}",
+            f"{m_t23:.4f}",
+            f"{m_t30:.4f}",
+            f"{m_t31:.4f}",
+        ]
+    )
+    print(
+        f"  {key:28s}  DI={di.mean():.4f}  E={eeff.mean():.3f}"
+        f"  T23={m_t23:.4f}  T30={m_t30:.4f}  T31={m_t31:.4f}"
+    )
 
 tbl = ax.table(cellText=rows, colLabels=col_labels, loc="center", cellLoc="center")
-tbl.auto_set_font_size(False); tbl.set_fontsize(9); tbl.scale(1.0, 2.0)
+tbl.auto_set_font_size(False)
+tbl.set_fontsize(9)
+tbl.scale(1.0, 2.0)
 for j in range(len(col_labels)):
     tbl[0, j].set_facecolor("#2c3e50")
     tbl[0, j].set_text_props(color="white", fontweight="bold")

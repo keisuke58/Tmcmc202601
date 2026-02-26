@@ -33,18 +33,34 @@ _RUNS_ROOT = _HERE.parent / "data_5species" / "_runs"
 _OUT_BASE = _HERE / "_ci_0d_results"
 
 CONDITION_RUNS = {
-    "dh_baseline":      _RUNS_ROOT / "dh_baseline",
+    "dh_baseline": _RUNS_ROOT / "dh_baseline",
     "commensal_static": _RUNS_ROOT / "commensal_static",
-    "commensal_hobic":  _RUNS_ROOT / "commensal_hobic",
+    "commensal_hobic": _RUNS_ROOT / "commensal_hobic",
     "dysbiotic_static": _RUNS_ROOT / "dysbiotic_static",
 }
 
 PARAM_NAMES = [
-    "b1", "b2", "b3", "b4", "b5",
-    "a12", "a13", "a14", "a21", "a23", "a24",
-    "a31", "a32", "a34",
-    "a41", "a42", "a43",
-    "a51", "a52", "a53", "a54",
+    "b1",
+    "b2",
+    "b3",
+    "b4",
+    "b5",
+    "a12",
+    "a13",
+    "a14",
+    "a21",
+    "a23",
+    "a24",
+    "a31",
+    "a32",
+    "a34",
+    "a41",
+    "a42",
+    "a43",
+    "a51",
+    "a52",
+    "a53",
+    "a54",
 ]
 
 ALL_CONDITIONS = ["commensal_static", "commensal_hobic", "dh_baseline", "dysbiotic_static"]
@@ -111,6 +127,7 @@ def solve_0d_single(theta_np, n_steps=2500, dt=0.01):
     """Run 0D Hamilton ODE for a single theta → DI, phi, E values."""
     import jax
     import jax.numpy as jnp
+
     jax.config.update("jax_enable_x64", True)
 
     from JAXFEM.core_hamilton_1d import theta_to_matrices, newton_step, make_initial_state
@@ -120,17 +137,17 @@ def solve_0d_single(theta_np, n_steps=2500, dt=0.01):
     active_mask = jnp.ones(5, dtype=jnp.int64)
 
     params = {
-        "dt_h":         dt,
-        "Kp1":          1e-4,
-        "Eta":          jnp.ones(5, dtype=jnp.float64),
-        "EtaPhi":       jnp.ones(5, dtype=jnp.float64),
-        "c":            100.0,
-        "alpha":        100.0,
-        "K_hill":       jnp.array(0.05, dtype=jnp.float64),
-        "n_hill":       jnp.array(4.0, dtype=jnp.float64),
-        "A":            A,
-        "b_diag":       b_diag,
-        "active_mask":  active_mask,
+        "dt_h": dt,
+        "Kp1": 1e-4,
+        "Eta": jnp.ones(5, dtype=jnp.float64),
+        "EtaPhi": jnp.ones(5, dtype=jnp.float64),
+        "c": 100.0,
+        "alpha": 100.0,
+        "K_hill": jnp.array(0.05, dtype=jnp.float64),
+        "n_hill": jnp.array(4.0, dtype=jnp.float64),
+        "A": A,
+        "b_diag": b_diag,
+        "active_mask": active_mask,
         "newton_steps": 6,
     }
 
@@ -154,6 +171,7 @@ def solve_0d_single(theta_np, n_steps=2500, dt=0.01):
 
     # Material models — use di_scale=1.0 for 0D DI values
     from material_models import compute_E_di, compute_E_phi_pg, compute_E_virulence
+
     phi_2d = phi_final.reshape(1, 5)
     E_di = float(compute_E_di(di_0d * np.ones(1), di_scale=DI_SCALE_0D)[0])
     E_pg = float(compute_E_phi_pg(phi_2d)[0])
@@ -196,8 +214,10 @@ def run_condition(condition, n_samples, seed=42):
     print("  Computing MAP reference...")
     map_result = solve_0d_single(theta_map)
     di_map = map_result["di_0d"]
-    print(f"  MAP: DI={di_map:.4f}  E_di={map_result['E_di']:.1f} Pa  "
-          f"phi={[f'{v:.3f}' for v in map_result['phi_final']]}")
+    print(
+        f"  MAP: DI={di_map:.4f}  E_di={map_result['E_di']:.1f} Pa  "
+        f"phi={[f'{v:.3f}' for v in map_result['phi_final']]}"
+    )
 
     samples, is_real = load_posterior_samples(run_dir, n_samples, seed)
     if samples is None:
@@ -222,8 +242,10 @@ def run_condition(condition, n_samples, seed=42):
             if not is_real and abs(r["di_0d"] - di_map) > BASIN_THRESHOLD:
                 n_filtered += 1
                 if n_filtered <= 3:
-                    print(f"  [{i+1}/{n_actual}] FILTERED: DI={r['di_0d']:.4f} "
-                          f"(MAP={di_map:.4f}, delta={abs(r['di_0d']-di_map):.3f})")
+                    print(
+                        f"  [{i+1}/{n_actual}] FILTERED: DI={r['di_0d']:.4f} "
+                        f"(MAP={di_map:.4f}, delta={abs(r['di_0d']-di_map):.3f})"
+                    )
                 continue
 
             results.append(r)
@@ -231,16 +253,20 @@ def run_condition(condition, n_samples, seed=42):
                 elapsed = time.time() - t0
                 rate = (i + 1) / elapsed
                 eta = (n_actual - i - 1) / rate
-                print(f"  [{i+1}/{n_actual}] DI={r['di_0d']:.4f} E_di={r['E_di']:.1f} Pa "
-                      f"({elapsed:.0f}s, ETA {eta:.0f}s)")
+                print(
+                    f"  [{i+1}/{n_actual}] DI={r['di_0d']:.4f} E_di={r['E_di']:.1f} Pa "
+                    f"({elapsed:.0f}s, ETA {eta:.0f}s)"
+                )
         except Exception as e:
             print(f"  [{i+1}/{n_actual}] ERROR: {e}")
 
     elapsed = time.time() - t0
 
     if n_filtered > 0:
-        print(f"  Basin filter: {n_filtered}/{n_actual} samples discarded "
-              f"(jumped attractor, threshold={BASIN_THRESHOLD})")
+        print(
+            f"  Basin filter: {n_filtered}/{n_actual} samples discarded "
+            f"(jumped attractor, threshold={BASIN_THRESHOLD})"
+        )
 
     if not results:
         print(f"  No valid results for {condition}")
@@ -300,15 +326,18 @@ def run_condition(condition, n_samples, seed=42):
 
     print(f"\n  Results for {condition} ({len(results)} valid samples):")
     print(f"    DI_0D MAP:  {di_map:.4f}")
-    print(f"    DI_0D mean: {summary['di_0d_mean']:.4f} "
-          f"(90% CI: [{di_lo:.4f}, {di_hi:.4f}], width={di_w:.4f})")
+    print(
+        f"    DI_0D mean: {summary['di_0d_mean']:.4f} "
+        f"(90% CI: [{di_lo:.4f}, {di_hi:.4f}], width={di_w:.4f})"
+    )
     print(f"    E_di MAP:   {map_result['E_di']:.1f} Pa")
-    print(f"    E_di mean:  {summary['E_di_mean']:.1f} Pa "
-          f"(CI: [{edi_lo:.1f}, {edi_hi:.1f}])")
-    print(f"    E_Pg mean:  {summary['E_phi_pg_mean']:.1f} Pa "
-          f"(CI: [{epg_lo:.1f}, {epg_hi:.1f}])")
-    print(f"    E_vir mean: {summary['E_vir_mean']:.1f} Pa "
-          f"(CI: [{evir_lo:.1f}, {evir_hi:.1f}])")
+    print(f"    E_di mean:  {summary['E_di_mean']:.1f} Pa " f"(CI: [{edi_lo:.1f}, {edi_hi:.1f}])")
+    print(
+        f"    E_Pg mean:  {summary['E_phi_pg_mean']:.1f} Pa " f"(CI: [{epg_lo:.1f}, {epg_hi:.1f}])"
+    )
+    print(
+        f"    E_vir mean: {summary['E_vir_mean']:.1f} Pa " f"(CI: [{evir_lo:.1f}, {evir_hi:.1f}])"
+    )
     print(f"    Time:       {elapsed:.1f}s")
 
     return summary
@@ -317,6 +346,7 @@ def run_condition(condition, n_samples, seed=42):
 def plot_comparison(summaries):
     """Generate cross-condition comparison figure."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -325,14 +355,14 @@ def plot_comparison(summaries):
 
     COND_LABELS = {
         "commensal_static": "Comm.\nStatic",
-        "commensal_hobic":  "Comm.\nHOBIC",
-        "dh_baseline":      "Dysb.\nHOBIC",
+        "commensal_hobic": "Comm.\nHOBIC",
+        "dh_baseline": "Dysb.\nHOBIC",
         "dysbiotic_static": "Dysb.\nStatic",
     }
     COND_COLORS = {
         "commensal_static": "#2ca02c",
-        "commensal_hobic":  "#17becf",
-        "dh_baseline":      "#d62728",
+        "commensal_hobic": "#17becf",
+        "dh_baseline": "#d62728",
         "dysbiotic_static": "#ff7f0e",
     }
 
@@ -353,11 +383,20 @@ def plot_comparison(summaries):
     ci_hi = [summaries[c]["di_0d_ci90"][1] for c in conds]
     err_lo, err_hi = safe_err(means, ci_lo, ci_hi)
     ax.bar(x, means, color=colors, alpha=0.85, edgecolor="k", linewidth=0.5)
-    ax.errorbar(x, means, yerr=[err_lo, err_hi], fmt="none",
-                ecolor="k", capsize=6, capthick=1.5, linewidth=1.5)
+    ax.errorbar(
+        x,
+        means,
+        yerr=[err_lo, err_hi],
+        fmt="none",
+        ecolor="k",
+        capsize=6,
+        capthick=1.5,
+        linewidth=1.5,
+    )
     map_vals = [summaries[c]["di_0d_map"] for c in conds]
     ax.scatter(x, map_vals, marker="D", color="red", s=40, zorder=5, label="MAP")
-    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=9)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9)
     ax.set_ylabel("$DI_{0D}$", fontsize=12)
     ax.set_title("(a) Dysbiosis Index (0D ODE)", fontsize=12, weight="bold")
     ax.grid(True, alpha=0.3, axis="y")
@@ -372,11 +411,20 @@ def plot_comparison(summaries):
     ci_hi = [summaries[c]["E_di_ci90"][1] for c in conds]
     err_lo, err_hi = safe_err(means, ci_lo, ci_hi)
     ax.bar(x, means, color=colors, alpha=0.85, edgecolor="k", linewidth=0.5)
-    ax.errorbar(x, means, yerr=[err_lo, err_hi], fmt="none",
-                ecolor="k", capsize=6, capthick=1.5, linewidth=1.5)
+    ax.errorbar(
+        x,
+        means,
+        yerr=[err_lo, err_hi],
+        fmt="none",
+        ecolor="k",
+        capsize=6,
+        capthick=1.5,
+        linewidth=1.5,
+    )
     map_vals = [summaries[c]["E_di_map"] for c in conds]
     ax.scatter(x, map_vals, marker="D", color="red", s=40, zorder=5, label="MAP")
-    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=9)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9)
     ax.set_ylabel("$E_{DI}$ [Pa]", fontsize=12)
     ax.set_title("(b) Stiffness — DI Model (scale=1.0)", fontsize=12, weight="bold")
     ax.grid(True, alpha=0.3, axis="y")
@@ -389,9 +437,18 @@ def plot_comparison(summaries):
     ci_hi = [summaries[c]["E_phi_pg_ci90"][1] for c in conds]
     err_lo, err_hi = safe_err(means, ci_lo, ci_hi)
     ax.bar(x, means, color=colors, alpha=0.85, edgecolor="k", linewidth=0.5)
-    ax.errorbar(x, means, yerr=[err_lo, err_hi], fmt="none",
-                ecolor="k", capsize=6, capthick=1.5, linewidth=1.5)
-    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=9)
+    ax.errorbar(
+        x,
+        means,
+        yerr=[err_lo, err_hi],
+        fmt="none",
+        ecolor="k",
+        capsize=6,
+        capthick=1.5,
+        linewidth=1.5,
+    )
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9)
     ax.set_ylabel("$E_{\\phi_{Pg}}$ [Pa]", fontsize=12)
     ax.set_title("(c) Stiffness — $\\phi_{Pg}$ Model", fontsize=12, weight="bold")
     ax.grid(True, alpha=0.3, axis="y")
@@ -400,7 +457,8 @@ def plot_comparison(summaries):
     ax = axes[1, 0]
     widths = [summaries[c]["di_0d_ci_width"] for c in conds]
     ax.bar(x, widths, color=colors, alpha=0.85, edgecolor="k", linewidth=0.5)
-    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=9)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9)
     ax.set_ylabel("90% CI width", fontsize=12)
     ax.set_title("(d) DI Uncertainty (CI width)", fontsize=12, weight="bold")
     ax.grid(True, alpha=0.3, axis="y")
@@ -417,7 +475,8 @@ def plot_comparison(summaries):
     ax = axes[1, 1]
     widths = [summaries[c]["E_di_ci_width"] for c in conds]
     ax.bar(x, widths, color=colors, alpha=0.85, edgecolor="k", linewidth=0.5)
-    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=9)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9)
     ax.set_ylabel("$E_{DI}$ CI width [Pa]", fontsize=12)
     ax.set_title("(e) Stiffness Uncertainty", fontsize=12, weight="bold")
     ax.grid(True, alpha=0.3, axis="y")
@@ -425,22 +484,22 @@ def plot_comparison(summaries):
     # (f) Summary table
     ax = axes[1, 2]
     ax.axis("off")
-    col_labels = ["Condition", "$DI_{MAP}$", "DI mean", "DI CI",
-                  "$E_{DI}$ [Pa]", "Samples"]
+    col_labels = ["Condition", "$DI_{MAP}$", "DI mean", "DI CI", "$E_{DI}$ [Pa]", "Samples"]
     cell_text = []
     for c in conds:
         s = summaries[c]
         src = "posterior" if s.get("is_real_posterior") else "perturb"
-        cell_text.append([
-            c.replace("_", " "),
-            f"{s['di_0d_map']:.4f}",
-            f"{s['di_0d_mean']:.4f}",
-            f"[{s['di_0d_ci90'][0]:.3f}, {s['di_0d_ci90'][1]:.3f}]",
-            f"{s['E_di_mean']:.1f}",
-            f"{s['n_samples_kept']}/{s['n_samples_total']} ({src})",
-        ])
-    table = ax.table(cellText=cell_text, colLabels=col_labels,
-                     loc="center", cellLoc="center")
+        cell_text.append(
+            [
+                c.replace("_", " "),
+                f"{s['di_0d_map']:.4f}",
+                f"{s['di_0d_mean']:.4f}",
+                f"[{s['di_0d_ci90'][0]:.3f}, {s['di_0d_ci90'][1]:.3f}]",
+                f"{s['E_di_mean']:.1f}",
+                f"{s['n_samples_kept']}/{s['n_samples_total']} ({src})",
+            ]
+        )
+    table = ax.table(cellText=cell_text, colLabels=col_labels, loc="center", cellLoc="center")
     table.auto_set_font_size(False)
     table.set_fontsize(8)
     table.scale(1.0, 1.6)
@@ -449,7 +508,9 @@ def plot_comparison(summaries):
     fig.suptitle(
         "Posterior → 0D Hamilton ODE → DI / E Uncertainty (90% CI)\n"
         "DI_SCALE=1.0 for 0D | Basin filter (threshold=0.25) | MAP marked as ◆",
-        fontsize=13, weight="bold")
+        fontsize=13,
+        weight="bold",
+    )
     fig.tight_layout(rect=[0, 0, 1, 0.90])
 
     out = _OUT_BASE / "cross_condition_ci_0d.png"

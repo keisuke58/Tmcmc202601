@@ -14,13 +14,11 @@ import time
 import sys
 import json
 import shlex
-import zlib
 import os
 import platform
 import multiprocessing
-from collections import defaultdict
 from datetime import datetime
-from typing import Tuple, List, Dict, Optional, Any, Callable
+from typing import Tuple, List, Dict, Optional, Any
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,19 +27,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     from scipy.interpolate import interp1d
+
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
 
 # Import from refactored modules
 from config import (
-    CONVERGENCE_DEFAULTS,
     DebugConfig,
     DebugLevel,
     MODEL_CONFIGS,
     PRIOR_BOUNDS_DEFAULT,
-    PROPOSAL_DEFAULTS,
-    ROM_ERROR_DEFAULTS,
     TMCMC_DEFAULTS,
     setup_logging,
 )
@@ -51,11 +47,6 @@ from utils import (
     save_npy,
     save_likelihood_meta,
     save_json,
-    write_csv,
-    to_jsonable,
-    TimingStats,
-    timed,
-    LikelihoodHealthCounter,
 )
 
 from debug import (
@@ -73,14 +64,10 @@ from visualization import (
 
 from core import (
     LogLikelihoodEvaluator,
-    TMCMCResult,
-    run_TMCMC,
     run_multi_chain_TMCMC,
-    run_adaptive_MCMC,
-    run_two_phase_MCMC_with_linearization,
 )
 
-from core.tmcmc import _stable_hash_int, run_multi_chain_MCMC
+from core.tmcmc import _stable_hash_int
 
 # Backward compatibility aliases
 _save_npy = save_npy
@@ -101,16 +88,17 @@ from improved_5species_jit import (
 )
 from tmcmc_5species_tsm import BiofilmTSM5S
 from demo_analytical_tsm_with_linearization_jit import BiofilmTSM_Analytical
-from mcmc_diagnostics import MCMCDiagnostics
 from bugfix_theta_to_matrices import patch_biofilm_solver
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
 # ==============================================================================
 # HELPER FUNCTIONS
 # ==============================================================================
+
 
 def _default_output_root_for_mode(mode: str) -> str:
     """Get default output root directory for mode."""
@@ -126,10 +114,22 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         description="Case II: TMCMC × TSM linearization (experiment runner)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    p.add_argument("--mode", choices=["sanity", "debug", "paper"], default="debug", help="Execution preset")
+    p.add_argument(
+        "--mode", choices=["sanity", "debug", "paper"], default="debug", help="Execution preset"
+    )
     p.add_argument("--seed", type=int, default=42, help="Base random seed (data + TMCMC)")
-    p.add_argument("--output-root", type=str, default=None, help="Root output directory (runs are created under this)")
-    p.add_argument("--run-id", type=str, default=None, help="Run identifier (folder name). Default: auto timestamp")
+    p.add_argument(
+        "--output-root",
+        type=str,
+        default=None,
+        help="Root output directory (runs are created under this)",
+    )
+    p.add_argument(
+        "--run-id",
+        type=str,
+        default=None,
+        help="Run identifier (folder name). Default: auto timestamp",
+    )
     p.add_argument(
         "--models",
         type=str,
@@ -144,10 +144,21 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     )
 
     # Experiment noise/uncertainty
-    p.add_argument("--sigma-obs", type=float, default=None, help="Override observation noise sigma_obs")
-    p.add_argument("--no-noise", action="store_true", default=False, help="Generate data without noise (for training data)")
-    p.add_argument("--cov-rel", type=float, default=None, help="Override ROM relative covariance cov_rel")
-    p.add_argument("--rho", type=float, default=None, help="Observation correlation rho (default: 0.0)")
+    p.add_argument(
+        "--sigma-obs", type=float, default=None, help="Override observation noise sigma_obs"
+    )
+    p.add_argument(
+        "--no-noise",
+        action="store_true",
+        default=False,
+        help="Generate data without noise (for training data)",
+    )
+    p.add_argument(
+        "--cov-rel", type=float, default=None, help="Override ROM relative covariance cov_rel"
+    )
+    p.add_argument(
+        "--rho", type=float, default=None, help="Observation correlation rho (default: 0.0)"
+    )
     p.add_argument(
         "--aleatory-samples",
         type=int,
@@ -158,22 +169,61 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     # TMCMC knobs (optional overrides)
     p.add_argument("--n-particles", type=int, default=None, help="TMCMC particles per chain")
     p.add_argument("--n-stages", type=int, default=None, help="TMCMC max stages")
-    p.add_argument("--n-mutation-steps", type=int, default=None, help="TMCMC mutation steps per stage")
+    p.add_argument(
+        "--n-mutation-steps", type=int, default=None, help="TMCMC mutation steps per stage"
+    )
     p.add_argument("--n-chains", type=int, default=None, help="Number of TMCMC chains (sequential)")
-    p.add_argument("--target-ess-ratio", type=float, default=None, help="TMCMC ESS target ratio in (0,1]")
-    p.add_argument("--min-delta-beta", type=float, default=None, help="Minimum β increment per stage (progress floor)")
-    p.add_argument("--n-jobs", type=int, default=None, help="Number of parallel jobs for particle evaluation (None = auto, 1 = sequential)")
-    p.add_argument("--use-threads", action="store_true", default=False, help="Use threads instead of processes for parallel evaluation")
-    p.add_argument("--max-delta-beta", type=float, default=None, help="Maximum β increment per stage (caps β jumps)")
-    p.add_argument("--update-linearization-interval", type=int, default=None, help="Update linearization point every N stages")
-    p.add_argument("--linearization-threshold", type=float, default=None, help="Allow linearization only when β exceeds this threshold")
+    p.add_argument(
+        "--target-ess-ratio", type=float, default=None, help="TMCMC ESS target ratio in (0,1]"
+    )
+    p.add_argument(
+        "--min-delta-beta",
+        type=float,
+        default=None,
+        help="Minimum β increment per stage (progress floor)",
+    )
+    p.add_argument(
+        "--n-jobs",
+        type=int,
+        default=None,
+        help="Number of parallel jobs for particle evaluation (None = auto, 1 = sequential)",
+    )
+    p.add_argument(
+        "--use-threads",
+        action="store_true",
+        default=False,
+        help="Use threads instead of processes for parallel evaluation",
+    )
+    p.add_argument(
+        "--max-delta-beta",
+        type=float,
+        default=None,
+        help="Maximum β increment per stage (caps β jumps)",
+    )
+    p.add_argument(
+        "--update-linearization-interval",
+        type=int,
+        default=None,
+        help="Update linearization point every N stages",
+    )
+    p.add_argument(
+        "--linearization-threshold",
+        type=float,
+        default=None,
+        help="Allow linearization only when β exceeds this threshold",
+    )
     p.add_argument(
         "--linearization-enable-rom-threshold",
         type=float,
         default=None,
         help="Enable linearization only if ε_ROM(MAP) <= this threshold (stability guard)",
     )
-    p.add_argument("--force-beta-one", action="store_true", default=False, help="Force β=1.0 at final stage (safety)")
+    p.add_argument(
+        "--force-beta-one",
+        action="store_true",
+        default=False,
+        help="Force β=1.0 at final stage (safety)",
+    )
     p.add_argument(
         "--lock-paper-conditions",
         action="store_true",
@@ -209,13 +259,15 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
-def select_sparse_data_indices(n_total: int, n_obs: int, t_arr: Optional[np.ndarray] = None) -> np.ndarray:
+def select_sparse_data_indices(
+    n_total: int, n_obs: int, t_arr: Optional[np.ndarray] = None
+) -> np.ndarray:
     """
     Select evenly spaced indices for sparse observations.
-    
+
     Now selects indices based on normalized time [0.0, 1.0] divided into n_obs equal parts.
     This ensures data points are evenly distributed across the normalized time range.
-    
+
     Parameters
     ----------
     n_total : int
@@ -225,7 +277,7 @@ def select_sparse_data_indices(n_total: int, n_obs: int, t_arr: Optional[np.ndar
     t_arr : Optional[np.ndarray]
         Time array. If provided, indices are selected to match normalized time positions exactly.
         If None, indices are calculated assuming uniform time spacing.
-        
+
     Returns
     -------
     indices : np.ndarray
@@ -249,10 +301,12 @@ def select_sparse_data_indices(n_total: int, n_obs: int, t_arr: Optional[np.ndar
         n_intervals = n_obs - 1  # n_obs points means n_obs-1 intervals
         if n_intervals > 0:
             interval_size = 0.95 / n_intervals  # Use range from 0.05 to 1.00
-            normalized_times = np.array([0.05] + [0.05 + i * interval_size for i in range(1, n_intervals)] + [1.0])
+            normalized_times = np.array(
+                [0.05] + [0.05 + i * interval_size for i in range(1, n_intervals)] + [1.0]
+            )
         else:
             normalized_times = np.array([0.05])
-    
+
     if t_arr is not None:
         # Use actual time array to find indices closest to normalized time positions
         t_min = t_arr.min()
@@ -261,7 +315,7 @@ def select_sparse_data_indices(n_total: int, n_obs: int, t_arr: Optional[np.ndar
             t_normalized = (t_arr - t_min) / (t_max - t_min)
         else:
             t_normalized = np.zeros_like(t_arr)
-        
+
         # Find indices closest to each normalized time position
         indices = np.zeros(n_obs, dtype=int)
         for i, t_norm in enumerate(normalized_times):
@@ -269,7 +323,7 @@ def select_sparse_data_indices(n_total: int, n_obs: int, t_arr: Optional[np.ndar
             distances = np.abs(t_normalized - t_norm)
             idx = np.argmin(distances)
             indices[i] = idx
-            
+
             # Only ensure first and last indices are within bounds (don't force to 0 or n_total-1)
             # This allows margin to be applied
             if indices[i] < 0:
@@ -280,10 +334,10 @@ def select_sparse_data_indices(n_total: int, n_obs: int, t_arr: Optional[np.ndar
         # Convert normalized time positions to indices (assuming uniform spacing)
         # normalized_time * (n_total - 1) gives the index position
         indices = np.round(normalized_times * (n_total - 1)).astype(int)
-        
+
         # Ensure last index is exactly n_total - 1 (for normalized_time = 1.0)
         indices[-1] = n_total - 1
-    
+
     # CRITICAL FIX: Check bounds explicitly instead of silent clipping
     # Silent clipping can hide bugs (e.g., n_total calculation errors)
     if np.any(indices < 0) or np.any(indices >= n_total):
@@ -293,7 +347,7 @@ def select_sparse_data_indices(n_total: int, n_obs: int, t_arr: Optional[np.ndar
             f"Invalid indices generated: min={invalid_min}, max={invalid_max}, "
             f"valid range=[0, {n_total-1}]. This indicates a bug in index calculation."
         )
-    
+
     return indices
 
 
@@ -311,12 +365,14 @@ def _self_check_tsm_once(
     - phi0 constraint is consistent: phi0 ≈ 1 - sum(phi_i)
     """
     cfg = MODEL_CONFIGS[model_key]
-    solver_kwargs = {k: v for k, v in cfg.items() if k not in ["active_species", "active_indices", "param_names"]}
-    
+    solver_kwargs = {
+        k: v for k, v in cfg.items() if k not in ["active_species", "active_indices", "param_names"]
+    }
+
     # Check if we need 5-species solver
     active_species = cfg["active_species"]
     is_5species = (len(active_species) == 5) or (max(active_species) >= 4)
-    
+
     if is_5species:
         solver = BiofilmNewtonSolver5S(
             **solver_kwargs,
@@ -368,19 +424,27 @@ def _self_check_tsm_once(
     phi0_min = float(np.min(phi0)) if phi0.size else float("nan")
     phi0_max = float(np.max(phi0)) if phi0.size else float("nan")
 
-    ok = (nonfinite_t == 0) and (nonfinite_x0 == 0) and (nonfinite_sig2 == 0) and t_monotone and (phi0_err_max_abs < 1e-6)
+    ok = (
+        (nonfinite_t == 0)
+        and (nonfinite_x0 == 0)
+        and (nonfinite_sig2 == 0)
+        and t_monotone
+        and (phi0_err_max_abs < 1e-6)
+    )
     return {
         "model": model_key,
         "ok": bool(ok),
         "nonfinite": {"t_arr": nonfinite_t, "x0": nonfinite_x0, "sig2": nonfinite_sig2},
         "t_monotone_increasing": bool(t_monotone),
-        "phi0_constraint": {"max_abs_error": phi0_err_max_abs, "phi0_min": phi0_min, "phi0_max": phi0_max},
+        "phi0_constraint": {
+            "max_abs_error": phi0_err_max_abs,
+            "phi0_min": phi0_min,
+            "phi0_max": phi0_max,
+        },
     }
 
 
-def compute_MAP_with_uncertainty(
-    samples: np.ndarray, logL: np.ndarray
-) -> Dict[str, np.ndarray]:
+def compute_MAP_with_uncertainty(samples: np.ndarray, logL: np.ndarray) -> Dict[str, np.ndarray]:
     """Compute MAP estimate and posterior statistics."""
     mean = samples.mean(axis=0)
     std = samples.std(axis=0, ddof=1)
@@ -388,7 +452,7 @@ def compute_MAP_with_uncertainty(
     MAP = samples[idx_map]
     ci_lower = np.percentile(samples, 2.5, axis=0)
     ci_upper = np.percentile(samples, 97.5, axis=0)
-    
+
     return {
         "mean": mean,
         "std": std,
@@ -401,6 +465,7 @@ def compute_MAP_with_uncertainty(
 @dataclass
 class MCMCConfig:
     """MCMC sampling configuration."""
+
     n_samples: int = 2000
     n_burn_in: int = 100
     n_chains: int = 2
@@ -409,7 +474,7 @@ class MCMCConfig:
     adapt_start: int = 100
     adapt_interval: int = 50
     debug: DebugConfig = None  # Debug configuration
-    
+
     def __post_init__(self):
         """Initialize debug config if not provided."""
         if self.debug is None:
@@ -419,18 +484,19 @@ class MCMCConfig:
 @dataclass
 class ExperimentConfig:
     """Experiment configuration for synthetic data generation."""
-    cov_rel: float = 0.005       # TSM relative covariance
-    rho: float = 0.0             # Observation correlation (equicorrelated)
-    n_data: int = 20             # Number of observations
-    sigma_obs: float = 0.001     # Observation noise
-    no_noise: bool = False       # If True, generate data without noise (for training data)
+
+    cov_rel: float = 0.005  # TSM relative covariance
+    rho: float = 0.0  # Observation correlation (equicorrelated)
+    n_data: int = 20  # Number of observations
+    sigma_obs: float = 0.001  # Observation noise
+    no_noise: bool = False  # If True, generate data without noise (for training data)
     # Paper notation: Nsamples (aleatory Monte Carlo samples) used in the *baseline* double-loop cost.
     # We keep this only for cost conversion/reporting; it does not affect the TSM-ROM execution.
     aleatory_samples: int = 500
     output_dir: str = None  # Auto-determined: sanity/debug/paper (set in main())
     random_seed: int = 42
-    debug: DebugConfig = None    # Debug configuration
-    
+    debug: DebugConfig = None  # Debug configuration
+
     def __post_init__(self):
         """Initialize debug config if not provided."""
         if self.debug is None:
@@ -446,23 +512,24 @@ def generate_synthetic_data(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Generate synthetic data from TSM simulation."""
     logger.info("[%s] Generating synthetic data...", name)
-    
+
     solver_kwargs = {
-        k: v for k, v in config.items()
+        k: v
+        for k, v in config.items()
         if k not in ["active_species", "active_indices", "param_names"]
     }
-    
+
     # Check if we need 5-species solver
     active_species = config["active_species"]
     is_5species = (len(active_species) == 5) or (max(active_species) >= 4)
-    
+
     if is_5species:
         solver = BiofilmNewtonSolver5S(
             **solver_kwargs,
             active_species=active_species,
             use_numba=HAS_NUMBA,
         )
-        
+
         # Use BiofilmTSM5S for 5-species model
         tsm = BiofilmTSM5S(
             solver,
@@ -476,7 +543,7 @@ def generate_synthetic_data(
             active_species=active_species,
             use_numba=HAS_NUMBA,
         )
-        
+
         # Use BiofilmTSM_Analytical for consistency
         tsm = BiofilmTSM_Analytical(
             solver,
@@ -486,17 +553,17 @@ def generate_synthetic_data(
             use_analytical=True,
             theta_linearization=theta_true,
         )
-    
+
     t_arr, x0, sig2 = tsm.solve_tsm(theta_true)
-    
+
     # CRITICAL FIX: Use t_arr to select indices based on normalized time positions
     # This ensures data points are evenly distributed across normalized time [0.0, 1.0]
     idx_sparse = select_sparse_data_indices(len(t_arr), exp_config.n_data, t_arr=t_arr)
     phibar = compute_phibar(x0, config["active_species"])
-    
+
     # CRITICAL FIX: Use default_rng consistently
     rng = np.random.default_rng(exp_config.random_seed + (_stable_hash_int(name) % 1000))
-    
+
     data = np.zeros((exp_config.n_data, len(config["active_species"])))
     for i, sp in enumerate(config["active_species"]):
         if exp_config.no_noise:
@@ -505,24 +572,29 @@ def generate_synthetic_data(
             logger.info("[%s] Generating data WITHOUT noise (training data mode)", name)
         else:
             # Generate data with noise (default)
-            data[:, i] = phibar[idx_sparse, i] + rng.standard_normal(exp_config.n_data) * exp_config.sigma_obs
-    
+            data[:, i] = (
+                phibar[idx_sparse, i]
+                + rng.standard_normal(exp_config.n_data) * exp_config.sigma_obs
+            )
+
     # CRITICAL FIX: Pass pre-computed phibar to ensure plot uses the same phibar as data generation
-    plot_mgr.plot_TSM_simulation(t_arr, x0, config["active_species"], name, data, idx_sparse, phibar=phibar)
-    
+    plot_mgr.plot_TSM_simulation(
+        t_arr, x0, config["active_species"], name, data, idx_sparse, phibar=phibar
+    )
+
     logger.info(
         "Generated %s observations for %s species",
         exp_config.n_data,
         len(config["active_species"]),
     )
-    
+
     return data, idx_sparse, t_arr, x0, sig2
 
 
 # NOTE: main() function is added below (extracted from case2_tmcmc_linearization.py)
 def main():
     start_time_global = time.time()
-    start_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    start_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     args = parse_args()
     # Normalize model names case-insensitively while keeping canonical keys from MODEL_CONFIGS.
     requested_raw = [m.strip() for m in str(args.models).split(",") if m.strip()]
@@ -530,7 +602,7 @@ def main():
     requested_models = [key_map[m.upper()] for m in requested_raw if m.upper() in key_map]
     if not requested_models:
         requested_models = ["M1", "M2", "M3"]
-    
+
     # ★ Slack notification: Process start
     if SLACK_ENABLED:
         notify_slack(
@@ -538,7 +610,7 @@ def main():
             f"   Time: {start_time_str}\n"
             f"   Case II: Hierarchical Bayesian Estimation with TSM Linearization"
         )
-    
+
     # Configuration (CLI-driven)
     if args.mode == "paper":
         default_debug_level = DebugLevel.OFF
@@ -562,22 +634,24 @@ def main():
     logger.info("%s", "=" * 80)
     logger.info("Start time: %s", start_time_str)
     logger.info("CLI: %s", " ".join(shlex.quote(a) for a in sys.argv))
-    
+
     # ★ FAST-SANITY MODE: 30秒以内で「コードが壊れてないか」だけ確認
     # 本番実行時は False に設定
-    FAST_SANITY_MODE = (args.mode == "sanity")
-    
+    FAST_SANITY_MODE = args.mode == "sanity"
+
     # ★ DIAGNOSTIC MODE: 解析微分の切り分け用
     # paper_mode=False にすると complex-step にフォールバック（解析微分無効化）
-    USE_PAPER_ANALYTICAL = True if args.use_paper_analytical is None else bool(args.use_paper_analytical)
-    
+    USE_PAPER_ANALYTICAL = (
+        True if args.use_paper_analytical is None else bool(args.use_paper_analytical)
+    )
+
     # ★ PRODUCTION HYPERPARAMETERS (本番実行用)
     # 論文・再現実験向けの推奨設定（Phase A: 精度・安定性優先）
     PRODUCTION_TMCMC = {
-        "n_particles": 1000,      # ★ 推奨: 2000-5000 (精度重視なら5000)
-        "n_stages": 50,          # ★ 推奨: 30-50 (βジャンプを小さくし、β=1.0到達を確実に)
-        "n_mutation_steps": 5,   # ★ 推奨: 5-10 (粒子相関を減らす)
-        "n_chains": 1,           # ★ 推奨: 3-5 (収束診断のため)
+        "n_particles": 1000,  # ★ 推奨: 2000-5000 (精度重視なら5000)
+        "n_stages": 50,  # ★ 推奨: 30-50 (βジャンプを小さくし、β=1.0到達を確実に)
+        "n_mutation_steps": 5,  # ★ 推奨: 5-10 (粒子相関を減らす)
+        "n_chains": 1,  # ★ 推奨: 3-5 (収束診断のため)
         # β schedule controls (accuracy/stability first)
         "target_ess_ratio": float(TMCMC_DEFAULTS.target_ess_ratio),
         "min_delta_beta": 0.02,
@@ -608,7 +682,9 @@ def main():
     if args.linearization_threshold is not None:
         PRODUCTION_TMCMC["linearization_threshold"] = float(args.linearization_threshold)
     if args.linearization_enable_rom_threshold is not None:
-        PRODUCTION_TMCMC["linearization_enable_rom_threshold"] = float(args.linearization_enable_rom_threshold)
+        PRODUCTION_TMCMC["linearization_enable_rom_threshold"] = float(
+            args.linearization_enable_rom_threshold
+        )
     if bool(args.force_beta_one):
         PRODUCTION_TMCMC["force_beta_one"] = True
 
@@ -623,7 +699,9 @@ def main():
         min_db = float(PRODUCTION_TMCMC.get("min_delta_beta", 0.0))
         if min_db > 0:
             min_required_stages = int(math.ceil(1.0 / min_db))
-            if PRODUCTION_TMCMC["n_stages"] < min_required_stages and not bool(PRODUCTION_TMCMC.get("force_beta_one", False)):
+            if PRODUCTION_TMCMC["n_stages"] < min_required_stages and not bool(
+                PRODUCTION_TMCMC.get("force_beta_one", False)
+            ):
                 logger.warning(
                     "n_stages=%s is too small to guarantee β=1 with min_delta_beta=%.4f. "
                     "Bumping to %s (or use --force-beta-one).",
@@ -635,13 +713,11 @@ def main():
         if PRODUCTION_TMCMC["n_mutation_steps"] < 1:
             logger.warning("n_mutation_steps must be >= 1. Bumping to 1.")
             PRODUCTION_TMCMC["n_mutation_steps"] = 1
-    
+
     if FAST_SANITY_MODE:
         # Fast-sanity settings: minimal particles/stages for quick check
         mcmc_config = MCMCConfig(
-            n_samples=50,  # Reduced for speed
-            n_chains=1,    # Single chain
-            debug=debug_config
+            n_samples=50, n_chains=1, debug=debug_config  # Reduced for speed  # Single chain
         )
         # TMCMC fast-sanity settings (will be used in run_multi_chain_TMCMC calls)
         tmcmc_fast_sanity = {
@@ -656,13 +732,13 @@ def main():
         mcmc_config = MCMCConfig(
             n_samples=2000,  # ★ 本番: 200-1000 (必要に応じて調整)
             n_chains=PRODUCTION_TMCMC["n_chains"],  # Use production n_chains
-            debug=debug_config
+            debug=debug_config,
         )
         tmcmc_fast_sanity = None  # Use production settings
-    
+
     exp_config = ExperimentConfig(debug=debug_config)
     exp_config.random_seed = int(args.seed)
-    
+
     # Set no_noise flag if specified
     if args.no_noise:
         exp_config.no_noise = True
@@ -671,14 +747,25 @@ def main():
         # User observation: 0.001 yields better accuracy than default 0.01 for noise-free cases
         if args.sigma_obs is None and not LOCK_PAPER_CONDITIONS:
             exp_config.sigma_obs = 0.0001
-            logger.info("Auto-tuning sigma_obs to 0.0001 for noise-free mode (improved accuracy setting)")
+            logger.info(
+                "Auto-tuning sigma_obs to 0.0001 for noise-free mode (improved accuracy setting)"
+            )
 
     # Override sigma_obs and cov_rel if specified (CLI), unless paper conditions are locked.
     if LOCK_PAPER_CONDITIONS:
-        if args.sigma_obs is not None and not math.isclose(float(args.sigma_obs), 0.001, rel_tol=0.0, abs_tol=1e-12):
-            logger.warning("Ignoring --sigma-obs=%s due to paper-condition lock (sigma_obs=0.001).", args.sigma_obs)
-        if args.cov_rel is not None and not math.isclose(float(args.cov_rel), 0.005, rel_tol=0.0, abs_tol=1e-12):
-            logger.warning("Ignoring --cov-rel=%s due to paper-condition lock (cov_rel=0.005).", args.cov_rel)
+        if args.sigma_obs is not None and not math.isclose(
+            float(args.sigma_obs), 0.001, rel_tol=0.0, abs_tol=1e-12
+        ):
+            logger.warning(
+                "Ignoring --sigma-obs=%s due to paper-condition lock (sigma_obs=0.001).",
+                args.sigma_obs,
+            )
+        if args.cov_rel is not None and not math.isclose(
+            float(args.cov_rel), 0.005, rel_tol=0.0, abs_tol=1e-12
+        ):
+            logger.warning(
+                "Ignoring --cov-rel=%s due to paper-condition lock (cov_rel=0.005).", args.cov_rel
+            )
         exp_config.sigma_obs = 0.001
         exp_config.cov_rel = 0.005
     else:
@@ -696,7 +783,9 @@ def main():
     # Reporting-only: paper Nsamples for double-loop cost conversion
     if args.aleatory_samples is not None:
         exp_config.aleatory_samples = int(args.aleatory_samples)
-        logger.info("Using aleatory_samples=%s for double-loop cost reporting", exp_config.aleatory_samples)
+        logger.info(
+            "Using aleatory_samples=%s for double-loop cost reporting", exp_config.aleatory_samples
+        )
     elif args.mode == "paper":
         exp_config.aleatory_samples = 500
 
@@ -727,26 +816,36 @@ def main():
     # Persist structured debug events separately (JSON Lines).
     # This avoids mixing JSON into stdout while keeping aggregation easy.
     debug_logger.set_events_jsonl(run_dir / "events.jsonl")
-    
+
     # ★ 将来用ガード: main()外利用時の保険
     assert exp_config.output_dir is not None, "output_dir must be set before use"
-    
+
     output_dir = Path(exp_config.output_dir)
-    
+
     # ★ CONFIG SUMMARY: Always print once (regardless of debug level)
     logger.info("%s", "=" * 80)
     logger.info("EXPERIMENT CONFIGURATION SUMMARY")
     logger.info("%s", "=" * 80)
     logger.info(
         "Mode: %s",
-        "FAST-SANITY" if FAST_SANITY_MODE else ("PRODUCTION" if debug_config.level == DebugLevel.OFF else "DEBUG"),
+        (
+            "FAST-SANITY"
+            if FAST_SANITY_MODE
+            else ("PRODUCTION" if debug_config.level == DebugLevel.OFF else "DEBUG")
+        ),
     )
     logger.info("Debug Level: %s", debug_config.level.name)
     logger.info("Output Root: %s", output_root)
     logger.info("Run ID: %s", run_id)
     logger.info("Run Directory: %s", run_dir)
     logger.info("Figures Directory: %s", figures_dir)
-    logger.info("MCMC Settings: n_samples=%s, n_chains=%s, initial_scale=%s, target_accept=%s", mcmc_config.n_samples, mcmc_config.n_chains, mcmc_config.initial_scale, mcmc_config.target_accept)
+    logger.info(
+        "MCMC Settings: n_samples=%s, n_chains=%s, initial_scale=%s, target_accept=%s",
+        mcmc_config.n_samples,
+        mcmc_config.n_chains,
+        mcmc_config.initial_scale,
+        mcmc_config.target_accept,
+    )
     logger.info("TMCMC Settings (per model):")
     if FAST_SANITY_MODE and tmcmc_fast_sanity:
         logger.info("FAST-SANITY MODE ACTIVE")
@@ -771,7 +870,14 @@ def main():
             float(PRODUCTION_TMCMC["linearization_enable_rom_threshold"]),
             bool(PRODUCTION_TMCMC["force_beta_one"]),
         )
-    logger.info("Experiment Settings: n_data=%s, sigma_obs=%s, cov_rel=%s, output_dir=%s, random_seed=%s", exp_config.n_data, exp_config.sigma_obs, exp_config.cov_rel, run_dir, exp_config.random_seed)
+    logger.info(
+        "Experiment Settings: n_data=%s, sigma_obs=%s, cov_rel=%s, output_dir=%s, random_seed=%s",
+        exp_config.n_data,
+        exp_config.sigma_obs,
+        exp_config.cov_rel,
+        run_dir,
+        exp_config.random_seed,
+    )
     logger.info(
         "Model Configuration: M1=%s params (%s); M2=%s params (%s); M3=%s params (%s)",
         len(MODEL_CONFIGS["M1"]["param_names"]),
@@ -804,16 +910,34 @@ def main():
             "aleatory_samples": int(exp_config.aleatory_samples),
         },
         "tmcmc": {
-            "n_particles": PRODUCTION_TMCMC["n_particles"] if not (FAST_SANITY_MODE and tmcmc_fast_sanity) else tmcmc_fast_sanity["n_particles"],
-            "n_stages": PRODUCTION_TMCMC["n_stages"] if not (FAST_SANITY_MODE and tmcmc_fast_sanity) else tmcmc_fast_sanity["n_stages"],
-            "n_mutation_steps": PRODUCTION_TMCMC["n_mutation_steps"] if not (FAST_SANITY_MODE and tmcmc_fast_sanity) else tmcmc_fast_sanity["n_mutation_steps"],
-            "n_chains": PRODUCTION_TMCMC["n_chains"] if not (FAST_SANITY_MODE and tmcmc_fast_sanity) else tmcmc_fast_sanity["n_chains"],
+            "n_particles": (
+                PRODUCTION_TMCMC["n_particles"]
+                if not (FAST_SANITY_MODE and tmcmc_fast_sanity)
+                else tmcmc_fast_sanity["n_particles"]
+            ),
+            "n_stages": (
+                PRODUCTION_TMCMC["n_stages"]
+                if not (FAST_SANITY_MODE and tmcmc_fast_sanity)
+                else tmcmc_fast_sanity["n_stages"]
+            ),
+            "n_mutation_steps": (
+                PRODUCTION_TMCMC["n_mutation_steps"]
+                if not (FAST_SANITY_MODE and tmcmc_fast_sanity)
+                else tmcmc_fast_sanity["n_mutation_steps"]
+            ),
+            "n_chains": (
+                PRODUCTION_TMCMC["n_chains"]
+                if not (FAST_SANITY_MODE and tmcmc_fast_sanity)
+                else tmcmc_fast_sanity["n_chains"]
+            ),
             "target_ess_ratio": float(PRODUCTION_TMCMC["target_ess_ratio"]),
             "min_delta_beta": float(PRODUCTION_TMCMC["min_delta_beta"]),
             "max_delta_beta": float(PRODUCTION_TMCMC["max_delta_beta"]),
             "update_linearization_interval": int(PRODUCTION_TMCMC["update_linearization_interval"]),
             "linearization_threshold": float(PRODUCTION_TMCMC["linearization_threshold"]),
-            "linearization_enable_rom_threshold": float(PRODUCTION_TMCMC["linearization_enable_rom_threshold"]),
+            "linearization_enable_rom_threshold": float(
+                PRODUCTION_TMCMC["linearization_enable_rom_threshold"]
+            ),
             "force_beta_one": bool(PRODUCTION_TMCMC["force_beta_one"]),
         },
         "models": requested_models,
@@ -870,16 +994,16 @@ def main():
         pass
     with open(run_dir / "config.json", "w", encoding="utf-8") as f:
         json.dump(config_payload, f, indent=2, ensure_ascii=False, default=str)
-    
+
     # Get true parameters
     theta_true_4s = get_theta_true_4s()
     theta_true_5s = get_theta_true_5s()
     theta_true = theta_true_5s  # Define for general usage (superset)
     logger.info("True parameters θ* (4s): %s", theta_true_4s)
-    
+
     # Decide which theta to use for default self-check
     # Ideally we should use the one corresponding to the model we check
-    
+
     if bool(args.self_check):
         logger.info("%s", "=" * 80)
         logger.info("SELF-CHECK (startup sanity)")
@@ -891,7 +1015,7 @@ def main():
                 theta_for_check = theta_true_5s
             else:
                 theta_for_check = theta_true_4s
-                
+
             chk = _self_check_tsm_once(
                 model_key=rep_model,
                 theta_true=theta_for_check,
@@ -905,24 +1029,24 @@ def main():
                 logger.warning("Self-check FAILED (%s): %s", rep_model, chk)
         except Exception as e:
             logger.warning("Self-check failed with exception: %s", e)
-    
+
     plot_mgr = PlotManager(str(figures_dir))
-    
+
     # ===== STEP 1: Generate Data =====
     logger.info("%s", "=" * 80)
     logger.info("STEP 1: Generate Synthetic Data")
     logger.info("%s", "=" * 80)
-    
+
     # ★ Slack notification: Step 1 start
     if SLACK_ENABLED:
         notify_slack("📊 STEP 1: Generating Synthetic Data...")
-    
+
     data_M1 = idx_M1 = t_M1 = x0_M1 = sig2_M1 = None
     data_M2 = idx_M2 = t_M2 = x0_M2 = sig2_M2 = None
     data_M3 = idx_M3 = t_M3 = x0_M3 = sig2_M3 = None
     data_M4 = idx_M4 = t_M4 = x0_M4 = sig2_M4 = None
     data_M5 = idx_M5 = t_M5 = x0_M5 = sig2_M5 = None
-    
+
     # Helper for generating data
     def _gen_and_save(model_key, theta_t, var_suffix):
         d, idx, t, x0, sig2 = generate_synthetic_data(
@@ -955,7 +1079,7 @@ def main():
         data_M4, idx_M4, t_M4, x0_M4, sig2_M4 = _gen_and_save("M4", theta_true_5s, "M4")
     if "M5" in requested_models:
         data_M5, idx_M5, t_M5, x0_M5, sig2_M5 = _gen_and_save("M5", theta_true_5s, "M5")
-    
+
     # ★ PRIORITY A: データ差分の証拠を出力（M1/M2同一挙動の切り分け）
     if ("M1" in requested_models) and ("M2" in requested_models):
         logger.debug("%s", "=" * 80)
@@ -974,12 +1098,22 @@ def main():
         logger.debug("M2 active_indices: %s", MODEL_CONFIGS["M2"]["active_indices"])
         logger.debug("M1 alpha_const: %s", MODEL_CONFIGS["M1"]["alpha_const"])
         logger.debug("M2 alpha_const: %s", MODEL_CONFIGS["M2"]["alpha_const"])
-        logger.debug("M1 data shape: %s, mean: %.6f, std: %.6f", data_M1.shape, float(np.mean(data_M1)), float(np.std(data_M1)))
-        logger.debug("M2 data shape: %s, mean: %.6f, std: %.6f", data_M2.shape, float(np.mean(data_M2)), float(np.std(data_M2)))
+        logger.debug(
+            "M1 data shape: %s, mean: %.6f, std: %.6f",
+            data_M1.shape,
+            float(np.mean(data_M1)),
+            float(np.std(data_M1)),
+        )
+        logger.debug(
+            "M2 data shape: %s, mean: %.6f, std: %.6f",
+            data_M2.shape,
+            float(np.mean(data_M2)),
+            float(np.std(data_M2)),
+        )
         logger.debug("%s", "=" * 80)
-    
+
     logger.info("Data generation complete")
-    
+
     # ★ Slack notification: Step 1 complete
     if SLACK_ENABLED:
         notify_slack("✅ STEP 1: Data generation complete")
@@ -994,34 +1128,35 @@ def main():
     # 全部 prior mean（=1.5）で初期化（実データでは真値が存在しないため）
     prior_mean = (PRIOR_BOUNDS_DEFAULT[0] + PRIOR_BOUNDS_DEFAULT[1]) / 2.0  # 1.5
     theta_base_M1 = np.full(20, prior_mean)  # ★ 真値ゼロ依存: 全パラメータをprior meanで初期化
-    # ★ Strict Backward Compatibility: M1 is a 1-species model. 
+    # ★ Strict Backward Compatibility: M1 is a 1-species model.
     # Force parameters for inactive species (indices 5-19) to 0.0 to ensure no background growth.
     theta_base_M1[5:] = 0.0
 
-
     if "M1" not in requested_models:
         logger.info("Skipping M1 TMCMC (not requested)")
-        
+
         # Try to load previous results from the specific run directory
-        prev_run_dir = Path("/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/tmcmc/_runs/parallel_fixed_M1M2M3_20260126_210657")
-        
+        prev_run_dir = Path(
+            "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/tmcmc/_runs/parallel_fixed_M1M2M3_20260126_210657"
+        )
+
         # Determine which file to load based on strategy
         if args.init_strategy == "mean":
             map_file_M1 = prev_run_dir / "theta_MEAN_M1.json"
-            load_key = "theta_sub" # Assuming structure is same
+            load_key = "theta_sub"  # Assuming structure is same
         else:
             map_file_M1 = prev_run_dir / "theta_MAP_M1.json"
             load_key = "theta_sub"
 
         if map_file_M1.exists():
             logger.info(f"Loading M1 {args.init_strategy.upper()} from {map_file_M1}")
-            with open(map_file_M1, 'r') as f:
+            with open(map_file_M1, "r") as f:
                 data_M1_loaded = json.load(f)
                 MAP_M1 = np.array(data_M1_loaded[load_key])
         else:
             logger.warning(f"Could not find {map_file_M1}. Using NaNs for M1.")
             MAP_M1 = np.full(5, np.nan)
-            
+
         samples_M1 = np.zeros((0, 5))
         logL_M1 = np.zeros(0)
         mean_M1 = np.full(5, np.nan)
@@ -1033,16 +1168,17 @@ def main():
         logger.info("%s", "=" * 80)
         logger.info("STEP 2: M1 TMCMC (β tempering) with Linearization Update")
         logger.info("%s", "=" * 80)
-    
+
         # ★ Slack notification: Step 2 start
         if SLACK_ENABLED:
             notify_slack("🔄 STEP 2: Starting M1 TMCMC...")
-    
+
         solver_kwargs_M1 = {
-            k: v for k, v in MODEL_CONFIGS["M1"].items()
+            k: v
+            for k, v in MODEL_CONFIGS["M1"].items()
             if k not in ["active_species", "active_indices", "param_names"]
         }
-    
+
         prior_bounds_M1 = [PRIOR_BOUNDS_DEFAULT] * len(MODEL_CONFIGS["M1"]["param_names"])
 
         # theta_base_M1 is already initialized globally above
@@ -1070,14 +1206,25 @@ def main():
             # ★ PRIORITY A: evaluator init diagnostics (M1/M2 same-behavior investigation)
             logger.debug("[M1 Evaluator] active_indices: %s", evaluator.active_indices)
             logger.debug("[M1 Evaluator] active_species: %s", evaluator.active_species)
-            logger.debug("[M1 Evaluator] alpha_const: %s", evaluator.solver_kwargs.get("alpha_const", "N/A"))
-            logger.debug("[M1 Evaluator] data id: %s, shape: %s", id(evaluator.data), evaluator.data.shape)
-            logger.debug("[M1 Evaluator] data mean: %.6f, std: %.6f", float(np.mean(evaluator.data)), float(np.std(evaluator.data)))
-            logger.debug("[M1 Evaluator] theta_base[active]: %s", evaluator.theta_base[evaluator.active_indices])
+            logger.debug(
+                "[M1 Evaluator] alpha_const: %s", evaluator.solver_kwargs.get("alpha_const", "N/A")
+            )
+            logger.debug(
+                "[M1 Evaluator] data id: %s, shape: %s", id(evaluator.data), evaluator.data.shape
+            )
+            logger.debug(
+                "[M1 Evaluator] data mean: %.6f, std: %.6f",
+                float(np.mean(evaluator.data)),
+                float(np.std(evaluator.data)),
+            )
+            logger.debug(
+                "[M1 Evaluator] theta_base[active]: %s",
+                evaluator.theta_base[evaluator.active_indices],
+            )
             return evaluator
-    
+
         start_M1 = time.time()
-    
+
         # ★ Use TMCMC (β tempering) with linearization update
         # Apply fast-sanity settings if enabled
         if FAST_SANITY_MODE and tmcmc_fast_sanity:
@@ -1093,7 +1240,7 @@ def main():
             n_chains_M1 = PRODUCTION_TMCMC["n_chains"]
 
         # Parallelization settings are defined globally
-    
+
         chains_M1, logL_M1, MAP_M1, converged_M1, diag_M1 = run_multi_chain_TMCMC(
             model_tag="M1",
             make_evaluator=make_evaluator_M1,
@@ -1110,18 +1257,22 @@ def main():
             n_chains=n_chains_M1,
             update_linearization_interval=int(PRODUCTION_TMCMC["update_linearization_interval"]),
             n_mutation_steps=n_mutation_steps_M1,
-            use_observation_based_update=False if FAST_SANITY_MODE else True,  # ★ FAST_SANITY: 重いROM error計算をスキップ
+            use_observation_based_update=(
+                False if FAST_SANITY_MODE else True
+            ),  # ★ FAST_SANITY: 重いROM error計算をスキップ
             linearization_threshold=float(PRODUCTION_TMCMC["linearization_threshold"]),
-            linearization_enable_rom_threshold=float(PRODUCTION_TMCMC["linearization_enable_rom_threshold"]),
+            linearization_enable_rom_threshold=float(
+                PRODUCTION_TMCMC["linearization_enable_rom_threshold"]
+            ),
             debug_config=debug_config,  # ★ Pass debug configuration
             seed=exp_config.random_seed,
             force_beta_one=bool(PRODUCTION_TMCMC["force_beta_one"]) and (not FAST_SANITY_MODE),
             n_jobs=n_jobs,
             use_threads=use_threads,
         )
-    
+
         time_M1 = time.time() - start_M1
-    
+
         # Combine all chains
         samples_M1 = np.concatenate(chains_M1, axis=0)
         logL_M1_all = np.concatenate(logL_M1, axis=0)
@@ -1190,12 +1341,21 @@ def main():
                 raise ImportError("scipy is required for time array interpolation")
             x0_fit_MAP_interp = np.zeros((len(t_M1), x0_fit_MAP.shape[1]))
             for j in range(x0_fit_MAP.shape[1]):
-                interp_func = interp1d(t_fit, x0_fit_MAP[:, j], kind='linear', 
-                                       bounds_error=False, fill_value='extrapolate')
+                interp_func = interp1d(
+                    t_fit,
+                    x0_fit_MAP[:, j],
+                    kind="linear",
+                    bounds_error=False,
+                    fill_value="extrapolate",
+                )
                 x0_fit_MAP_interp[:, j] = interp_func(t_M1)
             x0_fit_MAP = x0_fit_MAP_interp
-        plot_mgr.plot_TSM_simulation(t_M1, x0_fit_MAP, MODEL_CONFIGS["M1"]["active_species"], "M1_MAP_fit", data_M1, idx_M1)
-        fit_metrics_MAP_M1 = compute_fit_metrics(t_M1, x0_fit_MAP, MODEL_CONFIGS["M1"]["active_species"], data_M1, idx_M1)
+        plot_mgr.plot_TSM_simulation(
+            t_M1, x0_fit_MAP, MODEL_CONFIGS["M1"]["active_species"], "M1_MAP_fit", data_M1, idx_M1
+        )
+        fit_metrics_MAP_M1 = compute_fit_metrics(
+            t_M1, x0_fit_MAP, MODEL_CONFIGS["M1"]["active_species"], data_M1, idx_M1
+        )
 
         t_fit, x0_fit_MEAN, _ = tsm_M1_fit.solve_tsm(theta_MEAN_full_M1)
         # CRITICAL FIX: Use original t_M1 (from data generation) instead of t_fit
@@ -1204,12 +1364,21 @@ def main():
                 raise ImportError("scipy is required for time array interpolation")
             x0_fit_MEAN_interp = np.zeros((len(t_M1), x0_fit_MEAN.shape[1]))
             for j in range(x0_fit_MEAN.shape[1]):
-                interp_func = interp1d(t_fit, x0_fit_MEAN[:, j], kind='linear', 
-                                       bounds_error=False, fill_value='extrapolate')
+                interp_func = interp1d(
+                    t_fit,
+                    x0_fit_MEAN[:, j],
+                    kind="linear",
+                    bounds_error=False,
+                    fill_value="extrapolate",
+                )
                 x0_fit_MEAN_interp[:, j] = interp_func(t_M1)
             x0_fit_MEAN = x0_fit_MEAN_interp
-        plot_mgr.plot_TSM_simulation(t_M1, x0_fit_MEAN, MODEL_CONFIGS["M1"]["active_species"], "M1_MEAN_fit", data_M1, idx_M1)
-        fit_metrics_MEAN_M1 = compute_fit_metrics(t_M1, x0_fit_MEAN, MODEL_CONFIGS["M1"]["active_species"], data_M1, idx_M1)
+        plot_mgr.plot_TSM_simulation(
+            t_M1, x0_fit_MEAN, MODEL_CONFIGS["M1"]["active_species"], "M1_MEAN_fit", data_M1, idx_M1
+        )
+        fit_metrics_MEAN_M1 = compute_fit_metrics(
+            t_M1, x0_fit_MEAN, MODEL_CONFIGS["M1"]["active_species"], data_M1, idx_M1
+        )
 
         # Save compact per-model metrics
         save_json(
@@ -1226,7 +1395,7 @@ def main():
 
         # Export TMCMC diagnostic tables for later inspection
         export_tmcmc_diagnostics_tables(output_dir, "M1", diag_M1)
-    
+
         logger.info("[M1 TMCMC] Results:")
         logger.info("Computation time: %.2f min", time_M1 / 60.0)
         logger.info("MAP: %s", MAP_M1)
@@ -1236,7 +1405,7 @@ def main():
         logger.info("MAP error: %.6f", map_error_M1)
         logger.info("Converged chains: %s/%s", sum(converged_M1), len(converged_M1))
         logger.info("Linearization updates: %s", diag_M1.get("total_linearization_updates", 0))
-    
+
         # ★ Slack notification: M1 complete
         if SLACK_ENABLED:
             notify_slack(
@@ -1246,17 +1415,14 @@ def main():
                 f"   Converged: {sum(converged_M1)}/{len(converged_M1)} chains\n"
                 f"   Linearization updates: {diag_M1.get('total_linearization_updates', 0)}"
             )
-    
+
         plot_mgr.plot_posterior(
-            samples_M1, theta_true[0:5],
-            MODEL_CONFIGS["M1"]["param_names"], "M1", MAP_M1, mean_M1
+            samples_M1, theta_true[0:5], MODEL_CONFIGS["M1"]["param_names"], "M1", MAP_M1, mean_M1
         )
-    
+
         # Generate pairplot for M1
         plot_mgr.plot_pairplot_posterior(
-            samples_M1, theta_true[0:5],
-            MAP_M1, mean_M1,
-            MODEL_CONFIGS["M1"]["param_names"], "M1"
+            samples_M1, theta_true[0:5], MAP_M1, mean_M1, MODEL_CONFIGS["M1"]["param_names"], "M1"
         )
 
         # ----- Paper Fig. 9: posterior predictive band (M1) -----
@@ -1283,14 +1449,21 @@ def main():
                             if HAS_SCIPY:
                                 x0_pred_interp = np.zeros((len(t_M1), x0_pred.shape[1]))
                                 for j in range(x0_pred.shape[1]):
-                                    interp_func = interp1d(t_arr, x0_pred[:, j], kind='linear', 
-                                                           bounds_error=False, fill_value='extrapolate')
+                                    interp_func = interp1d(
+                                        t_arr,
+                                        x0_pred[:, j],
+                                        kind="linear",
+                                        bounds_error=False,
+                                        fill_value="extrapolate",
+                                    )
                                     x0_pred_interp[:, j] = interp_func(t_M1)
                                 x0_pred = x0_pred_interp
                                 t_arr = t_M1
 
                         n = min(len(t_arr), len(t_M1))
-                        phibar_samples[d, :n, :] = compute_phibar(x0_pred[:n], MODEL_CONFIGS["M1"]["active_species"])
+                        phibar_samples[d, :n, :] = compute_phibar(
+                            x0_pred[:n], MODEL_CONFIGS["M1"]["active_species"]
+                        )
 
                     plot_mgr.plot_posterior_predictive_band(
                         t_M1,
@@ -1337,7 +1510,7 @@ def main():
             metrics_payload: Dict[str, Any] = {
                 "run_id": run_id,
                 "mode": mode,
-                "end_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "end_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "requested_models": requested_models,
                 "models_ran": ["M1"],
                 "timing": {
@@ -1345,7 +1518,10 @@ def main():
                     "total_time_min": float(time_M1) / 60.0,
                 },
                 "convergence": {
-                    "M1": {"converged_chains": int(sum(converged_M1)), "n_chains": int(len(converged_M1))},
+                    "M1": {
+                        "converged_chains": int(sum(converged_M1)),
+                        "n_chains": int(len(converged_M1)),
+                    },
                 },
                 "errors": {
                     "m1_map_error": float(map_error_M1),
@@ -1376,25 +1552,27 @@ def main():
             logger.info("Output: %s/", run_dir)
             logger.info("Figures: %s/", figures_dir)
             return
-    
+
     # ===== STEP 3: M2 TMCMC with Linearization Update =====
     if "M2" not in requested_models:
         logger.info("Skipping M2 TMCMC (not requested)")
-        
+
         # Try to load previous results from the specific run directory
-        prev_run_dir = Path("/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/tmcmc/_runs/parallel_fixed_M1M2M3_20260126_210657")
-        
+        prev_run_dir = Path(
+            "/home/nishioka/IKM_Hiwi/Tmcmc202601/tmcmc/tmcmc/_runs/parallel_fixed_M1M2M3_20260126_210657"
+        )
+
         # Determine which file to load based on strategy
         if args.init_strategy == "mean":
             map_file_M2 = prev_run_dir / "theta_MEAN_M2.json"
-            load_key = "theta_sub" 
+            load_key = "theta_sub"
         else:
             map_file_M2 = prev_run_dir / "theta_MAP_M2.json"
             load_key = "theta_sub"
 
         if map_file_M2.exists():
             logger.info(f"Loading M2 {args.init_strategy.upper()} from {map_file_M2}")
-            with open(map_file_M2, 'r') as f:
+            with open(map_file_M2, "r") as f:
                 data_M2_loaded = json.load(f)
                 MAP_M2 = np.array(data_M2_loaded[load_key])
         else:
@@ -1412,42 +1590,43 @@ def main():
         logger.info("%s", "=" * 80)
         logger.info("STEP 3: M2 TMCMC (β tempering) with Linearization Update")
         logger.info("%s", "=" * 80)
-    
+
         # ★ Slack notification: Step 3 start
         if SLACK_ENABLED:
             notify_slack("🔄 STEP 3: Starting M2 TMCMC...")
-    
+
         solver_kwargs_M2 = {
-            k: v for k, v in MODEL_CONFIGS["M2"].items()
+            k: v
+            for k, v in MODEL_CONFIGS["M2"].items()
             if k not in ["active_species", "active_indices", "param_names"]
         }
-    
+
         prior_bounds_M2 = [PRIOR_BOUNDS_DEFAULT] * len(MODEL_CONFIGS["M2"]["param_names"])
-    
+
         # ---- FIX: linearization point for inference must NOT be theta_true ----
         # ★ 論文向け（実データ想定でも安全）: 非推定パラメータも含めて真値に依存しない
         # 全部 prior mean（=1.5）で初期化（実データでは真値が存在しないため）
         prior_mean = (PRIOR_BOUNDS_DEFAULT[0] + PRIOR_BOUNDS_DEFAULT[1]) / 2.0  # 1.5
         theta_base_M2 = np.full(20, prior_mean)  # ★ 真値ゼロ依存: 全パラメータをprior meanで初期化
-        
+
         # ★ Critical Fix for M2: Lower initialization for b parameters to avoid rapid extinction in linearization
         # M2 alpha=10, so b=1.5 means death rate 15.0 >> growth rate ~2.0.
         # Initialize b3 (idx 8) and b4 (idx 9) to 0.5.
         theta_base_M2[8] = 0.5
         theta_base_M2[9] = 0.5
-        
+
         # ★ Strict Backward Compatibility: M2 is a 2-species model.
         # Force parameters for inactive species (indices 10-19) to 0.0.
         theta_base_M2[10:] = 0.0
         if "M1" not in requested_models:
-             # Note: If M1 was run, MAP_M1 is available. If not, it was loaded or NaN.
-             # If available, we should ideally use it, but original code didn't.
-             pass
+            # Note: If M1 was run, MAP_M1 is available. If not, it was loaded or NaN.
+            # If available, we should ideally use it, but original code didn't.
+            pass
         # For M2, inactive species 0,1 are locked to 0, so M1 params (interactions with 0,1)
         # technically don't affect M2 dynamics. So staying with prior_mean is fine.
-        
+
         theta_lin_M2 = theta_base_M2.copy()
-    
+
         # ★ 修正: make_evaluator_M2 を theta_base_M2 定義後に移動（論文向け）
         # theta_base=theta_true ではなく theta_base=theta_base_M2 を使用
         def make_evaluator_M2(theta_linearization=None):
@@ -1470,14 +1649,25 @@ def main():
             # ★ PRIORITY A: evaluator init diagnostics (M1/M2 same-behavior investigation)
             logger.debug("[M2 Evaluator] active_indices: %s", evaluator.active_indices)
             logger.debug("[M2 Evaluator] active_species: %s", evaluator.active_species)
-            logger.debug("[M2 Evaluator] alpha_const: %s", evaluator.solver_kwargs.get("alpha_const", "N/A"))
-            logger.debug("[M2 Evaluator] data id: %s, shape: %s", id(evaluator.data), evaluator.data.shape)
-            logger.debug("[M2 Evaluator] data mean: %.6f, std: %.6f", float(np.mean(evaluator.data)), float(np.std(evaluator.data)))
-            logger.debug("[M2 Evaluator] theta_base[active]: %s", evaluator.theta_base[evaluator.active_indices])
+            logger.debug(
+                "[M2 Evaluator] alpha_const: %s", evaluator.solver_kwargs.get("alpha_const", "N/A")
+            )
+            logger.debug(
+                "[M2 Evaluator] data id: %s, shape: %s", id(evaluator.data), evaluator.data.shape
+            )
+            logger.debug(
+                "[M2 Evaluator] data mean: %.6f, std: %.6f",
+                float(np.mean(evaluator.data)),
+                float(np.std(evaluator.data)),
+            )
+            logger.debug(
+                "[M2 Evaluator] theta_base[active]: %s",
+                evaluator.theta_base[evaluator.active_indices],
+            )
             return evaluator
-    
+
         start_M2 = time.time()
-    
+
         # ★ Use TMCMC (β tempering) with linearization update
         # Apply fast-sanity settings if enabled
         if FAST_SANITY_MODE and tmcmc_fast_sanity:
@@ -1491,7 +1681,7 @@ def main():
             n_stages_M2 = PRODUCTION_TMCMC["n_stages"]
             n_mutation_steps_M2 = PRODUCTION_TMCMC["n_mutation_steps"]
             n_chains_M2 = PRODUCTION_TMCMC["n_chains"]
-    
+
         chains_M2, logL_M2, MAP_M2, converged_M2, diag_M2 = run_multi_chain_TMCMC(
             model_tag="M2",
             make_evaluator=make_evaluator_M2,
@@ -1508,18 +1698,22 @@ def main():
             n_chains=n_chains_M2,
             update_linearization_interval=int(PRODUCTION_TMCMC["update_linearization_interval"]),
             n_mutation_steps=n_mutation_steps_M2,
-            use_observation_based_update=False if FAST_SANITY_MODE else True,  # ★ FAST_SANITY: 重いROM error計算をスキップ
+            use_observation_based_update=(
+                False if FAST_SANITY_MODE else True
+            ),  # ★ FAST_SANITY: 重いROM error計算をスキップ
             linearization_threshold=float(PRODUCTION_TMCMC["linearization_threshold"]),
-            linearization_enable_rom_threshold=float(PRODUCTION_TMCMC["linearization_enable_rom_threshold"]),
+            linearization_enable_rom_threshold=float(
+                PRODUCTION_TMCMC["linearization_enable_rom_threshold"]
+            ),
             debug_config=debug_config,  # ★ Pass debug configuration
             seed=exp_config.random_seed,
             force_beta_one=bool(PRODUCTION_TMCMC["force_beta_one"]) and (not FAST_SANITY_MODE),
             n_jobs=n_jobs,
             use_threads=use_threads,
         )
-    
+
         time_M2 = time.time() - start_M2
-    
+
         # Combine all chains
         samples_M2 = np.concatenate(chains_M2, axis=0)
         logL_M2_all = np.concatenate(logL_M2, axis=0)
@@ -1606,12 +1800,21 @@ def main():
                 raise ImportError("scipy is required for time array interpolation")
             x0_fit_MAP_interp = np.zeros((len(t_M2), x0_fit_MAP.shape[1]))
             for j in range(x0_fit_MAP.shape[1]):
-                interp_func = interp1d(t_fit, x0_fit_MAP[:, j], kind='linear', 
-                                       bounds_error=False, fill_value='extrapolate')
+                interp_func = interp1d(
+                    t_fit,
+                    x0_fit_MAP[:, j],
+                    kind="linear",
+                    bounds_error=False,
+                    fill_value="extrapolate",
+                )
                 x0_fit_MAP_interp[:, j] = interp_func(t_M2)
             x0_fit_MAP = x0_fit_MAP_interp
-        plot_mgr.plot_TSM_simulation(t_M2, x0_fit_MAP, MODEL_CONFIGS["M2"]["active_species"], "M2_MAP_fit", data_M2, idx_M2)
-        fit_metrics_MAP_M2 = compute_fit_metrics(t_M2, x0_fit_MAP, MODEL_CONFIGS["M2"]["active_species"], data_M2, idx_M2)
+        plot_mgr.plot_TSM_simulation(
+            t_M2, x0_fit_MAP, MODEL_CONFIGS["M2"]["active_species"], "M2_MAP_fit", data_M2, idx_M2
+        )
+        fit_metrics_MAP_M2 = compute_fit_metrics(
+            t_M2, x0_fit_MAP, MODEL_CONFIGS["M2"]["active_species"], data_M2, idx_M2
+        )
 
         t_fit, x0_fit_MEAN, _ = tsm_M2_fit.solve_tsm(theta_MEAN_full_M2)
         # CRITICAL FIX: Use original t_M2 (from data generation) instead of t_fit
@@ -1620,12 +1823,21 @@ def main():
                 raise ImportError("scipy is required for time array interpolation")
             x0_fit_MEAN_interp = np.zeros((len(t_M2), x0_fit_MEAN.shape[1]))
             for j in range(x0_fit_MEAN.shape[1]):
-                interp_func = interp1d(t_fit, x0_fit_MEAN[:, j], kind='linear', 
-                                       bounds_error=False, fill_value='extrapolate')
+                interp_func = interp1d(
+                    t_fit,
+                    x0_fit_MEAN[:, j],
+                    kind="linear",
+                    bounds_error=False,
+                    fill_value="extrapolate",
+                )
                 x0_fit_MEAN_interp[:, j] = interp_func(t_M2)
             x0_fit_MEAN = x0_fit_MEAN_interp
-        plot_mgr.plot_TSM_simulation(t_M2, x0_fit_MEAN, MODEL_CONFIGS["M2"]["active_species"], "M2_MEAN_fit", data_M2, idx_M2)
-        fit_metrics_MEAN_M2 = compute_fit_metrics(t_M2, x0_fit_MEAN, MODEL_CONFIGS["M2"]["active_species"], data_M2, idx_M2)
+        plot_mgr.plot_TSM_simulation(
+            t_M2, x0_fit_MEAN, MODEL_CONFIGS["M2"]["active_species"], "M2_MEAN_fit", data_M2, idx_M2
+        )
+        fit_metrics_MEAN_M2 = compute_fit_metrics(
+            t_M2, x0_fit_MEAN, MODEL_CONFIGS["M2"]["active_species"], data_M2, idx_M2
+        )
 
         save_json(
             output_dir / "fit_metrics_M2.json",
@@ -1639,7 +1851,7 @@ def main():
             },
         )
         export_tmcmc_diagnostics_tables(output_dir, "M2", diag_M2)
-    
+
         logger.info("[M2 TMCMC] Results:")
         logger.info("Computation time: %.2f min", time_M2 / 60.0)
         logger.info("MAP: %s", MAP_M2)
@@ -1649,7 +1861,7 @@ def main():
         logger.info("MAP error: %.6f", map_error_M2)
         logger.info("Converged chains: %s/%s", sum(converged_M2), len(converged_M2))
         logger.info("Linearization updates: %s", diag_M2.get("total_linearization_updates", 0))
-    
+
         # ★ Slack notification: M2 complete
         if SLACK_ENABLED:
             notify_slack(
@@ -1659,17 +1871,14 @@ def main():
                 f"   Converged: {sum(converged_M2)}/{len(converged_M2)} chains\n"
                 f"   Linearization updates: {diag_M2.get('total_linearization_updates', 0)}"
             )
-    
+
         plot_mgr.plot_posterior(
-            samples_M2, theta_true[5:10],
-            MODEL_CONFIGS["M2"]["param_names"], "M2", MAP_M2, mean_M2
+            samples_M2, theta_true[5:10], MODEL_CONFIGS["M2"]["param_names"], "M2", MAP_M2, mean_M2
         )
-    
+
         # Generate pairplot for M2
         plot_mgr.plot_pairplot_posterior(
-            samples_M2, theta_true[5:10],
-            MAP_M2, mean_M2,
-            MODEL_CONFIGS["M2"]["param_names"], "M2"
+            samples_M2, theta_true[5:10], MAP_M2, mean_M2, MODEL_CONFIGS["M2"]["param_names"], "M2"
         )
 
         # ----- Paper Fig. 11: posterior predictive band (M2) -----
@@ -1696,14 +1905,21 @@ def main():
                             if HAS_SCIPY:
                                 x0_pred_interp = np.zeros((len(t_M2), x0_pred.shape[1]))
                                 for j in range(x0_pred.shape[1]):
-                                    interp_func = interp1d(t_arr, x0_pred[:, j], kind='linear', 
-                                                           bounds_error=False, fill_value='extrapolate')
+                                    interp_func = interp1d(
+                                        t_arr,
+                                        x0_pred[:, j],
+                                        kind="linear",
+                                        bounds_error=False,
+                                        fill_value="extrapolate",
+                                    )
                                     x0_pred_interp[:, j] = interp_func(t_M2)
                                 x0_pred = x0_pred_interp
                                 t_arr = t_M2
 
                         n = min(len(t_arr), len(t_M2))
-                        phibar_samples[d, :n, :] = compute_phibar(x0_pred[:n], MODEL_CONFIGS["M2"]["active_species"])
+                        phibar_samples[d, :n, :] = compute_phibar(
+                            x0_pred[:n], MODEL_CONFIGS["M2"]["active_species"]
+                        )
 
                     plot_mgr.plot_posterior_predictive_band(
                         t_M2,
@@ -1727,7 +1943,7 @@ def main():
                     )
             except Exception as e:
                 logger.warning("Paper Fig11 generation failed (M2): %s: %s", type(e).__name__, e)
-    
+
     # ===== STEP 4: M3 TMCMC with Linearization Update =====
     if "M3" not in requested_models:
         logger.info("Skipping M3 TMCMC (not requested)")
@@ -1743,27 +1959,28 @@ def main():
         logger.info("%s", "=" * 80)
         logger.info("STEP 4: M3 TMCMC (β tempering) with Linearization Update")
         logger.info("%s", "=" * 80)
-    
+
         # ★ Slack notification: Step 4 start
         if SLACK_ENABLED:
             notify_slack("🔄 STEP 4: Starting M3 TMCMC...")
-    
+
             # ★ 論文向け（実データ想定でも安全）: M3の非推定パラメータも真値に依存しない
         # M1/M2のMAP推定値を使用し、非推定パラメータはprior meanで初期化
         prior_mean = (PRIOR_BOUNDS_DEFAULT[0] + PRIOR_BOUNDS_DEFAULT[1]) / 2.0  # 1.5
         theta_base_M3 = np.full(20, prior_mean)  # ★ 真値ゼロ依存: 全パラメータをprior meanで初期化
-        theta_base_M3[0:5] = MAP_M1   # M1の推定値
+        theta_base_M3[0:5] = MAP_M1  # M1の推定値
         theta_base_M3[5:10] = MAP_M2  # M2の推定値
         # ★ Strict Backward Compatibility: M3 is a 4-species model.
         # Force parameters for inactive species (indices 14-19) to 0.0.
         theta_base_M3[14:] = 0.0
         # M3のactive_indices (10:14) は後で設定される
-    
+
         solver_kwargs_M3 = {
-            k: v for k, v in MODEL_CONFIGS["M3"].items()
+            k: v
+            for k, v in MODEL_CONFIGS["M3"].items()
             if k not in ["active_species", "active_indices", "param_names"]
         }
-    
+
         def make_evaluator_M3(theta_linearization=None):
             if theta_linearization is None:
                 theta_linearization = theta_base_M3
@@ -1780,16 +1997,16 @@ def main():
                 theta_linearization=theta_linearization,
                 paper_mode=USE_PAPER_ANALYTICAL,  # ★ Use paper_analytical_derivatives (production-ready)
             )
-    
+
         prior_bounds_M3 = [PRIOR_BOUNDS_DEFAULT] * len(MODEL_CONFIGS["M3"]["param_names"])
-    
+
         # Initial linearization point for M3
         theta_lin_M3 = theta_base_M3.copy()
         for idx in MODEL_CONFIGS["M3"]["active_indices"]:
             theta_lin_M3[idx] = (PRIOR_BOUNDS_DEFAULT[0] + PRIOR_BOUNDS_DEFAULT[1]) / 2.0  # 1.5
-    
+
         start_M3 = time.time()
-    
+
         # ★ Use TMCMC (β tempering) with linearization update
         # Apply fast-sanity settings if enabled
         if FAST_SANITY_MODE and tmcmc_fast_sanity:
@@ -1803,7 +2020,7 @@ def main():
             n_stages_M3 = PRODUCTION_TMCMC["n_stages"]
             n_mutation_steps_M3 = PRODUCTION_TMCMC["n_mutation_steps"]
             n_chains_M3 = PRODUCTION_TMCMC["n_chains"]
-    
+
         chains_M3, logL_M3, MAP_M3, converged_M3, diag_M3 = run_multi_chain_TMCMC(
             model_tag="M3",
             make_evaluator=make_evaluator_M3,
@@ -1820,18 +2037,22 @@ def main():
             n_chains=n_chains_M3,
             update_linearization_interval=int(PRODUCTION_TMCMC["update_linearization_interval"]),
             n_mutation_steps=n_mutation_steps_M3,
-            use_observation_based_update=False if FAST_SANITY_MODE else True,  # ★ FAST_SANITY: 重いROM error計算をスキップ
+            use_observation_based_update=(
+                False if FAST_SANITY_MODE else True
+            ),  # ★ FAST_SANITY: 重いROM error計算をスキップ
             linearization_threshold=float(PRODUCTION_TMCMC["linearization_threshold"]),
-            linearization_enable_rom_threshold=float(PRODUCTION_TMCMC["linearization_enable_rom_threshold"]),
+            linearization_enable_rom_threshold=float(
+                PRODUCTION_TMCMC["linearization_enable_rom_threshold"]
+            ),
             debug_config=debug_config,  # ★ Pass debug configuration
             seed=exp_config.random_seed,
             force_beta_one=bool(PRODUCTION_TMCMC["force_beta_one"]) and (not FAST_SANITY_MODE),
             n_jobs=n_jobs,
             use_threads=use_threads,
         )
-    
+
         time_M3 = time.time() - start_M3
-    
+
         # Combine all chains
         samples_M3 = np.concatenate(chains_M3, axis=0)
         logL_M3_all = np.concatenate(logL_M3, axis=0)
@@ -1915,12 +2136,21 @@ def main():
                 raise ImportError("scipy is required for time array interpolation")
             x0_fit_MAP_interp = np.zeros((len(t_M3), x0_fit_MAP.shape[1]))
             for j in range(x0_fit_MAP.shape[1]):
-                interp_func = interp1d(t_fit, x0_fit_MAP[:, j], kind='linear', 
-                                       bounds_error=False, fill_value='extrapolate')
+                interp_func = interp1d(
+                    t_fit,
+                    x0_fit_MAP[:, j],
+                    kind="linear",
+                    bounds_error=False,
+                    fill_value="extrapolate",
+                )
                 x0_fit_MAP_interp[:, j] = interp_func(t_M3)
             x0_fit_MAP = x0_fit_MAP_interp
-        plot_mgr.plot_TSM_simulation(t_M3, x0_fit_MAP, MODEL_CONFIGS["M3"]["active_species"], "M3_MAP_fit", data_M3, idx_M3)
-        fit_metrics_MAP_M3 = compute_fit_metrics(t_M3, x0_fit_MAP, MODEL_CONFIGS["M3"]["active_species"], data_M3, idx_M3)
+        plot_mgr.plot_TSM_simulation(
+            t_M3, x0_fit_MAP, MODEL_CONFIGS["M3"]["active_species"], "M3_MAP_fit", data_M3, idx_M3
+        )
+        fit_metrics_MAP_M3 = compute_fit_metrics(
+            t_M3, x0_fit_MAP, MODEL_CONFIGS["M3"]["active_species"], data_M3, idx_M3
+        )
 
         t_fit, x0_fit_MEAN, _ = tsm_M3_fit.solve_tsm(theta_MEAN_full_M3)
         # CRITICAL FIX: Use original t_M3 (from data generation) instead of t_fit
@@ -1929,12 +2159,21 @@ def main():
                 raise ImportError("scipy is required for time array interpolation")
             x0_fit_MEAN_interp = np.zeros((len(t_M3), x0_fit_MEAN.shape[1]))
             for j in range(x0_fit_MEAN.shape[1]):
-                interp_func = interp1d(t_fit, x0_fit_MEAN[:, j], kind='linear', 
-                                       bounds_error=False, fill_value='extrapolate')
+                interp_func = interp1d(
+                    t_fit,
+                    x0_fit_MEAN[:, j],
+                    kind="linear",
+                    bounds_error=False,
+                    fill_value="extrapolate",
+                )
                 x0_fit_MEAN_interp[:, j] = interp_func(t_M3)
             x0_fit_MEAN = x0_fit_MEAN_interp
-        plot_mgr.plot_TSM_simulation(t_M3, x0_fit_MEAN, MODEL_CONFIGS["M3"]["active_species"], "M3_MEAN_fit", data_M3, idx_M3)
-        fit_metrics_MEAN_M3 = compute_fit_metrics(t_M3, x0_fit_MEAN, MODEL_CONFIGS["M3"]["active_species"], data_M3, idx_M3)
+        plot_mgr.plot_TSM_simulation(
+            t_M3, x0_fit_MEAN, MODEL_CONFIGS["M3"]["active_species"], "M3_MEAN_fit", data_M3, idx_M3
+        )
+        fit_metrics_MEAN_M3 = compute_fit_metrics(
+            t_M3, x0_fit_MEAN, MODEL_CONFIGS["M3"]["active_species"], data_M3, idx_M3
+        )
 
         save_json(
             output_dir / "fit_metrics_M3.json",
@@ -1948,7 +2187,7 @@ def main():
             },
         )
         export_tmcmc_diagnostics_tables(output_dir, "M3", diag_M3)
-    
+
         logger.info("[M3 TMCMC] Results:")
         logger.info("Computation time: %.2f min", time_M3 / 60.0)
         logger.info("MAP: %s", MAP_M3)
@@ -1958,7 +2197,7 @@ def main():
         logger.info("MAP error: %.6f", map_error_M3)
         logger.info("Converged chains: %s/%s", sum(converged_M3), len(converged_M3))
         logger.info("Linearization updates: %s", diag_M3.get("total_linearization_updates", 0))
-    
+
         # ★ Slack notification: M3 complete
         if SLACK_ENABLED:
             notify_slack(
@@ -1968,17 +2207,19 @@ def main():
                 f"   Converged: {sum(converged_M3)}/{len(converged_M3)} chains\n"
                 f"   Linearization updates: {diag_M3.get('total_linearization_updates', 0)}"
             )
-    
+
         plot_mgr.plot_posterior(
-            samples_M3, theta_true[10:14],
-            MODEL_CONFIGS["M3"]["param_names"], "M3_TMCMC", MAP_M3, mean_M3
+            samples_M3,
+            theta_true[10:14],
+            MODEL_CONFIGS["M3"]["param_names"],
+            "M3_TMCMC",
+            MAP_M3,
+            mean_M3,
         )
-    
+
         # Generate pairplot for M3
         plot_mgr.plot_pairplot_posterior(
-            samples_M3, theta_true[10:14],
-            MAP_M3, mean_M3,
-            MODEL_CONFIGS["M3"]["param_names"], "M3"
+            samples_M3, theta_true[10:14], MAP_M3, mean_M3, MODEL_CONFIGS["M3"]["param_names"], "M3"
         )
 
         # ----- Paper Fig. 13: posterior predictive band (M3) -----
@@ -2005,14 +2246,21 @@ def main():
                             if HAS_SCIPY:
                                 x0_pred_interp = np.zeros((len(t_M3), x0_pred.shape[1]))
                                 for j in range(x0_pred.shape[1]):
-                                    interp_func = interp1d(t_arr, x0_pred[:, j], kind='linear', 
-                                                           bounds_error=False, fill_value='extrapolate')
+                                    interp_func = interp1d(
+                                        t_arr,
+                                        x0_pred[:, j],
+                                        kind="linear",
+                                        bounds_error=False,
+                                        fill_value="extrapolate",
+                                    )
                                     x0_pred_interp[:, j] = interp_func(t_M3)
                                 x0_pred = x0_pred_interp
                                 t_arr = t_M3
 
                         n = min(len(t_arr), len(t_M3))
-                        phibar_samples[d, :n, :] = compute_phibar(x0_pred[:n], MODEL_CONFIGS["M3"]["active_species"])
+                        phibar_samples[d, :n, :] = compute_phibar(
+                            x0_pred[:n], MODEL_CONFIGS["M3"]["active_species"]
+                        )
 
                     plot_mgr.plot_posterior_predictive_band(
                         t_M3,
@@ -2050,9 +2298,10 @@ def main():
         theta_base_M4[0:5] = MAP_M1
         theta_base_M4[5:10] = MAP_M2
         theta_base_M4[10:14] = MAP_M3
-        
+
         solver_kwargs_M4 = {
-            k: v for k, v in MODEL_CONFIGS["M4"].items()
+            k: v
+            for k, v in MODEL_CONFIGS["M4"].items()
             if k not in ["active_species", "active_indices", "param_names"]
         }
 
@@ -2073,10 +2322,10 @@ def main():
                 paper_mode=False,
                 debug_logger=debug_logger,
             )
-        
+
         prior_bounds_M4 = [PRIOR_BOUNDS_DEFAULT] * len(MODEL_CONFIGS["M4"]["param_names"])
         theta_lin_M4 = theta_base_M4.copy()
-        
+
         start_M4 = time.time()
 
         if FAST_SANITY_MODE and tmcmc_fast_sanity:
@@ -2108,7 +2357,9 @@ def main():
             n_mutation_steps=n_mutation_steps_M4,
             use_observation_based_update=False if FAST_SANITY_MODE else True,
             linearization_threshold=float(PRODUCTION_TMCMC["linearization_threshold"]),
-            linearization_enable_rom_threshold=float(PRODUCTION_TMCMC["linearization_enable_rom_threshold"]),
+            linearization_enable_rom_threshold=float(
+                PRODUCTION_TMCMC["linearization_enable_rom_threshold"]
+            ),
             debug_config=debug_config,
             seed=exp_config.random_seed,
             force_beta_one=bool(PRODUCTION_TMCMC["force_beta_one"]) and (not FAST_SANITY_MODE),
@@ -2124,7 +2375,7 @@ def main():
         mean_M4 = results_M4["mean"]
 
         np.save(output_dir / "trace_M4.npy", samples_M4)
-        
+
         # M4 Theta Full Construction
         theta_MAP_full_M4 = theta_base_M4.copy()
         theta_MAP_full_M4[MODEL_CONFIGS["M4"]["active_indices"]] = MAP_M4
@@ -2149,12 +2400,12 @@ def main():
                 "active_indices": MODEL_CONFIGS["M4"]["active_indices"],
             },
         )
-        
+
         # Diagnostics and Plots for M4
         evaluator_M4_for_metrics = make_evaluator_M4()
         rom_err_MAP_M4 = evaluator_M4_for_metrics.compute_ROM_error(theta_MAP_full_M4)
         rom_err_MEAN_M4 = evaluator_M4_for_metrics.compute_ROM_error(theta_MEAN_full_M4)
-        
+
         solver_M4_fit = BiofilmNewtonSolver5S(
             **solver_kwargs_M4,
             active_species=MODEL_CONFIGS["M4"]["active_species"],
@@ -2166,31 +2417,51 @@ def main():
             cov_rel=exp_config.cov_rel,
             theta_linearization=theta_base_M4,
         )
-        
+
         t_fit, x0_fit_MAP, _ = tsm_M4_fit.solve_tsm(theta_MAP_full_M4)
         if len(t_fit) != len(t_M4) or not np.allclose(t_fit, t_M4):
-             if HAS_SCIPY:
-                 x0_fit_MAP_interp = np.zeros((len(t_M4), x0_fit_MAP.shape[1]))
-                 for j in range(x0_fit_MAP.shape[1]):
-                     interp_func = interp1d(t_fit, x0_fit_MAP[:, j], kind='linear', bounds_error=False, fill_value='extrapolate')
-                     x0_fit_MAP_interp[:, j] = interp_func(t_M4)
-                 x0_fit_MAP = x0_fit_MAP_interp
-        
-        plot_mgr.plot_TSM_simulation(t_M4, x0_fit_MAP, MODEL_CONFIGS["M4"]["active_species"], "M4_MAP_fit", data_M4, idx_M4)
-        fit_metrics_MAP_M4 = compute_fit_metrics(t_M4, x0_fit_MAP, MODEL_CONFIGS["M4"]["active_species"], data_M4, idx_M4)
+            if HAS_SCIPY:
+                x0_fit_MAP_interp = np.zeros((len(t_M4), x0_fit_MAP.shape[1]))
+                for j in range(x0_fit_MAP.shape[1]):
+                    interp_func = interp1d(
+                        t_fit,
+                        x0_fit_MAP[:, j],
+                        kind="linear",
+                        bounds_error=False,
+                        fill_value="extrapolate",
+                    )
+                    x0_fit_MAP_interp[:, j] = interp_func(t_M4)
+                x0_fit_MAP = x0_fit_MAP_interp
+
+        plot_mgr.plot_TSM_simulation(
+            t_M4, x0_fit_MAP, MODEL_CONFIGS["M4"]["active_species"], "M4_MAP_fit", data_M4, idx_M4
+        )
+        fit_metrics_MAP_M4 = compute_fit_metrics(
+            t_M4, x0_fit_MAP, MODEL_CONFIGS["M4"]["active_species"], data_M4, idx_M4
+        )
 
         t_fit, x0_fit_MEAN, _ = tsm_M4_fit.solve_tsm(theta_MEAN_full_M4)
         if len(t_fit) != len(t_M4) or not np.allclose(t_fit, t_M4):
-             if HAS_SCIPY:
-                 x0_fit_MEAN_interp = np.zeros((len(t_M4), x0_fit_MEAN.shape[1]))
-                 for j in range(x0_fit_MEAN.shape[1]):
-                     interp_func = interp1d(t_fit, x0_fit_MEAN[:, j], kind='linear', bounds_error=False, fill_value='extrapolate')
-                     x0_fit_MEAN_interp[:, j] = interp_func(t_M4)
-                 x0_fit_MEAN = x0_fit_MEAN_interp
-        
-        plot_mgr.plot_TSM_simulation(t_M4, x0_fit_MEAN, MODEL_CONFIGS["M4"]["active_species"], "M4_MEAN_fit", data_M4, idx_M4)
-        fit_metrics_MEAN_M4 = compute_fit_metrics(t_M4, x0_fit_MEAN, MODEL_CONFIGS["M4"]["active_species"], data_M4, idx_M4)
-        
+            if HAS_SCIPY:
+                x0_fit_MEAN_interp = np.zeros((len(t_M4), x0_fit_MEAN.shape[1]))
+                for j in range(x0_fit_MEAN.shape[1]):
+                    interp_func = interp1d(
+                        t_fit,
+                        x0_fit_MEAN[:, j],
+                        kind="linear",
+                        bounds_error=False,
+                        fill_value="extrapolate",
+                    )
+                    x0_fit_MEAN_interp[:, j] = interp_func(t_M4)
+                x0_fit_MEAN = x0_fit_MEAN_interp
+
+        plot_mgr.plot_TSM_simulation(
+            t_M4, x0_fit_MEAN, MODEL_CONFIGS["M4"]["active_species"], "M4_MEAN_fit", data_M4, idx_M4
+        )
+        fit_metrics_MEAN_M4 = compute_fit_metrics(
+            t_M4, x0_fit_MEAN, MODEL_CONFIGS["M4"]["active_species"], data_M4, idx_M4
+        )
+
         save_json(
             output_dir / "fit_metrics_M4.json",
             {
@@ -2206,20 +2477,32 @@ def main():
         logger.info("[M4 TMCMC] Results:")
         logger.info("Computation time: %.2f min", time_M4 / 60.0)
         logger.info("MAP: %s", MAP_M4)
-        logger.info("True (14,15): %s", theta_true_5s[14:16] if 'theta_true_5s' in globals() else "N/A")
-        map_error_M4 = np.linalg.norm(MAP_M4 - (theta_true_5s[14:16] if 'theta_true_5s' in globals() else MAP_M4))
+        logger.info(
+            "True (14,15): %s", theta_true_5s[14:16] if "theta_true_5s" in globals() else "N/A"
+        )
+        map_error_M4 = np.linalg.norm(
+            MAP_M4 - (theta_true_5s[14:16] if "theta_true_5s" in globals() else MAP_M4)
+        )
         logger.info("MAP error: %.6f", map_error_M4)
 
         if SLACK_ENABLED:
             notify_slack(f"✅ M4 TMCMC Completed\nTime: {time_M4/60:.2f} min\nMAP: {MAP_M4}")
 
         plot_mgr.plot_posterior(
-            samples_M4, theta_true_5s[14:16],
-            MODEL_CONFIGS["M4"]["param_names"], "M4_TMCMC", MAP_M4, mean_M4
+            samples_M4,
+            theta_true_5s[14:16],
+            MODEL_CONFIGS["M4"]["param_names"],
+            "M4_TMCMC",
+            MAP_M4,
+            mean_M4,
         )
         plot_mgr.plot_pairplot_posterior(
-            samples_M4, theta_true_5s[14:16],
-            MAP_M4, mean_M4, MODEL_CONFIGS["M4"]["param_names"], "M4"
+            samples_M4,
+            theta_true_5s[14:16],
+            MAP_M4,
+            mean_M4,
+            MODEL_CONFIGS["M4"]["param_names"],
+            "M4",
         )
 
     # ===== STEP 4c: M5 TMCMC =====
@@ -2247,9 +2530,10 @@ def main():
         theta_base_M5[5:10] = MAP_M2
         theta_base_M5[10:14] = MAP_M3
         theta_base_M5[14:16] = MAP_M4
-        
+
         solver_kwargs_M5 = {
-            k: v for k, v in MODEL_CONFIGS["M5"].items()
+            k: v
+            for k, v in MODEL_CONFIGS["M5"].items()
             if k not in ["active_species", "active_indices", "param_names"]
         }
 
@@ -2270,10 +2554,10 @@ def main():
                 paper_mode=False,
                 debug_logger=debug_logger,
             )
-        
+
         prior_bounds_M5 = [PRIOR_BOUNDS_DEFAULT] * len(MODEL_CONFIGS["M5"]["param_names"])
         theta_lin_M5 = theta_base_M5.copy()
-        
+
         start_M5 = time.time()
 
         if FAST_SANITY_MODE and tmcmc_fast_sanity:
@@ -2305,7 +2589,9 @@ def main():
             n_mutation_steps=n_mutation_steps_M5,
             use_observation_based_update=False if FAST_SANITY_MODE else True,
             linearization_threshold=float(PRODUCTION_TMCMC["linearization_threshold"]),
-            linearization_enable_rom_threshold=float(PRODUCTION_TMCMC["linearization_enable_rom_threshold"]),
+            linearization_enable_rom_threshold=float(
+                PRODUCTION_TMCMC["linearization_enable_rom_threshold"]
+            ),
             debug_config=debug_config,
             seed=exp_config.random_seed,
             force_beta_one=bool(PRODUCTION_TMCMC["force_beta_one"]) and (not FAST_SANITY_MODE),
@@ -2321,7 +2607,7 @@ def main():
         mean_M5 = results_M5["mean"]
 
         np.save(output_dir / "trace_M5.npy", samples_M5)
-        
+
         # M5 Theta Full Construction
         theta_MAP_full_M5 = theta_base_M5.copy()
         theta_MAP_full_M5[MODEL_CONFIGS["M5"]["active_indices"]] = MAP_M5
@@ -2346,12 +2632,12 @@ def main():
                 "active_indices": MODEL_CONFIGS["M5"]["active_indices"],
             },
         )
-        
+
         # Diagnostics and Plots for M5
         evaluator_M5_for_metrics = make_evaluator_M5()
         rom_err_MAP_M5 = evaluator_M5_for_metrics.compute_ROM_error(theta_MAP_full_M5)
         rom_err_MEAN_M5 = evaluator_M5_for_metrics.compute_ROM_error(theta_MEAN_full_M5)
-        
+
         solver_M5_fit = BiofilmNewtonSolver5S(
             **solver_kwargs_M5,
             active_species=MODEL_CONFIGS["M5"]["active_species"],
@@ -2363,31 +2649,51 @@ def main():
             cov_rel=exp_config.cov_rel,
             theta_linearization=theta_base_M5,
         )
-        
+
         t_fit, x0_fit_MAP, _ = tsm_M5_fit.solve_tsm(theta_MAP_full_M5)
         if len(t_fit) != len(t_M5) or not np.allclose(t_fit, t_M5):
-             if HAS_SCIPY:
-                 x0_fit_MAP_interp = np.zeros((len(t_M5), x0_fit_MAP.shape[1]))
-                 for j in range(x0_fit_MAP.shape[1]):
-                     interp_func = interp1d(t_fit, x0_fit_MAP[:, j], kind='linear', bounds_error=False, fill_value='extrapolate')
-                     x0_fit_MAP_interp[:, j] = interp_func(t_M5)
-                 x0_fit_MAP = x0_fit_MAP_interp
-        
-        plot_mgr.plot_TSM_simulation(t_M5, x0_fit_MAP, MODEL_CONFIGS["M5"]["active_species"], "M5_MAP_fit", data_M5, idx_M5)
-        fit_metrics_MAP_M5 = compute_fit_metrics(t_M5, x0_fit_MAP, MODEL_CONFIGS["M5"]["active_species"], data_M5, idx_M5)
+            if HAS_SCIPY:
+                x0_fit_MAP_interp = np.zeros((len(t_M5), x0_fit_MAP.shape[1]))
+                for j in range(x0_fit_MAP.shape[1]):
+                    interp_func = interp1d(
+                        t_fit,
+                        x0_fit_MAP[:, j],
+                        kind="linear",
+                        bounds_error=False,
+                        fill_value="extrapolate",
+                    )
+                    x0_fit_MAP_interp[:, j] = interp_func(t_M5)
+                x0_fit_MAP = x0_fit_MAP_interp
+
+        plot_mgr.plot_TSM_simulation(
+            t_M5, x0_fit_MAP, MODEL_CONFIGS["M5"]["active_species"], "M5_MAP_fit", data_M5, idx_M5
+        )
+        fit_metrics_MAP_M5 = compute_fit_metrics(
+            t_M5, x0_fit_MAP, MODEL_CONFIGS["M5"]["active_species"], data_M5, idx_M5
+        )
 
         t_fit, x0_fit_MEAN, _ = tsm_M5_fit.solve_tsm(theta_MEAN_full_M5)
         if len(t_fit) != len(t_M5) or not np.allclose(t_fit, t_M5):
-             if HAS_SCIPY:
-                 x0_fit_MEAN_interp = np.zeros((len(t_M5), x0_fit_MEAN.shape[1]))
-                 for j in range(x0_fit_MEAN.shape[1]):
-                     interp_func = interp1d(t_fit, x0_fit_MEAN[:, j], kind='linear', bounds_error=False, fill_value='extrapolate')
-                     x0_fit_MEAN_interp[:, j] = interp_func(t_M5)
-                 x0_fit_MEAN = x0_fit_MEAN_interp
-        
-        plot_mgr.plot_TSM_simulation(t_M5, x0_fit_MEAN, MODEL_CONFIGS["M5"]["active_species"], "M5_MEAN_fit", data_M5, idx_M5)
-        fit_metrics_MEAN_M5 = compute_fit_metrics(t_M5, x0_fit_MEAN, MODEL_CONFIGS["M5"]["active_species"], data_M5, idx_M5)
-        
+            if HAS_SCIPY:
+                x0_fit_MEAN_interp = np.zeros((len(t_M5), x0_fit_MEAN.shape[1]))
+                for j in range(x0_fit_MEAN.shape[1]):
+                    interp_func = interp1d(
+                        t_fit,
+                        x0_fit_MEAN[:, j],
+                        kind="linear",
+                        bounds_error=False,
+                        fill_value="extrapolate",
+                    )
+                    x0_fit_MEAN_interp[:, j] = interp_func(t_M5)
+                x0_fit_MEAN = x0_fit_MEAN_interp
+
+        plot_mgr.plot_TSM_simulation(
+            t_M5, x0_fit_MEAN, MODEL_CONFIGS["M5"]["active_species"], "M5_MEAN_fit", data_M5, idx_M5
+        )
+        fit_metrics_MEAN_M5 = compute_fit_metrics(
+            t_M5, x0_fit_MEAN, MODEL_CONFIGS["M5"]["active_species"], data_M5, idx_M5
+        )
+
         save_json(
             output_dir / "fit_metrics_M5.json",
             {
@@ -2403,27 +2709,39 @@ def main():
         logger.info("[M5 TMCMC] Results:")
         logger.info("Computation time: %.2f min", time_M5 / 60.0)
         logger.info("MAP: %s", MAP_M5)
-        logger.info("True (16..19): %s", theta_true_5s[16:20] if 'theta_true_5s' in globals() else "N/A")
-        map_error_M5 = np.linalg.norm(MAP_M5 - (theta_true_5s[16:20] if 'theta_true_5s' in globals() else MAP_M5))
+        logger.info(
+            "True (16..19): %s", theta_true_5s[16:20] if "theta_true_5s" in globals() else "N/A"
+        )
+        map_error_M5 = np.linalg.norm(
+            MAP_M5 - (theta_true_5s[16:20] if "theta_true_5s" in globals() else MAP_M5)
+        )
         logger.info("MAP error: %.6f", map_error_M5)
 
         if SLACK_ENABLED:
             notify_slack(f"✅ M5 TMCMC Completed\nTime: {time_M5/60:.2f} min\nMAP: {MAP_M5}")
 
         plot_mgr.plot_posterior(
-            samples_M5, theta_true_5s[16:20],
-            MODEL_CONFIGS["M5"]["param_names"], "M5_TMCMC", MAP_M5, mean_M5
+            samples_M5,
+            theta_true_5s[16:20],
+            MODEL_CONFIGS["M5"]["param_names"],
+            "M5_TMCMC",
+            MAP_M5,
+            mean_M5,
         )
         plot_mgr.plot_pairplot_posterior(
-            samples_M5, theta_true_5s[16:20],
-            MAP_M5, mean_M5, MODEL_CONFIGS["M5"]["param_names"], "M5"
+            samples_M5,
+            theta_true_5s[16:20],
+            MAP_M5,
+            mean_M5,
+            MODEL_CONFIGS["M5"]["param_names"],
+            "M5",
         )
 
     # ===== STEP 5: Final Summary =====
     logger.info("%s", "=" * 80)
     logger.info("STEP 5: Final Summary (Updated)")
     logger.info("%s", "=" * 80)
-    
+
     # ★ FIX: No information leakage - use inference-safe base (prior mean), not theta_true
     # theta_true is only used for evaluation/comparison afterward
     prior_mean = (PRIOR_BOUNDS_DEFAULT[0] + PRIOR_BOUNDS_DEFAULT[1]) / 2.0  # 1.5
@@ -2463,7 +2781,10 @@ def main():
     logger.info("%s", "-" * 80)
 
     for i, name in enumerate(param_names_all):
-        logger.info("%s", f"{name:<8} {theta_true[i]:<12.6f} {theta_MAP_full[i]:<12.6f} {theta_mean_full[i]:<12.6f}")
+        logger.info(
+            "%s",
+            f"{name:<8} {theta_true[i]:<12.6f} {theta_MAP_full[i]:<12.6f} {theta_mean_full[i]:<12.6f}",
+        )
 
     # Calculate errors only for valid indices (where theta_true is not nan)
     valid_indices = ~np.isnan(theta_true)
@@ -2491,11 +2812,8 @@ def main():
             msg += f"   M4 MAP error: {map_error_M4:.6f}\n"
         if "M5" in requested_models:
             msg += f"   M5 MAP error: {map_error_M5:.6f}\n"
-        
-        msg += (
-            f"   Total MAP error: {total_map_error:.6f}\n"
-            f"   Output: {exp_config.output_dir}"
-        )
+
+        msg += f"   Total MAP error: {total_map_error:.6f}\n" f"   Output: {exp_config.output_dir}"
         notify_slack(msg)
 
     plot_mgr.plot_parameter_comparison(theta_true, theta_MAP_full, theta_mean_full, param_names_all)
@@ -2540,26 +2858,21 @@ def main():
 
     # (B) Linearization point update history
     plot_mgr.plot_linearization_history(
-        diag_M1["theta0_history"], "M1",
-        active_indices=MODEL_CONFIGS["M1"]["active_indices"]
+        diag_M1["theta0_history"], "M1", active_indices=MODEL_CONFIGS["M1"]["active_indices"]
     )
     plot_mgr.plot_linearization_history(
-        diag_M2["theta0_history"], "M2",
-        active_indices=MODEL_CONFIGS["M2"]["active_indices"]
+        diag_M2["theta0_history"], "M2", active_indices=MODEL_CONFIGS["M2"]["active_indices"]
     )
     plot_mgr.plot_linearization_history(
-        diag_M3["theta0_history"], "M3",
-        active_indices=MODEL_CONFIGS["M3"]["active_indices"]
+        diag_M3["theta0_history"], "M3", active_indices=MODEL_CONFIGS["M3"]["active_indices"]
     )
     if "M4" in requested_models:
         plot_mgr.plot_linearization_history(
-            diag_M4["theta0_history"], "M4",
-            active_indices=MODEL_CONFIGS["M4"]["active_indices"]
+            diag_M4["theta0_history"], "M4", active_indices=MODEL_CONFIGS["M4"]["active_indices"]
         )
     if "M5" in requested_models:
         plot_mgr.plot_linearization_history(
-            diag_M5["theta0_history"], "M5",
-            active_indices=MODEL_CONFIGS["M5"]["active_indices"]
+            diag_M5["theta0_history"], "M5", active_indices=MODEL_CONFIGS["M5"]["active_indices"]
         )
 
     # (C) ROM error history (if available)
@@ -2570,9 +2883,17 @@ def main():
         plot_mgr.plot_rom_error_history(diag_M2["rom_error_histories"][0], "M2")
     if diag_M3.get("rom_error_histories") and len(diag_M3["rom_error_histories"]) > 0:
         plot_mgr.plot_rom_error_history(diag_M3["rom_error_histories"][0], "M3")
-    if "M4" in requested_models and diag_M4.get("rom_error_histories") and len(diag_M4["rom_error_histories"]) > 0:
+    if (
+        "M4" in requested_models
+        and diag_M4.get("rom_error_histories")
+        and len(diag_M4["rom_error_histories"]) > 0
+    ):
         plot_mgr.plot_rom_error_history(diag_M4["rom_error_histories"][0], "M4")
-    if "M5" in requested_models and diag_M5.get("rom_error_histories") and len(diag_M5["rom_error_histories"]) > 0:
+    if (
+        "M5" in requested_models
+        and diag_M5.get("rom_error_histories")
+        and len(diag_M5["rom_error_histories"]) > 0
+    ):
         plot_mgr.plot_rom_error_history(diag_M5["rom_error_histories"][0], "M5")
 
     # (D) MAP error comparison (simple bar chart)
@@ -2585,14 +2906,13 @@ def main():
         map_errors_tmcmc["M4"] = np.linalg.norm(MAP_M4 - theta_true[14:16])
     if "M5" in requested_models:
         map_errors_tmcmc["M5"] = np.linalg.norm(MAP_M5 - theta_true[16:20])
-    
+
     # Check if we should plot comparisons
     # If theta_true contains NaNs, skip error calculation/plotting for those
     # However, the previous logic assumed full theta_true.
     # We'll just plot what we have.
     # plot_mgr.plot_map_errors(map_errors_tmcmc) # Assuming this method exists or we implement it.
     # For now, let's just log it as we did above.
-
 
     plot_mgr.plot_map_error_comparison(map_errors_tmcmc, name="All_Models")
 
@@ -2656,7 +2976,7 @@ def main():
     # (改善5) Double-loop equivalent cost (×Nsamples) using paper notation.
     # Baseline idea: without TSM-ROM, each likelihood evaluation would require Nsamples FOM runs.
     Nsamples = int(getattr(exp_config, "aleatory_samples", 500))
-    
+
     active_models_for_cost = ["M1", "M2", "M3"]
     if "M4" in requested_models:
         active_models_for_cost.append("M4")
@@ -2676,7 +2996,7 @@ def main():
         cost_tmcmc=total_cost_tmcmc,
         map_errors_tmcmc=map_errors_tmcmc,
         cost_unit="Total evaluations (ROM + FOM)",
-        name="All_Models"
+        name="All_Models",
     )
 
     # (F) Wall time vs accuracy (alternative cost metric)
@@ -2689,12 +3009,12 @@ def main():
         wall_time_tmcmc["M4"] = time_M4
     if "M5" in requested_models:
         wall_time_tmcmc["M5"] = time_M5
-        
+
     plot_mgr.plot_cost_accuracy_comparison(
         cost_tmcmc=wall_time_tmcmc,
         map_errors_tmcmc=map_errors_tmcmc,
         cost_unit="Wall time (s)",
-        name="All_Models_walltime"
+        name="All_Models_walltime",
     )
 
     # ===== Save Results =====
@@ -2706,29 +3026,50 @@ def main():
         "theta_true": theta_true,
         "theta_MAP_full": theta_MAP_full,
         "theta_mean_full": theta_mean_full,
-        "MAP_M1": MAP_M1, "MAP_M2": MAP_M2, "MAP_M3": MAP_M3,
-        "mean_M1": mean_M1, "mean_M2": mean_M2, "mean_M3": mean_M3,
-        "samples_M1": samples_M1, "samples_M2": samples_M2, "samples_M3": samples_M3,
-        "logL_M1": logL_M1_all, "logL_M2": logL_M2_all, "logL_M3": logL_M3_all,
-        "converged_M1": converged_M1, "converged_M2": converged_M2, "converged_M3": converged_M3,
-        "diagnostics_M1": diag_M1, "diagnostics_M2": diag_M2, "diagnostics_M3": diag_M3,
+        "MAP_M1": MAP_M1,
+        "MAP_M2": MAP_M2,
+        "MAP_M3": MAP_M3,
+        "mean_M1": mean_M1,
+        "mean_M2": mean_M2,
+        "mean_M3": mean_M3,
+        "samples_M1": samples_M1,
+        "samples_M2": samples_M2,
+        "samples_M3": samples_M3,
+        "logL_M1": logL_M1_all,
+        "logL_M2": logL_M2_all,
+        "logL_M3": logL_M3_all,
+        "converged_M1": converged_M1,
+        "converged_M2": converged_M2,
+        "converged_M3": converged_M3,
+        "diagnostics_M1": diag_M1,
+        "diagnostics_M2": diag_M2,
+        "diagnostics_M3": diag_M3,
     }
-    
-    if "M4" in requested_models:
-        save_dict.update({
-            "MAP_M4": MAP_M4, "mean_M4": mean_M4, "samples_M4": samples_M4,
-            "logL_M4": logL_M4, "converged_M4": converged_M4, "diagnostics_M4": diag_M4
-        })
-    if "M5" in requested_models:
-        save_dict.update({
-            "MAP_M5": MAP_M5, "mean_M5": mean_M5, "samples_M5": samples_M5,
-            "logL_M5": logL_M5, "converged_M5": converged_M5, "diagnostics_M5": diag_M5
-        })
 
-    np.savez(
-        output_dir / "results_MAP_linearization.npz",
-        **save_dict
-    )
+    if "M4" in requested_models:
+        save_dict.update(
+            {
+                "MAP_M4": MAP_M4,
+                "mean_M4": mean_M4,
+                "samples_M4": samples_M4,
+                "logL_M4": logL_M4,
+                "converged_M4": converged_M4,
+                "diagnostics_M4": diag_M4,
+            }
+        )
+    if "M5" in requested_models:
+        save_dict.update(
+            {
+                "MAP_M5": MAP_M5,
+                "mean_M5": mean_M5,
+                "samples_M5": samples_M5,
+                "logL_M5": logL_M5,
+                "converged_M5": converged_M5,
+                "diagnostics_M5": diag_M5,
+            }
+        )
+
+    np.savez(output_dir / "results_MAP_linearization.npz", **save_dict)
 
     logger.info("Results saved to: %s/results_MAP_linearization.npz", output_dir)
 
@@ -2768,7 +3109,8 @@ def main():
                 theta_base_val[5:10] = MAP_M2
 
                 solver_kwargs_val = {
-                    k: v for k, v in MODEL_CONFIGS["M3_val"].items()
+                    k: v
+                    for k, v in MODEL_CONFIGS["M3_val"].items()
                     if k not in ["active_species", "active_indices", "param_names"]
                 }
                 solver_val = BiofilmNewtonSolver(
@@ -2832,7 +3174,7 @@ def main():
     metrics_payload: Dict[str, Any] = {
         "run_id": run_id,
         "mode": mode,
-        "end_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "end_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "timing": {
             "time_M1_s": float(time_M1),
             "time_M2_s": float(time_M2),
@@ -2846,8 +3188,14 @@ def main():
             "M1": {"converged_chains": int(sum(converged_M1)), "n_chains": int(len(converged_M1))},
             "M2": {"converged_chains": int(sum(converged_M2)), "n_chains": int(len(converged_M2))},
             "M3": {"converged_chains": int(sum(converged_M3)), "n_chains": int(len(converged_M3))},
-            "M4": {"converged_chains": int(sum(converged_M4)) if converged_M4 else 0, "n_chains": int(len(converged_M4)) if converged_M4 else 0},
-            "M5": {"converged_chains": int(sum(converged_M5)) if converged_M5 else 0, "n_chains": int(len(converged_M5)) if converged_M5 else 0},
+            "M4": {
+                "converged_chains": int(sum(converged_M4)) if converged_M4 else 0,
+                "n_chains": int(len(converged_M4)) if converged_M4 else 0,
+            },
+            "M5": {
+                "converged_chains": int(sum(converged_M5)) if converged_M5 else 0,
+                "n_chains": int(len(converged_M5)) if converged_M5 else 0,
+            },
         },
         "errors": {
             "total_map_error": float(total_map_error),
@@ -2927,6 +3275,7 @@ if __name__ == "__main__":
         # Slack notification: Error occurred
         if SLACK_ENABLED:
             import traceback
+
             error_msg = f"❌ TMCMC Process Failed\n   Error: {str(e)}\n   Type: {type(e).__name__}"
             # Truncate traceback if too long
             tb_str = traceback.format_exc()
@@ -2934,4 +3283,3 @@ if __name__ == "__main__":
                 tb_str = tb_str[:1000] + "... (truncated)"
             notify_slack(f"{error_msg}\n```\n{tb_str}\n```", raise_on_error=False)
         raise
-

@@ -2,7 +2,6 @@ import jax
 import jax.numpy as jnp
 
 from .core_hamilton_1d import (
-    THETA_DEMO,
     theta_to_matrices,
     reaction_step,
     make_initial_state,
@@ -98,4 +97,3 @@ def simulate_hamilton_2d(
     _, G_traj = jax.lax.scan(body, G0_flat, jnp.arange(n_macro))
     G_all = jnp.concatenate([G0_flat[jnp.newaxis, :, :], G_traj], axis=0)
     return G_all
-

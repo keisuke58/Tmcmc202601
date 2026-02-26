@@ -62,7 +62,10 @@ def load_theta_map(condition: str) -> np.ndarray:
     if dirname is None:
         return None
     base = PROJECT_ROOT / "data_5species" / "_runs"
-    for pattern in [base / dirname / "theta_MAP.json", base / dirname / "posterior" / "theta_MAP.json"]:
+    for pattern in [
+        base / dirname / "theta_MAP.json",
+        base / dirname / "posterior" / "theta_MAP.json",
+    ]:
         if pattern.exists():
             with open(pattern) as f:
                 data = json.load(f)
@@ -172,14 +175,14 @@ def main():
         print(f"\n--- {cond} ---")
         theta = load_theta_map(cond)
         if theta is None:
-            print(f"  [SKIP] θ_MAP not found")
+            print("  [SKIP] θ_MAP not found")
             results.append({"condition": cond, "status": "no_theta"})
             continue
 
         # ODE
         ode_out = run_ode(theta)
         if ode_out is None:
-            print(f"  [SKIP] ODE solver failed")
+            print("  [SKIP] ODE solver failed")
             results.append({"condition": cond, "status": "ode_failed"})
             continue
         t_ode, phi_ode = ode_out
@@ -187,7 +190,7 @@ def main():
         # DeepONet
         phi_don = load_deeponet_and_predict(cond, theta)
         if phi_don is None:
-            print(f"  [SKIP] DeepONet failed")
+            print("  [SKIP] DeepONet failed")
             results.append({"condition": cond, "status": "deeponet_failed"})
             continue
 
@@ -199,7 +202,9 @@ def main():
         print(f"  MAE:      {metrics['mae']:.4f}")
         print(f"  Rel.Err:  {metrics['rel_err_pct']:.2f}%")
         for i, sp in enumerate(SPECIES):
-            print(f"    {sp}: MSE={metrics['mse_per_species'][i]:.2e}, MAE={metrics['mae_per_species'][i]:.4f}")
+            print(
+                f"    {sp}: MSE={metrics['mse_per_species'][i]:.2e}, MAE={metrics['mae_per_species'][i]:.4f}"
+            )
 
     # Summary table
     print("\n" + "=" * 60)
@@ -209,7 +214,9 @@ def main():
     print("-" * 64)
     for r in results:
         if r.get("status") == "ok":
-            print(f"{r['condition']:<22} {'OK':<12} {r['mse']:>12.2e} {r['mae']:>8.4f} {r['rel_err_pct']:>10.2f}")
+            print(
+                f"{r['condition']:<22} {'OK':<12} {r['mse']:>12.2e} {r['mae']:>8.4f} {r['rel_err_pct']:>10.2f}"
+            )
         else:
             print(f"{r['condition']:<22} {r['status']:<12}")
 
@@ -267,14 +274,18 @@ def main_compare_all():
                 continue
 
             metrics = compare_trajectories(phi_ode, phi_don, t_ode)
-            print(f"  {ckpt_name:<35} MSE={metrics['mse']:.2e}  MAE={metrics['mae']:.4f}  Rel={metrics['rel_err_pct']:.1f}%")
-            all_results.append({
-                "condition": cond,
-                "checkpoint": ckpt_name,
-                "mse": float(metrics["mse"]),
-                "mae": float(metrics["mae"]),
-                "rel_err_pct": float(metrics["rel_err_pct"]),
-            })
+            print(
+                f"  {ckpt_name:<35} MSE={metrics['mse']:.2e}  MAE={metrics['mae']:.4f}  Rel={metrics['rel_err_pct']:.1f}%"
+            )
+            all_results.append(
+                {
+                    "condition": cond,
+                    "checkpoint": ckpt_name,
+                    "mse": float(metrics["mse"]),
+                    "mae": float(metrics["mae"]),
+                    "rel_err_pct": float(metrics["rel_err_pct"]),
+                }
+            )
 
     # Save
     out_path = SCRIPT_DIR / "map_accuracy_all_checkpoints.json"
@@ -295,6 +306,7 @@ def main_compare_all():
 
 if __name__ == "__main__":
     import sys
+
     if "--compare-all" in sys.argv:
         main_compare_all()
     else:

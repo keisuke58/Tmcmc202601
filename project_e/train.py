@@ -14,7 +14,6 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from load_posterior_data import load_all
@@ -37,11 +36,16 @@ def main():
     parser.add_argument("--beta", type=float, default=1.0, help="KL weight in VAE loss")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--save-every", type=int, default=100)
-    parser.add_argument("--posterior", action="store_true", default=True,
-                        help="Use TMCMC posterior data (default: True)")
+    parser.add_argument(
+        "--posterior",
+        action="store_true",
+        default=True,
+        help="Use TMCMC posterior data (default: True)",
+    )
     parser.add_argument("--no-posterior", action="store_true", help="Skip posterior data")
-    parser.add_argument("--synthetic", type=str, default=None,
-                        help="Path to synthetic .npz (y_obs, theta)")
+    parser.add_argument(
+        "--synthetic", type=str, default=None, help="Path to synthetic .npz (y_obs, theta)"
+    )
     args = parser.parse_args()
     if args.no_posterior:
         args.posterior = False

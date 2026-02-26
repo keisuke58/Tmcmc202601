@@ -1,0 +1,11 @@
+{
+  "theta_full": [
+    0.8, 2.0, 1.0, 0.1, 0.2,
+    1.5, 1.0, 2.0, 0.3, 0.4,
+    2.0, 1.0, 2.0, 1.0,
+    0.5, 0.5,
+    0.5, 0.5, 0.5, 0.5
+  ],
+  "model": "M3_locked",
+  "note": "Created for M4/M5 estimation with M1-M3 locked to true values."
+}

@@ -39,12 +39,8 @@ def generate_data(
     log_scale_true=0.0,
     noise_std=0.001,
 ):
-    G_all_true = simulate_with_scale(
-        log_scale_true, n_macro=n_macro, n_react_sub=n_react_sub, N=N
-    )
-    idx_time = jnp.array(
-        [n_macro // 4, n_macro // 2, 3 * n_macro // 4, n_macro]
-    )
+    G_all_true = simulate_with_scale(log_scale_true, n_macro=n_macro, n_react_sub=n_react_sub, N=N)
+    idx_time = jnp.array([n_macro // 4, n_macro // 2, 3 * n_macro // 4, n_macro])
     y_true = summarize_traj(G_all_true, idx_time, species_idx=3)
     key = jax.random.PRNGKey(0)
     noise = noise_std * jax.random.normal(key, y_true.shape)
@@ -73,15 +69,9 @@ def main():
     log_scale = jnp.log(0.5)
     lr = 1e-2
     loss_jit = jax.jit(
-        lambda p: loss_fn(
-            p, y_obs, idx_time, n_macro=n_macro, n_react_sub=n_react_sub, N=N
-        )
+        lambda p: loss_fn(p, y_obs, idx_time, n_macro=n_macro, n_react_sub=n_react_sub, N=N)
     )
-    grad_jit = jax.jit(
-        lambda p: jax.grad(loss_fn)(
-            p, y_obs, idx_time, n_macro, n_react_sub, N
-        )
-    )
+    grad_jit = jax.jit(lambda p: jax.grad(loss_fn)(p, y_obs, idx_time, n_macro, n_react_sub, N))
     for i in range(30):
         l = loss_jit(log_scale)
         g = grad_jit(log_scale)
@@ -95,4 +85,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

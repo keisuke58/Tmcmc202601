@@ -33,35 +33,34 @@ Material model (mirrors biofilm_3tooth_assembly.py)
 
 from __future__ import print_function, division
 import os
-import sys
 import json
 import argparse
 
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib import gridspec
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-_HERE      = os.path.dirname(os.path.abspath(__file__))
-_POST      = os.path.join(_HERE, "_posterior_abaqus")
-_FIGS      = os.path.join(_HERE, "figures")
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_POST = os.path.join(_HERE, "_posterior_abaqus")
+_FIGS = os.path.join(_HERE, "figures")
 os.makedirs(_FIGS, exist_ok=True)
 
 # ── Material model constants ───────────────────────────────────────────────────
-E_MAX     = 10.0    # MPa (fixed from literature)
-E_MIN     = 0.5     # MPa (fixed from literature)
-ALPHA     = 2.0     # DI exponent (tunable)
-DI_SCALE  = 0.025778  # DI scale (tunable)
+E_MAX = 10.0  # MPa (fixed from literature)
+E_MIN = 0.5  # MPa (fixed from literature)
+ALPHA = 2.0  # DI exponent (tunable)
+DI_SCALE = 0.025778  # DI scale (tunable)
 
 # ── Condition registry ─────────────────────────────────────────────────────────
 # Maps internal name → display label, plot color, DI field CSV filename
 COND_INFO = {
     "dh_baseline": {
         "label": "DH-baseline\n(dysbiotic cascade)",
-        "color": "#d62728",   # red
+        "color": "#d62728",  # red
         "di_csv_candidates": [
             "abaqus_field_dh_baseline_snap20.csv",
             "abaqus_field_dh_3d.csv",
@@ -69,7 +68,7 @@ COND_INFO = {
     },
     "commensal_static": {
         "label": "Commensal-static\n(balanced)",
-        "color": "#2ca02c",   # green
+        "color": "#2ca02c",  # green
         "di_csv_candidates": [
             "abaqus_field_commensal_static_snap20.csv",
             "abaqus_field_Commensal_Static_snap20.csv",
@@ -77,14 +76,14 @@ COND_INFO = {
     },
     "dysbiotic_static": {
         "label": "Dysbiotic-static",
-        "color": "#ff7f0e",   # orange
+        "color": "#ff7f0e",  # orange
         "di_csv_candidates": [
             "abaqus_field_Dysbiotic_Static_snap20.csv",
         ],
     },
     "commensal_hobic": {
         "label": "Commensal-HOBIC",
-        "color": "#1f77b4",   # blue
+        "color": "#1f77b4",  # blue
         "di_csv_candidates": [
             "abaqus_field_Commensal_HOBIC_snap20.csv",
         ],
@@ -95,6 +94,7 @@ COND_ORDER = ["dh_baseline", "commensal_static", "dysbiotic_static", "commensal_
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
 
 def _find_di_csv(cond):
     for fname in COND_INFO[cond]["di_csv_candidates"]:
@@ -116,7 +116,7 @@ def load_posterior_stress(cond):
             j = json.load(open(sj))
             if "substrate_smises" in j and "surface_smises" in j:
                 sub.append(j["substrate_smises"] / 1e6)
-                sur.append(j["surface_smises"]  / 1e6)
+                sur.append(j["surface_smises"] / 1e6)
     if not sub:
         return None, None
     return np.array(sub), np.array(sur)
@@ -168,12 +168,13 @@ def load_odb_elements(path):
             teeth.append(p[idx_t])
     return {
         "mises": np.array(mises),
-        "bin":   np.array(bins),
+        "bin": np.array(bins),
         "tooth": np.array(teeth),
     }
 
 
 # ── Figure 1: Posterior ensemble Mises violin ──────────────────────────────────
+
 
 def fig1_mises_violin(save=True):
     print("\n[CompFig1] Posterior ensemble Mises stress comparison ...")
@@ -187,32 +188,33 @@ def fig1_mises_violin(save=True):
             data_sub[cond] = sub
             data_sur[cond] = sur
             info = COND_INFO[cond]
-            print("  %-20s  n=%d  sub=%.4f±%.4f MPa  sur=%.4f±%.4f MPa" % (
-                cond, len(sub),
-                np.median(sub), sub.std(),
-                np.median(sur), sur.std()))
+            print(
+                "  %-20s  n=%d  sub=%.4f±%.4f MPa  sur=%.4f±%.4f MPa"
+                % (cond, len(sub), np.median(sub), sub.std(), np.median(sur), sur.std())
+            )
 
     if not available:
         print("  No posterior stress data found — skipping CompFig1.")
         return
 
-    n   = len(available)
-    xs  = np.arange(n)
-    w   = 0.35
+    n = len(available)
+    xs = np.arange(n)
+    w = 0.35
     fig, axes = plt.subplots(1, 2, figsize=(11, 5), sharey=False)
     fig.suptitle(
         "Posterior Ensemble: von Mises Stress by Condition\n"
         "(20 posterior samples per condition, cube-model geometry)",
-        fontsize=12, fontweight="bold")
+        fontsize=12,
+        fontweight="bold",
+    )
 
-    for ax, key, title in zip(axes,
-                               [data_sub, data_sur],
-                               ["Substrate (inner, depth=0)", "Surface (outer, depth=0.5)"]):
+    for ax, key, title in zip(
+        axes, [data_sub, data_sur], ["Substrate (inner, depth=0)", "Surface (outer, depth=0.5)"]
+    ):
         vals = [key[c] for c in available]
         colors = [COND_INFO[c]["color"] for c in available]
 
-        vp = ax.violinplot(vals, positions=xs, widths=w*1.6,
-                           showmedians=True, showextrema=True)
+        vp = ax.violinplot(vals, positions=xs, widths=w * 1.6, showmedians=True, showextrema=True)
         for body, col in zip(vp["bodies"], colors):
             body.set_facecolor(col)
             body.set_alpha(0.6)
@@ -225,12 +227,19 @@ def fig1_mises_violin(save=True):
         rng = np.random.default_rng(0)
         for i, (v, col) in enumerate(zip(vals, colors)):
             jitter = rng.uniform(-0.08, 0.08, size=len(v))
-            ax.scatter(xs[i] + jitter, v, s=18, color=col, alpha=0.7,
-                       edgecolors="white", linewidths=0.4, zorder=3)
+            ax.scatter(
+                xs[i] + jitter,
+                v,
+                s=18,
+                color=col,
+                alpha=0.7,
+                edgecolors="white",
+                linewidths=0.4,
+                zorder=3,
+            )
 
         ax.set_xticks(xs)
-        ax.set_xticklabels([COND_INFO[c]["label"] for c in available],
-                            fontsize=9)
+        ax.set_xticklabels([COND_INFO[c]["label"] for c in available], fontsize=9)
         ax.set_ylabel("von Mises stress (MPa)", fontsize=10)
         ax.set_title(title, fontsize=10)
         ax.grid(axis="y", alpha=0.3)
@@ -239,14 +248,22 @@ def fig1_mises_violin(save=True):
     # Annotate p-values (Wilcoxon) if scipy available
     try:
         from scipy.stats import ranksums
+
         ax = axes[0]
         dh = data_sub.get("dh_baseline")
         cs = data_sub.get("commensal_static")
         if dh is not None and cs is not None:
             _, p = ranksums(dh, cs)
-            ax.text(0.5, 0.97, "DH vs CS: p=%.3f" % p,
-                    transform=ax.transAxes, ha="center", va="top",
-                    fontsize=8, color="gray")
+            ax.text(
+                0.5,
+                0.97,
+                "DH vs CS: p=%.3f" % p,
+                transform=ax.transAxes,
+                ha="center",
+                va="top",
+                fontsize=8,
+                color="gray",
+            )
     except ImportError:
         pass
 
@@ -261,6 +278,7 @@ def fig1_mises_violin(save=True):
 
 # ── Figure 2: DI field histogram ───────────────────────────────────────────────
 
+
 def fig2_di_histogram(save=True):
     print("\n[CompFig2] DI field distribution comparison ...")
 
@@ -268,7 +286,9 @@ def fig2_di_histogram(save=True):
     fig.suptitle(
         "Dysbiotic Index (DI) Field Distribution\n"
         "(snapshot 20, t=0.05, 3375 spatial points per condition)",
-        fontsize=12, fontweight="bold")
+        fontsize=12,
+        fontweight="bold",
+    )
 
     ax_kde, ax_box = axes
 
@@ -280,14 +300,17 @@ def fig2_di_histogram(save=True):
         di, phi_pg, r_pg = load_di_field(cond)
         if di is None:
             continue
-        col   = COND_INFO[cond]["color"]
+        col = COND_INFO[cond]["color"]
         label = COND_INFO[cond]["label"].replace("\n", " ")
-        print("  %-20s  n=%d  DI mean=%.4f  median=%.4f  max=%.4f" % (
-            cond, len(di), di.mean(), np.median(di), di.max()))
+        print(
+            "  %-20s  n=%d  DI mean=%.4f  median=%.4f  max=%.4f"
+            % (cond, len(di), di.mean(), np.median(di), di.max())
+        )
 
         # KDE via histogram
-        ax_kde.hist(di, bins=bins_hist, color=col, alpha=0.55,
-                    density=True, label=label, edgecolor="none")
+        ax_kde.hist(
+            di, bins=bins_hist, color=col, alpha=0.55, density=True, label=label, edgecolor="none"
+        )
 
         # Vertical median line
         ax_kde.axvline(np.median(di), color=col, lw=1.5, ls="--", alpha=0.85)
@@ -303,7 +326,7 @@ def fig2_di_histogram(save=True):
 
     # Boxplot panel
     avail = [c for c in COND_ORDER if _find_di_csv(c)]
-    di_list  = []
+    di_list = []
     di_labels = []
     di_colors = []
     for cond in avail:
@@ -314,8 +337,9 @@ def fig2_di_histogram(save=True):
             di_colors.append(COND_INFO[cond]["color"])
 
     if di_list:
-        bp = ax_box.boxplot(di_list, patch_artist=True, notch=False,
-                            medianprops=dict(color="black", lw=2))
+        bp = ax_box.boxplot(
+            di_list, patch_artist=True, notch=False, medianprops=dict(color="black", lw=2)
+        )
         for patch, col in zip(bp["boxes"], di_colors):
             patch.set_facecolor(col)
             patch.set_alpha(0.65)
@@ -335,6 +359,7 @@ def fig2_di_histogram(save=True):
 
 # ── Figure 3: E_eff distribution ───────────────────────────────────────────────
 
+
 def fig3_eeff_distribution(save=True):
     print("\n[CompFig3] E_eff distribution comparison ...")
 
@@ -342,9 +367,11 @@ def fig3_eeff_distribution(save=True):
     fig.suptitle(
         "Effective Young's Modulus (E_eff) Distribution\n"
         r"$E_\mathrm{eff} = E_\mathrm{max}(1-r)^\alpha + E_\mathrm{min}\,r$,"
-        "  r = DI / %.6f,  E_max=%.1f MPa,  E_min=%.1f MPa,  α=%.1f" % (
-            DI_SCALE, E_MAX, E_MIN, ALPHA),
-        fontsize=10, fontweight="bold")
+        "  r = DI / %.6f,  E_max=%.1f MPa,  E_min=%.1f MPa,  α=%.1f"
+        % (DI_SCALE, E_MAX, E_MIN, ALPHA),
+        fontsize=10,
+        fontweight="bold",
+    )
 
     ax_hist, ax_box = axes
     handles = []
@@ -359,11 +386,14 @@ def fig3_eeff_distribution(save=True):
         eeff_all[cond] = eeff
         col = COND_INFO[cond]["color"]
         lbl = COND_INFO[cond]["label"].replace("\n", " ")
-        print("  %-20s  E_eff mean=%.4f MPa  median=%.4f MPa  min=%.4f  max=%.4f" % (
-            cond, eeff.mean(), np.median(eeff), eeff.min(), eeff.max()))
+        print(
+            "  %-20s  E_eff mean=%.4f MPa  median=%.4f MPa  min=%.4f  max=%.4f"
+            % (cond, eeff.mean(), np.median(eeff), eeff.min(), eeff.max())
+        )
 
-        ax_hist.hist(eeff, bins=bins_e, color=col, alpha=0.5,
-                     density=True, label=lbl, edgecolor="none")
+        ax_hist.hist(
+            eeff, bins=bins_e, color=col, alpha=0.5, density=True, label=lbl, edgecolor="none"
+        )
         ax_hist.axvline(np.median(eeff), color=col, lw=1.5, ls="--", alpha=0.85)
         handles.append(mpatches.Patch(color=col, label=lbl))
 
@@ -379,8 +409,8 @@ def fig3_eeff_distribution(save=True):
         if di is None:
             continue
         eeff = di_to_eeff(di)
-        col  = COND_INFO[cond]["color"]
-        lbl  = COND_INFO[cond]["label"].replace("\n", " ")
+        col = COND_INFO[cond]["color"]
+        lbl = COND_INFO[cond]["label"].replace("\n", " ")
         ax_box.scatter(di, eeff, s=6, c=col, alpha=0.5, label=lbl)
 
     di_plot = np.linspace(0.0, DI_SCALE * 1.1, 200)
@@ -403,14 +433,15 @@ def fig3_eeff_distribution(save=True):
 
 # ── Figure 4: 3-tooth ODB comparison OR summary table ─────────────────────────
 
+
 def fig4_comparison(skip_3tooth=False, save=True):
     print("\n[CompFig4] 3-tooth comparison / summary ...")
 
     # Try to load 3-tooth ODB CSVs
-    odb_baseline  = os.path.join(_HERE, "odb_elements.csv")
+    odb_baseline = os.path.join(_HERE, "odb_elements.csv")
     odb_commensal = os.path.join(_HERE, "odb_elements_commensal_static.csv")
 
-    has_baseline  = os.path.isfile(odb_baseline)
+    has_baseline = os.path.isfile(odb_baseline)
     has_commensal = os.path.isfile(odb_commensal)
 
     if has_baseline and has_commensal and not skip_3tooth:
@@ -418,10 +449,14 @@ def fig4_comparison(skip_3tooth=False, save=True):
     else:
         if not skip_3tooth:
             if has_baseline and not has_commensal:
-                print("  Note: odb_elements.csv found but odb_elements_commensal_static.csv missing.")
+                print(
+                    "  Note: odb_elements.csv found but odb_elements_commensal_static.csv missing."
+                )
                 print("  Run Abaqus for commensal_static first:")
-                print("    abaqus job=BioFilm3T_commensal_static "
-                      "input=biofilm_3tooth_commensal_static.inp cpus=4 interactive")
+                print(
+                    "    abaqus job=BioFilm3T_commensal_static "
+                    "input=biofilm_3tooth_commensal_static.inp cpus=4 interactive"
+                )
                 print("  Then extract: abaqus python odb_extract.py BioFilm3T_commensal_static.odb")
                 print("  Falling back to summary table ...")
         return _fig4_summary_table(odb_baseline if has_baseline else None, save)
@@ -441,7 +476,9 @@ def _fig4_odb_overlay(path_b, path_cs, save):
     fig.suptitle(
         "3-Tooth FEM: MISES Comparison — DH-baseline vs Commensal-static\n"
         "(437,472 C3D4 elements, 1 MPa inward pressure)",
-        fontsize=12, fontweight="bold")
+        fontsize=12,
+        fontweight="bold",
+    )
 
     bins_m = np.linspace(0, 2.0, 60)
     for col_i, tooth in enumerate(teeth):
@@ -452,10 +489,10 @@ def _fig4_odb_overlay(path_b, path_cs, save):
         ax_bot = axes[1, col_i]
 
         # Histogram overlay
-        ax_top.hist(mb, bins=bins_m, color="#d62728", alpha=0.5,
-                    density=True, label="DH-baseline")
-        ax_top.hist(mc, bins=bins_m, color="#2ca02c", alpha=0.5,
-                    density=True, label="Commensal-static")
+        ax_top.hist(mb, bins=bins_m, color="#d62728", alpha=0.5, density=True, label="DH-baseline")
+        ax_top.hist(
+            mc, bins=bins_m, color="#2ca02c", alpha=0.5, density=True, label="Commensal-static"
+        )
         ax_top.axvline(np.median(mb), color="#d62728", lw=1.5, ls="--")
         ax_top.axvline(np.median(mc), color="#2ca02c", lw=1.5, ls="--")
         ax_top.set_title(tooth, fontsize=11)
@@ -499,14 +536,20 @@ def _fig4_summary_table(odb_baseline_path, save):
     fig.suptitle(
         "Condition Comparison — Summary Statistics\n"
         "(CompFig4: 3-tooth ODB comparison pending commensal Abaqus solve)",
-        fontsize=12, fontweight="bold")
+        fontsize=12,
+        fontweight="bold",
+    )
 
     rows = []
     col_labels = [
         "Condition",
-        "DI mean", "DI median", "DI max",
-        "E_eff mean\n(MPa)", "E_eff median\n(MPa)",
-        "Sub. MISES\nmedian (MPa)", "Sur. MISES\nmedian (MPa)",
+        "DI mean",
+        "DI median",
+        "DI max",
+        "E_eff mean\n(MPa)",
+        "E_eff median\n(MPa)",
+        "Sub. MISES\nmedian (MPa)",
+        "Sur. MISES\nmedian (MPa)",
         "N samples",
     ]
 
@@ -519,21 +562,28 @@ def _fig4_summary_table(odb_baseline_path, save):
 
         row = [
             COND_INFO[cond]["label"].replace("\n", " "),
-            "%.4f" % (di.mean()          if di  is not None else float("nan")),
-            "%.4f" % (np.median(di)      if di  is not None else float("nan")),
-            "%.4f" % (di.max()           if di  is not None else float("nan")),
-            "%.3f" % (eeff.mean()        if di  is not None else float("nan")),
-            "%.3f" % (np.median(eeff)    if di  is not None else float("nan")),
-            "%.4f" % (np.median(sub)     if sub is not None else float("nan")),
-            "%.4f" % (np.median(sur)     if sur is not None else float("nan")),
-            "%d"   % (len(sub)           if sub is not None else 0),
+            "%.4f" % (di.mean() if di is not None else float("nan")),
+            "%.4f" % (np.median(di) if di is not None else float("nan")),
+            "%.4f" % (di.max() if di is not None else float("nan")),
+            "%.3f" % (eeff.mean() if di is not None else float("nan")),
+            "%.3f" % (np.median(eeff) if di is not None else float("nan")),
+            "%.4f" % (np.median(sub) if sub is not None else float("nan")),
+            "%.4f" % (np.median(sur) if sur is not None else float("nan")),
+            "%d" % (len(sub) if sub is not None else 0),
         ]
         rows.append(row)
         print("  " + " | ".join(row))
 
     if not rows:
-        ax.text(0.5, 0.5, "No data available.", ha="center", va="center",
-                transform=ax.transAxes, fontsize=14)
+        ax.text(
+            0.5,
+            0.5,
+            "No data available.",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontsize=14,
+        )
         fig.tight_layout()
     else:
         tbl = ax.table(
@@ -552,9 +602,9 @@ def _fig4_summary_table(odb_baseline_path, save):
             tbl[0, j].set_text_props(color="white", fontweight="bold")
 
         # Color rows by condition
-        for i, cond in enumerate([c for c in COND_ORDER
-                                   if _find_di_csv(c) or
-                                   os.path.isdir(os.path.join(_POST, c))]):
+        for i, cond in enumerate(
+            [c for c in COND_ORDER if _find_di_csv(c) or os.path.isdir(os.path.join(_POST, c))]
+        ):
             col = COND_INFO[cond]["color"]
             tbl[i + 1, 0].set_facecolor(col)
             tbl[i + 1, 0].set_text_props(color="white", fontweight="bold")
@@ -562,10 +612,17 @@ def _fig4_summary_table(odb_baseline_path, save):
                 tbl[i + 1, j].set_facecolor(col + "22")
 
         # Footnote
-        ax.text(0.5, 0.02,
-                "3-tooth MISES comparison pending: run Abaqus for biofilm_3tooth_commensal_static.inp → odb_elements_commensal_static.csv",
-                ha="center", va="bottom", transform=ax.transAxes,
-                fontsize=7.5, color="#555555", style="italic")
+        ax.text(
+            0.5,
+            0.02,
+            "3-tooth MISES comparison pending: run Abaqus for biofilm_3tooth_commensal_static.inp → odb_elements_commensal_static.csv",
+            ha="center",
+            va="bottom",
+            transform=ax.transAxes,
+            fontsize=7.5,
+            color="#555555",
+            style="italic",
+        )
 
     out = os.path.join(_FIGS, "CompFig4_summary_table.png")
     if save:
@@ -577,19 +634,30 @@ def _fig4_summary_table(odb_baseline_path, save):
 
 # ── CLI ────────────────────────────────────────────────────────────────────────
 
+
 def parse_args():
     p = argparse.ArgumentParser(
-        description="P0/P7 Condition comparison: DH-baseline vs Commensal-static")
-    p.add_argument("--no-3tooth",  action="store_true",
-                   help="Skip 3-tooth ODB comparison even if CSVs exist")
-    p.add_argument("--snapshot",   type=int, default=20,
-                   help="Snapshot index used when regenerating DI CSVs [20]")
-    p.add_argument("--figs",       default=None,
-                   help="Override output directory for figures")
-    p.add_argument("--di-exp",     type=float, default=ALPHA,
-                   help="DI exponent alpha used in E_eff mapping [2.0]")
-    p.add_argument("--di-scale",   type=float, default=DI_SCALE,
-                   help="DI normalisation scale s_DI used in E_eff mapping [0.025778]")
+        description="P0/P7 Condition comparison: DH-baseline vs Commensal-static"
+    )
+    p.add_argument(
+        "--no-3tooth", action="store_true", help="Skip 3-tooth ODB comparison even if CSVs exist"
+    )
+    p.add_argument(
+        "--snapshot",
+        type=int,
+        default=20,
+        help="Snapshot index used when regenerating DI CSVs [20]",
+    )
+    p.add_argument("--figs", default=None, help="Override output directory for figures")
+    p.add_argument(
+        "--di-exp", type=float, default=ALPHA, help="DI exponent alpha used in E_eff mapping [2.0]"
+    )
+    p.add_argument(
+        "--di-scale",
+        type=float,
+        default=DI_SCALE,
+        help="DI normalisation scale s_DI used in E_eff mapping [0.025778]",
+    )
     return p.parse_args()
 
 
@@ -611,15 +679,23 @@ def main():
     print("\n[Data availability]")
     for cond in COND_ORDER:
         has_post = os.path.isdir(os.path.join(_POST, cond))
-        di_csv   = _find_di_csv(cond)
-        print("  %-22s  posterior=%s  di_csv=%s" % (
-            cond,
-            "✓" if has_post else "✗",
-            os.path.basename(di_csv) if di_csv else "✗"))
-    print("  odb_elements.csv              : %s" % (
-        "✓" if os.path.isfile(os.path.join(_HERE, "odb_elements.csv")) else "✗"))
-    print("  odb_elements_commensal_static : %s" % (
-        "✓" if os.path.isfile(os.path.join(_HERE, "odb_elements_commensal_static.csv")) else "✗ (need Abaqus)"))
+        di_csv = _find_di_csv(cond)
+        print(
+            "  %-22s  posterior=%s  di_csv=%s"
+            % (cond, "✓" if has_post else "✗", os.path.basename(di_csv) if di_csv else "✗")
+        )
+    print(
+        "  odb_elements.csv              : %s"
+        % ("✓" if os.path.isfile(os.path.join(_HERE, "odb_elements.csv")) else "✗")
+    )
+    print(
+        "  odb_elements_commensal_static : %s"
+        % (
+            "✓"
+            if os.path.isfile(os.path.join(_HERE, "odb_elements_commensal_static.csv"))
+            else "✗ (need Abaqus)"
+        )
+    )
 
     out1 = fig1_mises_violin()
     out2 = fig2_di_histogram()

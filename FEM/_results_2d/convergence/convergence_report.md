@@ -1,15 +1,15 @@
 # Mesh Convergence Report — 2D FEM Biofilm
 
-Condition: **dh_baseline** | dh_baseline theta_MAP  
+Condition: **dh_baseline** | dh_baseline theta_MAP
 Grid sizes tested: 20×20, 30×30, 40×40
 
 ---
 
 ## Method
 
-Operator splitting (Lie): reaction (Numba parallel 0D Hamilton) + diffusion (backward-Euler, SuperLU).  
-2D Laplacian: `L = kron(Lx, Iy) + kron(Ix, Ly)` with Neumann BCs.  
-Initial conditions: gradient mode (P.g focal seed at x=0, y-centre).  
+Operator splitting (Lie): reaction (Numba parallel 0D Hamilton) + diffusion (backward-Euler, SuperLU).
+2D Laplacian: `L = kron(Lx, Iy) + kron(Ix, Ly)` with Neumann BCs.
+Initial conditions: gradient mode (P.g focal seed at x=0, y-centre).
 100 macro steps × dt_h=1e-5 × 50 sub-steps → t_total = 0.05.
 
 ---
@@ -34,7 +34,7 @@ Initial conditions: gradient mode (P.g focal seed at x=0, y-centre).
 | 30 | 0.0345 | 0.0884 | 0.0860 | 0.0317 | 0.0071 | 0.0120 |
 
 **Note:** S.oralis / A.naeslundii errors (≈9 %) reflect different random noise
-realisations at each grid size, **not** true discretisation error.  
+realisations at each grid size, **not** true discretisation error.
 F.nucleatum and P.gingivalis (deterministic gradient IC) show L2 errors < 1.5 %
 at N=20 — well within acceptable range for this application.
 
@@ -58,7 +58,7 @@ at N=20 — well within acceptable range for this application.
 | P.g max value | ✅ 1.5 % vs N=40 |
 | S.o/A.n spatial | ⚠️ noise-dominated; not a grid issue |
 
-**→ N=20 is sufficient for biological conclusions.**  
+**→ N=20 is sufficient for biological conclusions.**
 **→ For publication-quality spatial plots, N=30–40 recommended.**
 
 ---
