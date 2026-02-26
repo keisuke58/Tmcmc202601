@@ -16,7 +16,7 @@ jobs:
   stale:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@v9
+      - uses: actions/stale@v10
         with:
           stale-issue-message: |
             この Issue は 60 日以上更新がありません。まだ対応が必要な場合はコメントしてください。
