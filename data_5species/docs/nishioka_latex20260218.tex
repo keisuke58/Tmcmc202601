@@ -1,8 +1,13 @@
 \documentclass[11pt,a4paper]{article}
 
-\usepackage[utf8]{inputenc}
-\usepackage{lmodern}  % Use Latin Modern fonts instead of cm-super
-\usepackage[T1]{fontenc}
+\usepackage{ifxetex}
+\ifxetex
+  \usepackage{fontspec}
+\else
+  \usepackage[utf8]{inputenc}
+  \usepackage{lmodern}
+  \usepackage[T1]{fontenc}
+\fi
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{booktabs}
 \usepackage{array}
@@ -48,7 +53,7 @@
 \usepackage[hidelinks,pdfencoding=auto]{hyperref}
 
 \title{Bridging Microbial Ecology and Continuum Mechanics:\\A TMCMC-Based Multiscale Framework\\for Oral Biofilm Stress Analysis}
-\author{Keisuke Nishioka\\[4pt]
+\author{Keisuke Nishioka (西岡佳祐)\\[4pt]
 \small Institute of Continuum Mechanics (IKM), Leibniz Universit\"at Hannover, Germany\\[2pt]
 \small \texttt{nishioka@ikm.uni-hannover.de}\\[2pt]
 \small \url{https://github.com/keisuke58/Tmcmc202601}}
@@ -1281,7 +1286,7 @@ The key assumption---that $E$ decreases monotonically with increasing DI---is su
 \label{fig:material_model}
 \end{figure}
 
-\subsubsection{Bayesian Model Comparison: DI vs.\ $\varphi_{Pg}$ vs.\ Virulence}
+\subsubsection[Bayesian Model Comparison: DI vs phi-Pg vs Virulence]{Bayesian Model Comparison: DI vs.\ \texorpdfstring{$\varphi_{Pg}$}{phi-Pg} vs.\ Virulence}
 \label{sec:3model_bayes}
 
 To validate the choice of DI as the bridging variable, we compare the three material models using a pseudo Bayes factor analysis.
