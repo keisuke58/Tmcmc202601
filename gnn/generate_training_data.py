@@ -81,8 +81,10 @@ def load_theta_map(condition):
     if dirname is None:
         return None
     base = PROJECT_ROOT / "data_5species" / "_runs"
-    for pattern in [base / dirname / "theta_MAP.json",
-                    base / dirname / "posterior" / "theta_MAP.json"]:
+    for pattern in [
+        base / dirname / "theta_MAP.json",
+        base / dirname / "posterior" / "theta_MAP.json",
+    ]:
         if pattern.exists():
             with open(pattern) as f:
                 data = json.load(f)
@@ -91,8 +93,15 @@ def load_theta_map(condition):
     return None
 
 
-def generate_dataset(n_samples=10000, condition="Dysbiotic_HOBIC", seed=42,
-                     maxtimestep=500, dt=1e-5, n_time_out=100, map_frac=0.3):
+def generate_dataset(
+    n_samples=10000,
+    condition="Dysbiotic_HOBIC",
+    seed=42,
+    maxtimestep=500,
+    dt=1e-5,
+    n_time_out=100,
+    map_frac=0.3,
+):
     rng = np.random.default_rng(seed)
     bounds = load_prior_bounds(condition)
     theta_map = load_theta_map(condition)

@@ -89,6 +89,13 @@ python train.py --data data/train_gnn_N10000.npz --epochs 1000 \
 - **正則化**: `--dropout 0.2 --weight-decay 1e-2`
 - **Early stopping**: `--patience 100`
 
+## オプション: MLflow 実験トラッキング
+
+```bash
+python train.py --mlflow --data data/train_gnn_N10000.npz
+# → mlruns/ にログ。mlflow ui で可視化
+```
+
 ## 参考
 
 - Issue #39: 公開データ × ML プロジェクトアイデア

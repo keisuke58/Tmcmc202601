@@ -1,0 +1,15 @@
+{
+  "output_dir": "data_5species/_runs/gnn_test_ch/figures",
+  "n_figures": 8,
+  "figures": [
+    "TSM_simulation_Commensal_HOBIC_MAP_Fit_with_data.png",
+    "TSM_simulation_Commensal_HOBIC_Mean_Fit_with_data.png",
+    "residuals_Commensal_HOBIC_Residuals.png",
+    "parameter_distributions_Commensal_HOBIC_Params.png",
+    "corner_plot_Commensal_HOBIC_Corner.png",
+    "posterior_predictive_Commensal_HOBIC_PosteriorBand.png",
+    "posterior_predictive_spaghetti_Commensal_HOBIC_PosteriorSpaghetti.png",
+    "Fig01_TMCMC_beta_schedule_Commensal_HOBIC.png"
+  ],
+  "generated_at": "2026-02-26 23:53:42"
+}

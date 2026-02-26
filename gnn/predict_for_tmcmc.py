@@ -22,8 +22,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).parent))
 
 from gnn_model import InteractionGNN
-from graph_builder import build_pyg_data, ACTIVE_EDGES, ACTIVE_THETA_IDX
-from torch_geometric.data import Batch
+from graph_builder import build_pyg_data, ACTIVE_THETA_IDX
 
 RUNS_DIR = PROJECT_ROOT / "data_5species" / "_runs"
 CONDITION_DIRS = {
@@ -76,8 +75,9 @@ def main():
     out_path = Path(args.output) if args.output else base / "data" / "gnn_prior_predictions.json"
 
     # Load model
-    model = InteractionGNN(in_dim=3, hidden=args.hidden, out_dim=5,
-                           n_layers=args.layers, dropout=args.dropout)
+    model = InteractionGNN(
+        in_dim=3, hidden=args.hidden, out_dim=5, n_layers=args.layers, dropout=args.dropout
+    )
     model.load_state_dict(torch.load(str(ckpt), map_location="cpu", weights_only=True))
     model.eval()
     print(f"Loaded GNN: {ckpt}")
@@ -94,8 +94,7 @@ def main():
             continue
 
         # Build graph and predict
-        data = build_pyg_data(phi_mean, phi_std, phi_final,
-                              np.zeros(5, dtype=np.float32))
+        data = build_pyg_data(phi_mean, phi_std, phi_final, np.zeros(5, dtype=np.float32))
         data.batch = torch.zeros(5, dtype=torch.long)
 
         with torch.no_grad():
@@ -117,8 +116,7 @@ def main():
             "a_ij_pred": pred.tolist(),
             "a_ij_free": free_flags,
             "active_theta_idx": ACTIVE_THETA_IDX,
-            "edge_names": ["a01(So→An)", "a02(So→Vd)", "a03(So→Fn)",
-                           "a24(Vd→Pg)", "a34(Fn→Pg)"],
+            "edge_names": ["a01(So→An)", "a02(So→Vd)", "a03(So→Fn)", "a24(Vd→Pg)", "a34(Fn→Pg)"],
             "phi_mean": phi_mean.tolist(),
             "phi_std": phi_std.tolist(),
             "phi_final": phi_final.tolist(),

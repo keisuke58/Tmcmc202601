@@ -19,8 +19,6 @@ TODO:
 - [ ] co-occurrence network 構築
 """
 
-import json
-from pathlib import Path
 
 # 5 菌種と HMP/NCBI  taxonomy の対応 (要調整)
 SPECIES_MAPPING = {

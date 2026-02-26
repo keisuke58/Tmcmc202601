@@ -8,13 +8,12 @@ Converts (phi_mean, phi_std, phi_final, a_ij) into PyG Data format.
 - Edge labels: a_ij for 5 active edges (theta[1],10,11,18,19)
 """
 
-from typing import Optional
-
 import numpy as np
 
 try:
     import torch
     from torch_geometric.data import Data
+
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
@@ -55,11 +54,16 @@ def build_edge_index_and_labels(a_ij_active: np.ndarray) -> tuple:
 
     # Map active edges to a_ij values
     edge_to_theta = {
-        (0, 1): 0, (1, 0): 0,
-        (0, 2): 1, (2, 0): 1,
-        (0, 3): 2, (3, 0): 2,
-        (2, 4): 3, (4, 2): 3,
-        (3, 4): 4, (4, 3): 4,
+        (0, 1): 0,
+        (1, 0): 0,
+        (0, 2): 1,
+        (2, 0): 1,
+        (0, 3): 2,
+        (3, 0): 2,
+        (2, 4): 3,
+        (4, 2): 3,
+        (3, 4): 4,
+        (4, 3): 4,
     }
     edge_labels = np.zeros(20, dtype=np.float32)
     mask = np.zeros(20, dtype=bool)
@@ -104,7 +108,9 @@ def dataset_to_pyg_list(data: dict) -> list:
     out = []
     for i in range(n):
         d = build_pyg_data(
-            phi_mean[i], phi_std[i], phi_final[i],
+            phi_mean[i],
+            phi_std[i],
+            phi_final[i],
             a_ij_active[i],
         )
         out.append(d)

@@ -17,11 +17,12 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from graph_builder import build_pyg_data, dataset_to_pyg_list
+from graph_builder import build_pyg_data
 from gnn_model import InteractionGNN
 
 try:
     from torch_geometric.data import Batch
+
     PYG_AVAILABLE = True
 except ImportError:
     PYG_AVAILABLE = False
@@ -35,6 +36,7 @@ def load_hmp_abundance(csv_path: str) -> np.ndarray:
     """Load species_abundance.csv from R script. Returns (N, 5) in order [So, An, Vd, Fn, Pg]."""
     try:
         import pandas as pd
+
         df = pd.read_csv(csv_path, index_col=0)
         cols = ["S_oralis", "A_naeslundii", "V_dispar", "F_nucleatum", "P_gingivalis"]
         data = df[[c for c in cols if c in df.columns]].values
@@ -86,10 +88,14 @@ def main():
 
     base = Path(__file__).parent
     input_path = base / args.input if not Path(args.input).is_absolute() else Path(args.input)
-    ckpt_path = base / args.checkpoint if not Path(args.checkpoint).is_absolute() else Path(args.checkpoint)
+    ckpt_path = (
+        base / args.checkpoint if not Path(args.checkpoint).is_absolute() else Path(args.checkpoint)
+    )
 
     if not input_path.exists():
-        print(f"Error: {input_path} not found. Run: Rscript scripts/extract_hmp_oral.R data/hmp_oral")
+        print(
+            f"Error: {input_path} not found. Run: Rscript scripts/extract_hmp_oral.R data/hmp_oral"
+        )
         return 1
 
     phi = load_hmp_abundance(str(input_path))
@@ -111,18 +117,24 @@ def main():
     aij_mean = np.clip(aij_mean, -3.0, 5.0)
 
     print(f"Loaded {len(phi)} HMP oral samples from {input_path}")
-    print(f"\nGNN predicted a_ij (mean over samples):")
+    print("\nGNN predicted a_ij (mean over samples):")
     for j, name in enumerate(EDGE_NAMES):
         print(f"  {name}: {aij_mean[j]:.4f} ± {aij_std[j]:.4f}")
     print(f"\nPrior center (for TMCMC): theta indices {ACTIVE_THETA_IDX}")
     print(f"  aij_mean = {aij_mean.tolist()}")
 
     if args.output_prior:
-        out_path = base / args.output_prior if not Path(args.output_prior).is_absolute() else Path(args.output_prior)
+        out_path = (
+            base / args.output_prior
+            if not Path(args.output_prior).is_absolute()
+            else Path(args.output_prior)
+        )
         out_path.parent.mkdir(parents=True, exist_ok=True)
         prior = {
             "gnn_prior_center": {str(ACTIVE_THETA_IDX[j]): float(aij_mean[j]) for j in range(5)},
-            "gnn_prior_std": {str(ACTIVE_THETA_IDX[j]): float(max(aij_std[j], 0.5)) for j in range(5)},
+            "gnn_prior_std": {
+                str(ACTIVE_THETA_IDX[j]): float(max(aij_std[j], 0.5)) for j in range(5)
+            },
             "note": "GNN predictions clipped to [-3, 5]. Use as prior center for TMCMC.",
             "n_samples": int(len(phi)),
         }
