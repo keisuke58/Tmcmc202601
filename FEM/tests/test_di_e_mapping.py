@@ -10,7 +10,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 # Add FEM to path for imports
 _FEM_DIR = Path(__file__).resolve().parent.parent
@@ -19,10 +18,12 @@ if str(_FEM_DIR) not in sys.path:
 
 from material_models import (
     DI_SCALE,
-    DI_EXPONENT,
-    E_MAX_PA,
-    E_MIN_PA,
     compute_E_di,
+    compute_di_gini,
+    compute_di_pielou,
+    compute_di_simpson,
+    compute_E_reuss,
+    compute_E_voigt,
 )
 
 
@@ -69,11 +70,13 @@ def test_compute_di_two_species_half():
 
 def test_compute_di_batch():
     """DI works for batched (N, 5) input."""
-    phi_batch = np.array([
-        [0.2, 0.2, 0.2, 0.2, 0.2],
-        [0.0, 0.0, 0.0, 0.0, 1.0],
-        [0.5, 0.5, 0.0, 0.0, 0.0],
-    ])
+    phi_batch = np.array(
+        [
+            [0.2, 0.2, 0.2, 0.2, 0.2],
+            [0.0, 0.0, 0.0, 0.0, 1.0],
+            [0.5, 0.5, 0.0, 0.0, 0.0],
+        ]
+    )
     di = compute_di(phi_batch)
     assert di.shape == (3,)
     assert np.isclose(di[0], 0.0, atol=1e-10)
@@ -130,3 +133,51 @@ def test_compute_E_di_bounds():
     E = compute_E_di(di_range, e_max=10.0e9, e_min=0.5e9)
     assert np.all(E >= 0.5e9 - 1e-6)
     assert np.all(E <= 10.0e9 + 1e-6)
+
+
+# ── Alternative DI indices ───────────────────────────────────────────────────
+
+
+def test_compute_di_simpson_uniform():
+    """Simpson DI = 0 for uniform (max diversity)."""
+    phi = np.ones(5) / 5.0
+    di = compute_di_simpson(phi)
+    assert np.isclose(di, 0.0, atol=1e-10)
+
+
+def test_compute_di_simpson_single():
+    """Simpson DI = 1 for single-species dominance."""
+    phi = np.array([0.0, 0.0, 0.0, 0.0, 1.0])
+    di = compute_di_simpson(phi)
+    assert np.isclose(di, 1.0, atol=1e-10)
+
+
+def test_compute_di_gini_bounds():
+    """Gini DI in [0, 1]."""
+    phi = np.array([[0.2, 0.2, 0.2, 0.2, 0.2], [1.0, 0.0, 0.0, 0.0, 0.0]])
+    di = compute_di_gini(phi)
+    assert np.all(di >= 0.0)
+    assert np.all(di <= 1.0)
+
+
+def test_compute_di_pielou_uniform():
+    """Pielou DI = 0 for uniform."""
+    phi = np.ones(5) / 5.0
+    di = compute_di_pielou(phi)
+    assert np.isclose(di, 0.0, atol=1e-6)
+
+
+def test_compute_E_voigt_uniform():
+    """Voigt: uniform gives mean of E_species."""
+    phi = np.ones(5) / 5.0
+    E = compute_E_voigt(phi.reshape(1, 5))[0]
+    expected = 522.0  # (1000+800+600+200+10)/5
+    assert np.isclose(E, expected, atol=1.0)
+
+
+def test_compute_E_reuss_bounds():
+    """Reuss E between min and max of E_species."""
+    phi = np.array([[0.2, 0.2, 0.2, 0.2, 0.2], [1.0, 0.0, 0.0, 0.0, 0.0]])
+    E = compute_E_reuss(phi)
+    assert np.all(E >= 10.0 - 1e-6)
+    assert np.all(E <= 1000.0 + 1e-6)
