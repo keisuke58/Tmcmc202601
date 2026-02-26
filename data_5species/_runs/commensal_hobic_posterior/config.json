@@ -1,0 +1,73 @@
+{
+  "condition": "Commensal",
+  "cultivation": "HOBIC",
+  "dt": 0.0001,
+  "maxtimestep": 2500,
+  "c_const": 25.0,
+  "Kp1": 0.0001,
+  "K_hill": 0.05,
+  "n_hill": 4.0,
+  "alpha_const": 0.0,
+  "phi_init": 0.02,
+  "phi_init_is_array": false,
+  "use_exp_init": false,
+  "day_scale": null,
+  "sigma_obs": 0.1567901234567901,
+  "cov_rel": 0.005,
+  "prior_min": null,
+  "prior_max": null,
+  "prior_decay_max": null,
+  "n_particles": 150,
+  "n_stages": 8,
+  "n_chains": 2,
+  "seed": 43,
+  "hdi_credibility": 0.95,
+  "compute_evidence": false,
+  "metadata": {
+    "condition": "Commensal",
+    "cultivation": "HOBIC",
+    "days": [
+      1,
+      3,
+      6,
+      10,
+      15,
+      21
+    ],
+    "n_timepoints": 6,
+    "total_volumes": [
+      0.5,
+      0.15,
+      0.2,
+      0.35,
+      0.38,
+      0.36
+    ],
+    "sigma_obs_estimated": 0.1567901234567901,
+    "phi_init_exp": [
+      0.375,
+      0.025,
+      0.05,
+      0.05,
+      0.0025
+    ],
+    "start_from_day": 1,
+    "t_model": [
+      0.01130952380952381,
+      0.033928571428571426,
+      0.06785714285714285,
+      0.1130952380952381,
+      0.16964285714285715,
+      0.2375
+    ],
+    "idx_sparse": [
+      113,
+      339,
+      679,
+      1131,
+      1696,
+      2375
+    ],
+    "day_scale": null
+  }
+}

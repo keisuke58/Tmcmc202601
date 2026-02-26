@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os
 from pathlib import Path
 
 # Setup paths
@@ -19,7 +18,7 @@ RUNS = [
         "condition": "Commensal",
         "cultivation": "HOBIC",
         "desc": "流れのある健康な状態 (HOBIC). S.oralisの高い増殖('Blue Bloom')と病原菌の抑制によって特徴付けられる.",
-        "key_finding": "モデルは初期定着菌の優位性を正しく特定しつつ, 病原菌集団を低く抑えており, 'Blue Bloom'の観察結果と一致している."
+        "key_finding": "モデルは初期定着菌の優位性を正しく特定しつつ, 病原菌集団を低く抑えており, 'Blue Bloom'の観察結果と一致している.",
     },
     {
         "id": "Dysbiotic_HOBIC_20260208_002100",
@@ -27,7 +26,7 @@ RUNS = [
         "condition": "Dysbiotic",
         "cultivation": "HOBIC",
         "desc": "流れのある疾患状態 (HOBIC). F. nucleatumとP. gingivalisの爆発的な増殖('Surge')によって特徴付けられる.",
-        "key_finding": "パラメータロックを全解除(Discovery Mode)することで, モデルは病原菌の非線形な急増(Surge)を再現することに成功し, VeillonellaとP. gingivalis間の強い協力相互作用(正のフィードバック)を明らかにした."
+        "key_finding": "パラメータロックを全解除(Discovery Mode)することで, モデルは病原菌の非線形な急増(Surge)を再現することに成功し, VeillonellaとP. gingivalis間の強い協力相互作用(正のフィードバック)を明らかにした.",
     },
     {
         "id": "Commensal_Static_20260208_002100",
@@ -35,7 +34,7 @@ RUNS = [
         "condition": "Commensal",
         "cultivation": "Static",
         "desc": "静的培養下の健康な状態. 栄養制限により, 安定的だが低いバイオマスとなる.",
-        "key_finding": "厳格なパラメータロックにより病原菌の増殖が防がれ, 静的実験で観察された安定した共生状態を正確に反映している."
+        "key_finding": "厳格なパラメータロックにより病原菌の増殖が防がれ, 静的実験で観察された安定した共生状態を正確に反映している.",
     },
     {
         "id": "Dysbiotic_Static_20260207_203752",
@@ -43,8 +42,8 @@ RUNS = [
         "condition": "Dysbiotic",
         "cultivation": "Static",
         "desc": "静的培養下の疾患状態. 病原菌は存在するが, 代謝産物の蓄積により制限されている.",
-        "key_finding": "病原菌の相互作用は推定されたが, HOBIC条件と比較してその規模は小さく, 完全なディスバイオシスの進行には流れ(Flow)が不可欠であることを裏付けている."
-    }
+        "key_finding": "病原菌の相互作用は推定されたが, HOBIC条件と比較してその規模は小さく, 完全なディスバイオシスの進行には流れ(Flow)が不可欠であることを裏付けている.",
+    },
 ]
 
 # LaTeX Header for Japanese (XeLaTeX)
@@ -189,6 +188,7 @@ Commensal(健康)条件と Dysbiotic(疾患)条件の比較により, 相互作�
 \end{document}
 """
 
+
 def generate_results_section(runs):
     section = ""
     for run in runs:
@@ -196,48 +196,50 @@ def generate_results_section(runs):
         label = run["label"]
         desc = run["desc"]
         key_finding = run["key_finding"]
-        
+
         # Relative path to figures
         # From docs/paper.tex to _runs/run_id/
         fig_path = f"../_runs/{run_id}"
-        
+
         section += f"\\subsection{{{label}}}\n"
         section += f"\\textbf{{概要}}: {desc}\n\n"
         section += f"\\textbf{{主要な発見}}: {key_finding}\n\n"
-        
+
         # Fig 1: Fit (Per species panel)
         section += "\\begin{figure}[H]\n"
         section += "\\centering\n"
         section += f"\\includegraphics[width=0.95\\textwidth]{{{fig_path}/Fig_A02_per_species_panel.png}}\n"
         section += f"\\caption{{{label} の事後分布適合. 陰影領域は95\\%信用区間を示す. モデル(青帯)は実験データ(赤点)を密接に追跡しており, 良好な適合品質を確認できる.}}\n"
         section += "\\end{figure}\n\n"
-        
+
         # Fig 2: Interaction Matrix
         section += "\\begin{figure}[H]\n"
         section += "\\centering\n"
         section += f"\\includegraphics[width=0.8\\textwidth]{{{fig_path}/Fig_A01_interaction_matrix_heatmap.png}}\n"
         section += f"\\caption{{{label} の推定相互作用行列(MAP). 赤は正(協力的)相互作用, 青は負(競合的)相互作用を示す. 条件に関連する特定のブロック構造に注目されたい.}}\n"
         section += "\\end{figure}\n\n"
-        
+
         # Fig 3: Parameter Uncertainty
         section += "\\begin{figure}[H]\n"
         section += "\\centering\n"
         section += f"\\includegraphics[width=0.95\\textwidth]{{{fig_path}/Fig_A05_parameter_violins.png}}\n"
         section += f"\\caption{{{label} のパラメータ不確実性(バイオリンプロット). 狭い分布は高い識別性を示し, 広い分布はパラメータの不感応性または相関を示唆する.}}\n"
         section += "\\end{figure}\n\n"
-        
+
         section += "\\clearpage\n"
-    
+
     return section
+
 
 def main():
     content = LATEX_HEADER + generate_results_section(RUNS) + LATEX_FOOTER
-    
+
     out_file = DOCS_DIR / "paper_comprehensive_ja.tex"
     with open(out_file, "w") as f:
         f.write(content)
-    
+
     print(f"Generated {out_file}")
+
 
 if __name__ == "__main__":
     main()

@@ -51,6 +51,7 @@ try:
     from jax_fem.solver import solver as jaxfem_solver
     from jax_fem.generate_mesh import rectangle_mesh, Mesh, get_meshio_cell_type
     from jax_fem.utils import save_sol
+
     _HAS_JAXFEM = True
 except ImportError:
     _HAS_JAXFEM = False
@@ -59,60 +60,104 @@ except ImportError:
 # ── Hamilton model parameters ────────────────────────────────────────────────
 
 _PARAM_KEYS = [
-    "a11", "a12", "a22", "b1", "b2",
-    "a33", "a34", "a44", "b3", "b4",
-    "a13", "a14", "a23", "a24",
-    "a55", "b5",
-    "a15", "a25", "a35", "a45",
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45",
 ]
 
-SPECIES_NAMES = [
-    "S.oralis", "A.naeslundii", "Veillonella", "F.nucleatum", "P.gingivalis"
-]
+SPECIES_NAMES = ["S.oralis", "A.naeslundii", "Veillonella", "F.nucleatum", "P.gingivalis"]
 
 # Default diffusion coefficients (dimensional, matching fem_2d_extension.py)
 D_EFF_DEFAULT = jnp.array([1e-3, 1e-3, 8e-4, 5e-4, 2e-4])
 
 # Demo theta from TMCMC MAP (mild-weight experiment)
-THETA_DEMO = jnp.array([
-    1.34, -0.18, 1.79, 1.17, 2.58,
-    3.51, 2.73, 0.71, 2.1, 0.37,
-    2.05, -0.15, 3.56, 0.16, 0.12,
-    0.32, 1.49, 2.1, 2.41, 2.5,
-])
+THETA_DEMO = jnp.array(
+    [
+        1.34,
+        -0.18,
+        1.79,
+        1.17,
+        2.58,
+        3.51,
+        2.73,
+        0.71,
+        2.1,
+        0.37,
+        2.05,
+        -0.15,
+        3.56,
+        0.16,
+        0.12,
+        0.32,
+        1.49,
+        2.1,
+        2.41,
+        2.5,
+    ]
+)
 
 
 # ── theta → matrices ────────────────────────────────────────────────────────
+
 
 def theta_to_matrices(theta):
     """Convert 20-vector theta to interaction matrix A (5x5) and b_diag (5,)."""
     A = jnp.zeros((5, 5))
     b = jnp.zeros(5)
     A = A.at[0, 0].set(theta[0])
-    A = A.at[0, 1].set(theta[1]);  A = A.at[1, 0].set(theta[1])
+    A = A.at[0, 1].set(theta[1])
+    A = A.at[1, 0].set(theta[1])
     A = A.at[1, 1].set(theta[2])
-    b = b.at[0].set(theta[3]);     b = b.at[1].set(theta[4])
+    b = b.at[0].set(theta[3])
+    b = b.at[1].set(theta[4])
     A = A.at[2, 2].set(theta[5])
-    A = A.at[2, 3].set(theta[6]);  A = A.at[3, 2].set(theta[6])
+    A = A.at[2, 3].set(theta[6])
+    A = A.at[3, 2].set(theta[6])
     A = A.at[3, 3].set(theta[7])
-    b = b.at[2].set(theta[8]);     b = b.at[3].set(theta[9])
-    A = A.at[0, 2].set(theta[10]); A = A.at[2, 0].set(theta[10])
-    A = A.at[0, 3].set(theta[11]); A = A.at[3, 0].set(theta[11])
-    A = A.at[1, 2].set(theta[12]); A = A.at[2, 1].set(theta[12])
-    A = A.at[1, 3].set(theta[13]); A = A.at[3, 1].set(theta[13])
+    b = b.at[2].set(theta[8])
+    b = b.at[3].set(theta[9])
+    A = A.at[0, 2].set(theta[10])
+    A = A.at[2, 0].set(theta[10])
+    A = A.at[0, 3].set(theta[11])
+    A = A.at[3, 0].set(theta[11])
+    A = A.at[1, 2].set(theta[12])
+    A = A.at[2, 1].set(theta[12])
+    A = A.at[1, 3].set(theta[13])
+    A = A.at[3, 1].set(theta[13])
     A = A.at[4, 4].set(theta[14])
     b = b.at[4].set(theta[15])
-    A = A.at[0, 4].set(theta[16]); A = A.at[4, 0].set(theta[16])
-    A = A.at[1, 4].set(theta[17]); A = A.at[4, 1].set(theta[17])
-    A = A.at[2, 4].set(theta[18]); A = A.at[4, 2].set(theta[18])
-    A = A.at[3, 4].set(theta[19]); A = A.at[4, 3].set(theta[19])
+    A = A.at[0, 4].set(theta[16])
+    A = A.at[4, 0].set(theta[16])
+    A = A.at[1, 4].set(theta[17])
+    A = A.at[4, 1].set(theta[17])
+    A = A.at[2, 4].set(theta[18])
+    A = A.at[4, 2].set(theta[18])
+    A = A.at[3, 4].set(theta[19])
+    A = A.at[4, 3].set(theta[19])
     return A, b
 
 
 # ── Hamilton reaction source term ────────────────────────────────────────────
 
-def hamilton_reaction(phi, A, b_diag, K_hill=0.05, n_hill=4.0,
-                      c_nutrient=1.0, k_monod=1.0):
+
+def hamilton_reaction(phi, A, b_diag, K_hill=0.05, n_hill=4.0, c_nutrient=1.0, k_monod=1.0):
     """
     Compute Hamilton reaction rates R_i for 5 species.
 
@@ -145,8 +190,8 @@ def hamilton_reaction(phi, A, b_diag, K_hill=0.05, n_hill=4.0,
 
     # Hill gate for P.gingivalis (species 4), gated by F.nucleatum (species 3)
     fn_activity = jnp.maximum(phi[3], 0.0)
-    num = fn_activity ** n_hill
-    den = K_hill ** n_hill + num
+    num = fn_activity**n_hill
+    den = K_hill**n_hill + num
     hill_factor = jnp.where(den > eps, num / den, 0.0)
 
     # Apply Hill gate only to Pg growth
@@ -184,8 +229,9 @@ if _HAS_JAXFEM:
         TODO: Add volume constraint (phi_0 = 1 - sum(phi_i)) as penalty or Lagrange mult.
         """
 
-        def __init__(self, theta, D_eff=None, K_hill=0.05, n_hill=4.0,
-                     k_monod=1.0, *args, **kwargs):
+        def __init__(
+            self, theta, D_eff=None, K_hill=0.05, n_hill=4.0, k_monod=1.0, *args, **kwargs
+        ):
             super().__init__(*args, **kwargs)
             self.A_mat, self.b_diag = theta_to_matrices(theta)
             self.D_eff = D_EFF_DEFAULT if D_eff is None else jnp.asarray(D_eff)
@@ -244,9 +290,13 @@ if _HAS_JAXFEM:
                 c_nutrient = 1.0
 
                 R = hamilton_reaction(
-                    phi, A_mat, b_diag,
-                    K_hill=K_hill, n_hill=n_hill,
-                    c_nutrient=c_nutrient, k_monod=k_monod,
+                    phi,
+                    A_mat,
+                    b_diag,
+                    K_hill=K_hill,
+                    n_hill=n_hill,
+                    c_nutrient=c_nutrient,
+                    k_monod=k_monod,
                 )
 
                 # TODO: For time-dependent, add mass term:
@@ -262,6 +312,7 @@ if _HAS_JAXFEM:
 
 
 # ── Bilinear interpolation helper (for backward-Euler phi_old lookup) ────────
+
 
 def _make_bilinear_interp(Lx, Ly, Nx, Ny):
     """
@@ -332,9 +383,21 @@ if _HAS_JAXFEM:
         points via bilinear interpolation (regular mesh only).
         """
 
-        def __init__(self, theta, dt, Nx, Ny, Lx=1.0, Ly=1.0,
-                     D_eff=None, K_hill=0.05, n_hill=4.0, k_monod=1.0,
-                     *args, **kwargs):
+        def __init__(
+            self,
+            theta,
+            dt,
+            Nx,
+            Ny,
+            Lx=1.0,
+            Ly=1.0,
+            D_eff=None,
+            K_hill=0.05,
+            n_hill=4.0,
+            k_monod=1.0,
+            *args,
+            **kwargs,
+        ):
             super().__init__(*args, **kwargs)
             self.A_mat, self.b_diag = theta_to_matrices(theta)
             self.D_eff = D_EFF_DEFAULT if D_eff is None else jnp.asarray(D_eff)
@@ -348,9 +411,7 @@ if _HAS_JAXFEM:
             self.Ly = Ly
 
             # Bilinear interpolation for phi_old
-            self._interp_fn, self._grid_holder = _make_bilinear_interp(
-                Lx, Ly, Nx, Ny
-            )
+            self._interp_fn, self._grid_holder = _make_bilinear_interp(Lx, Ly, Nx, Ny)
 
         def set_phi_old(self, phi_old_nodal):
             """
@@ -363,15 +424,15 @@ if _HAS_JAXFEM:
             The nodal values are reshaped to (Nx+1, Ny+1, 5) grid for
             bilinear interpolation inside mass_map.
             """
-            grid = jnp.asarray(phi_old_nodal).reshape(
-                self.Nx + 1, self.Ny + 1, 5
-            )
+            grid = jnp.asarray(phi_old_nodal).reshape(self.Nx + 1, self.Ny + 1, 5)
             self._grid_holder[0] = grid
 
         def get_tensor_map(self):
             D = self.D_eff
+
             def tensor_map(u_grads):
                 return D[:, None] * u_grads
+
             return tensor_map
 
         def get_mass_map(self):
@@ -395,9 +456,13 @@ if _HAS_JAXFEM:
                 # Reaction
                 c_nutrient = 1.0  # TODO: couple with nutrient PDE
                 R = hamilton_reaction(
-                    phi, A_mat, b_diag,
-                    K_hill=K_hill, n_hill=n_hill,
-                    c_nutrient=c_nutrient, k_monod=k_monod,
+                    phi,
+                    A_mat,
+                    b_diag,
+                    K_hill=K_hill,
+                    n_hill=n_hill,
+                    c_nutrient=c_nutrient,
+                    k_monod=k_monod,
                 )
 
                 # Residual: time_deriv - R = 0  (on LHS)
@@ -408,8 +473,8 @@ if _HAS_JAXFEM:
 
 # ── Mesh and Problem setup ───────────────────────────────────────────────────
 
-def setup_problem(theta, Nx=20, Ny=20, Lx=1.0, Ly=1.0,
-                  D_eff=None, K_hill=0.05, n_hill=4.0):
+
+def setup_problem(theta, Nx=20, Ny=20, Lx=1.0, Ly=1.0, D_eff=None, K_hill=0.05, n_hill=4.0):
     """
     Build the steady-state jax_fem Problem for 5-species Hamilton PDE.
 
@@ -451,9 +516,9 @@ def setup_problem(theta, Nx=20, Ny=20, Lx=1.0, Ly=1.0,
     return problem
 
 
-def setup_timedep_problem(theta, dt, Nx=20, Ny=20, Lx=1.0, Ly=1.0,
-                          D_eff=None, K_hill=0.05, n_hill=4.0,
-                          k_monod=1.0):
+def setup_timedep_problem(
+    theta, dt, Nx=20, Ny=20, Lx=1.0, Ly=1.0, D_eff=None, K_hill=0.05, n_hill=4.0, k_monod=1.0
+):
     """
     Build the time-dependent (backward-Euler) jax_fem Problem.
 
@@ -482,7 +547,10 @@ def setup_timedep_problem(theta, dt, Nx=20, Ny=20, Lx=1.0, Ly=1.0,
     problem = HamiltonBiofilm5STimeDep(
         theta=jnp.asarray(theta),
         dt=dt,
-        Nx=Nx, Ny=Ny, Lx=Lx, Ly=Ly,
+        Nx=Nx,
+        Ny=Ny,
+        Lx=Lx,
+        Ly=Ly,
         D_eff=D_eff,
         K_hill=K_hill,
         n_hill=n_hill,
@@ -498,6 +566,7 @@ def setup_timedep_problem(theta, dt, Nx=20, Ny=20, Lx=1.0, Ly=1.0,
 
 
 # ── Initial condition ────────────────────────────────────────────────────────
+
 
 def make_initial_condition(problem, mode="uniform"):
     """
@@ -543,6 +612,7 @@ def make_initial_condition(problem, mode="uniform"):
 
 # ── Time stepping (TODO: full implementation) ────────────────────────────────
 
+
 def backward_euler_step(cfg, u_old, solver_options=None):
     """
     One backward-Euler step for the Hamilton PDE.
@@ -565,7 +635,7 @@ def backward_euler_step(cfg, u_old, solver_options=None):
     problem.set_phi_old(u_old)
 
     opts = dict(solver_options or {})
-    opts['initial_guess'] = [u_old]
+    opts["initial_guess"] = [u_old]
     sol_list = jaxfem_solver(problem, opts)
     u_new = sol_list[0]
 
@@ -578,8 +648,7 @@ def backward_euler_step(cfg, u_old, solver_options=None):
     return u_new
 
 
-def run_time_integration(cfg, u0, t_final, save_every=10,
-                         solver_options=None):
+def run_time_integration(cfg, u0, t_final, save_every=10, solver_options=None):
     """
     Run backward-Euler time integration using JAX-FEM Newton solver.
 
@@ -599,7 +668,7 @@ def run_time_integration(cfg, u0, t_final, save_every=10,
         phi_snaps : list of (num_total_nodes, 5) arrays
         t_snaps : (n_snap,) array
     """
-    dt = cfg['dt']
+    dt = cfg["dt"]
     n_steps = int(t_final / dt)
 
     u = jnp.asarray(u0)
@@ -608,7 +677,7 @@ def run_time_integration(cfg, u0, t_final, save_every=10,
 
     n_nodes = u.shape[0]
     print(f"\n{'='*60}")
-    print(f"Backward-Euler time integration (JAX-FEM)")
+    print("Backward-Euler time integration (JAX-FEM)")
     print(f"  dt={dt:.1e}  n_steps={n_steps}  t_final={t_final}")
     print(f"  nodes={n_nodes}  vec=5")
     print(f"{'='*60}\n")
@@ -634,6 +703,7 @@ def run_time_integration(cfg, u0, t_final, save_every=10,
 
 # ── CLI & main ───────────────────────────────────────────────────────────────
 
+
 def main():
     ap = argparse.ArgumentParser(
         description="5-species Hamilton PDE in JAX-FEM",
@@ -651,18 +721,16 @@ Next steps:
   4. Enable adjoint sensitivity via ad_wrapper for inverse problems
 """,
     )
-    ap.add_argument("--setup-only", action="store_true",
-                    help="Just set up Problem and print info (no solve)")
-    ap.add_argument("--time-dep", action="store_true",
-                    help="Run backward-Euler time integration")
+    ap.add_argument(
+        "--setup-only", action="store_true", help="Just set up Problem and print info (no solve)"
+    )
+    ap.add_argument("--time-dep", action="store_true", help="Run backward-Euler time integration")
     ap.add_argument("--nx", type=int, default=10)
     ap.add_argument("--ny", type=int, default=10)
     ap.add_argument("--lx", type=float, default=1.0)
     ap.add_argument("--ly", type=float, default=1.0)
-    ap.add_argument("--dt", type=float, default=1e-3,
-                    help="Time step for backward-Euler")
-    ap.add_argument("--t-final", type=float, default=0.01,
-                    help="End time for time integration")
+    ap.add_argument("--dt", type=float, default=1e-3, help="Time step for backward-Euler")
+    ap.add_argument("--t-final", type=float, default=0.01, help="End time for time integration")
     ap.add_argument("--save-every", type=int, default=5)
     ap.add_argument("--K-hill", type=float, default=0.05)
     ap.add_argument("--n-hill", type=float, default=4.0)
@@ -670,8 +738,10 @@ Next steps:
 
     if not _HAS_JAXFEM:
         print("jax_fem not available. Run with klempt_fem conda env:")
-        print("  ~/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python "
-              "hamilton_pde_jaxfem.py")
+        print(
+            "  ~/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python "
+            "hamilton_pde_jaxfem.py"
+        )
         sys.exit(1)
 
     print("=" * 60)
@@ -683,20 +753,25 @@ Next steps:
     # ── Setup-only or steady-state ─────────────────────────────────
     if not args.time_dep:
         problem = setup_problem(
-            theta, Nx=args.nx, Ny=args.ny, Lx=args.lx, Ly=args.ly,
-            K_hill=args.K_hill, n_hill=args.n_hill,
+            theta,
+            Nx=args.nx,
+            Ny=args.ny,
+            Lx=args.lx,
+            Ly=args.ly,
+            K_hill=args.K_hill,
+            n_hill=args.n_hill,
         )
 
         fe = problem.fes[0]
-        print(f"\nMesh:")
+        print("\nMesh:")
         print(f"  Nodes: {fe.num_total_nodes}")
         print(f"  Cells: {problem.num_cells}")
         print(f"  Element: {problem.ele_type}")
         print(f"  vec={problem.vec}, dim={problem.dim}")
 
         A, b = theta_to_matrices(theta)
-        print(f"\nModel parameters:")
-        print(f"  A (interaction matrix):")
+        print("\nModel parameters:")
+        print("  A (interaction matrix):")
         for i, name in enumerate(SPECIES_NAMES):
             row = "  ".join(f"{float(A[i, j]):6.3f}" for j in range(5))
             print(f"    {name:15s}: [{row}]")
@@ -707,12 +782,13 @@ Next steps:
         print(f"\nInitial condition (gradient mode): shape={u0.shape}")
         phi_mean = jnp.mean(u0, axis=0)
         for i, name in enumerate(SPECIES_NAMES):
-            print(f"    {name:15s}: mean={float(phi_mean[i]):.4f}"
-                  f"  [{float(u0[:, i].min()):.4f}, {float(u0[:, i].max()):.4f}]")
+            print(
+                f"    {name:15s}: mean={float(phi_mean[i]):.4f}"
+                f"  [{float(u0[:, i].min()):.4f}, {float(u0[:, i].max()):.4f}]"
+            )
 
-        R = hamilton_reaction(phi_mean, A, b,
-                              K_hill=args.K_hill, n_hill=args.n_hill)
-        print(f"\nReaction rates at mean phi:")
+        R = hamilton_reaction(phi_mean, A, b, K_hill=args.K_hill, n_hill=args.n_hill)
+        print("\nReaction rates at mean phi:")
         for i, name in enumerate(SPECIES_NAMES):
             print(f"    R_{name:15s} = {float(R[i]):+.6f}")
 
@@ -734,16 +810,19 @@ Next steps:
         return
 
     # ── Time-dependent backward-Euler ──────────────────────────────
-    print(f"\n[Time-dependent backward-Euler]")
+    print("\n[Time-dependent backward-Euler]")
     print(f"  dt={args.dt:.1e}  t_final={args.t_final}  grid={args.nx}x{args.ny}")
 
     # Build cfg dict for run_time_integration (rebuilds Problem each step)
     cfg = dict(
         theta=theta,
         dt=args.dt,
-        Nx=args.nx, Ny=args.ny,
-        Lx=args.lx, Ly=args.ly,
-        K_hill=args.K_hill, n_hill=args.n_hill,
+        Nx=args.nx,
+        Ny=args.ny,
+        Lx=args.lx,
+        Ly=args.ly,
+        K_hill=args.K_hill,
+        n_hill=args.n_hill,
     )
 
     # Build problem once just for IC generation (mesh/nodes info)
@@ -752,7 +831,9 @@ Next steps:
     print(f"  u0 shape: {u0.shape}")
 
     result = run_time_integration(
-        cfg, u0, t_final=args.t_final,
+        cfg,
+        u0,
+        t_final=args.t_final,
         save_every=args.save_every,
     )
 

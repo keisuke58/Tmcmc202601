@@ -97,13 +97,19 @@ def build_pyg_data(
     )
 
 
-def dataset_to_pyg_list(data: dict) -> list:
-    """Convert full dataset dict to list of PyG Data objects."""
+def dataset_to_pyg_list(data: dict, include_theta_all: bool = False) -> list:
+    """Convert full dataset dict to list of PyG Data objects.
+
+    Args:
+        data: dict with keys theta, phi_mean, phi_std, phi_final, a_ij_active
+        include_theta_all: if True, attach full theta (20 params) as .theta_all
+    """
     n = len(data["theta"])
     phi_mean = data["phi_mean"]
     phi_std = data["phi_std"]
     phi_final = data["phi_final"]
     a_ij_active = data["a_ij_active"]
+    theta_all = data.get("theta", None)
 
     out = []
     for i in range(n):
@@ -113,5 +119,7 @@ def dataset_to_pyg_list(data: dict) -> list:
             phi_final[i],
             a_ij_active[i],
         )
+        if include_theta_all and theta_all is not None:
+            d.theta_all = torch.from_numpy(theta_all[i].astype(np.float32))
         out.append(d)
     return out

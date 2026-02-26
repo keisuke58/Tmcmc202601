@@ -42,3 +42,35 @@ Thumbs.db
 
 # ===== Backup directory (synced to Google Drive) =====
 _backup/
+
+# ===== DVC =====
+.dvc/cache/
+.dvc/tmp/
+
+# ===== MLflow =====
+mlruns/
+
+# ===== Large data files (>1MB, use DVC or Google Drive) =====
+deeponet/data/*.npz
+deeponet/checkpoints_*/*.eqx
+FEM/_growth_job_runs*/*.csv
+FEM/_jax_rd_datasets/*.npy
+FEM/_neohookean_comparison/**/*.inp
+FEM/_abaqus_1kpa_jobs/**/*.inp
+FEM/_abaqus_1kpa_jobs/**/nodes_3d.csv
+FEM/_3model_comparison/**/*.inp
+FEM/test_output.inp
+gnn/data/*.npz
+gnn/data/checkpoints/*.pt
+
+# ===== Large images (corner plots etc) =====
+**/corner_plot_*_Corner.png
+
+# ===== PDFs in docs (downloaded papers) =====
+docs/soleimani_papers/*.pdf
+
+# ===== Presentations =====
+docs/*.pptx
+
+# ===== Misc large files =====
+tmcmc/program2602/Data Sheet 1.pdf

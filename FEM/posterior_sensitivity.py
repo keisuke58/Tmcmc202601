@@ -32,7 +32,9 @@ def compute_depth_center(phi_pg: np.ndarray, x: np.ndarray) -> float:
     return float(np.sum(w * x))
 
 
-def summarize_sample(run_dir: Path, fem_base: Path, sample_idx: int, target: str) -> tuple[np.ndarray, float]:
+def summarize_sample(
+    run_dir: Path, fem_base: Path, sample_idx: int, target: str
+) -> tuple[np.ndarray, float]:
     fem_dirs = sorted([p for p in fem_base.glob("sample_*") if p.is_dir()])
     if not fem_dirs:
         raise SystemExit(f"No sample_* directories found under {fem_base}")
@@ -90,8 +92,14 @@ def plot_scatter(params: np.ndarray, values: np.ndarray, out_path: Path, y_label
 
 def main():
     ap = argparse.ArgumentParser(description="Posterior sensitivity: theta vs scalar observable")
-    ap.add_argument("--run-dir", required=True, help="TMCMC run directory containing samples.npy and theta_MAP.json/npy")
-    ap.add_argument("--fem-base", required=True, help="Base directory with per-sample outputs (sample_XXXX)")
+    ap.add_argument(
+        "--run-dir",
+        required=True,
+        help="TMCMC run directory containing samples.npy and theta_MAP.json/npy",
+    )
+    ap.add_argument(
+        "--fem-base", required=True, help="Base directory with per-sample outputs (sample_XXXX)"
+    )
     ap.add_argument("--n-samples", type=int, default=40, help="Number of samples to use")
     ap.add_argument(
         "--target",
@@ -99,7 +107,9 @@ def main():
         default="depth",
         help="Observable to plot on y-axis",
     )
-    ap.add_argument("--out-dir", default="_posterior_sensitivity", help="Output directory for plots")
+    ap.add_argument(
+        "--out-dir", default="_posterior_sensitivity", help="Output directory for plots"
+    )
     args = ap.parse_args()
 
     run_dir = Path(args.run_dir)

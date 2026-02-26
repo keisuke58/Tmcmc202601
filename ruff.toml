@@ -1,0 +1,11 @@
+# Ruff config: gradual adoption (see docs/OVERHAUL_PLAN.md Phase A)
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "FEM/JAXFEM/", "FEM/external_tooth_models/", "data_5species/_runs/",
+    "data_5species/experiment_data/*.ipynb", "data_5species/docs/",
+]
+
+[lint]
+# Gradual adoption: fix in Phase A (see docs/OVERHAUL_PLAN.md)
+ignore = ["E402", "E701", "E702", "E722", "E731", "E741", "F401", "F811", "F821", "F841"]

@@ -91,9 +91,7 @@ def residual(g_new, g_prev, params):
     phi0dot = (phi0_new - phi0_old) / dt
     psidot = (psi_new - psi_old) / dt
     Ia = A @ (phi_new * psi_new)
-    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (active_mask[4] == 1).astype(
-        jnp.float64
-    )
+    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (active_mask[4] == 1).astype(jnp.float64)
     fn = jnp.maximum(phi_new[3] * psi_new[3], 0.0)
     num = fn**n_hill
     den = K_hill**n_hill + num
@@ -106,9 +104,7 @@ def residual(g_new, g_prev, params):
         active = active_mask[i] == 1
 
         def active_branch():
-            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / (
-                (phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3
-            )
+            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / ((phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3)
             t2 = (1.0 / Eta[i]) * (
                 gamma_new
                 + (EtaPhi[i] + Eta[i] * psi_new[i] ** 2) * phidot[i]
@@ -124,9 +120,7 @@ def residual(g_new, g_prev, params):
 
     Q, _ = jax.lax.scan(body_i_phi, Q, jnp.arange(5))
     Q = Q.at[5].set(
-        gamma_new
-        + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new ** 3)
-        + phi0dot
+        gamma_new + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new**3) + phi0dot
     )
 
     def body_i_psi(carry, i):
@@ -134,9 +128,9 @@ def residual(g_new, g_prev, params):
         active = active_mask[i] == 1
 
         def active_branch():
-            t1 = (-2.0 * Kp1) / (
-                (psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3
-            ) - (2.0 * Kp1) / ((psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2)
+            t1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3) - (2.0 * Kp1) / (
+                (psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2
+            )
             t2 = (b_diag[i] * alpha / Eta[i]) * psi_new[i]
             t3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i] ** 2 * psidot[i]
             t4 = (c / Eta[i]) * phi_new[i] * Ia[i]
@@ -216,11 +210,7 @@ def diffusion_step(G, params):
     phi = G[:, 0:5]
     N = phi.shape[0]
     lap = jnp.zeros_like(phi)
-    interior = (
-        phi[0 : N - 2, :]
-        + phi[2:N, :]
-        - 2.0 * phi[1 : N - 1, :]
-    ) / (dx * dx)
+    interior = (phi[0 : N - 2, :] + phi[2:N, :] - 2.0 * phi[1 : N - 1, :]) / (dx * dx)
     lap = lap.at[1 : N - 1, :].set(interior)
     phi_new = phi + dt_diff * D_eff * lap
     phi_new = jnp.clip(phi_new, 0.0, 1.0)

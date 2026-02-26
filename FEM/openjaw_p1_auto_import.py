@@ -23,8 +23,8 @@ Fixes vs original version
 * Saves bbox JSON alongside the CAE (consumed by openjaw_p1_biofilm_solid.py)
 """
 
-from abaqus import mdb, session          # noqa: F401 – Abaqus environment
-from abaqusConstants import THREE_D, DEFORMABLE_BODY, ON, OFF, CARTESIAN, TRI3, C3D4, TET, FREE, SUPPRESS
+from abaqus import mdb, session  # noqa: F401 – Abaqus environment
+from abaqusConstants import THREE_D, DEFORMABLE_BODY, ON, OFF, CARTESIAN, TRI3, C3D4, TET, FREE
 import mesh
 from regionToolset import Region
 import os
@@ -38,15 +38,16 @@ import math
 # when run inside the Abaqus Python interpreter)
 # ---------------------------------------------------------------------------
 
+
 def _is_binary_stl(path):
     with open(path, "rb") as f:
         header = f.read(80)
-        raw    = f.read(4)
+        raw = f.read(4)
     if len(raw) < 4:
         return False
-    n_tri    = struct.unpack("<I", raw)[0]
+    n_tri = struct.unpack("<I", raw)[0]
     expected = 84 + 50 * n_tri
-    actual   = os.path.getsize(path)
+    actual = os.path.getsize(path)
     if abs(actual - expected) <= 4:
         return True
     try:
@@ -65,7 +66,7 @@ def _iter_binary_triangles(path, max_tri=None):
         if len(raw) < 4:
             return
         n_tri = struct.unpack("<I", raw)[0]
-        step  = 1
+        step = 1
         if max_tri and n_tri > max_tri:
             step = max(1, n_tri // max_tri)
         idx = 0
@@ -85,8 +86,8 @@ def _iter_binary_triangles(path, max_tri=None):
 
 def _iter_ascii_triangles(path, max_tri=None):
     """Yield (v1, v2, v3) tuples from an ASCII STL."""
-    verts  = []
-    count  = 0
+    verts = []
+    count = 0
     with open(path, "r") as f:
         for line in f:
             line = line.strip()
@@ -111,6 +112,7 @@ def _iter_ascii_triangles(path, max_tri=None):
 # Core import function
 # ---------------------------------------------------------------------------
 
+
 def import_stl_to_part(model, name, stl_path, max_tri=None):
     """
     Create a THREE_D DEFORMABLE_BODY orphan-mesh part from a STL file.
@@ -133,23 +135,29 @@ def import_stl_to_part(model, name, stl_path, max_tri=None):
         return p
 
     binary = _is_binary_stl(stl_path)
-    print("  Importing %s  (%s STL%s) ..." % (
-        os.path.basename(stl_path),
-        "binary" if binary else "ASCII",
-        "  max_tri=%d" % max_tri if max_tri else "",
-    ))
+    print(
+        "  Importing %s  (%s STL%s) ..."
+        % (
+            os.path.basename(stl_path),
+            "binary" if binary else "ASCII",
+            "  max_tri=%d" % max_tri if max_tri else "",
+        )
+    )
 
-    tri_iter = (_iter_binary_triangles(stl_path, max_tri)
-                if binary else _iter_ascii_triangles(stl_path, max_tri))
+    tri_iter = (
+        _iter_binary_triangles(stl_path, max_tri)
+        if binary
+        else _iter_ascii_triangles(stl_path, max_tri)
+    )
 
     label = 1
     n_elem = 0
     for v1, v2, v3 in tri_iter:
-        n1 = p.Node(label=label,     coordinates=v1)
+        n1 = p.Node(label=label, coordinates=v1)
         n2 = p.Node(label=label + 1, coordinates=v2)
         n3 = p.Node(label=label + 2, coordinates=v3)
         p.Element(nodes=(n1, n2, n3), elemShape=TRI3)
-        label  += 3
+        label += 3
         n_elem += 1
 
     print("  → %d triangles imported, %d nodes" % (n_elem, label - 1))
@@ -160,6 +168,7 @@ def import_stl_to_part(model, name, stl_path, max_tri=None):
 # Bounding-box helper (for bbox JSON export, runs on already-imported parts)
 # ---------------------------------------------------------------------------
 
+
 def _part_bbox(part):
     """Return (xmin,xmax, ymin,ymax, zmin,zmax) from an orphan-mesh part."""
     if not part.nodes:
@@ -168,10 +177,10 @@ def _part_bbox(part):
     ys = [nd.coordinates[1] for nd in part.nodes]
     zs = [nd.coordinates[2] for nd in part.nodes]
     return {
-        "min":    [min(xs), min(ys), min(zs)],
-        "max":    [max(xs), max(ys), max(zs)],
-        "center": [0.5*(min(xs)+max(xs)), 0.5*(min(ys)+max(ys)), 0.5*(min(zs)+max(zs))],
-        "size":   [max(xs)-min(xs), max(ys)-min(ys), max(zs)-min(zs)],
+        "min": [min(xs), min(ys), min(zs)],
+        "max": [max(xs), max(ys), max(zs)],
+        "center": [0.5 * (min(xs) + max(xs)), 0.5 * (min(ys) + max(ys)), 0.5 * (min(zs) + max(zs))],
+        "size": [max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs)],
         "n_nodes": len(part.nodes),
     }
 
@@ -182,8 +191,12 @@ def build_template_bcs(model, inst, bbox):
     tol = 0.05 * z_size
 
     bot_faces = inst.faces.getByBoundingBox(
-        xMin=-1e9, xMax=1e9, yMin=-1e9, yMax=1e9,
-        zMin=z_min - tol, zMax=z_min + tol,
+        xMin=-1e9,
+        xMax=1e9,
+        yMin=-1e9,
+        yMax=1e9,
+        zMin=z_min - tol,
+        zMax=z_min + tol,
     )
 
     model.StaticStep(
@@ -210,18 +223,23 @@ def _offset_polygon(pts, cx, cy, delta):
     for x, y in pts:
         dx = x - cx
         dy = y - cy
-        dist = math.sqrt(dx*dx + dy*dy) or 1.0
-        out.append((x + delta*dx/dist, y + delta*dy/dist))
+        dist = math.sqrt(dx * dx + dy * dy) or 1.0
+        out.append((x + delta * dx / dist, y + delta * dy / dist))
     return out
 
 
 def _default_crown_pts(cx, cy, hx, hy):
     shape = [
-        (0.0, -1.0), (0.6, -0.9), (0.9, -0.2),
-        (0.6,  0.9), (0.0,  1.0), (-0.6, 0.9),
-        (-0.9,-0.2), (-0.6,-0.9),
+        (0.0, -1.0),
+        (0.6, -0.9),
+        (0.9, -0.2),
+        (0.6, 0.9),
+        (0.0, 1.0),
+        (-0.6, 0.9),
+        (-0.9, -0.2),
+        (-0.6, -0.9),
     ]
-    return [(cx + 0.5*hx*ux, cy + 0.5*hy*uy) for ux, uy in shape]
+    return [(cx + 0.5 * hx * ux, cy + 0.5 * hy * uy) for ux, uy in shape]
 
 
 def _load_tooth_polygons(json_path):
@@ -247,7 +265,7 @@ def _draw_closed_polygon(sk, pts):
     n = len(pts)
     for i in range(n):
         x1, y1 = pts[i]
-        x2, y2 = pts[(i+1) % n]
+        x2, y2 = pts[(i + 1) % n]
         sk.Line(point1=(x1, y1), point2=(x2, y2))
 
 
@@ -275,8 +293,7 @@ def build_crown_biofilm(model, bb23, poly_pts=None):
     _draw_closed_polygon(sk, outer_pts)
     _draw_closed_polygon(sk, poly_pts)
 
-    part = model.Part(name="CrownBiofilm",
-                      dimensionality=THREE_D, type=DEFORMABLE_BODY)
+    part = model.Part(name="CrownBiofilm", dimensionality=THREE_D, type=DEFORMABLE_BODY)
     part.BaseSolidExtrude(sketch=sk, depth=t_sz)
 
     cells = part.cells
@@ -305,7 +322,7 @@ def build_slit_biofilm(model, bb30, bb31, poly30=None, poly31=None, pocket_depth
 
     dx = c31[0] - c30[0]
     dy = c31[1] - c30[1]
-    dxy = math.sqrt(dx*dx + dy*dy) or 1.0
+    dxy = math.sqrt(dx * dx + dy * dy) or 1.0
     nx = dx / dxy
     ny = dy / dxy
     tx = -ny
@@ -322,14 +339,14 @@ def build_slit_biofilm(model, bb30, bb31, poly30=None, poly31=None, pocket_depth
         for x, y in poly30:
             vx = x - mid_x
             vy = y - mid_y
-            vals_n30.append(vx*nx + vy*ny)
-            vals_t30.append(vx*tx + vy*ty)
+            vals_n30.append(vx * nx + vy * ny)
+            vals_t30.append(vx * tx + vy * ty)
     if poly31:
         for x, y in poly31:
             vx = x - mid_x
             vy = y - mid_y
-            vals_n31.append(vx*nx + vy*ny)
-            vals_t31.append(vx*tx + vy*ty)
+            vals_n31.append(vx * nx + vy * ny)
+            vals_t31.append(vx * tx + vy * ty)
 
     if vals_n30 and vals_n31:
         n30_max = max(vals_n30)
@@ -359,18 +376,19 @@ def build_slit_biofilm(model, bb30, bb31, poly30=None, poly31=None, pocket_depth
     corners = []
     for sn in (-slit_half_depth, slit_half_depth):
         for st in (-slit_half_width, slit_half_width):
-            corners.append((
-                mid_x + sn * nx + st * tx,
-                mid_y + sn * ny + st * ty,
-            ))
+            corners.append(
+                (
+                    mid_x + sn * nx + st * tx,
+                    mid_y + sn * ny + st * ty,
+                )
+            )
     c_order = [corners[0], corners[2], corners[3], corners[1]]
 
     sheet_sz = max(s30[0] + s31[0], s30[1] + s31[1]) * 4.0
     sk = model.ConstrainedSketch(name="SkSlit", sheetSize=sheet_sz)
     _draw_closed_polygon(sk, c_order)
 
-    part = model.Part(name="SlitBiofilm",
-                      dimensionality=THREE_D, type=DEFORMABLE_BODY)
+    part = model.Part(name="SlitBiofilm", dimensionality=THREE_D, type=DEFORMABLE_BODY)
     part.BaseSolidExtrude(sketch=sk, depth=slit_h)
 
     cells = part.cells
@@ -397,55 +415,81 @@ def build_crown_bcs(model, inst, t_zmin, t_sz, pressure_pa, seed_size):
     top_z = t_zmin + t_sz
 
     bot_faces = inst.faces.getByBoundingBox(
-        xMin=-1e9, xMax=1e9, yMin=-1e9, yMax=1e9,
-        zMin=bot_z - tol, zMax=bot_z + tol)
+        xMin=-1e9, xMax=1e9, yMin=-1e9, yMax=1e9, zMin=bot_z - tol, zMax=bot_z + tol
+    )
     top_faces = inst.faces.getByBoundingBox(
-        xMin=-1e9, xMax=1e9, yMin=-1e9, yMax=1e9,
-        zMin=top_z - tol, zMax=top_z + tol)
+        xMin=-1e9, xMax=1e9, yMin=-1e9, yMax=1e9, zMin=top_z - tol, zMax=top_z + tol
+    )
 
-    model.StaticStep(name="LOAD_CROWN", previous="Initial",
-                     maxNumInc=100, initialInc=0.1, minInc=1e-5, maxInc=1.0)
+    model.StaticStep(
+        name="LOAD_CROWN",
+        previous="Initial",
+        maxNumInc=100,
+        initialInc=0.1,
+        minInc=1e-5,
+        maxInc=1.0,
+    )
     if bot_faces:
         model.DisplacementBC(
-            name="FIX_CROWN_BOT", createStepName="Initial",
+            name="FIX_CROWN_BOT",
+            createStepName="Initial",
             region=Region(faces=bot_faces),
-            u1=0.0, u2=0.0, u3=0.0)
+            u1=0.0,
+            u2=0.0,
+            u3=0.0,
+        )
     if top_faces:
         model.Pressure(
-            name="PRESS_CROWN", createStepName="LOAD_CROWN",
+            name="PRESS_CROWN",
+            createStepName="LOAD_CROWN",
             region=Region(side1Faces=top_faces),
-            magnitude=pressure_pa)
+            magnitude=pressure_pa,
+        )
 
 
-def build_slit_bcs(model, inst, z_lo, slit_h, slit_half_depth, nx, ny,
-                   mid_x, mid_y, pressure_pa, seed_size):
+def build_slit_bcs(
+    model, inst, z_lo, slit_h, slit_half_depth, nx, ny, mid_x, mid_y, pressure_pa, seed_size
+):
     tol = seed_size * 0.4
 
     bot_faces = inst.faces.getByBoundingBox(
-        xMin=-1e9, xMax=1e9, yMin=-1e9, yMax=1e9,
-        zMin=z_lo - tol, zMax=z_lo + tol)
+        xMin=-1e9, xMax=1e9, yMin=-1e9, yMax=1e9, zMin=z_lo - tol, zMax=z_lo + tol
+    )
 
     top_faces = inst.faces.getByBoundingBox(
-        xMin=-1e9, xMax=1e9, yMin=-1e9, yMax=1e9,
-        zMin=(z_lo + slit_h) - tol, zMax=(z_lo + slit_h) + tol)
+        xMin=-1e9,
+        xMax=1e9,
+        yMin=-1e9,
+        yMax=1e9,
+        zMin=(z_lo + slit_h) - tol,
+        zMax=(z_lo + slit_h) + tol,
+    )
 
-    model.StaticStep(name="LOAD_SLIT", previous="Initial",
-                     maxNumInc=100, initialInc=0.1, minInc=1e-5, maxInc=1.0)
+    model.StaticStep(
+        name="LOAD_SLIT", previous="Initial", maxNumInc=100, initialInc=0.1, minInc=1e-5, maxInc=1.0
+    )
     if bot_faces:
         model.DisplacementBC(
-            name="FIX_SLIT_BOT", createStepName="Initial",
+            name="FIX_SLIT_BOT",
+            createStepName="Initial",
             region=Region(faces=bot_faces),
-            u1=0.0, u2=0.0, u3=0.0)
+            u1=0.0,
+            u2=0.0,
+            u3=0.0,
+        )
     if top_faces:
         model.Pressure(
-            name="PRESS_SLIT", createStepName="LOAD_SLIT",
+            name="PRESS_SLIT",
+            createStepName="LOAD_SLIT",
             region=Region(side1Faces=top_faces),
-            magnitude=pressure_pa)
+            magnitude=pressure_pa,
+        )
 
 
 # ---------------------------------------------------------------------------
 # Main build function
 # ---------------------------------------------------------------------------
+
 
 def build_openjaw_p1(max_tri_mandible=200000, max_tri_tooth=None):
     """
@@ -463,15 +507,13 @@ def build_openjaw_p1(max_tri_mandible=200000, max_tri_tooth=None):
         model = mdb.Model(name=model_name)
 
     base_dir = os.getcwd()
-    stl_root = os.path.join(
-        base_dir, "external_tooth_models", "OpenJaw_Dataset", "Patient_1"
-    )
+    stl_root = os.path.join(base_dir, "external_tooth_models", "OpenJaw_Dataset", "Patient_1")
 
     parts_spec = [
         ("P1_Mandible", os.path.join(stl_root, "Mandible", "P1_Mandible.stl"), max_tri_mandible),
-        ("P1_Tooth_23", os.path.join(stl_root, "Teeth",    "P1_Tooth_23.stl"), max_tri_tooth),
-        ("P1_Tooth_30", os.path.join(stl_root, "Teeth",    "P1_Tooth_30.stl"), max_tri_tooth),
-        ("P1_Tooth_31", os.path.join(stl_root, "Teeth",    "P1_Tooth_31.stl"), max_tri_tooth),
+        ("P1_Tooth_23", os.path.join(stl_root, "Teeth", "P1_Tooth_23.stl"), max_tri_tooth),
+        ("P1_Tooth_30", os.path.join(stl_root, "Teeth", "P1_Tooth_30.stl"), max_tri_tooth),
+        ("P1_Tooth_31", os.path.join(stl_root, "Teeth", "P1_Tooth_31.stl"), max_tri_tooth),
     ]
 
     # ── Material / Section (shared across all parts) ────────────────────────
@@ -546,8 +588,8 @@ def build_openjaw_p1(max_tri_mandible=200000, max_tri_tooth=None):
     poly30 = tooth_polys.get("P1_Tooth_30")
     poly31 = tooth_polys.get("P1_Tooth_31")
     if bb30 and bb31:
-        slit_part, mid_x, mid_y, z_lo, slit_h, slit_half_depth, nx, ny, seed_slit = build_slit_biofilm(
-            model, bb30, bb31, poly30, poly31
+        slit_part, mid_x, mid_y, z_lo, slit_h, slit_half_depth, nx, ny, seed_slit = (
+            build_slit_biofilm(model, bb30, bb31, poly30, poly31)
         )
         if "SlitBiofilm-1" in a.instances:
             inst_slit = a.instances["SlitBiofilm-1"]

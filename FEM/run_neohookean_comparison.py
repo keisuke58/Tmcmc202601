@@ -25,10 +25,10 @@ PROJECT_ROOT = FEM_DIR.parent
 
 # DI field CSV paths (from export_for_abaqus.py / run_hamilton_2d_nutrient.py)
 COND_DI_CSV = {
-    "commensal_static":  "_abaqus_fields/standard_3d/abaqus_field_Commensal_Static_snap20.csv",
-    "commensal_hobic":   "_abaqus_fields/standard_3d/abaqus_field_Commensal_HOBIC_snap20.csv",
-    "dysbiotic_static":  "_abaqus_fields/standard_3d/abaqus_field_Dysbiotic_Static_snap20.csv",
-    "dh_baseline":       "_abaqus_fields/standard_3d/abaqus_field_dh_3d.csv",
+    "commensal_static": "_abaqus_fields/standard_3d/abaqus_field_Commensal_Static_snap20.csv",
+    "commensal_hobic": "_abaqus_fields/standard_3d/abaqus_field_Commensal_HOBIC_snap20.csv",
+    "dysbiotic_static": "_abaqus_fields/standard_3d/abaqus_field_Dysbiotic_Static_snap20.csv",
+    "dh_baseline": "_abaqus_fields/standard_3d/abaqus_field_dh_3d.csv",
 }
 
 STL_PATH = "external_tooth_models/OpenJaw_Dataset/Patient_1/Teeth/P1_Tooth_23.stl"
@@ -61,10 +61,14 @@ def generate_inp(condition: str, neo_hookean: bool):
     cmd = [
         sys.executable,
         str(FEM_DIR / "biofilm_conformal_tet.py"),
-        "--stl", str(stl_path),
-        "--di-csv", str(di_csv_path),
-        "--out", str(out_file),
-        "--mode", "biofilm",
+        "--stl",
+        str(stl_path),
+        "--di-csv",
+        str(di_csv_path),
+        "--out",
+        str(out_file),
+        "--mode",
+        "biofilm",
     ]
     if neo_hookean:
         cmd.append("--neo-hookean")
@@ -111,7 +115,7 @@ def generate_all(conditions=None):
 
     print(f"\n{'='*60}")
     print(f"Generated {len([v for v in results.values() if v])} INP files in {OUTPUT_DIR}")
-    print(f"Next: submit to Abaqus, then run with --plot")
+    print("Next: submit to Abaqus, then run with --plot")
     print(f"{'='*60}")
 
     return results
@@ -168,15 +172,18 @@ def plot_comparison():
 
         x = np.arange(len(cond_labels))
         w = 0.35
-        ax.bar(x - w/2, lin_vals, w, label="Linear Elastic", color="#60a5fa")
-        ax.bar(x + w/2, nh_vals, w, label="Neo-Hookean", color="#f97316")
+        ax.bar(x - w / 2, lin_vals, w, label="Linear Elastic", color="#60a5fa")
+        ax.bar(x + w / 2, nh_vals, w, label="Neo-Hookean", color="#f97316")
         ax.set_xticks(x)
         ax.set_xticklabels(cond_labels, fontsize=8)
         ax.set_ylabel(label)
         ax.legend(fontsize=8)
         ax.set_title(label)
 
-    fig.suptitle("Linear Elastic vs Neo-Hookean Hyperelastic Comparison\n(Biofilm mode, Pa-scale)", fontweight="bold")
+    fig.suptitle(
+        "Linear Elastic vs Neo-Hookean Hyperelastic Comparison\n(Biofilm mode, Pa-scale)",
+        fontweight="bold",
+    )
     plt.tight_layout()
 
     out_fig = OUTPUT_DIR / "neohookean_comparison.png"
@@ -194,15 +201,20 @@ def plot_comparison():
             if lin_key in results and nh_key in results:
                 lv = results[lin_key].get(metric, 0)
                 nv = results[nh_key].get(metric, 0)
-                ratio = nv / lv if lv > 0 else float('inf')
+                ratio = nv / lv if lv > 0 else float("inf")
                 print(f"{cond:<25} {label:<20} {lv:>12.4f} {nv:>12.4f} {ratio:>8.3f}")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Neo-Hookean vs Linear Elastic comparison")
     parser.add_argument("--plot", action="store_true", help="Plot results after Abaqus run")
-    parser.add_argument("--condition", type=str, nargs="*", default=None,
-                        help="Specific conditions (default: all 4)")
+    parser.add_argument(
+        "--condition",
+        type=str,
+        nargs="*",
+        default=None,
+        help="Specific conditions (default: all 4)",
+    )
     args = parser.parse_args()
 
     if args.plot:

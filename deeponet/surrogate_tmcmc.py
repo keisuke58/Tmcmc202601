@@ -39,13 +39,21 @@ from deeponet_hamilton import DeepONet
 # Surrogate likelihood
 # ============================================================
 
+
 class DeepONetSurrogate:
     """Wraps DeepONet as a drop-in ODE solver replacement."""
 
-    def __init__(self, checkpoint: str, norm_stats_path: str,
-                 theta_dim: int = 20, n_species: int = 5,
-                 p: int = 64, hidden: int = 128, n_layers: int = 3,
-                 n_time_out: int = 100):
+    def __init__(
+        self,
+        checkpoint: str,
+        norm_stats_path: str,
+        theta_dim: int = 20,
+        n_species: int = 5,
+        p: int = 64,
+        hidden: int = 128,
+        n_layers: int = 3,
+        n_time_out: int = 100,
+    ):
         # Auto-detect arch from config.json if available
         config_path = Path(checkpoint).parent / "config.json"
         if config_path.exists():
@@ -57,8 +65,9 @@ class DeepONetSurrogate:
 
         # Load model
         key = jax.random.PRNGKey(0)
-        self.model = DeepONet(theta_dim=theta_dim, n_species=n_species,
-                              p=p, hidden=hidden, n_layers=n_layers, key=key)
+        self.model = DeepONet(
+            theta_dim=theta_dim, n_species=n_species, p=p, hidden=hidden, n_layers=n_layers, key=key
+        )
         self.model = eqx.tree_deserialise_leaves(checkpoint, self.model)
 
         # Load normalization
@@ -97,8 +106,7 @@ class DeepONetSurrogate:
         phi = self._predict_jit(theta_norm)
         return np.array(phi)
 
-    def predict_at_indices(self, theta_raw: np.ndarray,
-                           idx_sparse: np.ndarray) -> np.ndarray:
+    def predict_at_indices(self, theta_raw: np.ndarray, idx_sparse: np.ndarray) -> np.ndarray:
         """
         Predict and extract at sparse observation indices.
 
@@ -138,8 +146,8 @@ def make_surrogate_log_likelihood(
 
         # Simple Gaussian log-likelihood
         residual = data - phi_pred
-        var = sigma_obs ** 2
-        logL = -0.5 * np.sum(residual ** 2 / var)
+        var = sigma_obs**2
+        logL = -0.5 * np.sum(residual**2 / var)
         logL -= 0.5 * n_obs * n_species * np.log(2 * np.pi * var)
 
         if not np.isfinite(logL):
@@ -152,6 +160,7 @@ def make_surrogate_log_likelihood(
 # ============================================================
 # Simple TMCMC (standalone, no external dependencies)
 # ============================================================
+
 
 def simple_tmcmc(
     log_likelihood,
@@ -218,7 +227,7 @@ def simple_tmcmc(
             w = (db) * logL
             w = w - w.max()
             w = np.exp(w)
-            return (np.sum(w) ** 2) / np.sum(w ** 2)
+            return (np.sum(w) ** 2) / np.sum(w**2)
 
         db_lo, db_hi = 0.0, 1.0 - beta
         for _ in range(50):
@@ -280,10 +289,12 @@ def simple_tmcmc(
         stage_times.append(dt)
 
         accept_rate = n_accept / n_particles
-        print(f"  Stage {stage:2d}: beta={beta:.4f}, "
-              f"accept={accept_rate:.2f}, "
-              f"logL=[{logL.min():.1f}, {logL.max():.1f}], "
-              f"{dt:.1f}s")
+        print(
+            f"  Stage {stage:2d}: beta={beta:.4f}, "
+            f"accept={accept_rate:.2f}, "
+            f"logL=[{logL.min():.1f}, {logL.max():.1f}], "
+            f"{dt:.1f}s"
+        )
 
     total_time = time.time() - t0
     print(f"\nTotal: {total_time:.1f}s, {len(betas)-1} stages")
@@ -305,6 +316,7 @@ def simple_tmcmc(
 # ============================================================
 # Comparison: DeepONet vs ODE TMCMC
 # ============================================================
+
 
 def run_comparison(n_particles: int = 200, seed: int = 42):
     """Run TMCMC with both ODE and DeepONet, compare results and speed."""
@@ -337,9 +349,17 @@ def run_comparison(n_particles: int = 200, seed: int = 42):
             theta_true[i] = rng.uniform(lo, hi)
 
     solver = BiofilmNewtonSolver5S(
-        dt=1e-5, maxtimestep=500, eps=1e-6, Kp1=1e-4,
-        c_const=100.0, alpha_const=100.0, phi_init=0.2,
-        K_hill=0.05, n_hill=4.0, max_newton_iter=50, use_numba=True,
+        dt=1e-5,
+        maxtimestep=500,
+        eps=1e-6,
+        Kp1=1e-4,
+        c_const=100.0,
+        alpha_const=100.0,
+        phi_init=0.2,
+        K_hill=0.05,
+        n_hill=4.0,
+        max_newton_iter=50,
+        use_numba=True,
     )
 
     t_arr, g_arr = solver.run_deterministic(theta_true)
@@ -365,16 +385,15 @@ def run_comparison(n_particles: int = 200, seed: int = 42):
             phi = g_a[idx_full][:, :5]
             phi_obs = phi[idx_sparse]
             residual = data - phi_obs
-            logL = -0.5 * np.sum(residual ** 2 / sigma_obs ** 2)
-            logL -= 0.5 * len(obs_times) * 5 * np.log(2 * np.pi * sigma_obs ** 2)
+            logL = -0.5 * np.sum(residual**2 / sigma_obs**2)
+            logL -= 0.5 * len(obs_times) * 5 * np.log(2 * np.pi * sigma_obs**2)
             if not np.isfinite(logL):
                 return -1e20
             return float(logL)
         except Exception:
             return -1e20
 
-    result_ode = simple_tmcmc(ode_log_likelihood, bounds,
-                               n_particles=n_particles, seed=seed)
+    result_ode = simple_tmcmc(ode_log_likelihood, bounds, n_particles=n_particles, seed=seed)
 
     # ----- DeepONet-based TMCMC -----
     print("\n" + "=" * 60)
@@ -388,8 +407,7 @@ def run_comparison(n_particles: int = 200, seed: int = 42):
     )
     don_logL = make_surrogate_log_likelihood(surrogate, data, idx_sparse, sigma_obs)
 
-    result_don = simple_tmcmc(don_logL, bounds,
-                               n_particles=n_particles, seed=seed)
+    result_don = simple_tmcmc(don_logL, bounds, n_particles=n_particles, seed=seed)
 
     # ----- Comparison -----
     print("\n" + "=" * 60)
@@ -407,9 +425,11 @@ def run_comparison(n_particles: int = 200, seed: int = 42):
     free_dims = [i for i in range(20) if abs(bounds[i, 1] - bounds[i, 0]) > 1e-12]
     for i in free_dims[:10]:  # show first 10
         name = BiofilmNewtonSolver5S.THETA_NAMES[i]
-        print(f"  {name:<6} {theta_true[i]:>8.3f} "
-              f"{result_ode['theta_MAP'][i]:>8.3f} "
-              f"{result_don['theta_MAP'][i]:>8.3f}")
+        print(
+            f"  {name:<6} {theta_true[i]:>8.3f} "
+            f"{result_ode['theta_MAP'][i]:>8.3f} "
+            f"{result_don['theta_MAP'][i]:>8.3f}"
+        )
     if len(free_dims) > 10:
         print(f"  ... ({len(free_dims) - 10} more)")
 
@@ -420,10 +440,12 @@ def run_comparison(n_particles: int = 200, seed: int = 42):
 # Main
 # ============================================================
 
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--compare", action="store_true",
-                        help="Run comparison between ODE and DeepONet TMCMC")
+    parser.add_argument(
+        "--compare", action="store_true", help="Run comparison between ODE and DeepONet TMCMC"
+    )
     parser.add_argument("--checkpoint", default="checkpoints/best.eqx")
     parser.add_argument("--norm-stats", default="checkpoints/norm_stats.npz")
     parser.add_argument("--n-particles", type=int, default=500)

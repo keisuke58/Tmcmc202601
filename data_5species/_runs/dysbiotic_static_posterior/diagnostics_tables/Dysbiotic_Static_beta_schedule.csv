@@ -1,0 +1,11 @@
+model,chain,stage,beta
+Dysbiotic_Static,1,0,0.0
+Dysbiotic_Static,1,1,0.2347453534603119
+Dysbiotic_Static,1,2,0.5977285276793323
+Dysbiotic_Static,1,3,0.9999999880113759
+Dysbiotic_Static,1,4,1.0
+Dysbiotic_Static,2,0,0.0
+Dysbiotic_Static,2,1,0.24187278747558594
+Dysbiotic_Static,2,2,0.6012439122156366
+Dysbiotic_Static,2,3,0.9999999881161425
+Dysbiotic_Static,2,4,1.0

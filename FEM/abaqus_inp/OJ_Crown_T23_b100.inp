@@ -21149,16 +21149,16 @@
 *Solid Section, elset=_PickedSet5, orientation=Ori-1, material=MAT_ANISO_05
 ,
 *End Part
-**  
+**
 **
 ** ASSEMBLY
 **
 *Assembly, name=Assembly
-**  
+**
 *Instance, name=CrownBioInst, part=CrownBiofilm
           0.,           0., 18.5561180114746
 *End Instance
-**  
+**
 *Nset, nset=_PickedSet4, internal, instance=CrownBioInst, generate
    1,  190,    1
 *Elset, elset=_PickedSet4, internal, instance=CrownBioInst, generate
@@ -21168,9 +21168,9 @@
 *Surface, type=ELEMENT, name=_PickedSurf5, internal
 __PickedSurf5_S2, S2
 *End Assembly
-** 
+**
 ** MATERIALS
-** 
+**
 *Material, name=MAT_ANISO_00
 *Elastic, type=ENGINEERING CONSTANTS
  9.66586e+09, 9.66586e+09, 9.66586e+09, 0.3, 0.3, 0.3, 3.71764e+09, 3.71764e+09
@@ -21254,37 +21254,37 @@ __PickedSurf5_S2, S2
 *Material, name=MAT_TOOTH
 *Elastic
  1e+10, 0.3
-** 
+**
 ** BOUNDARY CONDITIONS
-** 
+**
 ** Name: FIX_CROWN_BOT Type: Displacement/Rotation
 *Boundary
 _PickedSet4, 1, 1
 _PickedSet4, 2, 2
 _PickedSet4, 3, 3
 ** ----------------------------------------------------------------
-** 
+**
 ** STEP: LOAD_CROWN
-** 
+**
 *Step, name=LOAD_CROWN, nlgeom=NO
 *Static
 0.1, 1., 1e-05, 1.
-** 
+**
 ** LOADS
-** 
+**
 ** Name: PRESS_CROWN   Type: Pressure
 *Dsload
 _PickedSurf5, P, 1e+06
-** 
+**
 ** OUTPUT REQUESTS
-** 
+**
 *Restart, write, frequency=0
-** 
+**
 ** FIELD OUTPUT: F-Output-1
-** 
+**
 *Output, field, variable=PRESELECT
-** 
+**
 ** HISTORY OUTPUT: H-Output-1
-** 
+**
 *Output, history, variable=PRESELECT
 *End Step

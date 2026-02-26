@@ -4,14 +4,15 @@
 import os
 import io
 from pptx import Presentation
-from pptx.util import Inches, Pt, Emu
+from pptx.util import Pt
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from PIL import Image, ImageDraw, ImageFont
-from reportlab.lib.pagesizes import landscape
 from reportlab.pdfgen import canvas
 
 PPTX = "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/docs/nishioka_biofilm_tmcmc_presentation.pptx"
-PDF  = "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/docs/nishioka_biofilm_tmcmc_presentation.pdf"
+PDF = (
+    "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/docs/nishioka_biofilm_tmcmc_presentation.pdf"
+)
 
 # Render scale: PPTX is 13.333 x 7.5 inches -> render at 150 DPI
 DPI = 150
@@ -25,8 +26,10 @@ print(f"Slide size: {sw_emu/914400:.1f} x {sh_emu/914400:.1f} inches")
 print(f"Render size: {sw_px} x {sh_px} px at {DPI} DPI")
 print(f"Total slides: {len(prs.slides)}")
 
+
 def emu_to_px(emu):
     return int(emu / 914400 * DPI)
+
 
 def rgb_from_pptx(color):
     """Extract RGB tuple from pptx color."""
@@ -37,6 +40,7 @@ def rgb_from_pptx(color):
     except:
         pass
     return None
+
 
 def get_fill_color(shape):
     """Get fill color of a shape."""
@@ -51,6 +55,7 @@ def get_fill_color(shape):
         pass
     return None
 
+
 def get_bg_color(slide):
     """Get slide background color."""
     try:
@@ -63,6 +68,7 @@ def get_bg_color(slide):
     except:
         pass
     return (240, 242, 245)  # default SLIDE_BG
+
 
 # Try to find a usable font
 def find_font(size=14, bold=False):
@@ -90,13 +96,17 @@ def find_font(size=14, bold=False):
                 continue
     return ImageFont.load_default()
 
+
 # Pre-cache some fonts
 font_cache = {}
+
+
 def get_font(size, bold=False):
     key = (size, bold)
     if key not in font_cache:
         font_cache[key] = find_font(size, bold)
     return font_cache[key]
+
 
 slide_images = []
 
@@ -138,10 +148,9 @@ for slide_idx, slide in enumerate(prs.slides):
                 pic = pic.convert("RGBA")
                 pic_resized = pic.resize((max(1, w), max(1, h)), Image.LANCZOS)
                 img.paste(pic_resized, (x, y), pic_resized if pic_resized.mode == "RGBA" else None)
-            except Exception as e:
+            except Exception:
                 draw.rectangle([x, y, x + w, y + h], outline=(200, 200, 200))
-                draw.text((x + 5, y + 5), f"[img err]", fill=(200, 0, 0),
-                          font=get_font(10))
+                draw.text((x + 5, y + 5), "[img err]", fill=(200, 0, 0), font=get_font(10))
 
         # Draw text
         if shape.has_text_frame:
@@ -177,11 +186,11 @@ for slide_idx, slide in enumerate(prs.slides):
                 # Simple text wrapping
                 max_w = w - 4
                 lines = []
-                for raw_line in text.split('\n'):
+                for raw_line in text.split("\n"):
                     if not raw_line:
                         lines.append("")
                         continue
-                    words = raw_line.split(' ')
+                    words = raw_line.split(" ")
                     current = ""
                     for word in words:
                         test = f"{current} {word}".strip()
@@ -202,6 +211,7 @@ for slide_idx, slide in enumerate(prs.slides):
                     tx = x + 2
                     try:
                         from pptx.enum.text import PP_ALIGN
+
                         if para.alignment == PP_ALIGN.CENTER:
                             bbox = font.getbbox(line)
                             tw = bbox[2] - bbox[0] if bbox else 0
@@ -219,7 +229,7 @@ for slide_idx, slide in enumerate(prs.slides):
     print(f"  Rendered slide {slide_idx + 1}/{len(prs.slides)}")
 
 # Create PDF
-print(f"\nCreating PDF...")
+print("\nCreating PDF...")
 page_w = sw_px
 page_h = sh_px
 c = canvas.Canvas(PDF, pagesize=(page_w, page_h))
@@ -231,6 +241,7 @@ for i, img in enumerate(slide_images):
     buf.seek(0)
 
     from reportlab.lib.utils import ImageReader
+
     ir = ImageReader(buf)
     c.drawImage(ir, 0, 0, width=page_w, height=page_h)
     c.showPage()

@@ -31,8 +31,10 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
 
 from material_models import (
-    compute_E_phi_pg, compute_E_virulence, compute_E_di, compute_di,
-    E_MAX_PA, E_MIN_PA,
+    compute_E_phi_pg,
+    compute_E_virulence,
+    compute_E_di,
+    compute_di,
 )
 
 _CONFORMAL = _HERE / "_3d_conformal_auto"
@@ -40,8 +42,7 @@ _JOBS = _HERE / "_abaqus_auto_jobs"
 _OUT = _HERE / "_3model_comparison"
 _OUT.mkdir(exist_ok=True)
 
-CONDITIONS = ["commensal_static", "commensal_hobic",
-              "dh_baseline", "dysbiotic_static"]
+CONDITIONS = ["commensal_static", "commensal_hobic", "dh_baseline", "dysbiotic_static"]
 
 
 def load_phi_and_compute_E(cond):
@@ -71,10 +72,10 @@ def load_phi_and_compute_E(cond):
     phi_avg_5 = phi_avg.reshape(1, 5)
 
     # Compute E per model (spatial profiles)
-    E_phi_pg_depth = compute_E_phi_pg(phi_depth_5)     # (Nx,) Pa
-    E_vir_depth = compute_E_virulence(phi_depth_5)      # (Nx,) Pa
-    di_depth = compute_di(phi_depth_5)                   # (Nx,)
-    E_di_depth = compute_E_di(di_depth)                  # (Nx,) Pa
+    E_phi_pg_depth = compute_E_phi_pg(phi_depth_5)  # (Nx,) Pa
+    E_vir_depth = compute_E_virulence(phi_depth_5)  # (Nx,) Pa
+    di_depth = compute_di(phi_depth_5)  # (Nx,)
+    E_di_depth = compute_E_di(di_depth)  # (Nx,) Pa
 
     # Scalar averages (condition-level)
     E_phi_pg_avg = float(compute_E_phi_pg(phi_avg_5).item())
@@ -290,7 +291,8 @@ def extract_odb(odb_path):
     json_out = odb_path.replace(".odb", "_stress.json")
 
     with open(ext_script, "w") as f:
-        f.write("""from __future__ import print_function
+        f.write(
+            """from __future__ import print_function
 import sys, json
 try:
     from odbAccess import openOdb
@@ -323,7 +325,9 @@ odb.close()
 with open("%s", "w") as f:
     json.dump(result, f, indent=2)
 print("Extracted:", json.dumps(result, indent=2))
-""" % (odb_name, odb_name, os.path.basename(json_out)))
+"""
+            % (odb_name, odb_name, os.path.basename(json_out))
+        )
 
     cmd = f"cd {odb_dir} && abq2024 python _extract_3model.py"
     os.system(cmd)
@@ -337,14 +341,13 @@ print("Extracted:", json.dumps(result, indent=2))
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--conditions", nargs="+", default=CONDITIONS)
-    ap.add_argument("--run-abaqus", action="store_true",
-                    help="Also run Abaqus jobs")
+    ap.add_argument("--run-abaqus", action="store_true", help="Also run Abaqus jobs")
     ap.add_argument("--cpus", type=int, default=4)
     args = ap.parse_args()
 
-    print("="*60)
+    print("=" * 60)
     print("3-Model Material Comparison: DI vs φ_Pg vs Virulence")
-    print("="*60)
+    print("=" * 60)
 
     all_results = {}
 
@@ -356,9 +359,11 @@ def main():
         if edata is None:
             continue
 
-        print(f"  Species composition: So={edata['phi_avg'][0]:.3f}, "
-              f"An={edata['phi_avg'][1]:.3f}, Vd={edata['phi_avg'][2]:.3f}, "
-              f"Fn={edata['phi_avg'][3]:.3f}, Pg={edata['phi_avg'][4]:.3f}")
+        print(
+            f"  Species composition: So={edata['phi_avg'][0]:.3f}, "
+            f"An={edata['phi_avg'][1]:.3f}, Vd={edata['phi_avg'][2]:.3f}, "
+            f"Fn={edata['phi_avg'][3]:.3f}, Pg={edata['phi_avg'][4]:.3f}"
+        )
         print(f"  DI_0D = {edata['di_0d']:.4f}")
         print(f"  E_di = {edata['E_di_avg']:.1f} Pa")
         print(f"  E_phi_pg = {edata['E_phi_pg_avg']:.1f} Pa")
@@ -396,8 +401,10 @@ def main():
                 result = extract_odb(odb)
                 if result:
                     cond_result[f"stress_{model}"] = result
-                    print(f"    → Mises max={result.get('mises_max',0):.3f}, "
-                          f"Disp max={result.get('disp_max',0):.1f}")
+                    print(
+                        f"    → Mises max={result.get('mises_max',0):.3f}, "
+                        f"Disp max={result.get('disp_max',0):.1f}"
+                    )
 
         all_results[cond] = cond_result
 
@@ -409,12 +416,16 @@ def main():
 
     # Print comparison table
     print(f"\n{'='*70}")
-    print(f"{'Condition':<22} {'E_di [Pa]':>10} {'E_φPg [Pa]':>11} {'E_vir [Pa]':>11} {'Pg frac':>8}")
-    print("-"*70)
+    print(
+        f"{'Condition':<22} {'E_di [Pa]':>10} {'E_φPg [Pa]':>11} {'E_vir [Pa]':>11} {'Pg frac':>8}"
+    )
+    print("-" * 70)
     for cond, r in all_results.items():
-        print(f"{cond:<22} {r['E_di']:>10.1f} {r['E_phi_pg']:>11.1f} "
-              f"{r['E_virulence']:>11.1f} {r['phi_avg'][4]:>8.4f}")
-    print("="*70)
+        print(
+            f"{cond:<22} {r['E_di']:>10.1f} {r['E_phi_pg']:>11.1f} "
+            f"{r['E_virulence']:>11.1f} {r['phi_avg'][4]:>8.4f}"
+        )
+    print("=" * 70)
     print("\nKey insight: φ_Pg ≈ Virulence ≈ 998 Pa (all conditions identical)")
     print("DI model: 32–909 Pa range → only DI differentiates conditions")
 

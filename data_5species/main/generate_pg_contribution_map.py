@@ -214,7 +214,9 @@ def main():
 
     for rd in run_dirs:
         config, theta_full, data_points, t_days, _, label = load_run_and_simulate(rd)
-        rmse_base, contrib = compute_species_contributions(theta_full, data_points, t_days, config, n_late=2)
+        rmse_base, contrib = compute_species_contributions(
+            theta_full, data_points, t_days, config, n_late=2
+        )
         labels.append(label)
         row = [contrib[s] for s in species_order]
         contrib_rows.append(row)

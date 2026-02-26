@@ -31,15 +31,16 @@ import subprocess
 import json
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-_HERE     = os.path.dirname(os.path.abspath(__file__))
+_HERE = os.path.dirname(os.path.abspath(__file__))
 _ASSEMBLY = os.path.join(_HERE, "biofilm_3tooth_assembly.py")
-_ABAQUS   = "/home/nishioka/DassaultSystemes/SIMULIA/Commands/abaqus"
-_EXTRACT  = os.path.join(_HERE, "odb_extract.py")
+_ABAQUS = "/home/nishioka/DassaultSystemes/SIMULIA/Commands/abaqus"
+_EXTRACT = os.path.join(_HERE, "odb_extract.py")
 _CONV_DIR = os.path.join(_HERE, "_mesh_convergence")
-_DI_CSV   = os.path.join(_HERE, "abaqus_field_dh_3d.csv")
+_DI_CSV = os.path.join(_HERE, "abaqus_field_dh_3d.csv")
 _STL_ROOT = os.path.join(_HERE, "external_tooth_models", "OpenJaw_Dataset", "Patient_1")
 
 
@@ -59,6 +60,7 @@ def run_cmd(cmd, cwd=None, dry_run=False, log_file=None):
 def read_mises_for_tooth(elem_csv, tooth="T23"):
     """Return MISES array for a given tooth from odb_elements CSV."""
     import csv
+
     mises = []
     with open(elem_csv) as f:
         reader = csv.DictReader(f)
@@ -73,12 +75,12 @@ def read_mises_for_tooth(elem_csv, tooth="T23"):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--layers",  nargs="+", type=int, default=[4, 8, 16])
-    ap.add_argument("--di-csv",   default=_DI_CSV)
+    ap.add_argument("--layers", nargs="+", type=int, default=[4, 8, 16])
+    ap.add_argument("--di-csv", default=_DI_CSV)
     ap.add_argument("--stl-root", default=_STL_ROOT)
-    ap.add_argument("--cpus",     type=int, default=4)
-    ap.add_argument("--dry-run",  action="store_true")
-    ap.add_argument("--out-dir",  default=_CONV_DIR)
+    ap.add_argument("--cpus", type=int, default=4)
+    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--out-dir", default=_CONV_DIR)
     args = ap.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
@@ -92,7 +94,7 @@ def main():
     results = []
 
     for nl in args.layers:
-        tag      = f"Nl{nl:02d}"
+        tag = f"Nl{nl:02d}"
         inp_file = os.path.join(args.out_dir, f"biofilm_3tooth_{tag}.inp")
         job_name = f"BioFilm3T_{tag}"
         odb_file = os.path.join(args.out_dir, f"{job_name}.odb")
@@ -108,15 +110,20 @@ def main():
 
         # 1. Generate INP
         cmd_gen = [
-            "python3", _ASSEMBLY,
-            "--stl-root", args.stl_root,
-            "--di-csv",   args.di_csv,
-            "--out",      inp_file,
-            "--n-layers", str(nl),
+            "python3",
+            _ASSEMBLY,
+            "--stl-root",
+            args.stl_root,
+            "--di-csv",
+            args.di_csv,
+            "--out",
+            inp_file,
+            "--n-layers",
+            str(nl),
         ]
         rc = run_cmd(cmd_gen, dry_run=args.dry_run, log_file=log_file if not args.dry_run else None)
         if rc != 0:
-            print(f"  [error] INP generation failed")
+            print("  [error] INP generation failed")
             continue
 
         # Count elements in generated INP
@@ -136,11 +143,12 @@ def main():
             f"job={job_name}",
             f"input={inp_file}",
             f"cpus={args.cpus}",
-            "ask=off", "interactive",
+            "ask=off",
+            "interactive",
         ]
         rc = run_cmd(cmd_abq, cwd=args.out_dir, dry_run=args.dry_run)
         if rc != 0 and not args.dry_run:
-            print(f"  [error] Abaqus failed")
+            print("  [error] Abaqus failed")
             continue
 
         # 3. Extract ODB  (odb_extract.py outputs fixed names to ODB dir → rename)
@@ -157,25 +165,29 @@ def main():
         if not args.dry_run and os.path.exists(elem_csv):
             mises_t23 = read_mises_for_tooth(elem_csv, "T23")
             med = float(np.median(mises_t23)) if len(mises_t23) > 0 else float("nan")
-            mx  = float(mises_t23.max())      if len(mises_t23) > 0 else float("nan")
+            mx = float(mises_t23.max()) if len(mises_t23) > 0 else float("nan")
             print(f"  T23 MISES median={med:.4f}  max={mx:.4f}  n_elem={len(mises_t23)}")
-            results.append({
-                "n_layers":      nl,
-                "layer_thick":   layer_thick,
-                "n_elem_total":  n_elements,
-                "mises_median":  med,
-                "mises_max":     mx,
-                "n_elem_t23":    len(mises_t23),
-            })
+            results.append(
+                {
+                    "n_layers": nl,
+                    "layer_thick": layer_thick,
+                    "n_elem_total": n_elements,
+                    "mises_median": med,
+                    "mises_max": mx,
+                    "n_elem_t23": len(mises_t23),
+                }
+            )
         else:
-            results.append({
-                "n_layers":     nl,
-                "layer_thick":  layer_thick,
-                "n_elem_total": None,
-                "mises_median": None,
-                "mises_max":    None,
-                "n_elem_t23":   None,
-            })
+            results.append(
+                {
+                    "n_layers": nl,
+                    "layer_thick": layer_thick,
+                    "n_elem_total": None,
+                    "mises_median": None,
+                    "mises_max": None,
+                    "n_elem_t23": None,
+                }
+            )
 
     # ── Convergence check ─────────────────────────────────────────────────────
     data = [r for r in results if r["mises_median"] is not None]
@@ -188,8 +200,10 @@ def main():
                 dpct = 100.0 * abs(r["mises_median"] - prev) / max(abs(prev), 1e-15)
             else:
                 dpct = float("nan")
-            print(f"  {r['n_layers']:>10d}  {r['layer_thick']:>12.4f}  "
-                  f"{r['mises_median']:>10.4f}  {dpct:>8.2f}%")
+            print(
+                f"  {r['n_layers']:>10d}  {r['layer_thick']:>12.4f}  "
+                f"{r['mises_median']:>10.4f}  {dpct:>8.2f}%"
+            )
             prev = r["mises_median"]
 
         finest = data[-1]["mises_median"]
@@ -209,20 +223,21 @@ def main():
 
     # ── Plot ──────────────────────────────────────────────────────────────────
     if data:
-        nl_arr  = [r["n_layers"]     for r in data]
+        nl_arr = [r["n_layers"] for r in data]
         med_arr = [r["mises_median"] for r in data]
-        max_arr = [r["mises_max"]    for r in data]
-        lt_arr  = [r["layer_thick"]  for r in data]
+        max_arr = [r["mises_max"] for r in data]
+        lt_arr = [r["layer_thick"] for r in data]
 
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
         ax = axes[0]
         ax.plot(nl_arr, med_arr, "o-", color="steelblue", label="T23 MISES median")
-        ax.plot(nl_arr, max_arr, "s--", color="tomato",   label="T23 MISES max")
+        ax.plot(nl_arr, max_arr, "s--", color="tomato", label="T23 MISES max")
         ax.set_xlabel("N_layers (through-thickness)")
         ax.set_ylabel("von Mises stress (MPa)")
         ax.set_title("Mesh convergence: MISES vs N_layers")
-        ax.legend(); ax.grid(True, alpha=0.3)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
 
         ax = axes[1]
         if len(data) >= 2:
@@ -234,7 +249,8 @@ def main():
         ax.set_xlabel("N_layers")
         ax.set_ylabel("Δ MISES vs finest mesh (%)")
         ax.set_title("Convergence error vs finest")
-        ax.legend(); ax.grid(True, alpha=0.3)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
 
         fig.suptitle("P4 Mesh Convergence – T23 Crown")
         fig.tight_layout()

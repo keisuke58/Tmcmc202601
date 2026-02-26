@@ -1,0 +1,26 @@
+{
+    "theta_full": [
+        0.8,
+        2.0,
+        1.0,
+        0.1,
+        0.2,
+        1.5,
+        1.0,
+        2.0,
+        0.3,
+        0.4,
+        2.0,
+        1.0,
+        2.0,
+        1.0,
+        1.2,
+        0.25,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+    ],
+    "model": "M3_locked",
+    "note": "Absolute Volume Estimation Initialized at True Values"
+}

@@ -1,0 +1,73 @@
+{
+  "condition": "Dysbiotic",
+  "cultivation": "Static",
+  "dt": 0.0001,
+  "maxtimestep": 2500,
+  "c_const": 25.0,
+  "Kp1": 0.0001,
+  "K_hill": 0.05,
+  "n_hill": 4.0,
+  "alpha_const": 0.0,
+  "phi_init": 0.02,
+  "phi_init_is_array": false,
+  "use_exp_init": false,
+  "day_scale": null,
+  "sigma_obs": 0.2469135802469136,
+  "cov_rel": 0.005,
+  "prior_min": null,
+  "prior_max": null,
+  "prior_decay_max": null,
+  "n_particles": 150,
+  "n_stages": 8,
+  "n_chains": 2,
+  "seed": 44,
+  "hdi_credibility": 0.95,
+  "compute_evidence": false,
+  "metadata": {
+    "condition": "Dysbiotic",
+    "cultivation": "Static",
+    "days": [
+      1,
+      3,
+      6,
+      10,
+      15,
+      21
+    ],
+    "n_timepoints": 6,
+    "total_volumes": [
+      0.4,
+      0.35,
+      0.38,
+      0.3,
+      0.6,
+      0.55
+    ],
+    "sigma_obs_estimated": 0.2469135802469136,
+    "phi_init_exp": [
+      0.06,
+      0.032,
+      0.24,
+      0.020000000000000004,
+      0.04000000000000001
+    ],
+    "start_from_day": 1,
+    "t_model": [
+      0.01130952380952381,
+      0.033928571428571426,
+      0.06785714285714285,
+      0.1130952380952381,
+      0.16964285714285715,
+      0.2375
+    ],
+    "idx_sparse": [
+      113,
+      339,
+      679,
+      1131,
+      1696,
+      2375
+    ],
+    "day_scale": null
+  }
+}

@@ -28,6 +28,7 @@ import numpy as np
 
 try:
     from numba import njit
+
     HAS_NUMBA = True
 except Exception:
     HAS_NUMBA = False
@@ -38,12 +39,27 @@ except Exception:
 # =============================================================================
 
 if HAS_NUMBA:
+
     @njit(cache=False, fastmath=True)
-    def _compute_Q_vector_numba_5s(phi_new, phi0_new, psi_new, gamma_new,
-                                   phi_old, phi0_old, psi_old,
-                                   dt, Kp1, Eta_vec, Eta_phi_vec,
-                                   c_val, alpha_val, A, b_diag,
-                                   K_hill, n_hill):
+    def _compute_Q_vector_numba_5s(
+        phi_new,
+        phi0_new,
+        psi_new,
+        gamma_new,
+        phi_old,
+        phi0_old,
+        psi_old,
+        dt,
+        Kp1,
+        Eta_vec,
+        Eta_phi_vec,
+        c_val,
+        alpha_val,
+        A,
+        b_diag,
+        K_hill,
+        n_hill,
+    ):
         # Clip to [eps, 1-eps]
         eps = 1e-12
         for i in range(5):
@@ -80,46 +96,72 @@ if HAS_NUMBA:
 
         # Q[0..4] for phi_i
         for i in range(5):
-            term1 = (Kp1 * (2.0 - 4.0 * phi_new[i])) / ((phi_new[i] - 1.0)**3 * phi_new[i]**3)
-            term2 = (1.0 / Eta_vec[i]) * (gamma_new
-                                          + (Eta_phi_vec[i] + Eta_vec[i] * psi_new[i]**2) * phidot[i]
-                                          + Eta_vec[i] * phi_new[i] * psi_new[i] * psidot[i])
+            term1 = (Kp1 * (2.0 - 4.0 * phi_new[i])) / ((phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3)
+            term2 = (1.0 / Eta_vec[i]) * (
+                gamma_new
+                + (Eta_phi_vec[i] + Eta_vec[i] * psi_new[i] ** 2) * phidot[i]
+                + Eta_vec[i] * phi_new[i] * psi_new[i] * psidot[i]
+            )
             term3 = (c_val / Eta_vec[i]) * psi_new[i] * Interaction[i]
             Q[i] = term1 + term2 - term3
 
         # Q[5] for phi0
-        Q[5] = gamma_new + (Kp1 * (2.0 - 4.0 * phi0_new)) / ((phi0_new - 1.0)**3 * phi0_new**3) + phi0dot
+        Q[5] = (
+            gamma_new
+            + (Kp1 * (2.0 - 4.0 * phi0_new)) / ((phi0_new - 1.0) ** 3 * phi0_new**3)
+            + phi0dot
+        )
 
         # Q[6..10] for psi_i
         for i in range(5):
-            term1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0)**2 * psi_new[i]**3) \
-                    - (2.0 * Kp1) / ((psi_new[i] - 1.0)**3 * psi_new[i]**2)
+            term1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3) - (2.0 * Kp1) / (
+                (psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2
+            )
             term2 = (b_diag[i] * alpha_val / Eta_vec[i]) * psi_new[i]
-            term3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i]**2 * psidot[i]
+            term3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i] ** 2 * psidot[i]
             term4 = (c_val / Eta_vec[i]) * phi_new[i] * Interaction[i]
-            Q[6+i] = term1 + term2 + term3 - term4
+            Q[6 + i] = term1 + term2 + term3 - term4
 
         # constraint
         Q[11] = np.sum(phi_new) + phi0_new - 1.0
         return Q
 
     @njit(cache=False, fastmath=True)
-    def _compute_jacobian_numba_5s(phi_new, phi0_new, psi_new, gamma_new,
-                                   phi_old, psi_old,
-                                   dt, Kp1, Eta_vec, Eta_phi_vec,
-                                   c_val, alpha_val, A, b_diag,
-                                   K_hill, n_hill):
+    def _compute_jacobian_numba_5s(
+        phi_new,
+        phi0_new,
+        psi_new,
+        gamma_new,
+        phi_old,
+        psi_old,
+        dt,
+        Kp1,
+        Eta_vec,
+        Eta_phi_vec,
+        c_val,
+        alpha_val,
+        A,
+        b_diag,
+        K_hill,
+        n_hill,
+    ):
         K = np.zeros((12, 12))
 
         # Clip
         eps = 1e-12
         for i in range(5):
-            if phi_new[i] < eps: phi_new[i] = eps
-            elif phi_new[i] > 1.0 - eps: phi_new[i] = 1.0 - eps
-            if psi_new[i] < eps: psi_new[i] = eps
-            elif psi_new[i] > 1.0 - eps: psi_new[i] = 1.0 - eps
-        if phi0_new < eps: phi0_new = eps
-        elif phi0_new > 1.0 - eps: phi0_new = 1.0 - eps
+            if phi_new[i] < eps:
+                phi_new[i] = eps
+            elif phi_new[i] > 1.0 - eps:
+                phi_new[i] = 1.0 - eps
+            if psi_new[i] < eps:
+                psi_new[i] = eps
+            elif psi_new[i] > 1.0 - eps:
+                psi_new[i] = 1.0 - eps
+        if phi0_new < eps:
+            phi0_new = eps
+        elif phi0_new > 1.0 - eps:
+            phi0_new = 1.0 - eps
 
         phidot = (phi_new - phi_old) / dt
         psidot = (psi_new - psi_old) / dt
@@ -140,49 +182,67 @@ if HAS_NUMBA:
         psi_p = np.zeros(5)
         for i in range(5):
             v = phi_new[i]
-            phi_p[i] = (Kp1*(-4.+8.*v))/((v**3)*(v-1.)**3) \
-                       - (Kp1*(2.-4.*v))*(3./((v**4)*(v-1.)**3) + 3./((v**3)*(v-1.)**4))
+            phi_p[i] = (Kp1 * (-4.0 + 8.0 * v)) / ((v**3) * (v - 1.0) ** 3) - (
+                Kp1 * (2.0 - 4.0 * v)
+            ) * (3.0 / ((v**4) * (v - 1.0) ** 3) + 3.0 / ((v**3) * (v - 1.0) ** 4))
             v = psi_new[i]
-            psi_p[i] = (4.*Kp1*(3.-5.*v+5.*v**2))/((v**4)*(v-1.)**4)
+            psi_p[i] = (4.0 * Kp1 * (3.0 - 5.0 * v + 5.0 * v**2)) / ((v**4) * (v - 1.0) ** 4)
 
         v0 = phi0_new
-        phi0_p = (Kp1*(-4.+8.*v0))/((v0**3)*(v0-1.)**3) \
-                 - (Kp1*(2.-4.*v0))*(3./((v0**4)*(v0-1.)**3) + 3./((v0**3)*(v0-1.)**4))
+        phi0_p = (Kp1 * (-4.0 + 8.0 * v0)) / ((v0**3) * (v0 - 1.0) ** 3) - (
+            Kp1 * (2.0 - 4.0 * v0)
+        ) * (3.0 / ((v0**4) * (v0 - 1.0) ** 3) + 3.0 / ((v0**3) * (v0 - 1.0) ** 4))
 
         # dQ/dphi, dQ/dpsi, dQ/dgamma
         for i in range(5):
             for j in range(5):
                 K[i, j] = (c_val / Eta_vec[i]) * psi_new[i] * (-A[i, j] * psi_new[j])
-            K[i, i] += phi_p[i] \
-                       + (1./Eta_vec[i])*((Eta_phi_vec[i] + Eta_vec[i]*psi_new[i]**2)/dt
-                                          + Eta_vec[i]*psi_new[i]*psidot[i]) \
-                       - (c_val/Eta_vec[i])*(psi_new[i]*(Interaction[i] + A[i,i]*psi_new[i]))
+            K[i, i] += (
+                phi_p[i]
+                + (1.0 / Eta_vec[i])
+                * (
+                    (Eta_phi_vec[i] + Eta_vec[i] * psi_new[i] ** 2) / dt
+                    + Eta_vec[i] * psi_new[i] * psidot[i]
+                )
+                - (c_val / Eta_vec[i]) * (psi_new[i] * (Interaction[i] + A[i, i] * psi_new[i]))
+            )
 
             for j in range(5):
-                K[i, j+6] = (c_val / Eta_vec[i]) * psi_new[i] * (-A[i, j] * phi_new[j])
-            K[i, i+6] += (1./Eta_vec[i])*(2.*Eta_vec[i]*psi_new[i]*phidot[i]
-                                          + Eta_vec[i]*phi_new[i]*psidot[i]
-                                          + Eta_vec[i]*phi_new[i]*psi_new[i]/dt) \
-                         - (c_val/Eta_vec[i])*((Interaction[i] + A[i,i]*phi_new[i]*psi_new[i])
-                                               + psi_new[i]*(A[i,i]*phi_new[i]))
-            K[i, 11] = 1./Eta_vec[i]
+                K[i, j + 6] = (c_val / Eta_vec[i]) * psi_new[i] * (-A[i, j] * phi_new[j])
+            K[i, i + 6] += (1.0 / Eta_vec[i]) * (
+                2.0 * Eta_vec[i] * psi_new[i] * phidot[i]
+                + Eta_vec[i] * phi_new[i] * psidot[i]
+                + Eta_vec[i] * phi_new[i] * psi_new[i] / dt
+            ) - (c_val / Eta_vec[i]) * (
+                (Interaction[i] + A[i, i] * phi_new[i] * psi_new[i])
+                + psi_new[i] * (A[i, i] * phi_new[i])
+            )
+            K[i, 11] = 1.0 / Eta_vec[i]
 
-        K[5, 5] = phi0_p + 1./dt
+        K[5, 5] = phi0_p + 1.0 / dt
         K[5, 11] = 1.0
 
         for i in range(5):
-            k = i+6
+            k = i + 6
             for j in range(5):
-                K[k, j] = -(c_val/Eta_vec[i])*(A[i,j]*psi_new[j]*phi_new[i]
-                                               + Interaction[i]*(1.0 if i==j else 0.0))
-            K[k, i] += (psi_new[i]*phidot[i] + psi_new[i]*phi_new[i]/dt + 2.*phi_new[i]*psidot[i]) \
-                       - (c_val/Eta_vec[i])*(A[i,i]*psi_new[i]*phi_new[i]
-                                             + Interaction[i] + phi_new[i]*A[i,i]*psi_new[i])
+                K[k, j] = -(c_val / Eta_vec[i]) * (
+                    A[i, j] * psi_new[j] * phi_new[i] + Interaction[i] * (1.0 if i == j else 0.0)
+                )
+            K[k, i] += (
+                psi_new[i] * phidot[i] + psi_new[i] * phi_new[i] / dt + 2.0 * phi_new[i] * psidot[i]
+            ) - (c_val / Eta_vec[i]) * (
+                A[i, i] * psi_new[i] * phi_new[i]
+                + Interaction[i]
+                + phi_new[i] * A[i, i] * psi_new[i]
+            )
             for j in range(5):
-                K[k, j+6] = -(c_val/Eta_vec[i])*phi_new[i]*A[i,j]*phi_new[j]
-            K[k, i+6] += psi_p[i] + (b_diag[i]*alpha_val/Eta_vec[i]) \
-                         + (phi_new[i]*phidot[i] + phi_new[i]**2/dt) \
-                         - (c_val/Eta_vec[i])*phi_new[i]*A[i,i]*phi_new[i]
+                K[k, j + 6] = -(c_val / Eta_vec[i]) * phi_new[i] * A[i, j] * phi_new[j]
+            K[k, i + 6] += (
+                psi_p[i]
+                + (b_diag[i] * alpha_val / Eta_vec[i])
+                + (phi_new[i] * phidot[i] + phi_new[i] ** 2 / dt)
+                - (c_val / Eta_vec[i]) * phi_new[i] * A[i, i] * phi_new[i]
+            )
 
         K[11, 0:6] = 1.0
 
@@ -197,22 +257,24 @@ if HAS_NUMBA:
                 K[4, j + 6] += hm1 * (-(c_eta4) * psi_new[4] * A[4, j] * phi_new[j])
             # Diagonal correction: A[4,4] appears again in the diagonal accumulation
             K[4, 4] += hm1 * (-(c_eta4) * psi_new[4] * A[4, 4] * psi_new[4])
-            K[4, 10] += hm1 * (-(c_eta4) * (A[4, 4] * phi_new[4] * psi_new[4]
-                                             + psi_new[4] * A[4, 4] * phi_new[4]))
+            K[4, 10] += hm1 * (
+                -(c_eta4) * (A[4, 4] * phi_new[4] * psi_new[4] + psi_new[4] * A[4, 4] * phi_new[4])
+            )
 
             # Correct A-derived terms in row 10 (psi_4 equation)
             for j in range(5):
                 K[10, j] += hm1 * (-(c_eta4) * A[4, j] * psi_new[j] * phi_new[4])
                 K[10, j + 6] += hm1 * (-(c_eta4) * phi_new[4] * A[4, j] * phi_new[j])
-            K[10, 4] += hm1 * (-(c_eta4) * (A[4, 4] * psi_new[4] * phi_new[4]
-                                             + phi_new[4] * A[4, 4] * psi_new[4]))
+            K[10, 4] += hm1 * (
+                -(c_eta4) * (A[4, 4] * psi_new[4] * phi_new[4] + phi_new[4] * A[4, 4] * psi_new[4])
+            )
             K[10, 10] += hm1 * (-(c_eta4) * phi_new[4] * A[4, 4] * phi_new[4])
 
             # dh/dx derivative terms (x = phi[3]*psi[3])
             fn_conc = phi_new[3] * psi_new[3]
             if fn_conc > 1e-20:
-                Kn = K_hill ** n_hill
-                xn = fn_conc ** n_hill
+                Kn = K_hill**n_hill
+                xn = fn_conc**n_hill
                 dh_dx = n_hill * Kn * fn_conc ** (n_hill - 1.0) / (Kn + xn) ** 2
             else:
                 dh_dx = 0.0
@@ -227,8 +289,21 @@ if HAS_NUMBA:
         return K
 
     @njit(cache=False, fastmath=True)
-    def _newton_step_jit_5s(g_prev, dt, Kp1, Eta_vec, Eta_phi_vec, c_val, alpha_val, A, b_diag,
-                            eps_tol, max_newton_iter, K_hill, n_hill):
+    def _newton_step_jit_5s(
+        g_prev,
+        dt,
+        Kp1,
+        Eta_vec,
+        Eta_phi_vec,
+        c_val,
+        alpha_val,
+        A,
+        b_diag,
+        eps_tol,
+        max_newton_iter,
+        K_hill,
+        n_hill,
+    ):
         g_new = g_prev.copy()
         for _ in range(max_newton_iter):
             phi_new = g_new[0:5].copy()
@@ -240,11 +315,25 @@ if HAS_NUMBA:
             phi0_old = g_prev[5]
             psi_old = g_prev[6:11]
 
-            Q = _compute_Q_vector_numba_5s(phi_new, phi0_new, psi_new, gamma_new,
-                                           phi_old, phi0_old, psi_old,
-                                           dt, Kp1, Eta_vec, Eta_phi_vec,
-                                           c_val, alpha_val, A, b_diag,
-                                           K_hill, n_hill)
+            Q = _compute_Q_vector_numba_5s(
+                phi_new,
+                phi0_new,
+                psi_new,
+                gamma_new,
+                phi_old,
+                phi0_old,
+                psi_old,
+                dt,
+                Kp1,
+                Eta_vec,
+                Eta_phi_vec,
+                c_val,
+                alpha_val,
+                A,
+                b_diag,
+                K_hill,
+                n_hill,
+            )
             g_new[0:5] = phi_new
             g_new[5] = phi0_new
             g_new[6:11] = psi_new
@@ -258,11 +347,24 @@ if HAS_NUMBA:
             if nan_found:
                 break
 
-            K = _compute_jacobian_numba_5s(phi_new.copy(), phi0_new, psi_new.copy(), gamma_new,
-                                           phi_old, psi_old,
-                                           dt, Kp1, Eta_vec, Eta_phi_vec,
-                                           c_val, alpha_val, A, b_diag,
-                                           K_hill, n_hill)
+            K = _compute_jacobian_numba_5s(
+                phi_new.copy(),
+                phi0_new,
+                psi_new.copy(),
+                gamma_new,
+                phi_old,
+                psi_old,
+                dt,
+                Kp1,
+                Eta_vec,
+                Eta_phi_vec,
+                c_val,
+                alpha_val,
+                A,
+                b_diag,
+                K_hill,
+                n_hill,
+            )
 
             try:
                 delta = np.linalg.solve(K, -Q)
@@ -273,7 +375,8 @@ if HAS_NUMBA:
             norm_Q = 0.0
             for i in range(12):
                 v = abs(Q[i])
-                if v > norm_Q: norm_Q = v
+                if v > norm_Q:
+                    norm_Q = v
 
             step = 1.0
             improved = False
@@ -284,11 +387,25 @@ if HAS_NUMBA:
                 psi_t = g_trial[6:11].copy()
                 gamma_t = g_trial[11]
 
-                Q_trial = _compute_Q_vector_numba_5s(phi_t, phi0_t, psi_t, gamma_t,
-                                                     phi_old, phi0_old, psi_old,
-                                                     dt, Kp1, Eta_vec, Eta_phi_vec,
-                                                     c_val, alpha_val, A, b_diag,
-                                                     K_hill, n_hill)
+                Q_trial = _compute_Q_vector_numba_5s(
+                    phi_t,
+                    phi0_t,
+                    psi_t,
+                    gamma_t,
+                    phi_old,
+                    phi0_old,
+                    psi_old,
+                    dt,
+                    Kp1,
+                    Eta_vec,
+                    Eta_phi_vec,
+                    c_val,
+                    alpha_val,
+                    A,
+                    b_diag,
+                    K_hill,
+                    n_hill,
+                )
                 nan2 = False
                 for i in range(12):
                     if np.isnan(Q_trial[i]):
@@ -298,7 +415,8 @@ if HAS_NUMBA:
                     norm_trial = 0.0
                     for i in range(12):
                         v = abs(Q_trial[i])
-                        if v > norm_trial: norm_trial = v
+                        if v > norm_trial:
+                            norm_trial = v
                     if norm_trial < norm_Q:
                         g_new = g_trial
                         norm_Q = norm_trial
@@ -313,26 +431,54 @@ if HAS_NUMBA:
                 break
         return g_new
 
+
 # =============================================================================
 # 2. SOLVER CLASS (N=5)
 # =============================================================================
 
+
 class BiofilmNewtonSolver5S:
     THETA_NAMES = [
-        "a11","a12","a22","b1","b2",
-        "a33","a34","a44","b3","b4",
-        "a13","a14","a23","a24",
-        "a55","b5","a15","a25","a35","a45"
+        "a11",
+        "a12",
+        "a22",
+        "b1",
+        "b2",
+        "a33",
+        "a34",
+        "a44",
+        "b3",
+        "b4",
+        "a13",
+        "a14",
+        "a23",
+        "a24",
+        "a55",
+        "b5",
+        "a15",
+        "a25",
+        "a35",
+        "a45",
     ]
 
-    def __init__(self,
-                 dt=1e-5, maxtimestep=500, eps=1e-6, Kp1=1e-4,
-                 eta_vec=None, eta_phi_vec=None,
-                 c_const=100.0, alpha_const=100.0,
-                 alpha_schedule=None, phi_init=0.2,
-                 active_species=None, use_numba=True,
-                 max_newton_iter=50,
-                 K_hill=0.0, n_hill=2.0):
+    def __init__(
+        self,
+        dt=1e-5,
+        maxtimestep=500,
+        eps=1e-6,
+        Kp1=1e-4,
+        eta_vec=None,
+        eta_phi_vec=None,
+        c_const=100.0,
+        alpha_const=100.0,
+        alpha_schedule=None,
+        phi_init=0.2,
+        active_species=None,
+        use_numba=True,
+        max_newton_iter=50,
+        K_hill=0.0,
+        n_hill=2.0,
+    ):
         self.dt = float(dt)
         self.maxtimestep = int(maxtimestep)
         self.eps = float(eps)
@@ -349,8 +495,10 @@ class BiofilmNewtonSolver5S:
             active_species = [0, 1, 2, 3, 4]
         self.active_species = list(active_species)
 
-        if eta_vec is None: eta_vec = np.ones(5, dtype=float)
-        if eta_phi_vec is None: eta_phi_vec = np.ones(5, dtype=float)
+        if eta_vec is None:
+            eta_vec = np.ones(5, dtype=float)
+        if eta_phi_vec is None:
+            eta_phi_vec = np.ones(5, dtype=float)
 
         self.Eta_vec = np.asarray(eta_vec, dtype=float)
         self.Eta_phi_vec = np.asarray(eta_phi_vec, dtype=float)
@@ -358,45 +506,55 @@ class BiofilmNewtonSolver5S:
 
     def theta_to_matrices(self, theta):
         """Map 20 parameters to A(5x5) and b(5). Supports complex theta."""
-        dtype = theta.dtype if hasattr(theta, 'dtype') else np.float64
+        dtype = theta.dtype if hasattr(theta, "dtype") else np.float64
         A = np.zeros((5, 5), dtype=dtype)
         b_diag = np.zeros(5, dtype=dtype)
 
         # M1 (0,1)
-        A[0,0] = theta[0]
-        A[0,1] = theta[1]; A[1,0] = theta[1]
-        A[1,1] = theta[2]
+        A[0, 0] = theta[0]
+        A[0, 1] = theta[1]
+        A[1, 0] = theta[1]
+        A[1, 1] = theta[2]
         b_diag[0] = theta[3]
         b_diag[1] = theta[4]
 
         # M2 (2,3)
-        A[2,2] = theta[5]
-        A[2,3] = theta[6]; A[3,2] = theta[6]
-        A[3,3] = theta[7]
+        A[2, 2] = theta[5]
+        A[2, 3] = theta[6]
+        A[3, 2] = theta[6]
+        A[3, 3] = theta[7]
         b_diag[2] = theta[8]
         b_diag[3] = theta[9]
 
         # M3 Cross (0,1) <-> (2,3)
-        A[0,2] = theta[10]; A[2,0] = theta[10]
-        A[0,3] = theta[11]; A[3,0] = theta[11]
-        A[1,2] = theta[12]; A[2,1] = theta[12]
-        A[1,3] = theta[13]; A[3,1] = theta[13]
+        A[0, 2] = theta[10]
+        A[2, 0] = theta[10]
+        A[0, 3] = theta[11]
+        A[3, 0] = theta[11]
+        A[1, 2] = theta[12]
+        A[2, 1] = theta[12]
+        A[1, 3] = theta[13]
+        A[3, 1] = theta[13]
 
         # Species 5 (index 4)
-        A[4,4] = theta[14]
+        A[4, 4] = theta[14]
         b_diag[4] = theta[15]
 
         # Cross 5 with others
-        A[0,4] = theta[16]; A[4,0] = theta[16] # S.o-P.g
-        A[1,4] = theta[17]; A[4,1] = theta[17] # A.n-P.g
-        A[2,4] = theta[18]; A[4,2] = theta[18] # Vei-P.g
-        A[3,4] = theta[19]; A[4,3] = theta[19] # F.n-P.g
+        A[0, 4] = theta[16]
+        A[4, 0] = theta[16]  # S.o-P.g
+        A[1, 4] = theta[17]
+        A[4, 1] = theta[17]  # A.n-P.g
+        A[2, 4] = theta[18]
+        A[4, 2] = theta[18]  # Vei-P.g
+        A[3, 4] = theta[19]
+        A[4, 3] = theta[19]  # F.n-P.g
 
         return A, b_diag
 
     def run_deterministic(self, theta):
         A, b_diag = self.theta_to_matrices(theta)
-        
+
         # Initial state
         g_prev = np.zeros(12)
         active_mask = np.zeros(5, dtype=np.int32)
@@ -408,7 +566,7 @@ class BiofilmNewtonSolver5S:
             g_prev[i] = self.phi_init if active_mask[i] else 0.0
         g_prev[5] = 1.0 - np.sum(g_prev[0:5])
         for i in range(5):
-            g_prev[6+i] = 0.999 if active_mask[i] else 0.0
+            g_prev[6 + i] = 0.999 if active_mask[i] else 0.0
         g_prev[11] = 0.0
 
         if self.use_numba:
@@ -418,9 +576,20 @@ class BiofilmNewtonSolver5S:
 
     def _run_loop_jit(self, theta, g_prev, A, b_diag):
         return _run_deterministic_jit_5s(
-            g_prev, self.dt, self.maxtimestep, self.eps, self.Kp1,
-            self.Eta_vec, self.Eta_phi_vec, self.c_const, self.alpha_const,
-            A, b_diag, self.max_newton_iter, self.K_hill, self.n_hill
+            g_prev,
+            self.dt,
+            self.maxtimestep,
+            self.eps,
+            self.Kp1,
+            self.Eta_vec,
+            self.Eta_phi_vec,
+            self.c_const,
+            self.alpha_const,
+            A,
+            b_diag,
+            self.max_newton_iter,
+            self.K_hill,
+            self.n_hill,
         )
 
     def _run_loop_python(self, theta, g_prev, A, b_diag):
@@ -482,27 +651,65 @@ class BiofilmNewtonSolver5S:
 
         if np.iscomplexobj(g_new) or np.iscomplexobj(A) or np.iscomplexobj(b_diag):
             return _compute_Q_vector_numpy_5s(
-                phi_new, phi0_new, psi_new, gamma_new,
-                phi_old, phi0_old, psi_old,
-                dt, self.Kp1, self.Eta_vec, self.Eta_phi_vec,
-                self.c_const, self.alpha_const, A, b_diag,
-                self.K_hill, self.n_hill)
+                phi_new,
+                phi0_new,
+                psi_new,
+                gamma_new,
+                phi_old,
+                phi0_old,
+                psi_old,
+                dt,
+                self.Kp1,
+                self.Eta_vec,
+                self.Eta_phi_vec,
+                self.c_const,
+                self.alpha_const,
+                A,
+                b_diag,
+                self.K_hill,
+                self.n_hill,
+            )
 
         if self.use_numba:
             return _compute_Q_vector_numba_5s(
-                phi_new.copy(), phi0_new, psi_new.copy(), gamma_new,
-                phi_old, phi0_old, psi_old,
-                dt, self.Kp1, self.Eta_vec, self.Eta_phi_vec,
-                self.c_const, self.alpha_const,
-                A.real.astype(np.float64), b_diag.real.astype(np.float64),
-                self.K_hill, self.n_hill)
+                phi_new.copy(),
+                phi0_new,
+                psi_new.copy(),
+                gamma_new,
+                phi_old,
+                phi0_old,
+                psi_old,
+                dt,
+                self.Kp1,
+                self.Eta_vec,
+                self.Eta_phi_vec,
+                self.c_const,
+                self.alpha_const,
+                A.real.astype(np.float64),
+                b_diag.real.astype(np.float64),
+                self.K_hill,
+                self.n_hill,
+            )
 
         return _compute_Q_vector_numpy_5s(
-            phi_new, phi0_new, psi_new, gamma_new,
-            phi_old, phi0_old, psi_old,
-            dt, self.Kp1, self.Eta_vec, self.Eta_phi_vec,
-            self.c_const, self.alpha_const, A, b_diag,
-            self.K_hill, self.n_hill)
+            phi_new,
+            phi0_new,
+            psi_new,
+            gamma_new,
+            phi_old,
+            phi0_old,
+            psi_old,
+            dt,
+            self.Kp1,
+            self.Eta_vec,
+            self.Eta_phi_vec,
+            self.c_const,
+            self.alpha_const,
+            A,
+            b_diag,
+            self.K_hill,
+            self.n_hill,
+        )
 
     def compute_Jacobian_matrix(self, g_new, g_old, t, dt, A, b_diag):
         """Jacobian dQ/dg_new. Finite difference fallback if numba unavailable."""
@@ -526,18 +733,44 @@ class BiofilmNewtonSolver5S:
         psi_old = g_old[6:11]
 
         return _compute_jacobian_numba_5s(
-            phi_new, phi0_new, psi_new, gamma_new,
-            phi_old, psi_old,
-            dt, self.Kp1, self.Eta_vec, self.Eta_phi_vec,
-            self.c_const, self.alpha_const, A, b_diag,
-            self.K_hill, self.n_hill)
+            phi_new,
+            phi0_new,
+            psi_new,
+            gamma_new,
+            phi_old,
+            psi_old,
+            dt,
+            self.Kp1,
+            self.Eta_vec,
+            self.Eta_phi_vec,
+            self.c_const,
+            self.alpha_const,
+            A,
+            b_diag,
+            self.K_hill,
+            self.n_hill,
+        )
 
 
-def _compute_Q_vector_numpy_5s(phi_new, phi0_new, psi_new, gamma_new,
-                               phi_old, phi0_old, psi_old,
-                               dt, Kp1, Eta_vec, Eta_phi_vec,
-                               c_val, alpha_val, A, b_diag,
-                               K_hill, n_hill):
+def _compute_Q_vector_numpy_5s(
+    phi_new,
+    phi0_new,
+    psi_new,
+    gamma_new,
+    phi_old,
+    phi0_old,
+    psi_old,
+    dt,
+    Kp1,
+    Eta_vec,
+    Eta_phi_vec,
+    c_val,
+    alpha_val,
+    A,
+    b_diag,
+    K_hill,
+    n_hill,
+):
     """Pure NumPy Q vector for 5-species model. Supports complex arrays."""
     eps = 1e-12
     phi_new = np.where(np.real(phi_new) < eps, eps, phi_new)
@@ -567,20 +800,25 @@ def _compute_Q_vector_numpy_5s(phi_new, phi0_new, psi_new, gamma_new,
         Interaction[4] = Interaction[4] * hill_gate
 
     for i in range(5):
-        term1 = (Kp1 * (2.0 - 4.0 * phi_new[i])) / ((phi_new[i] - 1.0)**3 * phi_new[i]**3)
-        term2 = (1.0 / Eta_vec[i]) * (gamma_new
-                                       + (Eta_phi_vec[i] + Eta_vec[i] * psi_new[i]**2) * phidot[i]
-                                       + Eta_vec[i] * phi_new[i] * psi_new[i] * psidot[i])
+        term1 = (Kp1 * (2.0 - 4.0 * phi_new[i])) / ((phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3)
+        term2 = (1.0 / Eta_vec[i]) * (
+            gamma_new
+            + (Eta_phi_vec[i] + Eta_vec[i] * psi_new[i] ** 2) * phidot[i]
+            + Eta_vec[i] * phi_new[i] * psi_new[i] * psidot[i]
+        )
         term3 = (c_val / Eta_vec[i]) * psi_new[i] * Interaction[i]
         Q[i] = term1 + term2 - term3
 
-    Q[5] = gamma_new + (Kp1 * (2.0 - 4.0 * phi0_new)) / ((phi0_new - 1.0)**3 * phi0_new**3) + phi0dot
+    Q[5] = (
+        gamma_new + (Kp1 * (2.0 - 4.0 * phi0_new)) / ((phi0_new - 1.0) ** 3 * phi0_new**3) + phi0dot
+    )
 
     for i in range(5):
-        term1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0)**2 * psi_new[i]**3) \
-                - (2.0 * Kp1) / ((psi_new[i] - 1.0)**3 * psi_new[i]**2)
+        term1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3) - (2.0 * Kp1) / (
+            (psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2
+        )
         term2 = (b_diag[i] * alpha_val / Eta_vec[i]) * psi_new[i]
-        term3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i]**2 * psidot[i]
+        term3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i] ** 2 * psidot[i]
         term4 = (c_val / Eta_vec[i]) * phi_new[i] * Interaction[i]
         Q[6 + i] = term1 + term2 + term3 - term4
 
@@ -589,10 +827,24 @@ def _compute_Q_vector_numpy_5s(phi_new, phi0_new, psi_new, gamma_new,
 
 
 if HAS_NUMBA:
+
     @njit(cache=False, fastmath=True)
-    def _run_deterministic_jit_5s(g_prev, dt, maxtimestep, eps_base, Kp1,
-                                  Eta_vec, Eta_phi_vec, c_val, alpha_val,
-                                  A, b_diag, max_newton_iter, K_hill, n_hill):
+    def _run_deterministic_jit_5s(
+        g_prev,
+        dt,
+        maxtimestep,
+        eps_base,
+        Kp1,
+        Eta_vec,
+        Eta_phi_vec,
+        c_val,
+        alpha_val,
+        A,
+        b_diag,
+        max_newton_iter,
+        K_hill,
+        n_hill,
+    ):
         t_arr = np.empty(maxtimestep + 1, dtype=np.float64)
         g_arr = np.empty((maxtimestep + 1, 12), dtype=np.float64)
         t_arr[0] = 0.0
@@ -603,19 +855,44 @@ if HAS_NUMBA:
             tol_t = eps_base * (1.0 + 10.0 * tt)
 
             g_new = _newton_step_jit_5s(
-                g_prev, dt, Kp1, Eta_vec, Eta_phi_vec,
-                c_val, alpha_val, A, b_diag,
-                tol_t, max_newton_iter, K_hill, n_hill
+                g_prev,
+                dt,
+                Kp1,
+                Eta_vec,
+                Eta_phi_vec,
+                c_val,
+                alpha_val,
+                A,
+                b_diag,
+                tol_t,
+                max_newton_iter,
+                K_hill,
+                n_hill,
             )
             g_prev = g_new
             t_arr[step + 1] = tt
             g_arr[step + 1] = g_prev
 
         return t_arr, g_arr
+
 else:
-    def _run_deterministic_jit_5s(g_prev, dt, maxtimestep, eps_base, Kp1,
-                                  Eta_vec, Eta_phi_vec, c_val, alpha_val,
-                                  A, b_diag, max_newton_iter, K_hill, n_hill):
+
+    def _run_deterministic_jit_5s(
+        g_prev,
+        dt,
+        maxtimestep,
+        eps_base,
+        Kp1,
+        Eta_vec,
+        Eta_phi_vec,
+        c_val,
+        alpha_val,
+        A,
+        b_diag,
+        max_newton_iter,
+        K_hill,
+        n_hill,
+    ):
         raise NotImplementedError(
             "Pure Python fallback not implemented for 5S time loop. "
             "Install numba: pip install numba"

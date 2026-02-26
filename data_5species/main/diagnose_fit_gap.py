@@ -7,6 +7,7 @@ Quantifies per-species, per-timepoint residuals and identifies improvement oppor
 import json
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -19,47 +20,55 @@ SPECIES_SHORT = ["So", "An", "Vd", "Fn", "Pg"]
 EXP_DATA = {
     "CS": {
         "days": [1, 3, 6, 10, 15, 21],
-        "fracs": np.array([
-            [0.176, 0.005, 0.810, 0.005, 0.005],
-            [0.707, 0.081, 0.202, 0.005, 0.005],
-            [0.743, 0.050, 0.198, 0.005, 0.005],
-            [0.660, 0.094, 0.236, 0.005, 0.005],
-            [0.365, 0.240, 0.385, 0.005, 0.005],
-            [0.347, 0.347, 0.297, 0.005, 0.005],
-        ]),
+        "fracs": np.array(
+            [
+                [0.176, 0.005, 0.810, 0.005, 0.005],
+                [0.707, 0.081, 0.202, 0.005, 0.005],
+                [0.743, 0.050, 0.198, 0.005, 0.005],
+                [0.660, 0.094, 0.236, 0.005, 0.005],
+                [0.365, 0.240, 0.385, 0.005, 0.005],
+                [0.347, 0.347, 0.297, 0.005, 0.005],
+            ]
+        ),
     },
     "CH": {
         "days": [1, 3, 6, 10, 15, 21],
-        "fracs": np.array([
-            [0.746, 0.050, 0.100, 0.100, 0.005],
-            [0.892, 0.005, 0.094, 0.005, 0.005],
-            [0.739, 0.005, 0.246, 0.005, 0.005],
-            [0.561, 0.122, 0.306, 0.005, 0.005],
-            [0.365, 0.292, 0.333, 0.005, 0.005],
-            [0.469, 0.260, 0.260, 0.005, 0.005],
-        ]),
+        "fracs": np.array(
+            [
+                [0.746, 0.050, 0.100, 0.100, 0.005],
+                [0.892, 0.005, 0.094, 0.005, 0.005],
+                [0.739, 0.005, 0.246, 0.005, 0.005],
+                [0.561, 0.122, 0.306, 0.005, 0.005],
+                [0.365, 0.292, 0.333, 0.005, 0.005],
+                [0.469, 0.260, 0.260, 0.005, 0.005],
+            ]
+        ),
     },
     "DS": {
         "days": [1, 3, 6, 10, 15, 21],
-        "fracs": np.array([
-            [0.153, 0.082, 0.612, 0.051, 0.102],
-            [0.024, 0.060, 0.747, 0.072, 0.096],
-            [0.019, 0.049, 0.602, 0.117, 0.214],
-            [0.010, 0.010, 0.577, 0.135, 0.269],
-            [0.011, 0.055, 0.495, 0.220, 0.220],
-            [0.010, 0.133, 0.362, 0.210, 0.286],
-        ]),
+        "fracs": np.array(
+            [
+                [0.153, 0.082, 0.612, 0.051, 0.102],
+                [0.024, 0.060, 0.747, 0.072, 0.096],
+                [0.019, 0.049, 0.602, 0.117, 0.214],
+                [0.010, 0.010, 0.577, 0.135, 0.269],
+                [0.011, 0.055, 0.495, 0.220, 0.220],
+                [0.010, 0.133, 0.362, 0.210, 0.286],
+            ]
+        ),
     },
     "DH": {
         "days": [1, 3, 6, 10, 15, 21],
-        "fracs": np.array([
-            [0.040, 0.010, 0.940, 0.005, 0.005],
-            [0.029, 0.010, 0.951, 0.005, 0.005],
-            [0.067, 0.114, 0.810, 0.005, 0.005],
-            [0.109, 0.136, 0.679, 0.072, 0.005],
-            [0.021, 0.372, 0.372, 0.213, 0.021],
-            [0.009, 0.321, 0.229, 0.275, 0.165],
-        ]),
+        "fracs": np.array(
+            [
+                [0.040, 0.010, 0.940, 0.005, 0.005],
+                [0.029, 0.010, 0.951, 0.005, 0.005],
+                [0.067, 0.114, 0.810, 0.005, 0.005],
+                [0.109, 0.136, 0.679, 0.072, 0.005],
+                [0.021, 0.372, 0.372, 0.213, 0.021],
+                [0.009, 0.321, 0.229, 0.275, 0.165],
+            ]
+        ),
     },
 }
 
@@ -99,12 +108,12 @@ def main():
 
     # ── Collect metrics ──────────────────────────────────────────────
     runs_info = {
-        "CS_old":  ("commensal_static",           "CS (20-free)"),
-        "CS_new":  ("commensal_static_posterior",  "CS (9-free)"),
-        "CH_new":  ("commensal_hobic_posterior",   "CH (13-free)"),
-        "DS_old":  ("dysbiotic_static",            "DS (20-free)"),
-        "DS_new":  ("dysbiotic_static_posterior",  "DS (15-free)"),
-        "DH_old":  ("dh_baseline",                 "DH (20-free)"),
+        "CS_old": ("commensal_static", "CS (20-free)"),
+        "CS_new": ("commensal_static_posterior", "CS (9-free)"),
+        "CH_new": ("commensal_hobic_posterior", "CH (13-free)"),
+        "DS_old": ("dysbiotic_static", "DS (20-free)"),
+        "DS_new": ("dysbiotic_static_posterior", "DS (15-free)"),
+        "DH_old": ("dh_baseline", "DH (20-free)"),
     }
 
     print("\n── Per-Species RMSE Comparison ──")
@@ -228,8 +237,14 @@ def main():
         ax.axhline(0.05, color="gray", linestyle="--", alpha=0.5, label="target 0.05")
         ax.legend(fontsize=8)
         for bar, val in zip(bars, rmse_sp):
-            ax.text(bar.get_x() + bar.get_width()/2., bar.get_height() + 0.005,
-                    f"{val:.3f}", ha="center", va="bottom", fontsize=8)
+            ax.text(
+                bar.get_x() + bar.get_width() / 2.0,
+                bar.get_height() + 0.005,
+                f"{val:.3f}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+            )
 
     # 4th panel: experimental data dynamics (V. dispar across conditions)
     ax = axes.flat[3]
@@ -251,7 +266,8 @@ def main():
     print("\n" + "=" * 80)
     print("RECOMMENDED NEXT STEPS (priority order)")
     print("=" * 80)
-    print("""
+    print(
+        """
   1. Re-run with --use-exp-init + more particles:
      python estimate_reduced_nishioka.py \\
        --condition Commensal --cultivation Static \\
@@ -267,7 +283,8 @@ def main():
   4. Consider start-from-day 3 with exp-init:
      → Removes Day 1 transient, focuses on Day 3-21 dynamics
      → May improve V. dispar fit (avoids need to model Day 1→3 crash)
-""")
+"""
+    )
 
 
 if __name__ == "__main__":

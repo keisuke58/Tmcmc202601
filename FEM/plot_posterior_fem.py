@@ -72,11 +72,11 @@ def plot_depth(posterior_dir: Path, condition: str, out_dir: Path):
 
 
 COND_LABELS = {
-    "dh_baseline":      "DH Baseline",
+    "dh_baseline": "DH Baseline",
     "commensal_static": "Commensal Static",
     "Commensal_Static": "Commensal Static",
-    "dh":               "DH Baseline",
-    "commensal":        "Commensal Static",
+    "dh": "DH Baseline",
+    "commensal": "Commensal Static",
 }
 
 
@@ -90,7 +90,7 @@ def plot_comparison_depth(
 ) -> None:
     """Overlay Pg penetration-depth posteriors for multiple conditions."""
     cond_colors = {
-        "dh_baseline":      "#d62728",
+        "dh_baseline": "#d62728",
         "commensal_static": "#1f77b4",
         "Commensal_Static": "#1f77b4",
     }
@@ -102,7 +102,7 @@ def plot_comparison_depth(
         if not (d05_path.exists() and d50_path.exists() and d95_path.exists()):
             print(f"[warn] depth data missing for {cond}, skipping")
             continue
-        t   = np.load(posterior_dir / "t_snap.npy")
+        t = np.load(posterior_dir / "t_snap.npy")
         d05 = np.load(d05_path)
         d50 = np.load(d50_path)
         d95 = np.load(d95_path)
@@ -133,10 +133,16 @@ def main():
 
     # ── comparison of multiple conditions ─────────────────────────────────
     p2 = sub.add_parser("compare", help="Overlay multiple conditions on Pg depth")
-    p2.add_argument("--dirs",  nargs="+", type=Path, required=True,
-                    help="Posterior directories (one per condition)")
-    p2.add_argument("--conds", nargs="+", required=True,
-                    help="Condition labels (same order as --dirs)")
+    p2.add_argument(
+        "--dirs",
+        nargs="+",
+        type=Path,
+        required=True,
+        help="Posterior directories (one per condition)",
+    )
+    p2.add_argument(
+        "--conds", nargs="+", required=True, help="Condition labels (same order as --dirs)"
+    )
     p2.add_argument("--out", type=Path, default=Path("_posterior_plots/comparison_depth_pg.png"))
 
     # ── legacy positional (backward compat) ───────────────────────────────
@@ -148,7 +154,7 @@ def main():
 
     if args.cmd == "single":
         plot_phibar(args.posterior_dir, args.condition, args.out_dir / args.condition)
-        plot_depth( args.posterior_dir, args.condition, args.out_dir / args.condition)
+        plot_depth(args.posterior_dir, args.condition, args.out_dir / args.condition)
     elif args.cmd == "compare":
         if len(args.dirs) != len(args.conds):
             ap.error("--dirs and --conds must have the same length")
@@ -160,9 +166,8 @@ def main():
             return
         out_sub = args.out_dir / args.condition
         plot_phibar(args.posterior_dir_legacy, args.condition, out_sub)
-        plot_depth( args.posterior_dir_legacy, args.condition, out_sub)
+        plot_depth(args.posterior_dir_legacy, args.condition, out_sub)
 
 
 if __name__ == "__main__":
     main()
-

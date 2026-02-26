@@ -37,11 +37,7 @@ def laplacian_nd(u, dx):
         return z
     if ndim == 2:
         interior = (
-            u[:-2, 1:-1]
-            + u[2:, 1:-1]
-            + u[1:-1, :-2]
-            + u[1:-1, 2:]
-            - 4.0 * u[1:-1, 1:-1]
+            u[:-2, 1:-1] + u[2:, 1:-1] + u[1:-1, :-2] + u[1:-1, 2:] - 4.0 * u[1:-1, 1:-1]
         ) / (dx * dx)
         z = jnp.zeros_like(u)
         z = z.at[1:-1, 1:-1].set(interior)
@@ -95,17 +91,12 @@ def solve_nd(dim, N=32, T=0.1, dt=1e-4, D=0.01, k=1.0, s0=10.0):
 
         def step(u, _):
             coords = jnp.stack([X, Y], axis=-1)
-            src = jax.vmap(
-                lambda row: jax.vmap(lambda p: source_nd(p, s0))(row)
-            )(coords)
+            src = jax.vmap(lambda row: jax.vmap(lambda p: source_nd(p, s0))(row))(coords)
             lap = laplacian_nd(u, dx)
             du = D * lap + reaction_term(u, k) + src
             u_next = u + dt * du
             u_next = (
-                u_next.at[0, :].set(0.0)
-                .at[-1, :].set(0.0)
-                .at[:, 0].set(0.0)
-                .at[:, -1].set(0.0)
+                u_next.at[0, :].set(0.0).at[-1, :].set(0.0).at[:, 0].set(0.0).at[:, -1].set(0.0)
             )
             return u_next, u_next
 
@@ -124,20 +115,24 @@ def solve_nd(dim, N=32, T=0.1, dt=1e-4, D=0.01, k=1.0, s0=10.0):
         def step(u, _):
             coords = jnp.stack([X, Y, Z], axis=-1)
             src = jax.vmap(
-                lambda plane: jax.vmap(
-                    lambda row: jax.vmap(lambda p: source_nd(p, s0))(row)
-                )(plane)
+                lambda plane: jax.vmap(lambda row: jax.vmap(lambda p: source_nd(p, s0))(row))(plane)
             )(coords)
             lap = laplacian_nd(u, dx)
             du = D * lap + reaction_term(u, k) + src
             u_next = u + dt * du
             u_next = (
-                u_next.at[0, :, :].set(0.0)
-                .at[-1, :, :].set(0.0)
-                .at[:, 0, :].set(0.0)
-                .at[:, -1, :].set(0.0)
-                .at[:, :, 0].set(0.0)
-                .at[:, :, -1].set(0.0)
+                u_next.at[0, :, :]
+                .set(0.0)
+                .at[-1, :, :]
+                .set(0.0)
+                .at[:, 0, :]
+                .set(0.0)
+                .at[:, -1, :]
+                .set(0.0)
+                .at[:, :, 0]
+                .set(0.0)
+                .at[:, :, -1]
+                .set(0.0)
             )
             return u_next, u_next
 
@@ -146,4 +141,3 @@ def solve_nd(dim, N=32, T=0.1, dt=1e-4, D=0.01, k=1.0, s0=10.0):
         return uT, traj
 
     raise ValueError("dim must be 1,2,3")
-

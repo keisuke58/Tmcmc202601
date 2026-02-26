@@ -16,6 +16,7 @@ import argparse
 import os
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -34,6 +35,7 @@ def main():
 
     # ── Load odb_nodes.csv ────────────────────────────────────────────────────
     import csv
+
     labels, xs, ys, zs, teeth, regions = [], [], [], [], [], []
     with open(args.nodes) as f:
         reader = csv.DictReader(f)
@@ -45,37 +47,40 @@ def main():
             teeth.append(row["tooth"])
             regions.append(row["region"])
 
-    coords  = np.array([xs, ys, zs]).T          # (N, 3)
-    teeth   = np.array(teeth)
+    coords = np.array([xs, ys, zs]).T  # (N, 3)
+    teeth = np.array(teeth)
     regions = np.array(regions)
 
     # ── Extract APPROX nodes for T30 and T31 ─────────────────────────────────
     mask30 = (teeth == "T30") & (regions == "APPROX")
     mask31 = (teeth == "T31") & (regions == "APPROX")
-    pts30  = coords[mask30]
-    pts31  = coords[mask31]
+    pts30 = coords[mask30]
+    pts31 = coords[mask31]
 
     print(f"\nT30 APPROX nodes: {mask30.sum()}")
     print(f"T31 APPROX nodes: {mask31.sum()}")
 
     if mask30.sum() == 0 or mask31.sum() == 0:
-        print("[warn] No APPROX nodes found — check that odb_nodes.csv "
-              "was generated with the slit Tie constraint enabled.")
+        print(
+            "[warn] No APPROX nodes found — check that odb_nodes.csv "
+            "was generated with the slit Tie constraint enabled."
+        )
         return
 
     # ── Gap distribution: for each T31 APPROX node → nearest T30 APPROX ─────
     from scipy.spatial import cKDTree
+
     tree30 = cKDTree(pts30)
     dists_31to30, _ = tree30.query(pts31, k=1)
 
     tree31 = cKDTree(pts31)
     dists_30to31, _ = tree31.query(pts30, k=1)
 
-    print(f"\nGap T31→T30 (nearest T30 APPROX):")
+    print("\nGap T31→T30 (nearest T30 APPROX):")
     for q in [0, 5, 25, 50, 75, 95, 100]:
         print(f"  p{q:3d} = {np.percentile(dists_31to30, q):.3f} mm")
 
-    print(f"\nGap T30→T31 (nearest T31 APPROX):")
+    print("\nGap T30→T31 (nearest T31 APPROX):")
     for q in [0, 5, 25, 50, 75, 95, 100]:
         print(f"  p{q:3d} = {np.percentile(dists_30to31, q):.3f} mm")
 
@@ -89,14 +94,18 @@ def main():
         print(f"  {thr:10.1f}  {n:8d}  {pct:12.1f}%")
 
     # ── Recommendation ────────────────────────────────────────────────────────
-    p5  = np.percentile(dists_31to30, 5)
+    p5 = np.percentile(dists_31to30, 5)
     p10 = np.percentile(dists_31to30, 10)
-    print(f"\nRecommendation:")
-    print(f"  The 5th percentile gap is {p5:.2f} mm — only {(dists_31to30 <= p5).sum()} "
-          f"T31 nodes are within this distance of a T30 APPROX node.")
+    print("\nRecommendation:")
+    print(
+        f"  The 5th percentile gap is {p5:.2f} mm — only {(dists_31to30 <= p5).sum()} "
+        f"T31 nodes are within this distance of a T30 APPROX node."
+    )
     print(f"  Suggested --slit-max-dist: {p5:.1f}–{p10:.1f} mm")
-    print(f"  Re-run assembly: python3 biofilm_3tooth_assembly.py "
-          f"--slit-max-dist {p5:.1f} [other args...]")
+    print(
+        f"  Re-run assembly: python3 biofilm_3tooth_assembly.py "
+        f"--slit-max-dist {p5:.1f} [other args...]"
+    )
 
     # ── Figures ───────────────────────────────────────────────────────────────
     os.makedirs(args.out_dir, exist_ok=True)
@@ -105,10 +114,8 @@ def main():
 
     # Histogram of gap distances
     ax = axes[0]
-    ax.hist(dists_31to30, bins=50, color="steelblue", edgecolor="white", alpha=0.8,
-            label="T31→T30")
-    ax.hist(dists_30to31, bins=50, color="tomato",    edgecolor="white", alpha=0.6,
-            label="T30→T31")
+    ax.hist(dists_31to30, bins=50, color="steelblue", edgecolor="white", alpha=0.8, label="T31→T30")
+    ax.hist(dists_30to31, bins=50, color="tomato", edgecolor="white", alpha=0.6, label="T30→T31")
     for thr, ls in [(0.5, "--"), (2.0, ":")]:
         ax.axvline(thr, color="k", linestyle=ls, label=f"d={thr} mm")
     ax.set_xlabel("Distance to nearest APPROX node (mm)")
@@ -122,7 +129,7 @@ def main():
     n31 = np.array([(dists_31to30 <= t).sum() for t in thr_range])
     n30 = np.array([(dists_30to31 <= t).sum() for t in thr_range])
     ax.plot(thr_range, n31, color="steelblue", label="T31 nodes tied")
-    ax.plot(thr_range, n30, color="tomato",    label="T30 nodes tied")
+    ax.plot(thr_range, n30, color="tomato", label="T30 nodes tied")
     ax.axvline(0.5, color="k", linestyle="--", label="Abaqus Tie tol=0.5 mm")
     ax.set_xlabel("Distance threshold (mm)")
     ax.set_ylabel("Number of nodes tied")
@@ -138,10 +145,12 @@ def main():
     # ── 3-D scatter of APPROX nodes coloured by gap ───────────────────────────
     fig = plt.figure(figsize=(10, 8))
     ax3 = fig.add_subplot(111, projection="3d")
-    sc = ax3.scatter(pts31[:, 0], pts31[:, 1], pts31[:, 2],
-                     c=dists_31to30, cmap="plasma", s=4, vmin=0, vmax=10)
-    ax3.scatter(pts30[:, 0], pts30[:, 1], pts30[:, 2],
-                c="steelblue", s=2, alpha=0.3, label="T30 APPROX")
+    sc = ax3.scatter(
+        pts31[:, 0], pts31[:, 1], pts31[:, 2], c=dists_31to30, cmap="plasma", s=4, vmin=0, vmax=10
+    )
+    ax3.scatter(
+        pts30[:, 0], pts30[:, 1], pts30[:, 2], c="steelblue", s=2, alpha=0.3, label="T30 APPROX"
+    )
     plt.colorbar(sc, ax=ax3, label="Gap to nearest T30 node (mm)")
     ax3.set_title("T31 APPROX nodes coloured by gap to T30 APPROX")
     ax3.legend()

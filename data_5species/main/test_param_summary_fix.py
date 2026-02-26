@@ -10,7 +10,7 @@ Tests that the fix correctly handles the case where:
 import numpy as np
 import pandas as pd
 import sys
-from pathlib import Path
+
 
 # Test cases
 def test_param_summary_extraction():
@@ -21,13 +21,30 @@ def test_param_summary_extraction():
     n_active = len(active_indices)
 
     # Full 20-parameter arrays (as returned by TMCMC)
-    MAP_full = np.array([
-        0.57, 0.64, -0.54, 1.33, 0.70, 0.63,  # indices 0-5
-        0.0, 0.0,                               # indices 6-7 (locked)
-        0.46, 0.0,                              # indices 8-9
-        0.20, 0.0,                              # indices 10-11 (locked)
-        0.13, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  # indices 12-19 (locked)
-    ])
+    MAP_full = np.array(
+        [
+            0.57,
+            0.64,
+            -0.54,
+            1.33,
+            0.70,
+            0.63,  # indices 0-5
+            0.0,
+            0.0,  # indices 6-7 (locked)
+            0.46,
+            0.0,  # indices 8-9
+            0.20,
+            0.0,  # indices 10-11 (locked)
+            0.13,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,  # indices 12-19 (locked)
+        ]
+    )
     mean_full = MAP_full + 0.01  # Slightly different
 
     # Active parameter names
@@ -58,15 +75,23 @@ def test_param_summary_extraction():
     # === THE FIX ===
     # Extract active parameter values from full theta vectors
     active_idx = results["active_indices"]
-    MAP_active = results["MAP"][active_idx] if len(results["MAP"]) > len(active_idx) else results["MAP"]
-    mean_active = results["mean"][active_idx] if len(results["mean"]) > len(active_idx) else results["mean"]
+    MAP_active = (
+        results["MAP"][active_idx] if len(results["MAP"]) > len(active_idx) else results["MAP"]
+    )
+    mean_active = (
+        results["mean"][active_idx] if len(results["mean"]) > len(active_idx) else results["mean"]
+    )
 
     # === ASSERTIONS ===
     print("Testing parameter extraction...")
 
     # Test 1: Lengths match
-    assert len(MAP_active) == n_active, f"MAP_active length mismatch: {len(MAP_active)} != {n_active}"
-    assert len(mean_active) == n_active, f"mean_active length mismatch: {len(mean_active)} != {n_active}"
+    assert (
+        len(MAP_active) == n_active
+    ), f"MAP_active length mismatch: {len(MAP_active)} != {n_active}"
+    assert (
+        len(mean_active) == n_active
+    ), f"mean_active length mismatch: {len(mean_active)} != {n_active}"
     print(f"  ✓ MAP_active length: {len(MAP_active)}")
     print(f"  ✓ mean_active length: {len(mean_active)}")
 
@@ -78,26 +103,30 @@ def test_param_summary_extraction():
 
     # Test 3: DataFrame creation succeeds
     try:
-        param_summary = pd.DataFrame({
-            "name": results["param_names"],
-            "index": active_idx,
-            "MAP": MAP_active,
-            "mean": mean_active,
-            "median": ci["median"],
-            "hdi_lower": ci["hdi_lower"],
-            "hdi_upper": ci["hdi_upper"],
-            "et_lower": ci["et_lower"],
-            "et_upper": ci["et_upper"],
-            "rhat": mcmc_diag["rhat"],
-            "ess": mcmc_diag["ess"],
-        })
+        param_summary = pd.DataFrame(
+            {
+                "name": results["param_names"],
+                "index": active_idx,
+                "MAP": MAP_active,
+                "mean": mean_active,
+                "median": ci["median"],
+                "hdi_lower": ci["hdi_lower"],
+                "hdi_upper": ci["hdi_upper"],
+                "et_lower": ci["et_lower"],
+                "et_upper": ci["et_upper"],
+                "rhat": mcmc_diag["rhat"],
+                "ess": mcmc_diag["ess"],
+            }
+        )
         print(f"  ✓ DataFrame created successfully with shape {param_summary.shape}")
     except ValueError as e:
         print(f"  ✗ DataFrame creation FAILED: {e}")
         return False
 
     # Test 4: DataFrame has correct dimensions
-    assert param_summary.shape[0] == n_active, f"Row count mismatch: {param_summary.shape[0]} != {n_active}"
+    assert (
+        param_summary.shape[0] == n_active
+    ), f"Row count mismatch: {param_summary.shape[0]} != {n_active}"
     assert param_summary.shape[1] == 11, f"Column count mismatch: {param_summary.shape[1]} != 11"
     print(f"  ✓ DataFrame shape correct: {param_summary.shape}")
 
@@ -129,8 +158,12 @@ def test_already_active_dimension():
 
     # === THE FIX ===
     active_idx = results["active_indices"]
-    MAP_active = results["MAP"][active_idx] if len(results["MAP"]) > len(active_idx) else results["MAP"]
-    mean_active = results["mean"][active_idx] if len(results["mean"]) > len(active_idx) else results["mean"]
+    MAP_active = (
+        results["MAP"][active_idx] if len(results["MAP"]) > len(active_idx) else results["MAP"]
+    )
+    mean_active = (
+        results["mean"][active_idx] if len(results["mean"]) > len(active_idx) else results["mean"]
+    )
 
     print("\nTesting already-active-dimension case...")
 
@@ -332,11 +365,26 @@ def test_all_condition_modes():
     }
 
     param_names_full = [
-        "a11", "a12", "a22", "b1", "b2",
-        "a33", "a34", "a44", "b3", "b4",
-        "a13", "a14", "a23", "a24",
-        "a55", "b5",
-        "a15", "a25", "a35", "a45",
+        "a11",
+        "a12",
+        "a22",
+        "b1",
+        "b2",
+        "a33",
+        "a34",
+        "a44",
+        "b3",
+        "b4",
+        "a13",
+        "a14",
+        "a23",
+        "a24",
+        "a55",
+        "b5",
+        "a15",
+        "a25",
+        "a35",
+        "a45",
     ]
 
     for mode, config in MODE_CONFIGS.items():
@@ -347,8 +395,9 @@ def test_all_condition_modes():
         active_indices = [i for i in range(20) if i not in locked]
         n_active = len(active_indices)
 
-        assert n_active == expected_active, \
-            f"{mode}: Expected {expected_active} active, got {n_active}"
+        assert (
+            n_active == expected_active
+        ), f"{mode}: Expected {expected_active} active, got {n_active}"
 
         # Simulate full 20-dim MAP from TMCMC
         MAP_full = np.random.rand(20)
@@ -374,7 +423,9 @@ def test_all_condition_modes():
 
         # Create param names for active
         param_names_active = [param_names_full[i] for i in active_indices]
-        assert len(param_names_active) == len(active_indices), f"{mode}: param_names length mismatch"
+        assert len(param_names_active) == len(
+            active_indices
+        ), f"{mode}: param_names length mismatch"
 
         # Create mock CI and diagnostics
         n_active = len(active_indices)
@@ -392,28 +443,33 @@ def test_all_condition_modes():
 
         # Create DataFrame - THIS IS THE ACTUAL FIX TEST
         try:
-            param_summary = pd.DataFrame({
-                "name": param_names_active,
-                "index": active_indices,
-                "MAP": MAP_active,
-                "mean": mean_active,
-                "median": ci["median"],
-                "hdi_lower": ci["hdi_lower"],
-                "hdi_upper": ci["hdi_upper"],
-                "et_lower": ci["et_lower"],
-                "et_upper": ci["et_upper"],
-                "rhat": mcmc_diag["rhat"],
-                "ess": mcmc_diag["ess"],
-            })
+            param_summary = pd.DataFrame(
+                {
+                    "name": param_names_active,
+                    "index": active_indices,
+                    "MAP": MAP_active,
+                    "mean": mean_active,
+                    "median": ci["median"],
+                    "hdi_lower": ci["hdi_lower"],
+                    "hdi_upper": ci["hdi_upper"],
+                    "et_lower": ci["et_lower"],
+                    "et_upper": ci["et_upper"],
+                    "rhat": mcmc_diag["rhat"],
+                    "ess": mcmc_diag["ess"],
+                }
+            )
         except ValueError as e:
             print(f"    ✗ DataFrame creation FAILED for {mode}: {e}")
             return False
 
         # Verify DataFrame shape
-        assert param_summary.shape[0] == expected_active, \
-            f"{mode}: DataFrame rows {param_summary.shape[0]} != expected {expected_active}"
+        assert (
+            param_summary.shape[0] == expected_active
+        ), f"{mode}: DataFrame rows {param_summary.shape[0]} != expected {expected_active}"
 
-        print(f"    ✓ {mode}: {expected_active} active params, DataFrame shape {param_summary.shape}")
+        print(
+            f"    ✓ {mode}: {expected_active} active params, DataFrame shape {param_summary.shape}"
+        )
 
     print("\n  ✓ All 4 modes passed!")
     return True
@@ -432,19 +488,52 @@ def test_realistic_nishioka_scenario():
     print(f"  Active indices: {active_indices}")
 
     # Realistic MAP values from actual TMCMC run
-    MAP_full = np.array([
-        0.57140747, 0.63753607, -0.54220915, 1.32782896, 0.69558105,
-        0.62707298, 0.0, 0.0, 0.46421169, 0.0,
-        0.19845964, 0.0, 0.12809624, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0, 0.0
-    ])
+    MAP_full = np.array(
+        [
+            0.57140747,
+            0.63753607,
+            -0.54220915,
+            1.32782896,
+            0.69558105,
+            0.62707298,
+            0.0,
+            0.0,
+            0.46421169,
+            0.0,
+            0.19845964,
+            0.0,
+            0.12809624,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        ]
+    )
 
     param_names_full = [
-        "a11", "a12", "a22", "b1", "b2",
-        "a33", "a34", "a44", "b3", "b4",
-        "a13", "a14", "a23", "a24",
-        "a55", "b5",
-        "a15", "a25", "a35", "a45",
+        "a11",
+        "a12",
+        "a22",
+        "b1",
+        "b2",
+        "a33",
+        "a34",
+        "a44",
+        "b3",
+        "b4",
+        "a13",
+        "a14",
+        "a23",
+        "a24",
+        "a55",
+        "b5",
+        "a15",
+        "a25",
+        "a35",
+        "a45",
     ]
     param_names_active = [param_names_full[i] for i in active_indices]
 
@@ -461,7 +550,9 @@ def test_realistic_nishioka_scenario():
 
     # Verify all active values are non-zero (for this specific scenario)
     for i, idx in enumerate(active_indices):
-        assert MAP_full[idx] != 0.0 or idx in [4], f"Unexpected zero at active index {idx}"  # b2=4 can be ~0.7
+        assert MAP_full[idx] != 0.0 or idx in [
+            4
+        ], f"Unexpected zero at active index {idx}"  # b2=4 can be ~0.7
 
     print(f"  ✓ Extracted {len(MAP_active)} active parameters correctly")
     print(f"  ✓ Parameter names: {param_names_active}")
@@ -479,19 +570,21 @@ def test_realistic_nishioka_scenario():
         "ess": np.ones(len(active_indices)) * 150,
     }
 
-    param_summary = pd.DataFrame({
-        "name": param_names_active,
-        "index": active_indices,
-        "MAP": MAP_active,
-        "mean": MAP_active + 0.01,
-        "median": ci["median"],
-        "hdi_lower": ci["hdi_lower"],
-        "hdi_upper": ci["hdi_upper"],
-        "et_lower": ci["et_lower"],
-        "et_upper": ci["et_upper"],
-        "rhat": mcmc_diag["rhat"],
-        "ess": mcmc_diag["ess"],
-    })
+    param_summary = pd.DataFrame(
+        {
+            "name": param_names_active,
+            "index": active_indices,
+            "MAP": MAP_active,
+            "mean": MAP_active + 0.01,
+            "median": ci["median"],
+            "hdi_lower": ci["hdi_lower"],
+            "hdi_upper": ci["hdi_upper"],
+            "et_lower": ci["et_lower"],
+            "et_upper": ci["et_upper"],
+            "rhat": mcmc_diag["rhat"],
+            "ess": mcmc_diag["ess"],
+        }
+    )
 
     print(f"  ✓ DataFrame created: {param_summary.shape}")
 
@@ -519,6 +612,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"  ✗ test_param_summary_extraction FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         all_passed = False
 
@@ -527,6 +621,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"  ✗ test_already_active_dimension FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         all_passed = False
 
@@ -535,6 +630,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"  ✗ test_edge_cases FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         all_passed = False
 
@@ -543,6 +639,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"  ✗ test_validation_logic FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         all_passed = False
 
@@ -551,6 +648,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"  ✗ test_strict_type_validation FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         all_passed = False
 
@@ -559,6 +657,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"  ✗ test_all_condition_modes FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         all_passed = False
 
@@ -567,6 +666,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"  ✗ test_realistic_nishioka_scenario FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         all_passed = False
 

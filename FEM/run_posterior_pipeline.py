@@ -29,16 +29,16 @@ import sys
 from pathlib import Path
 
 # ── canonical run-directory mapping ──────────────────────────────────────────
-_HERE      = Path(__file__).resolve().parent
+_HERE = Path(__file__).resolve().parent
 _DATA_ROOT = _HERE.parent / "data_5species" / "_runs"
 
 CONDITION_RUNS: dict[str, Path] = {
-    "dh_baseline":      _DATA_ROOT / "sweep_pg_20260217_081459" / "dh_baseline",
+    "dh_baseline": _DATA_ROOT / "sweep_pg_20260217_081459" / "dh_baseline",
     "commensal_static": _DATA_ROOT / "Commensal_Static_20260208_002100",
 }
 
 # ── output layout ─────────────────────────────────────────────────────────────
-_OUT_3D   = _HERE / "_results_3d"
+_OUT_3D = _HERE / "_results_3d"
 _OUT_PLOT = _HERE / "_posterior_plots"
 
 
@@ -64,44 +64,71 @@ def run_fem(
     seed: int,
 ) -> Path:
     """Run posterior FEM for one condition; return the posterior output dir."""
-    out_3d   = _OUT_3D / f"{cond}_posterior"
+    out_3d = _OUT_3D / f"{cond}_posterior"
     post_dir = out_3d / "posterior"
 
-    _run([
-        sys.executable, _HERE / "fem_3d_extension.py",
-        "--posterior-only",
-        "--tmcmc-run-dir", run_dir,
-        "--posterior-n-samples", n_samples,
-        "--posterior-seed", seed,
-        "--condition", cond,
-        "--nx", nx, "--ny", ny, "--nz", nz,
-        "--n-macro", n_macro,
-        "--n-react-sub", n_react_sub,
-        "--dt-h", dt_h,
-        "--solver", solver,
-        "--out-dir", out_3d,
-    ])
+    _run(
+        [
+            sys.executable,
+            _HERE / "fem_3d_extension.py",
+            "--posterior-only",
+            "--tmcmc-run-dir",
+            run_dir,
+            "--posterior-n-samples",
+            n_samples,
+            "--posterior-seed",
+            seed,
+            "--condition",
+            cond,
+            "--nx",
+            nx,
+            "--ny",
+            ny,
+            "--nz",
+            nz,
+            "--n-macro",
+            n_macro,
+            "--n-react-sub",
+            n_react_sub,
+            "--dt-h",
+            dt_h,
+            "--solver",
+            solver,
+            "--out-dir",
+            out_3d,
+        ]
+    )
     return post_dir
 
 
 def plot_single(cond: str, post_dir: Path) -> None:
     """Plot phibar + depth for one condition."""
-    _run([
-        sys.executable, _HERE / "plot_posterior_fem.py",
-        "single", post_dir,
-        "--condition", cond,
-        "--out-dir", _OUT_PLOT,
-    ])
+    _run(
+        [
+            sys.executable,
+            _HERE / "plot_posterior_fem.py",
+            "single",
+            post_dir,
+            "--condition",
+            cond,
+            "--out-dir",
+            _OUT_PLOT,
+        ]
+    )
 
 
 def plot_comparison(post_dirs: dict[str, Path]) -> None:
     """Overlay Pg depth posteriors for all conditions."""
     cmd = [
-        sys.executable, _HERE / "plot_posterior_fem.py",
+        sys.executable,
+        _HERE / "plot_posterior_fem.py",
         "compare",
-        "--dirs",  *[post_dirs[c] for c in post_dirs],
-        "--conds", *list(post_dirs.keys()),
-        "--out",   _OUT_PLOT / "comparison_depth_pg.png",
+        "--dirs",
+        *[post_dirs[c] for c in post_dirs],
+        "--conds",
+        *list(post_dirs.keys()),
+        "--out",
+        _OUT_PLOT / "comparison_depth_pg.png",
     ]
     _run(cmd)
 
@@ -109,32 +136,47 @@ def plot_comparison(post_dirs: dict[str, Path]) -> None:
 def run_sensitivity(cond: str, post_dir: Path, n_samples: int) -> None:
     """θ vs Pg depth scatter plots via posterior_sensitivity.py."""
     out_sens = _HERE / "_posterior_sensitivity" / cond
-    _run([
-        sys.executable, _HERE / "posterior_sensitivity.py",
-        "--run-dir",   CONDITION_RUNS[cond],
-        "--fem-base",  post_dir,
-        "--n-samples", n_samples,
-        "--out-dir",   out_sens,
-    ])
+    _run(
+        [
+            sys.executable,
+            _HERE / "posterior_sensitivity.py",
+            "--run-dir",
+            CONDITION_RUNS[cond],
+            "--fem-base",
+            post_dir,
+            "--n-samples",
+            n_samples,
+            "--out-dir",
+            out_sens,
+        ]
+    )
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="End-to-end posterior FEM pipeline")
-    ap.add_argument("--n-samples",    type=int,   default=20,       help="Posterior samples per condition")
-    ap.add_argument("--n-macro",      type=int,   default=100,      help="FEM macro steps")
-    ap.add_argument("--n-react-sub",  type=int,   default=50,       help="Reaction sub-steps per macro step")
-    ap.add_argument("--dt-h",         type=float, default=1e-5,     help="Reaction sub-step size dt_h")
-    ap.add_argument("--nx",           type=int,   default=15)
-    ap.add_argument("--ny",           type=int,   default=15)
-    ap.add_argument("--nz",           type=int,   default=15)
-    ap.add_argument("--solver",       default="superlu", choices=["superlu", "cg"])
-    ap.add_argument("--seed",         type=int,   default=0)
-    ap.add_argument("--conditions",   nargs="+",  default=list(CONDITION_RUNS.keys()),
-                    help="Which conditions to run (default: all)")
-    ap.add_argument("--plot-only",    action="store_true",
-                    help="Skip FEM computation; re-plot from existing outputs")
-    ap.add_argument("--sensitivity",  action="store_true",
-                    help="Also run posterior_sensitivity.py scatter plots")
+    ap.add_argument("--n-samples", type=int, default=20, help="Posterior samples per condition")
+    ap.add_argument("--n-macro", type=int, default=100, help="FEM macro steps")
+    ap.add_argument("--n-react-sub", type=int, default=50, help="Reaction sub-steps per macro step")
+    ap.add_argument("--dt-h", type=float, default=1e-5, help="Reaction sub-step size dt_h")
+    ap.add_argument("--nx", type=int, default=15)
+    ap.add_argument("--ny", type=int, default=15)
+    ap.add_argument("--nz", type=int, default=15)
+    ap.add_argument("--solver", default="superlu", choices=["superlu", "cg"])
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument(
+        "--conditions",
+        nargs="+",
+        default=list(CONDITION_RUNS.keys()),
+        help="Which conditions to run (default: all)",
+    )
+    ap.add_argument(
+        "--plot-only",
+        action="store_true",
+        help="Skip FEM computation; re-plot from existing outputs",
+    )
+    ap.add_argument(
+        "--sensitivity", action="store_true", help="Also run posterior_sensitivity.py scatter plots"
+    )
     args = ap.parse_args()
 
     post_dirs: dict[str, Path] = {}
@@ -143,20 +185,22 @@ def main() -> None:
         if cond not in CONDITION_RUNS:
             print(f"[warn] unknown condition {cond!r}, skipping")
             continue
-        run_dir  = CONDITION_RUNS[cond]
+        run_dir = CONDITION_RUNS[cond]
         post_dir = _OUT_3D / f"{cond}_posterior" / "posterior"
 
         if not args.plot_only:
             post_dir = run_fem(
-                cond        = cond,
-                run_dir     = run_dir,
-                n_samples   = args.n_samples,
-                n_macro     = args.n_macro,
-                n_react_sub = args.n_react_sub,
-                dt_h        = args.dt_h,
-                nx=args.nx, ny=args.ny, nz=args.nz,
-                solver      = args.solver,
-                seed        = args.seed,
+                cond=cond,
+                run_dir=run_dir,
+                n_samples=args.n_samples,
+                n_macro=args.n_macro,
+                n_react_sub=args.n_react_sub,
+                dt_h=args.dt_h,
+                nx=args.nx,
+                ny=args.ny,
+                nz=args.nz,
+                solver=args.solver,
+                seed=args.seed,
             )
 
         post_dirs[cond] = post_dir

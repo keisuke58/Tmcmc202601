@@ -1,0 +1,74 @@
+{
+  "commensal_static": {
+    "phi_avg": [
+      0.13237916543859282,
+      0.13255036444737944,
+      0.07162241649530159,
+      0.02321849502990834,
+      0.021465774138260632
+    ],
+    "di_0d": 0.04679030466983991,
+    "E_di": 909.076626318115,
+    "E_phi_pg": 999.9461931241193,
+    "E_virulence": 999.9201447637598,
+    "inps": {
+      "di": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_abaqus_auto_jobs/commensal_static_T23_v2/two_layer_T23_commensal_static.inp",
+      "phi_pg": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_3model_comparison/commensal_static_phi_pg/two_layer_T23_commensal_static_phi_pg.inp",
+      "virulence": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_3model_comparison/commensal_static_virulence/two_layer_T23_commensal_static_virulence.inp"
+    }
+  },
+  "commensal_hobic": {
+    "phi_avg": [
+      0.13487714658123198,
+      0.1306334813687764,
+      0.07491757033415009,
+      0.02173977286411073,
+      0.02056033651365192
+    ],
+    "di_0d": 0.05685652015579212,
+    "E_di": 890.0881887741997,
+    "E_phi_pg": 999.9547127273396,
+    "E_virulence": 999.9342551886583,
+    "inps": {
+      "di": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_abaqus_auto_jobs/commensal_hobic_T23_v2/two_layer_T23_commensal_hobic.inp",
+      "phi_pg": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_3model_comparison/commensal_hobic_phi_pg/two_layer_T23_commensal_hobic_phi_pg.inp",
+      "virulence": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_3model_comparison/commensal_hobic_virulence/two_layer_T23_commensal_hobic_virulence.inp"
+    }
+  },
+  "dh_baseline": {
+    "phi_avg": [
+      0.13319450532496224,
+      0.13301656087994465,
+      0.06882110376079295,
+      0.023166000063490247,
+      0.02150590093015063
+    ],
+    "di_0d": 0.16125951820116058,
+    "E_di": 705.0981909901609,
+    "E_phi_pg": 999.9457896836637,
+    "E_virulence": 999.9198705475263,
+    "inps": {
+      "di": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_abaqus_auto_jobs/dh_baseline_T23_v2/two_layer_T23_dh_baseline.inp",
+      "phi_pg": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_3model_comparison/dh_baseline_phi_pg/two_layer_T23_dh_baseline_phi_pg.inp",
+      "virulence": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_3model_comparison/dh_baseline_virulence/two_layer_T23_dh_baseline_virulence.inp"
+    }
+  },
+  "dysbiotic_static": {
+    "phi_avg": [
+      0.135422616279478,
+      0.13072888829097024,
+      0.07270877190222291,
+      0.021514678355909617,
+      0.02006939784964072
+    ],
+    "di_0d": 0.8454431433543875,
+    "E_di": 32.34225336971628,
+    "E_phi_pg": 999.9588855492506,
+    "E_virulence": 999.9395123507184,
+    "inps": {
+      "di": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_abaqus_auto_jobs/dysbiotic_static_T23_v2/two_layer_T23_dysbiotic_static.inp",
+      "phi_pg": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_3model_comparison/dysbiotic_static_phi_pg/two_layer_T23_dysbiotic_static_phi_pg.inp",
+      "virulence": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_3model_comparison/dysbiotic_static_virulence/two_layer_T23_dysbiotic_static_virulence.inp"
+    }
+  }
+}

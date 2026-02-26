@@ -43,7 +43,6 @@ jax.config.update("jax_enable_x64", True)
 
 # 共有ユーティリティを core_hamilton_1d から再利用
 from .core_hamilton_1d import (
-    THETA_DEMO,
     theta_to_matrices,
     clip_state,
     diffusion_step,
@@ -54,6 +53,7 @@ from .core_hamilton_1d import (
 # ---------------------------------------------------------------------------
 # 残差関数: c をノードごとのスカラーとして受け取る
 # ---------------------------------------------------------------------------
+
 
 def residual_c(g_new, g_prev, c_node, params):
     """
@@ -87,9 +87,7 @@ def residual_c(g_new, g_prev, c_node, params):
     Ia = A @ (phi_new * psi_new)
 
     # Hill gate (Pg, 種インデックス 4)
-    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (
-        active_mask[4] == 1
-    ).astype(jnp.float64)
+    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (active_mask[4] == 1).astype(jnp.float64)
     fn = jnp.maximum(phi_new[3] * psi_new[3], 0.0)
     num = fn**n_hill
     den = K_hill**n_hill + num
@@ -103,9 +101,7 @@ def residual_c(g_new, g_prev, c_node, params):
         active = active_mask[i] == 1
 
         def active_branch():
-            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / (
-                (phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3
-            )
+            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / ((phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3)
             t2 = (1.0 / Eta[i]) * (
                 gamma_new
                 + (EtaPhi[i] + Eta[i] * psi_new[i] ** 2) * phidot[i]
@@ -121,9 +117,7 @@ def residual_c(g_new, g_prev, c_node, params):
 
     Q, _ = jax.lax.scan(body_phi, Q, jnp.arange(5))
     Q = Q.at[5].set(
-        gamma_new
-        + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new ** 3)
-        + phi0dot
+        gamma_new + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new**3) + phi0dot
     )
 
     def body_psi(carry, i):
@@ -131,14 +125,11 @@ def residual_c(g_new, g_prev, c_node, params):
         active = active_mask[i] == 1
 
         def active_branch():
-            t1 = (-2.0 * Kp1) / (
-                (psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3
-            ) - (2.0 * Kp1) / ((psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2)
-            t2 = (b_diag[i] * alpha / Eta[i]) * psi_new[i]
-            t3 = (
-                phi_new[i] * psi_new[i] * phidot[i]
-                + phi_new[i] ** 2 * psidot[i]
+            t1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3) - (2.0 * Kp1) / (
+                (psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2
             )
+            t2 = (b_diag[i] * alpha / Eta[i]) * psi_new[i]
+            t3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i] ** 2 * psidot[i]
             t4 = (c_node / Eta[i]) * phi_new[i] * Ia[i]  # ← c_node
             return Q_local.at[6 + i].set(t1 + t2 + t3 - t4)
 
@@ -155,6 +146,7 @@ def residual_c(g_new, g_prev, c_node, params):
 # ---------------------------------------------------------------------------
 # Newton 法: ノードごと (g_prev, c_node) → g_new
 # ---------------------------------------------------------------------------
+
 
 def newton_step_c(g_prev, c_node, params):
     """1 ノードの Hamilton Newton ステップ (c_node はスカラー)。"""
@@ -181,14 +173,13 @@ def newton_step_c(g_prev, c_node, params):
 
 
 # in_axes=(0, 0, None): ノード方向に g_prev と c_field を同時に vmap
-_newton_vmap_c = jax.jit(
-    jax.vmap(newton_step_c, in_axes=(0, 0, None))
-)
+_newton_vmap_c = jax.jit(jax.vmap(newton_step_c, in_axes=(0, 0, None)))
 
 
 # ---------------------------------------------------------------------------
 # 反応ステップ (c フィールド付き)
 # ---------------------------------------------------------------------------
+
 
 def reaction_step_c(G, c_field, params):
     """Hamilton 反応ステップ。c_field (N,) をノードごとに渡す。"""
@@ -206,6 +197,7 @@ def reaction_step_c(G, c_field, params):
 # ---------------------------------------------------------------------------
 # 栄養場 c(x,t) の拡散-反応ステップ
 # ---------------------------------------------------------------------------
+
 
 def nutrient_step(c_field, phi_total, params):
     """
@@ -250,6 +242,7 @@ def nutrient_step(c_field, phi_total, params):
 # ---------------------------------------------------------------------------
 # メインシミュレーション関数
 # ---------------------------------------------------------------------------
+
 
 def simulate_hamilton_1d_nutrient(
     theta,
@@ -318,10 +311,10 @@ def simulate_hamilton_1d_nutrient(
 
     def body(carry, _):
         G, c = carry
-        phi_total = G[:, 0:5].sum(axis=1)          # (N,) 全種合計
-        G = reaction_step_c(G, c, params)           # Hamilton 反応
-        G = diffusion_step(G, params)               # φ 拡散
-        c = nutrient_step(c, phi_total, params)     # 栄養 PDE
+        phi_total = G[:, 0:5].sum(axis=1)  # (N,) 全種合計
+        G = reaction_step_c(G, c, params)  # Hamilton 反応
+        G = diffusion_step(G, params)  # φ 拡散
+        c = nutrient_step(c, phi_total, params)  # 栄養 PDE
         return (G, c), (G, c)
 
     _, (G_traj, c_traj) = jax.lax.scan(body, (G0, c0), jnp.arange(n_macro))

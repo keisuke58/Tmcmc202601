@@ -1,0 +1,7 @@
+model,chain,stage,accept_rate
+Dysbiotic_Static,1,0,0.9008
+Dysbiotic_Static,1,1,0.8756
+Dysbiotic_Static,1,2,0.8772
+Dysbiotic_Static,2,0,0.8732
+Dysbiotic_Static,2,1,0.8672
+Dysbiotic_Static,2,2,0.8616

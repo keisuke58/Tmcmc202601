@@ -226,7 +226,7 @@ parameter configuration θ. Each input returns a sequence of outputs:
 Y =
 
 y1, y2, . . . ,yNsamples
-	
+
 = ˆM(θ). (4)
 This setup typically results in a nested (double-loop) approach: an outer loop explores
 different realizations of θ, while the inner loop samples the stochastic model output
@@ -361,11 +361,11 @@ expectation of the parameters. For a scalar parameter θ with expectation ⟨θ�
 reads as
 ∂i
 ∂θ i M
-
+
 ⟨θ⟩
 = ∂i
 ∂θ i MS
-
+
 ⟨θ⟩
 ∀i ∈ {0, . . . , p}. (10)
 For an algebraic model, this coincides with a Taylor series. Forward models involv-
@@ -474,7 +474,7 @@ l=0
 with the Lagrange multiplicator γ. This leads to the governing evolution equations in
 their strong forms:
 0 = −c⋆ψi
- 
+
 aii ¯ϕi +
 n−1X
 j
@@ -483,7 +483,7 @@ aij ¯ϕj
 + ηi( ˙ϕiψ2
 i + ¯ϕi ˙ψi + ˙ϕi) + γ (19)
 0 = −c⋆ϕi
- 
+
 aii ¯ϕi +
 n−1X
 j

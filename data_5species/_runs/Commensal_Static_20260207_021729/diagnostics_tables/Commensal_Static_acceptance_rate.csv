@@ -1,0 +1,13 @@
+model,chain,stage,accept_rate
+Commensal_Static,1,0,0.50915
+Commensal_Static,1,1,0.22995
+Commensal_Static,1,2,0.16305
+Commensal_Static,1,3,0.1404
+Commensal_Static,1,4,0.13145
+Commensal_Static,1,5,0.1234
+Commensal_Static,2,0,0.51135
+Commensal_Static,2,1,0.2343
+Commensal_Static,2,2,0.15845
+Commensal_Static,2,3,0.1314
+Commensal_Static,2,4,0.13
+Commensal_Static,2,5,0.1277

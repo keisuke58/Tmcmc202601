@@ -56,22 +56,20 @@ import os
 import sys
 import time
 
-import gc
 import subprocess
 import numpy as np
 import jax
 import jax.numpy as jnp
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.colors import Normalize
-from matplotlib import cm
 
 jax.config.update("jax_enable_x64", True)
 
 # ── パス設定 ─────────────────────────────────────────────────────────────────
-_HERE     = os.path.dirname(os.path.abspath(__file__))
-_PROJ     = os.path.dirname(_HERE)
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_PROJ = os.path.dirname(_HERE)
 _RUNS_DIR = os.path.join(_PROJ, "data_5species", "_runs")
 
 if _HERE not in sys.path:
@@ -86,7 +84,7 @@ from JAXFEM.core_hamilton_2d_nutrient import (
     _make_reaction_step_c,
     _make_nutrient_step_stable,
 )
-from material_models import compute_E_di, E_MAX_PA, E_MIN_PA, DI_SCALE
+from material_models import E_MAX_PA, E_MIN_PA, DI_SCALE
 
 OUT_DIR = os.path.join(_HERE, "_multiscale_2d_results")
 
@@ -118,26 +116,25 @@ CONDITIONS = {
     },
 }
 
-SPECIES_NAMES = ["S. oralis", "A. naeslundii", "V. dispar",
-                 "F. nucleatum", "P. gingivalis"]
+SPECIES_NAMES = ["S. oralis", "A. naeslundii", "V. dispar", "F. nucleatum", "P. gingivalis"]
 SPECIES_COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#d62728"]
 
 # ── 物理パラメータ ───────────────────────────────────────────────────────────
-G_EFF     = 50.0     # effective nutrient consumption (→ Thiele ~ 4)
-D_C       = 1.0      # nutrient diffusion coefficient
-K_MONOD   = 1.0      # Monod half-saturation
-K_ALPHA   = 0.05     # growth-eigenstrain coupling
-L_BIOFILM = 0.2      # biofilm thickness [mm] for scale conversion
+G_EFF = 50.0  # effective nutrient consumption (→ Thiele ~ 4)
+D_C = 1.0  # nutrient diffusion coefficient
+K_MONOD = 1.0  # Monod half-saturation
+K_ALPHA = 0.05  # growth-eigenstrain coupling
+L_BIOFILM = 0.2  # biofilm thickness [mm] for scale conversion
 
 # ── シミュレーション設定 ─────────────────────────────────────────────────────
 # T* = N_MACRO × N_REACT × DT_H  (species dynamics need T*≥10 to develop)
 NX = 12
 NY = 12
-N_MACRO    = 1000     # → T* = 1000 × 10 × 1e-3 = 10.0
-N_REACT    = 10       # reaction sub-steps per macro
-DT_H       = 1e-3    # Hamilton time step
-N_SUB_C    = 20       # nutrient PDE sub-steps (CFL stability)
-SAVE_EVERY = 100      # save snapshot every N macro steps
+N_MACRO = 1000  # → T* = 1000 × 10 × 1e-3 = 10.0
+N_REACT = 10  # reaction sub-steps per macro
+DT_H = 1e-3  # Hamilton time step
+N_SUB_C = 20  # nutrient PDE sub-steps (CFL stability)
+SAVE_EVERY = 100  # save snapshot every N macro steps
 
 # Hamilton coupling scale: nutrient PDE gives c ∈ [0,1], but Hamilton model
 # was calibrated with c = 100.0.  Scale c_pde → c_hamilton = c_pde * C_SCALE.
@@ -147,6 +144,7 @@ C_HAMILTON_SCALE = 100.0
 # ─────────────────────────────────────────────────────────────────────────────
 # ユーティリティ
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def load_theta(condition_key: str) -> np.ndarray:
     """TMCMC ランディレクトリから theta_MAP を読み込む。"""
@@ -171,6 +169,7 @@ def compute_E_from_DI(di_field):
 # ─────────────────────────────────────────────────────────────────────────────
 # 0D Hamilton JAX ソルバー (条件別 DI・組成 reference)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def solve_0d_reference(theta_np: np.ndarray) -> dict:
     """TMCMC MAP θ から 0D Hamilton ODE 参照解を計算する。"""
@@ -223,12 +222,14 @@ def solve_0d_reference(theta_np: np.ndarray) -> dict:
 # 2D シミュレーション実行
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run_2d(theta: np.ndarray, condition_label: str,
-           reaction_fn=None, nutrient_fn=None) -> dict:
+
+def run_2d(theta: np.ndarray, condition_label: str, reaction_fn=None, nutrient_fn=None) -> dict:
     """1条件の 2D Hamilton + nutrient PDE シミュレーションを実行する。"""
     cfg = Config2D(
-        Nx=NX, Ny=NY,
-        Lx=1.0, Ly=1.0,
+        Nx=NX,
+        Ny=NY,
+        Lx=1.0,
+        Ly=1.0,
         dt_h=DT_H,
         n_react_sub=N_REACT,
         n_macro=N_MACRO,
@@ -236,9 +237,7 @@ def run_2d(theta: np.ndarray, condition_label: str,
         D_c=D_C,
         k_monod=K_MONOD,
         # Species-weighted consumption (scaled by G_EFF)
-        g_consumption=np.array([G_EFF * 1.0, G_EFF * 1.0,
-                                G_EFF * 0.8, G_EFF * 0.5,
-                                G_EFF * 0.3]),
+        g_consumption=np.array([G_EFF * 1.0, G_EFF * 1.0, G_EFF * 0.8, G_EFF * 0.5, G_EFF * 0.3]),
         c_boundary=1.0,
         K_hill=0.05,
         n_hill=4.0,
@@ -246,9 +245,9 @@ def run_2d(theta: np.ndarray, condition_label: str,
     )
 
     # Egg-shaped biofilm mask (Klempt 2024)
-    mask = egg_shape_mask(NX, NY, cfg.Lx, cfg.Ly,
-                          ax=0.35, ay=0.25, cx=0.5, cy=0.5,
-                          skew=0.3, eps=0.1)
+    mask = egg_shape_mask(
+        NX, NY, cfg.Lx, cfg.Ly, ax=0.35, ay=0.25, cx=0.5, cy=0.5, skew=0.3, eps=0.1
+    )
 
     t0 = time.time()
     print(f"\n  [{condition_label}] 2D coupled simulation starting...")
@@ -256,7 +255,8 @@ def run_2d(theta: np.ndarray, condition_label: str,
     print(f"  Biofilm mask: egg-shape, area fraction = {mask.mean():.3f}")
 
     result = run_simulation_coupled(
-        theta, cfg,
+        theta,
+        cfg,
         biofilm_mask=mask,
         n_sub_c=N_SUB_C,
         reaction_fn=reaction_fn,
@@ -268,29 +268,32 @@ def run_2d(theta: np.ndarray, condition_label: str,
     print(f"  [{condition_label}] Completed in {elapsed:.1f} s")
 
     # Compute derived fields
-    phi_snaps = result["phi_snaps"]   # (n_snap, 5, Nx, Ny)
-    c_snaps   = result["c_snaps"]     # (n_snap, Nx, Ny)
-    t_snaps   = result["t_snaps"]     # (n_snap,)
+    phi_snaps = result["phi_snaps"]  # (n_snap, 5, Nx, Ny)
+    c_snaps = result["c_snaps"]  # (n_snap, Nx, Ny)
+    t_snaps = result["t_snaps"]  # (n_snap,)
 
     di_snaps = compute_di_field(phi_snaps)  # (n_snap, Nx, Ny)
     alpha_monod = compute_alpha_monod(
-        phi_snaps, c_snaps, t_snaps,
-        k_alpha=K_ALPHA, k_monod=K_MONOD,
+        phi_snaps,
+        c_snaps,
+        t_snaps,
+        k_alpha=K_ALPHA,
+        k_monod=K_MONOD,
     )  # (Nx, Ny)
 
     # Final time fields
-    phi_final  = phi_snaps[-1]           # (5, Nx, Ny)
-    c_final    = c_snaps[-1]             # (Nx, Ny)
-    di_final   = di_snaps[-1]            # (Nx, Ny)
-    E_final    = compute_E_from_DI(di_final)  # (Nx, Ny)
-    phi_total  = phi_final.sum(axis=0)   # (Nx, Ny)
-    eps_growth = alpha_monod / 3.0       # (Nx, Ny)
+    phi_final = phi_snaps[-1]  # (5, Nx, Ny)
+    c_final = c_snaps[-1]  # (Nx, Ny)
+    di_final = di_snaps[-1]  # (Nx, Ny)
+    E_final = compute_E_from_DI(di_final)  # (Nx, Ny)
+    phi_total = phi_final.sum(axis=0)  # (Nx, Ny)
+    eps_growth = alpha_monod / 3.0  # (Nx, Ny)
 
     # Statistics inside biofilm
     bf = mask > 0.5
     di_bf = di_final[bf]
-    E_bf  = E_final[bf]
-    c_bf  = c_final[bf]
+    E_bf = E_final[bf]
+    c_bf = c_final[bf]
 
     return {
         "phi_snaps": phi_snaps,
@@ -322,6 +325,7 @@ def run_2d(theta: np.ndarray, condition_label: str,
 # ─────────────────────────────────────────────────────────────────────────────
 # 図1: 2D 場の比較 (nutrient + DI + E + alpha)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def plot_2d_fields(results: dict, out_dir: str):
     """4条件 × 4場 の 2D コンター図。"""
@@ -367,7 +371,8 @@ def plot_2d_fields(results: dict, out_dir: str):
         "2D Coupled Hamilton+Nutrient: Spatial Fields\n"
         f"Grid {NX}×{NY}, T*={N_MACRO*N_REACT*DT_H:.1f}, "
         f"Biofilm=egg-shape (Klempt 2024)",
-        fontsize=13, fontweight="bold"
+        fontsize=13,
+        fontweight="bold",
     )
     plt.tight_layout()
 
@@ -381,6 +386,7 @@ def plot_2d_fields(results: dict, out_dir: str):
 # ─────────────────────────────────────────────────────────────────────────────
 # 図2: DI 空間分布 — KEY figure (1D では不可能)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def plot_di_comparison(results: dict, out_dir: str):
     """DI(x,y) の 2D 分布 + ヒストグラム (1D vs 2D の違いを強調)。"""
@@ -413,22 +419,30 @@ def plot_di_comparison(results: dict, out_dir: str):
         # Bottom row: DI histogram (inside biofilm)
         ax = axes[1, col]
         di_bf = di[mask > 0.5]
-        ax.hist(di_bf, bins=30, color=CONDITIONS[ckey]["color"],
-                alpha=0.7, edgecolor="black", density=True)
-        ax.axvline(di_bf.mean(), color="red", ls="--", lw=2,
-                   label=f"mean={di_bf.mean():.3f}")
+        ax.hist(
+            di_bf,
+            bins=30,
+            color=CONDITIONS[ckey]["color"],
+            alpha=0.7,
+            edgecolor="black",
+            density=True,
+        )
+        ax.axvline(di_bf.mean(), color="red", ls="--", lw=2, label=f"mean={di_bf.mean():.3f}")
         ax.axvline(0.0, color="gray", ls=":", lw=1, alpha=0.5)
         ax.set_xlabel("DI")
         ax.set_ylabel("Density")
-        ax.set_title(f"DI distribution\nstd={di_bf.std():.4f}, range=[{di_bf.min():.3f}, {di_bf.max():.3f}]",
-                     fontsize=9)
+        ax.set_title(
+            f"DI distribution\nstd={di_bf.std():.4f}, range=[{di_bf.min():.3f}, {di_bf.max():.3f}]",
+            fontsize=9,
+        )
         ax.legend(fontsize=8)
         ax.set_xlim(-0.05, 1.05)
 
     fig.suptitle(
         "Dysbiotic Index DI(x,y) — Spatial heterogeneity in 2D\n"
         "KEY: In 1D, DI ≈ 0 everywhere (homogenized). In 2D, DI varies spatially!",
-        fontsize=12, fontweight="bold"
+        fontsize=12,
+        fontweight="bold",
     )
     plt.tight_layout()
 
@@ -442,6 +456,7 @@ def plot_di_comparison(results: dict, out_dir: str):
 # ─────────────────────────────────────────────────────────────────────────────
 # 図3: 種組成 φ_i(x,y) の空間パターン
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def plot_species_spatial(results: dict, out_dir: str):
     """φ_i(x,y) の空間分布 (5種 × 4条件)。"""
@@ -465,8 +480,7 @@ def plot_species_spatial(results: dict, out_dir: str):
             ax = axes[row, sp]
             phi_sp = phi[sp]
             vmax = max(phi_sp[mask > 0.5].max(), 0.01)
-            im = ax.contourf(X, Y, phi_sp, levels=20, cmap="YlOrRd",
-                             vmin=0, vmax=vmax)
+            im = ax.contourf(X, Y, phi_sp, levels=20, cmap="YlOrRd", vmin=0, vmax=vmax)
             ax.contour(X, Y, mask, levels=[0.5], colors="white", linewidths=1)
             plt.colorbar(im, ax=ax, shrink=0.8)
             ax.set_aspect("equal")
@@ -474,16 +488,17 @@ def plot_species_spatial(results: dict, out_dir: str):
             ax.set_yticks([0, 0.5, 1])
 
             if row == 0:
-                ax.set_title(SPECIES_NAMES[sp], fontsize=10,
-                             color=SPECIES_COLORS[sp], fontweight="bold")
+                ax.set_title(
+                    SPECIES_NAMES[sp], fontsize=10, color=SPECIES_COLORS[sp], fontweight="bold"
+                )
             if sp == 0:
-                ax.set_ylabel(CONDITIONS[ckey]["label"], fontsize=10,
-                              fontweight="bold")
+                ax.set_ylabel(CONDITIONS[ckey]["label"], fontsize=10, fontweight="bold")
 
     fig.suptitle(
         "Species composition φᵢ(x,y) — Spatial patterns in 2D biofilm\n"
         "Interior (nutrient-depleted) vs. surface (nutrient-rich) → species segregation",
-        fontsize=12, fontweight="bold"
+        fontsize=12,
+        fontweight="bold",
     )
     plt.tight_layout()
 
@@ -497,6 +512,7 @@ def plot_species_spatial(results: dict, out_dir: str):
 # ─────────────────────────────────────────────────────────────────────────────
 # 図4: 1D vs 2D 比較 (DI分布, E分布)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def plot_1d_vs_2d(results_2d: dict, out_dir: str):
     """1D vs 2D 比較: DI と E の分布。"""
@@ -513,8 +529,7 @@ def plot_1d_vs_2d(results_2d: dict, out_dir: str):
                 lines = [l.rstrip("\n") for l in f if not l.startswith("#")]
             cols = lines[0].split(",")
             data = np.array(
-                [[float(v) for v in l.split(",")]
-                 for l in lines[1:] if l.strip()],
+                [[float(v) for v in l.split(",")] for l in lines[1:] if l.strip()],
                 dtype=np.float64,
             )
             col_map = {col: i for i, col in enumerate(cols)}
@@ -544,10 +559,20 @@ def plot_1d_vs_2d(results_2d: dict, out_dir: str):
             bp_data_1d.append(np.array([0.0]))
         bp_labels.append(CONDITIONS[ckey]["label"].split()[0])
 
-    bp1 = ax.boxplot(bp_data_1d, positions=positions - width/2, widths=width,
-                     patch_artist=True, showfliers=False)
-    bp2 = ax.boxplot(bp_data_2d, positions=positions + width/2, widths=width,
-                     patch_artist=True, showfliers=False)
+    bp1 = ax.boxplot(
+        bp_data_1d,
+        positions=positions - width / 2,
+        widths=width,
+        patch_artist=True,
+        showfliers=False,
+    )
+    bp2 = ax.boxplot(
+        bp_data_2d,
+        positions=positions + width / 2,
+        widths=width,
+        patch_artist=True,
+        showfliers=False,
+    )
     for patch in bp1["boxes"]:
         patch.set_facecolor("#aec7e8")
     for patch in bp2["boxes"]:
@@ -564,13 +589,17 @@ def plot_1d_vs_2d(results_2d: dict, out_dir: str):
     for i, ckey in enumerate(ckeys):
         mask = results_2d[ckey]["biofilm_mask"]
         di_bf = results_2d[ckey]["di_final"][mask > 0.5]
-        ax.hist(di_bf, bins=25, alpha=0.4,
-                color=CONDITIONS[ckey]["color"],
-                label=f"2D {CONDITIONS[ckey]['label']}", density=True)
+        ax.hist(
+            di_bf,
+            bins=25,
+            alpha=0.4,
+            color=CONDITIONS[ckey]["color"],
+            label=f"2D {CONDITIONS[ckey]['label']}",
+            density=True,
+        )
         if ckey in results_1d:
             di_1d = results_1d[ckey]["DI"]
-            ax.axvline(di_1d.mean(), color=CONDITIONS[ckey]["color"],
-                       ls="--", lw=2, alpha=0.8)
+            ax.axvline(di_1d.mean(), color=CONDITIONS[ckey]["color"], ls="--", lw=2, alpha=0.8)
     ax.set_xlabel("DI")
     ax.set_ylabel("Density")
     ax.set_title("(b) DI histograms: 2D (filled) vs 1D mean (dashed)")
@@ -578,14 +607,11 @@ def plot_1d_vs_2d(results_2d: dict, out_dir: str):
 
     # (c) E: mean comparison
     ax = axes[1, 0]
-    E_1d = [results_1d[ck]["E_Pa"].mean() if ck in results_1d else 0
-            for ck in ckeys]
+    E_1d = [results_1d[ck]["E_Pa"].mean() if ck in results_1d else 0 for ck in ckeys]
     E_2d = [results_2d[ck]["E_mean"] for ck in ckeys]
     x_pos = np.arange(n_cond)
-    ax.bar(x_pos - 0.15, E_1d, 0.3, label="1D", color="#aec7e8",
-           edgecolor="black")
-    ax.bar(x_pos + 0.15, E_2d, 0.3, label="2D", color="#ffbb78",
-           edgecolor="black")
+    ax.bar(x_pos - 0.15, E_1d, 0.3, label="1D", color="#aec7e8", edgecolor="black")
+    ax.bar(x_pos + 0.15, E_2d, 0.3, label="2D", color="#ffbb78", edgecolor="black")
     ax.set_xticks(x_pos)
     ax.set_xticklabels(bp_labels, rotation=15, ha="right")
     ax.set_ylabel("E [Pa]")
@@ -602,7 +628,7 @@ def plot_1d_vs_2d(results_2d: dict, out_dir: str):
         "",
         f"Grid: {NX}×{NY} (2D) vs 30 nodes (1D)",
         f"T*: {N_MACRO*N_REACT*DT_H:.1f} (2D) vs 20.0 (1D)",
-        f"Biofilm: egg-shape (2D) vs bar [0,1] (1D)",
+        "Biofilm: egg-shape (2D) vs bar [0,1] (1D)",
         "",
         "KEY FINDING:",
         "  1D: DI ≈ 0 everywhere (diffusion homogenizes)",
@@ -622,14 +648,22 @@ def plot_1d_vs_2d(results_2d: dict, out_dir: str):
         lines.append(f"    2D DI: {res2d['di_mean']:.4f}±{res2d['di_std']:.4f}")
         lines.append(f"           range [{res2d['di_min']:.3f}, {res2d['di_max']:.3f}]")
 
-    ax.text(0.05, 0.95, "\n".join(lines), transform=ax.transAxes,
-            fontsize=8, family="monospace", va="top")
+    ax.text(
+        0.05,
+        0.95,
+        "\n".join(lines),
+        transform=ax.transAxes,
+        fontsize=8,
+        family="monospace",
+        va="top",
+    )
 
     fig.suptitle(
         "1D vs 2D Multiscale Comparison\n"
         "1D diffusion homogenizes species → DI≈0. "
         "2D egg-shape preserves spatial heterogeneity.",
-        fontsize=12, fontweight="bold"
+        fontsize=12,
+        fontweight="bold",
     )
     plt.tight_layout()
 
@@ -644,16 +678,18 @@ def plot_1d_vs_2d(results_2d: dict, out_dir: str):
 # サマリーテーブル
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def print_summary(results: dict, ref_0d: dict):
     """サマリーテーブルを表示する。"""
     print()
     print("=" * 85)
     print("  2D Coupled Hamilton+Nutrient — Summary")
-    print(f"  Grid: {NX}×{NY},  T*={N_MACRO*N_REACT*DT_H:.1f},  "
-          f"D_c={D_C},  g_eff={G_EFF}")
+    print(f"  Grid: {NX}×{NY},  T*={N_MACRO*N_REACT*DT_H:.1f},  " f"D_c={D_C},  g_eff={G_EFF}")
     print("=" * 85)
-    hdr = (f"  {'Condition':<25} {'DI_0D':>7} {'DI_2D':>7} {'DI_std':>7} "
-           f"{'c_min':>7} {'E_mean':>8} {'φ_Pg':>7}")
+    hdr = (
+        f"  {'Condition':<25} {'DI_0D':>7} {'DI_2D':>7} {'DI_std':>7} "
+        f"{'c_min':>7} {'E_mean':>8} {'φ_Pg':>7}"
+    )
     print(hdr)
     print("  " + "-" * 80)
     for ckey, res in results.items():
@@ -679,6 +715,7 @@ def print_summary(results: dict, ref_0d: dict):
 # メイン
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def run_single_condition(ckey: str):
     """1条件をサブプロセス内で実行し、NPZ + ref_0d JSON を保存する。"""
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -697,17 +734,19 @@ def run_single_condition(ckey: str):
     # Save 0D reference
     ref_path = os.path.join(OUT_DIR, f"ref_0d_{ckey}.json")
     with open(ref_path, "w") as f:
-        json.dump({
-            "phi_final": r0d["phi_final"].tolist(),
-            "di_0d": r0d["di_0d"],
-            "phi_total": r0d["phi_total"],
-        }, f)
+        json.dump(
+            {
+                "phi_final": r0d["phi_final"].tolist(),
+                "di_0d": r0d["di_0d"],
+                "phi_total": r0d["phi_total"],
+            },
+            f,
+        )
 
     # 3. 2D coupled simulation (JIT functions compiled fresh in this process)
     _reaction_fn = _make_reaction_step_c(N_REACT, 6)
     _nutrient_fn = _make_nutrient_step_stable(N_SUB_C)
-    res = run_2d(theta, info["label"],
-                 reaction_fn=_reaction_fn, nutrient_fn=_nutrient_fn)
+    res = run_2d(theta, info["label"], reaction_fn=_reaction_fn, nutrient_fn=_nutrient_fn)
 
     # 4. Save raw data
     npz_path = os.path.join(OUT_DIR, f"2d_fields_{ckey}.npz")
@@ -725,17 +764,21 @@ def run_single_condition(ckey: str):
     # 5. Save summary stats as JSON (for parent process)
     stats_path = os.path.join(OUT_DIR, f"stats_{ckey}.json")
     with open(stats_path, "w") as f:
-        json.dump({
-            "di_mean": res["di_mean"],
-            "di_std": res["di_std"],
-            "di_min": res["di_min"],
-            "di_max": res["di_max"],
-            "E_mean": res["E_mean"],
-            "c_min_bf": res["c_min_bf"],
-            "c_mean_bf": res["c_mean_bf"],
-            "phi_Pg_mean": res["phi_Pg_mean"],
-            "elapsed_s": res["elapsed_s"],
-        }, f, indent=2)
+        json.dump(
+            {
+                "di_mean": res["di_mean"],
+                "di_std": res["di_std"],
+                "di_min": res["di_min"],
+                "di_max": res["di_max"],
+                "E_mean": res["E_mean"],
+                "c_min_bf": res["c_min_bf"],
+                "c_mean_bf": res["c_mean_bf"],
+                "phi_Pg_mean": res["phi_Pg_mean"],
+                "elapsed_s": res["elapsed_s"],
+            },
+            f,
+            indent=2,
+        )
     print(f"  Stats saved: {stats_path}")
 
 
@@ -775,8 +818,7 @@ def main():
     if len(sys.argv) >= 3 and sys.argv[1] == "--single":
         ckey = sys.argv[2]
         if ckey not in CONDITIONS:
-            print(f"ERROR: Unknown condition '{ckey}'. "
-                  f"Available: {list(CONDITIONS.keys())}")
+            print(f"ERROR: Unknown condition '{ckey}'. " f"Available: {list(CONDITIONS.keys())}")
             sys.exit(1)
         run_single_condition(ckey)
         return
@@ -804,8 +846,7 @@ def main():
         env["OMP_NUM_THREADS"] = "1"
         env["TF_NUM_INTRAOP_THREADS"] = "1"
         env["XLA_FLAGS"] = (
-            "--xla_cpu_multi_thread_eigen=false "
-            "--xla_force_host_platform_device_count=1"
+            "--xla_cpu_multi_thread_eigen=false " "--xla_force_host_platform_device_count=1"
         )
         ret = subprocess.run(
             [python_exe, this_script, "--single", ckey],

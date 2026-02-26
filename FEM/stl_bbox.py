@@ -31,6 +31,7 @@ from pathlib import Path
 # STL readers
 # ---------------------------------------------------------------------------
 
+
 def _is_binary_stl(path: Path) -> bool:
     """Heuristic: compare file size to expected binary size."""
     with path.open("rb") as f:
@@ -102,6 +103,7 @@ def read_stl_vertices(path: Path) -> list:
 # Bounding box
 # ---------------------------------------------------------------------------
 
+
 def compute_bbox(verts: list) -> dict:
     if not verts:
         return {}
@@ -113,16 +115,17 @@ def compute_bbox(verts: list) -> dict:
     zmin, zmax = min(zs), max(zs)
     return {
         "n_vertices": len(verts),
-        "min":    [xmin, ymin, zmin],
-        "max":    [xmax, ymax, zmax],
+        "min": [xmin, ymin, zmin],
+        "max": [xmax, ymax, zmax],
         "center": [0.5 * (xmin + xmax), 0.5 * (ymin + ymax), 0.5 * (zmin + zmax)],
-        "size":   [xmax - xmin, ymax - ymin, zmax - zmin],
+        "size": [xmax - xmin, ymax - ymin, zmax - zmin],
     }
 
 
 # ---------------------------------------------------------------------------
 # 2-D cross-section polygon (convex hull at a given Z slice)
 # ---------------------------------------------------------------------------
+
 
 def _convex_hull_2d(pts):
     """Graham-scan convex hull on 2-D points. Returns hull vertices in CCW order."""
@@ -177,8 +180,9 @@ def _resample_polygon(hull, n: int) -> list:
     return result
 
 
-def compute_cross_section_polygon(verts: list, z_fraction: float = 0.5, n: int = 12,
-                                   z_slab: float = 0.05) -> list:
+def compute_cross_section_polygon(
+    verts: list, z_fraction: float = 0.5, n: int = 12, z_slab: float = 0.05
+) -> list:
     """
     Extract 2-D convex hull at a given fractional Z height.
 
@@ -203,14 +207,12 @@ def compute_cross_section_polygon(verts: list, z_fraction: float = 0.5, n: int =
 
     z_center = zmin + z_fraction * dz
     half = 0.5 * z_slab * dz
-    slab_verts = [(v[0], v[1]) for v in verts
-                  if (z_center - half) <= v[2] <= (z_center + half)]
+    slab_verts = [(v[0], v[1]) for v in verts if (z_center - half) <= v[2] <= (z_center + half)]
 
     if len(slab_verts) < 4:
         # Widen slab
         half = 0.2 * dz
-        slab_verts = [(v[0], v[1]) for v in verts
-                      if (z_center - half) <= v[2] <= (z_center + half)]
+        slab_verts = [(v[0], v[1]) for v in verts if (z_center - half) <= v[2] <= (z_center + half)]
 
     if len(slab_verts) < 3:
         # Fallback: use bbox rectangle
@@ -218,8 +220,7 @@ def compute_cross_section_polygon(verts: list, z_fraction: float = 0.5, n: int =
         ys = [v[1] for v in verts]
         bx = [min(xs), max(xs)]
         by = [min(ys), max(ys)]
-        return [(bx[0], by[0]), (bx[1], by[0]),
-                (bx[1], by[1]), (bx[0], by[1])]
+        return [(bx[0], by[0]), (bx[1], by[0]), (bx[1], by[1]), (bx[0], by[1])]
 
     hull = _convex_hull_2d(slab_verts)
     if len(hull) < 3:
@@ -232,8 +233,10 @@ def compute_cross_section_polygon(verts: list, z_fraction: float = 0.5, n: int =
 # Main
 # ---------------------------------------------------------------------------
 
-def process_stl(path: Path, units_scale: float, poly_n: int,
-                z_fraction: float, include_poly: bool) -> dict:
+
+def process_stl(
+    path: Path, units_scale: float, poly_n: int, z_fraction: float, include_poly: bool
+) -> dict:
     print(f"  Reading {path.name} ...", end="", flush=True)
     verts = read_stl_vertices(path)
     print(f" {len(verts)} vertices", flush=True)
@@ -258,16 +261,32 @@ def main():
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument("stl_files", nargs="+", help="STL files to process")
-    ap.add_argument("--out", default="stl_bbox.json",
-                    help="Output JSON path (default: stl_bbox.json)")
-    ap.add_argument("--units-scale", type=float, default=1.0,
-                    help="Multiply all coordinates by this factor (e.g. 0.001 mm→m)")
-    ap.add_argument("--poly-n", type=int, default=12,
-                    help="Number of polygon vertices for cross-section sketch (default 12)")
-    ap.add_argument("--z-fraction", type=float, default=0.5,
-                    help="Fractional Z height for cross-section (0=bottom, 1=top, default 0.5)")
-    ap.add_argument("--no-poly", action="store_true",
-                    help="Skip 2-D polygon extraction (faster for large files)")
+    ap.add_argument(
+        "--out", default="stl_bbox.json", help="Output JSON path (default: stl_bbox.json)"
+    )
+    ap.add_argument(
+        "--units-scale",
+        type=float,
+        default=1.0,
+        help="Multiply all coordinates by this factor (e.g. 0.001 mm→m)",
+    )
+    ap.add_argument(
+        "--poly-n",
+        type=int,
+        default=12,
+        help="Number of polygon vertices for cross-section sketch (default 12)",
+    )
+    ap.add_argument(
+        "--z-fraction",
+        type=float,
+        default=0.5,
+        help="Fractional Z height for cross-section (0=bottom, 1=top, default 0.5)",
+    )
+    ap.add_argument(
+        "--no-poly",
+        action="store_true",
+        help="Skip 2-D polygon extraction (faster for large files)",
+    )
     args = ap.parse_args()
 
     result = {}
@@ -277,8 +296,7 @@ def main():
             print(f"[warn] not found: {p}")
             continue
         try:
-            info = process_stl(p, args.units_scale, args.poly_n,
-                                args.z_fraction, not args.no_poly)
+            info = process_stl(p, args.units_scale, args.poly_n, args.z_fraction, not args.no_poly)
             # Use stem (no extension) as key → matches Abaqus part names
             result[p.stem] = info
         except Exception as exc:

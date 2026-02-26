@@ -34,14 +34,16 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
 from material_models import (
-    compute_E_phi_pg, compute_E_virulence, compute_di,
-    E_MAX_PA, E_MIN_PA,
+    compute_E_phi_pg,
+    compute_E_virulence,
+    compute_di,
 )
 
 
 # ============================================================================
 # 2D QUAD4 FEM Core
 # ============================================================================
+
 
 def _gauss_2x2():
     """2×2 Gauss quadrature points and weights on [-1,1]²."""
@@ -57,14 +59,22 @@ def _shape_grad(xi, eta):
     Returns dN/dxi (4,) and dN/deta (4,).
     Node order: 0=(0,0), 1=(1,0), 2=(1,1), 3=(0,1) in physical space.
     """
-    dN_dxi = np.array([
-        -(1 - eta) / 4, (1 - eta) / 4,
-        (1 + eta) / 4, -(1 + eta) / 4,
-    ])
-    dN_deta = np.array([
-        -(1 - xi) / 4, -(1 + xi) / 4,
-        (1 + xi) / 4, (1 - xi) / 4,
-    ])
+    dN_dxi = np.array(
+        [
+            -(1 - eta) / 4,
+            (1 - eta) / 4,
+            (1 + eta) / 4,
+            -(1 + eta) / 4,
+        ]
+    )
+    dN_deta = np.array(
+        [
+            -(1 - xi) / 4,
+            -(1 + xi) / 4,
+            (1 + xi) / 4,
+            (1 - xi) / 4,
+        ]
+    )
     return dN_dxi, dN_deta
 
 
@@ -76,9 +86,9 @@ def _B_matrix(dN_dx, dN_dy):
     """
     B = np.zeros((3, 8))
     for i in range(4):
-        B[0, 2 * i] = dN_dx[i]      # ε_xx = ∂u_x/∂x
+        B[0, 2 * i] = dN_dx[i]  # ε_xx = ∂u_x/∂x
         B[1, 2 * i + 1] = dN_dy[i]  # ε_yy = ∂u_y/∂y
-        B[2, 2 * i] = dN_dy[i]      # γ_xy = ∂u_x/∂y + ∂u_y/∂x
+        B[2, 2 * i] = dN_dy[i]  # γ_xy = ∂u_x/∂y + ∂u_y/∂x
         B[2, 2 * i + 1] = dN_dx[i]
     return B
 
@@ -86,16 +96,17 @@ def _B_matrix(dN_dx, dN_dy):
 def _C_plane_strain(E, nu):
     """Constitutive matrix for 2D plane strain (3×3)."""
     f = E / ((1 + nu) * (1 - 2 * nu))
-    C = f * np.array([
-        [1 - nu, nu, 0],
-        [nu, 1 - nu, 0],
-        [0, 0, (1 - 2 * nu) / 2],
-    ])
+    C = f * np.array(
+        [
+            [1 - nu, nu, 0],
+            [nu, 1 - nu, 0],
+            [0, 0, (1 - 2 * nu) / 2],
+        ]
+    )
     return C
 
 
-def solve_2d_fem(E_field, nu, eps_growth_field, Nx, Ny, Lx=1.0, Ly=1.0,
-                 bc_type="bottom_fixed"):
+def solve_2d_fem(E_field, nu, eps_growth_field, Nx, Ny, Lx=1.0, Ly=1.0, bc_type="bottom_fixed"):
     """Solve 2D plane-strain elasticity on regular QUAD4 grid.
 
     Parameters
@@ -139,8 +150,12 @@ def solve_2d_fem(E_field, nu, eps_growth_field, Nx, Ny, Lx=1.0, Ly=1.0,
     for i in range(n_elem_x):
         for j in range(n_elem_y):
             e = i * n_elem_y + j
-            elems[e] = [node_idx(i, j), node_idx(i + 1, j),
-                        node_idx(i + 1, j + 1), node_idx(i, j + 1)]
+            elems[e] = [
+                node_idx(i, j),
+                node_idx(i + 1, j),
+                node_idx(i + 1, j + 1),
+                node_idx(i, j + 1),
+            ]
 
     # Gauss quadrature
     gpts, gwts = _gauss_2x2()
@@ -262,9 +277,7 @@ def solve_2d_fem(E_field, nu, eps_growth_field, Nx, Ny, Lx=1.0, Ly=1.0,
         sigma_xy[e] = sigma[2]
 
     # Von Mises stress (plane strain)
-    sigma_vm = np.sqrt(
-        sigma_xx**2 + sigma_yy**2 - sigma_xx * sigma_yy + 3 * sigma_xy**2
-    )
+    sigma_vm = np.sqrt(sigma_xx**2 + sigma_yy**2 - sigma_xx * sigma_yy + 3 * sigma_xy**2)
 
     return {
         "u": u.reshape(-1, 2),
@@ -282,11 +295,23 @@ def solve_2d_fem(E_field, nu, eps_growth_field, Nx, Ny, Lx=1.0, Ly=1.0,
 # Pipeline: Hamilton 2D ODE → DI → E(x,y) → FEM → stress
 # ============================================================================
 
-def run_2d_stress_pipeline(theta, Nx=20, Ny=20, Lx=1.0, Ly=1.0,
-                           n_macro=60, dt_h=1e-5, n_react_sub=20,
-                           save_every=60, K_hill=0.05, n_hill=4.0,
-                           nu=0.30, alpha_coeff=0.05,
-                           e_model="phi_pg"):
+
+def run_2d_stress_pipeline(
+    theta,
+    Nx=20,
+    Ny=20,
+    Lx=1.0,
+    Ly=1.0,
+    n_macro=60,
+    dt_h=1e-5,
+    n_react_sub=20,
+    save_every=60,
+    K_hill=0.05,
+    n_hill=4.0,
+    nu=0.30,
+    alpha_coeff=0.05,
+    e_model="phi_pg",
+):
     """Full pipeline: theta → 2D fields → FEM stress.
 
     Parameters
@@ -303,9 +328,16 @@ def run_2d_stress_pipeline(theta, Nx=20, Ny=20, Lx=1.0, Ly=1.0,
     from JAXFEM.core_hamilton_2d_nutrient import run_simulation, Config2D
 
     cfg = Config2D(
-        Nx=Nx, Ny=Ny, Lx=Lx, Ly=Ly,
-        n_macro=n_macro, dt_h=dt_h, n_react_sub=n_react_sub,
-        save_every=save_every, K_hill=K_hill, n_hill=n_hill,
+        Nx=Nx,
+        Ny=Ny,
+        Lx=Lx,
+        Ly=Ly,
+        n_macro=n_macro,
+        dt_h=dt_h,
+        n_react_sub=n_react_sub,
+        save_every=save_every,
+        K_hill=K_hill,
+        n_hill=n_hill,
     )
 
     t0 = time.perf_counter()
@@ -313,10 +345,10 @@ def run_2d_stress_pipeline(theta, Nx=20, Ny=20, Lx=1.0, Ly=1.0,
     t_ode = time.perf_counter() - t0
 
     phi_snaps = np.array(result["phi_snaps"])  # (n_snap, 5, Nx, Ny)
-    c_snaps = np.array(result["c_snaps"])      # (n_snap, Nx, Ny)
+    c_snaps = np.array(result["c_snaps"])  # (n_snap, Nx, Ny)
 
     phi_final = phi_snaps[-1]  # (5, Nx, Ny)
-    c_final = c_snaps[-1]     # (Nx, Ny)
+    c_final = c_snaps[-1]  # (Nx, Ny)
 
     # phi_final → (Nx, Ny, 5) for material_models
     phi_nxy5 = phi_final.transpose(1, 2, 0)
@@ -331,6 +363,7 @@ def run_2d_stress_pipeline(theta, Nx=20, Ny=20, Lx=1.0, Ly=1.0,
         E_field = compute_E_virulence(phi_nxy5)
     else:
         from material_models import compute_E_di
+
         E_field = compute_E_di(DI)
 
     # Eigenstrain: Monod-coupled growth
@@ -341,30 +374,40 @@ def run_2d_stress_pipeline(theta, Nx=20, Ny=20, Lx=1.0, Ly=1.0,
     # FEM solve
     t1 = time.perf_counter()
     fem_result = solve_2d_fem(
-        E_field, nu, eps_growth, Nx, Ny, Lx, Ly,
+        E_field,
+        nu,
+        eps_growth,
+        Nx,
+        Ny,
+        Lx,
+        Ly,
         bc_type="bottom_fixed",
     )
     t_fem = time.perf_counter() - t1
 
     # Merge
-    fem_result.update({
-        "phi_final": phi_final,
-        "c_final": c_final,
-        "DI": DI,
-        "E_field": E_field,
-        "eps_growth": eps_growth,
-        "phi_total": phi_total,
-        "e_model": e_model,
-        "timing_ode_s": round(t_ode, 2),
-        "timing_fem_s": round(t_fem, 4),
-        "Nx": Nx, "Ny": Ny,
-    })
+    fem_result.update(
+        {
+            "phi_final": phi_final,
+            "c_final": c_final,
+            "DI": DI,
+            "E_field": E_field,
+            "eps_growth": eps_growth,
+            "phi_total": phi_total,
+            "e_model": e_model,
+            "timing_ode_s": round(t_ode, 2),
+            "timing_fem_s": round(t_fem, 4),
+            "Nx": Nx,
+            "Ny": Ny,
+        }
+    )
     return fem_result
 
 
 def plot_2d_stress(result, outdir, condition="demo", show_title=True):
     """Generate 6-panel figure: fields + stress."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -376,46 +419,52 @@ def plot_2d_stress(result, outdir, condition="demo", show_title=True):
 
     # (a) DI field
     ax = axes[0, 0]
-    im = ax.imshow(result["DI"].T, origin="lower", cmap="RdYlGn_r",
-                   aspect="equal", extent=[0, 1, 0, 1])
+    im = ax.imshow(
+        result["DI"].T, origin="lower", cmap="RdYlGn_r", aspect="equal", extent=[0, 1, 0, 1]
+    )
     plt.colorbar(im, ax=ax, label="DI")
     ax.set_title("(a) Dysbiosis Index DI(x,y)")
-    ax.set_xlabel("x (depth)"); ax.set_ylabel("y (lateral)")
+    ax.set_xlabel("x (depth)")
+    ax.set_ylabel("y (lateral)")
 
     # (b) E field
     ax = axes[0, 1]
-    im = ax.imshow(result["E_field"].T, origin="lower", cmap="viridis",
-                   aspect="equal", extent=[0, 1, 0, 1])
+    im = ax.imshow(
+        result["E_field"].T, origin="lower", cmap="viridis", aspect="equal", extent=[0, 1, 0, 1]
+    )
     plt.colorbar(im, ax=ax, label="E [Pa]")
     ax.set_title(f"(b) Young's modulus E(x,y) [{result['e_model']}]")
-    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
 
     # (c) Eigenstrain
     ax = axes[0, 2]
-    im = ax.imshow(result["eps_growth"].T, origin="lower", cmap="hot",
-                   aspect="equal", extent=[0, 1, 0, 1])
+    im = ax.imshow(
+        result["eps_growth"].T, origin="lower", cmap="hot", aspect="equal", extent=[0, 1, 0, 1]
+    )
     plt.colorbar(im, ax=ax, label="ε_growth")
     ax.set_title("(c) Growth eigenstrain ε_g(x,y)")
-    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
 
     # (d) σ_vm on element grid
     ax = axes[1, 0]
     svm = result["sigma_vm"].reshape(n_ex, n_ey)
-    im = ax.imshow(svm.T, origin="lower", cmap="jet",
-                   aspect="equal", extent=[0, 1, 0, 1])
+    im = ax.imshow(svm.T, origin="lower", cmap="jet", aspect="equal", extent=[0, 1, 0, 1])
     plt.colorbar(im, ax=ax, label="σ_vm [Pa]")
     ax.set_title(f"(d) von Mises stress (max={svm.max():.2f} Pa)")
-    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
 
     # (e) Displacement magnitude
     ax = axes[1, 1]
     u_grid = result["u_grid"]  # (Nx, Ny, 2)
-    u_mag = np.sqrt(u_grid[..., 0]**2 + u_grid[..., 1]**2)
-    im = ax.imshow(u_mag.T, origin="lower", cmap="plasma",
-                   aspect="equal", extent=[0, 1, 0, 1])
+    u_mag = np.sqrt(u_grid[..., 0] ** 2 + u_grid[..., 1] ** 2)
+    im = ax.imshow(u_mag.T, origin="lower", cmap="plasma", aspect="equal", extent=[0, 1, 0, 1])
     plt.colorbar(im, ax=ax, label="|u| [m]")
     ax.set_title(f"(e) Displacement magnitude (max={u_mag.max():.2e})")
-    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
 
     # (f) σ_xx profile along x at mid-y
     ax = axes[1, 2]
@@ -438,7 +487,9 @@ def plot_2d_stress(result, outdir, condition="demo", show_title=True):
             f"2D Biofilm Stress Analysis: {condition}\n"
             f"E model: {result['e_model']}, ν={0.3}, "
             f"ODE: {result['timing_ode_s']}s, FEM: {result['timing_fem_s']}s",
-            fontsize=13, weight="bold")
+            fontsize=13,
+            weight="bold",
+        )
 
     fig.tight_layout(rect=[0, 0, 1, 0.94])
     outpath = Path(outdir) / f"stress_2d_{condition}_{result['e_model']}.png"
@@ -452,6 +503,7 @@ def plot_2d_stress(result, outdir, condition="demo", show_title=True):
 # CLI
 # ============================================================================
 
+
 def main():
     ap = argparse.ArgumentParser(description="2D FEM stress analysis")
     ap.add_argument("--condition", default="demo")
@@ -464,8 +516,7 @@ def main():
     ap.add_argument("--n-hill", type=float, default=4.0)
     ap.add_argument("--nu", type=float, default=0.30)
     ap.add_argument("--alpha-coeff", type=float, default=0.05)
-    ap.add_argument("--e-model", choices=["phi_pg", "virulence", "di"],
-                    default="phi_pg")
+    ap.add_argument("--e-model", choices=["phi_pg", "virulence", "di"], default="phi_pg")
     ap.add_argument("--outdir", default=None)
     args = ap.parse_args()
 
@@ -486,12 +537,30 @@ def main():
 
     if theta is None:
         # Demo theta (mild-weight MAP)
-        theta = np.array([
-            1.34, -0.18, 1.79, 1.17, 2.58,
-            3.51, 2.73, 0.71, 2.1, 0.37,
-            2.05, -0.15, 3.56, 0.16, 0.12,
-            0.32, 1.49, 2.1, 2.41, 2.5,
-        ])
+        theta = np.array(
+            [
+                1.34,
+                -0.18,
+                1.79,
+                1.17,
+                2.58,
+                3.51,
+                2.73,
+                0.71,
+                2.1,
+                0.37,
+                2.05,
+                -0.15,
+                3.56,
+                0.16,
+                0.12,
+                0.32,
+                1.49,
+                2.1,
+                2.41,
+                2.5,
+            ]
+        )
 
     outdir = args.outdir or str(_HERE.parent / "_stress_2d_results")
     Path(outdir).mkdir(parents=True, exist_ok=True)
@@ -505,11 +574,16 @@ def main():
     print("=" * 60)
 
     result = run_2d_stress_pipeline(
-        theta, Nx=args.nx, Ny=args.ny,
-        n_macro=args.n_macro, dt_h=args.dt_h,
+        theta,
+        Nx=args.nx,
+        Ny=args.ny,
+        n_macro=args.n_macro,
+        dt_h=args.dt_h,
         n_react_sub=args.n_react_sub,
-        K_hill=args.k_hill, n_hill=args.n_hill,
-        nu=args.nu, alpha_coeff=args.alpha_coeff,
+        K_hill=args.k_hill,
+        n_hill=args.n_hill,
+        nu=args.nu,
+        alpha_coeff=args.alpha_coeff,
         e_model=args.e_model,
     )
 
@@ -534,7 +608,7 @@ def main():
         "eps_growth_max": float(result["eps_growth"].max()),
         "sigma_vm_max_pa": float(svm.max()),
         "sigma_vm_mean_pa": float(svm.mean()),
-        "u_max": float(np.max(np.sqrt(result["u"][:, 0]**2 + result["u"][:, 1]**2))),
+        "u_max": float(np.max(np.sqrt(result["u"][:, 0] ** 2 + result["u"][:, 1] ** 2))),
         "timing_ode_s": result["timing_ode_s"],
         "timing_fem_s": result["timing_fem_s"],
     }
@@ -548,11 +622,16 @@ def main():
     if args.e_model == "phi_pg":
         print("\n--- Also running virulence model for comparison ---")
         result_vir = run_2d_stress_pipeline(
-            theta, Nx=args.nx, Ny=args.ny,
-            n_macro=args.n_macro, dt_h=args.dt_h,
+            theta,
+            Nx=args.nx,
+            Ny=args.ny,
+            n_macro=args.n_macro,
+            dt_h=args.dt_h,
             n_react_sub=args.n_react_sub,
-            K_hill=args.k_hill, n_hill=args.n_hill,
-            nu=args.nu, alpha_coeff=args.alpha_coeff,
+            K_hill=args.k_hill,
+            n_hill=args.n_hill,
+            nu=args.nu,
+            alpha_coeff=args.alpha_coeff,
             e_model="virulence",
         )
         svm_v = result_vir["sigma_vm"]

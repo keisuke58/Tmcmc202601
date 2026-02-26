@@ -95,8 +95,7 @@ def run_condition(condition, e_model, Ny=20, nu=0.30):
     print(f"  ε_growth: min={eps_1d.min():.6f}, max={eps_max:.6f}")
 
     # FEM solve
-    result = solve_2d_fem(E_2d, nu, eps_2d, Nx, Ny, Lx, 1.0,
-                          bc_type="bottom_fixed")
+    result = solve_2d_fem(E_2d, nu, eps_2d, Nx, Ny, Lx, 1.0, bc_type="bottom_fixed")
 
     # Add metadata
     result["condition"] = condition
@@ -119,6 +118,7 @@ def run_condition(condition, e_model, Ny=20, nu=0.30):
 def plot_all_conditions(results, outdir, e_model):
     """Publication-quality comparison figure."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -138,13 +138,18 @@ def plot_all_conditions(results, outdir, e_model):
         r = results[cond]
         Nx, Ny = r["Nx"], r["Ny"]
         svm = r["sigma_vm"].reshape(Nx - 1, Ny - 1)
-        im = ax.imshow(svm.T, origin="lower", cmap="jet",
-                       aspect="equal", extent=[0, 1, 0, 1],
-                       vmin=0, vmax=vmax_global)
+        im = ax.imshow(
+            svm.T,
+            origin="lower",
+            cmap="jet",
+            aspect="equal",
+            extent=[0, 1, 0, 1],
+            vmin=0,
+            vmax=vmax_global,
+        )
         plt.colorbar(im, ax=ax, label="σ_vm [Pa]")
         info = CONDITIONS.get(cond, {})
-        ax.set_title(f"{info.get('label', cond)}\nσ_vm max={svm.max():.3f} Pa",
-                     fontsize=10)
+        ax.set_title(f"{info.get('label', cond)}\nσ_vm max={svm.max():.3f} Pa", fontsize=10)
         ax.set_xlabel("depth (norm.)")
         ax.set_ylabel("lateral")
 
@@ -166,15 +171,16 @@ def plot_all_conditions(results, outdir, e_model):
         ax.plot(cx, syy, "r:", lw=1.5, label="σ_yy")
         ax.set_xlabel("depth (norm.)")
         ax.set_ylabel("Stress [Pa]")
-        ax.set_title(f"E={r['E_mean']:.0f} Pa, ε_max={r['eps_growth_max']:.4f}",
-                     fontsize=9)
+        ax.set_title(f"E={r['E_mean']:.0f} Pa, ε_max={r['eps_growth_max']:.4f}", fontsize=9)
         ax.legend(fontsize=7)
         ax.grid(True, alpha=0.3)
 
     fig.suptitle(
         f"2D FEM Stress: Hybrid Approach (E model: {e_model})\n"
         f"0D condition-dependent E + 1D spatial eigenstrain → 2D FEM",
-        fontsize=13, weight="bold")
+        fontsize=13,
+        weight="bold",
+    )
     fig.tight_layout(rect=[0, 0, 1, 0.93])
     out = outdir / f"hybrid_stress_comparison_{e_model}.png"
     fig.savefig(out, dpi=200)
@@ -208,8 +214,7 @@ def plot_all_conditions(results, outdir, e_model):
 
     # (c) Max displacement
     ax = axes[2]
-    vals = [np.max(np.sqrt(results[c]["u"][:, 0]**2 + results[c]["u"][:, 1]**2))
-            for c in conds]
+    vals = [np.max(np.sqrt(results[c]["u"][:, 0] ** 2 + results[c]["u"][:, 1] ** 2)) for c in conds]
     ax.bar(range(n), vals, color=cols, alpha=0.8, edgecolor="k")
     ax.set_xticks(range(n))
     ax.set_xticklabels(labels, fontsize=8, rotation=15)
@@ -217,8 +222,7 @@ def plot_all_conditions(results, outdir, e_model):
     ax.set_title("(c) Peak Displacement")
     ax.grid(True, alpha=0.3, axis="y")
 
-    fig.suptitle(f"Cross-Condition Summary ({e_model})",
-                 fontsize=13, weight="bold")
+    fig.suptitle(f"Cross-Condition Summary ({e_model})", fontsize=13, weight="bold")
     fig.tight_layout(rect=[0, 0, 1, 0.93])
     out = outdir / f"hybrid_stress_bars_{e_model}.png"
     fig.savefig(out, dpi=200)
@@ -228,14 +232,11 @@ def plot_all_conditions(results, outdir, e_model):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--conditions", nargs="+",
-                    default=list(CONDITIONS.keys()))
-    ap.add_argument("--e-model", choices=["di", "phi_pg", "virulence"],
-                    default="phi_pg")
+    ap.add_argument("--conditions", nargs="+", default=list(CONDITIONS.keys()))
+    ap.add_argument("--e-model", choices=["di", "phi_pg", "virulence"], default="phi_pg")
     ap.add_argument("--ny", type=int, default=20)
     ap.add_argument("--nu", type=float, default=0.30)
-    ap.add_argument("--all-models", action="store_true",
-                    help="Run all 3 E models")
+    ap.add_argument("--all-models", action="store_true", help="Run all 3 E models")
     args = ap.parse_args()
 
     _OUTDIR.mkdir(parents=True, exist_ok=True)
@@ -261,7 +262,7 @@ def main():
                     "eps_growth_max": float(r["eps_growth_max"]),
                     "sigma_vm_max_pa": float(r["sigma_vm"].max()),
                     "sigma_vm_mean_pa": float(r["sigma_vm"].mean()),
-                    "u_max": float(np.max(np.sqrt(r["u"][:, 0]**2 + r["u"][:, 1]**2))),
+                    "u_max": float(np.max(np.sqrt(r["u"][:, 0] ** 2 + r["u"][:, 1] ** 2))),
                 }
 
         # Save summary
@@ -274,12 +275,15 @@ def main():
 
         # Print table
         print(f"\n{'='*70}")
-        print(f"{'Condition':<22} {'E [Pa]':>8} {'ε_g max':>10} "
-              f"{'σ_vm max':>10} {'|u|_max':>10}")
+        print(
+            f"{'Condition':<22} {'E [Pa]':>8} {'ε_g max':>10} " f"{'σ_vm max':>10} {'|u|_max':>10}"
+        )
         print(f"{'='*70}")
         for cond, s in summaries.items():
-            print(f"{cond:<22} {s['E_mean_pa']:8.1f} {s['eps_growth_max']:10.6f} "
-                  f"{s['sigma_vm_max_pa']:10.4f} {s['u_max']:10.6f}")
+            print(
+                f"{cond:<22} {s['E_mean_pa']:8.1f} {s['eps_growth_max']:10.6f} "
+                f"{s['sigma_vm_max_pa']:10.4f} {s['u_max']:10.6f}"
+            )
         print(f"{'='*70}")
 
 

@@ -1,6 +1,6 @@
 # TMCMC + FEM Integrated Overview
 
-**One-line summary:**  
+**One-line summary:**
 *From experimental time-series → Bayesian interaction parameters (TMCMC) → Dysbiotic Index field → 3-tooth conformal biofilm FEM → stress and displacement under masticatory load.*
 
 ---

@@ -24,22 +24,23 @@ from pathlib import Path
 
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.interpolate import RegularGridInterpolator
 
-SPECIES  = ["S.oralis", "A.naeslundii", "Veillonella", "F.nucleatum", "P.gingivalis"]
-COLORS   = ["#4477AA", "#66AADD", "#228833", "#CCBB44", "#EE6677"]
-MARKERS  = ["o", "s", "^", "D", "v"]
-LSTYLES  = ["-", "--", ":"]
+SPECIES = ["S.oralis", "A.naeslundii", "Veillonella", "F.nucleatum", "P.gingivalis"]
+COLORS = ["#4477AA", "#66AADD", "#228833", "#CCBB44", "#EE6677"]
+MARKERS = ["o", "s", "^", "D", "v"]
+LSTYLES = ["-", "--", ":"]
 
 
 # ── I/O helpers ───────────────────────────────────────────────────────────────
 def load(d: Path):
     phi = np.load(d / "snapshots_phi.npy")  # (n_snap, 5, Nx, Ny)
-    t   = np.load(d / "snapshots_t.npy")
-    x   = np.load(d / "mesh_x.npy")
-    y   = np.load(d / "mesh_y.npy")
+    t = np.load(d / "snapshots_t.npy")
+    x = np.load(d / "mesh_x.npy")
+    y = np.load(d / "mesh_y.npy")
     return phi, t, x, y
 
 
@@ -47,13 +48,16 @@ def interp_to_grid(phi_src, x_src, y_src, x_dst, y_dst):
     """Bilinear interpolation (5, Nx_s, Ny_s) → (5, Nx_d, Ny_d)."""
     n_sp = phi_src.shape[0]
     Nx_d, Ny_d = len(x_dst), len(y_dst)
-    out  = np.zeros((n_sp, Nx_d, Ny_d))
+    out = np.zeros((n_sp, Nx_d, Ny_d))
     xx, yy = np.meshgrid(x_dst, y_dst, indexing="ij")
     pts = np.stack([xx.ravel(), yy.ravel()], axis=1)
     for i in range(n_sp):
         rgi = RegularGridInterpolator(
-            (x_src, y_src), phi_src[i],
-            method="linear", bounds_error=False, fill_value=None,
+            (x_src, y_src),
+            phi_src[i],
+            method="linear",
+            bounds_error=False,
+            fill_value=None,
         )
         out[i] = rgi(pts).reshape(Nx_d, Ny_d)
     return out
@@ -61,7 +65,7 @@ def interp_to_grid(phi_src, x_src, y_src, x_dst, y_dst):
 
 def l2_rel(a, b):
     """Relative L2 error per species: ‖a-b‖₂ / ‖b‖₂."""
-    err = np.sqrt(((a - b)**2).mean(axis=(1, 2)))
+    err = np.sqrt(((a - b) ** 2).mean(axis=(1, 2)))
     ref = np.sqrt((b**2).mean(axis=(1, 2))).clip(1e-12)
     return err / ref
 
@@ -76,20 +80,30 @@ def linf_rel(a, b):
 # ── figure A: domain-averaged φᵢ(t) ─────────────────────────────────────────
 def fig_A_mean_phi(all_data, labels, out_dir):
     fig, axes = plt.subplots(1, 5, figsize=(18, 4), sharey=False)
-    fig.suptitle("(A) Domain-averaged φᵢ(t)  –  mesh convergence check",
-                 fontsize=13, fontweight="bold")
+    fig.suptitle(
+        "(A) Domain-averaged φᵢ(t)  –  mesh convergence check", fontsize=13, fontweight="bold"
+    )
     for sp, ax in enumerate(axes):
         for k, (phi, t, *_) in enumerate(all_data):
-            ax.plot(t, phi[:, sp].mean(axis=(1, 2)),
-                    lw=2, ls=LSTYLES[k % 3], color=COLORS[sp],
-                    label=labels[k], alpha=0.9)
-        ax.set_xlabel("t"); ax.set_title(SPECIES[sp], fontsize=10)
+            ax.plot(
+                t,
+                phi[:, sp].mean(axis=(1, 2)),
+                lw=2,
+                ls=LSTYLES[k % 3],
+                color=COLORS[sp],
+                label=labels[k],
+                alpha=0.9,
+            )
+        ax.set_xlabel("t")
+        ax.set_title(SPECIES[sp], fontsize=10)
         if sp == 0:
             ax.set_ylabel("mean φ")
-        ax.grid(True, alpha=0.3); ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=8)
     fig.tight_layout()
     p = out_dir / "conv_A_mean_phi.png"
-    fig.savefig(p, dpi=150, bbox_inches="tight"); plt.close(fig)
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
     print(f"  Saved: {p.name}")
     return p
 
@@ -107,18 +121,25 @@ def fig_B_errors(all_data, labels, out_dir):
     l2s, linfs = np.array(l2s), np.array(linfs)
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    fig.suptitle(f"(B) Spatial error vs finest grid ({labels[-1]})  at t_final",
-                 fontsize=13, fontweight="bold")
+    fig.suptitle(
+        f"(B) Spatial error vs finest grid ({labels[-1]})  at t_final",
+        fontsize=13,
+        fontweight="bold",
+    )
     for i, sp in enumerate(SPECIES):
-        axes[0].plot(grid_Ns, l2s[:, i],   marker=MARKERS[i], color=COLORS[i], label=sp, lw=1.8)
+        axes[0].plot(grid_Ns, l2s[:, i], marker=MARKERS[i], color=COLORS[i], label=sp, lw=1.8)
         axes[1].plot(grid_Ns, linfs[:, i], marker=MARKERS[i], color=COLORS[i], label=sp, lw=1.8)
     for ax, ttl in zip(axes, ["Relative L2 error", "Relative L∞ error"]):
-        ax.set_xlabel("Grid size N"); ax.set_ylabel("Relative error vs finest")
-        ax.set_title(ttl); ax.legend(fontsize=8)
-        ax.grid(True, alpha=0.3); ax.set_ylim(bottom=0)
+        ax.set_xlabel("Grid size N")
+        ax.set_ylabel("Relative error vs finest")
+        ax.set_title(ttl)
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+        ax.set_ylim(bottom=0)
     fig.tight_layout()
     p = out_dir / "conv_B_errors.png"
-    fig.savefig(p, dpi=150, bbox_inches="tight"); plt.close(fig)
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
     print(f"  Saved: {p.name}")
     return grid_Ns, l2s, linfs, p
 
@@ -126,20 +147,31 @@ def fig_B_errors(all_data, labels, out_dir):
 # ── figure C: depth profiles ──────────────────────────────────────────────────
 def fig_C_depth(all_data, labels, out_dir):
     fig, axes = plt.subplots(1, 5, figsize=(18, 4), sharey=False)
-    fig.suptitle("(C) Final depth profile (y-averaged)  –  mesh convergence",
-                 fontsize=13, fontweight="bold")
+    fig.suptitle(
+        "(C) Final depth profile (y-averaged)  –  mesh convergence", fontsize=13, fontweight="bold"
+    )
     for sp, ax in enumerate(axes):
         for k, (phi, t, x, y) in enumerate(all_data):
-            ax.plot(phi[-1, sp].mean(axis=1), x,
-                    lw=2, ls=LSTYLES[k % 3], color=COLORS[sp],
-                    label=labels[k], alpha=0.9)
-        ax.set_xlabel("φ (y-avg)"); ax.set_title(SPECIES[sp], fontsize=10)
+            ax.plot(
+                phi[-1, sp].mean(axis=1),
+                x,
+                lw=2,
+                ls=LSTYLES[k % 3],
+                color=COLORS[sp],
+                label=labels[k],
+                alpha=0.9,
+            )
+        ax.set_xlabel("φ (y-avg)")
+        ax.set_title(SPECIES[sp], fontsize=10)
         if sp == 0:
             ax.set_ylabel("Depth x")
-        ax.invert_yaxis(); ax.grid(True, alpha=0.3); ax.legend(fontsize=8)
+        ax.invert_yaxis()
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=8)
     fig.tight_layout()
     p = out_dir / "conv_C_depth.png"
-    fig.savefig(p, dpi=150, bbox_inches="tight"); plt.close(fig)
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
     print(f"  Saved: {p.name}")
     return p
 
@@ -147,23 +179,29 @@ def fig_C_depth(all_data, labels, out_dir):
 # ── figure D: P.g max ─────────────────────────────────────────────────────────
 def fig_D_pg_max(all_data, labels, out_dir):
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    fig.suptitle("(D) P.gingivalis max φ and depth location  –  mesh convergence",
-                 fontsize=13, fontweight="bold")
+    fig.suptitle(
+        "(D) P.gingivalis max φ and depth location  –  mesh convergence",
+        fontsize=13,
+        fontweight="bold",
+    )
     for k, (phi, t, x, y) in enumerate(all_data):
-        pg     = phi[:, 4]
+        pg = phi[:, 4]
         pg_max = pg.max(axis=(1, 2))
-        flat   = pg.reshape(len(t), -1).argmax(axis=1)
-        x_loc  = x[flat // len(y)]
-        axes[0].plot(t, pg_max, lw=2, ls=LSTYLES[k % 3], color="#EE6677",
-                     label=labels[k], alpha=0.9)
-        axes[1].plot(t, x_loc,  lw=2, ls=LSTYLES[k % 3], color="#EE6677",
-                     label=labels[k], alpha=0.9)
+        flat = pg.reshape(len(t), -1).argmax(axis=1)
+        x_loc = x[flat // len(y)]
+        axes[0].plot(
+            t, pg_max, lw=2, ls=LSTYLES[k % 3], color="#EE6677", label=labels[k], alpha=0.9
+        )
+        axes[1].plot(t, x_loc, lw=2, ls=LSTYLES[k % 3], color="#EE6677", label=labels[k], alpha=0.9)
     for ax, ttl in zip(axes, ["max φ_P.g", "Depth of P.g max"]):
-        ax.set_xlabel("t"); ax.set_title(ttl)
-        ax.grid(True, alpha=0.3); ax.legend(fontsize=8)
+        ax.set_xlabel("t")
+        ax.set_title(ttl)
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=8)
     fig.tight_layout()
     p = out_dir / "conv_D_pg_max.png"
-    fig.savefig(p, dpi=150, bbox_inches="tight"); plt.close(fig)
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
     print(f"  Saved: {p.name}")
     return p
 
@@ -175,8 +213,7 @@ def fig_E_rate(all_data, labels, grid_Ns, l2s, out_dir):
     hs = np.array([1.0 / (N - 1) for N in grid_Ns])
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    fig.suptitle("(E) Convergence rate  –  log(L2 error) vs log(h)",
-                 fontsize=13, fontweight="bold")
+    fig.suptitle("(E) Convergence rate  –  log(L2 error) vs log(h)", fontsize=13, fontweight="bold")
 
     # Left: all species
     ax = axes[0]
@@ -184,31 +221,34 @@ def fig_E_rate(all_data, labels, grid_Ns, l2s, out_dir):
         ax.loglog(hs, l2s[:, i], marker=MARKERS[i], color=COLORS[i], label=sp, lw=1.8)
     # Reference slopes
     h_ref = np.array([hs[0] * 0.8, hs[-1] * 1.2])
-    ax.loglog(h_ref, 0.05 * (h_ref / hs[0])**1, "k--", lw=1, label="O(h¹)")
-    ax.loglog(h_ref, 0.05 * (h_ref / hs[0])**2, "k:",  lw=1, label="O(h²)")
-    ax.set_xlabel("h = 1/(N-1)"); ax.set_ylabel("Relative L2 error")
-    ax.set_title("All species"); ax.legend(fontsize=8)
+    ax.loglog(h_ref, 0.05 * (h_ref / hs[0]) ** 1, "k--", lw=1, label="O(h¹)")
+    ax.loglog(h_ref, 0.05 * (h_ref / hs[0]) ** 2, "k:", lw=1, label="O(h²)")
+    ax.set_xlabel("h = 1/(N-1)")
+    ax.set_ylabel("Relative L2 error")
+    ax.set_title("All species")
+    ax.legend(fontsize=8)
     ax.grid(True, which="both", alpha=0.3)
 
     # Right: F.n + P.g only (deterministic IC, cleanest signal)
     ax = axes[1]
     for i in [3, 4]:
-        ax.loglog(hs, l2s[:, i], marker=MARKERS[i], color=COLORS[i],
-                  label=SPECIES[i], lw=2)
+        ax.loglog(hs, l2s[:, i], marker=MARKERS[i], color=COLORS[i], label=SPECIES[i], lw=2)
     if len(hs) >= 2:
         for i in [3, 4]:
             slope = np.polyfit(np.log(hs), np.log(l2s[:, i].clip(1e-12)), 1)[0]
-            ax.annotate(f"slope≈{slope:.1f}", xy=(hs[-1], l2s[-1, i]),
-                        fontsize=8, color=COLORS[i])
-    ax.loglog(h_ref, 0.02 * (h_ref / hs[0])**1, "k--", lw=1, label="O(h¹)")
-    ax.loglog(h_ref, 0.02 * (h_ref / hs[0])**2, "k:",  lw=1, label="O(h²)")
-    ax.set_xlabel("h = 1/(N-1)"); ax.set_ylabel("Relative L2 error")
-    ax.set_title("F.nucleatum + P.gingivalis (deterministic IC)"); ax.legend(fontsize=8)
+            ax.annotate(f"slope≈{slope:.1f}", xy=(hs[-1], l2s[-1, i]), fontsize=8, color=COLORS[i])
+    ax.loglog(h_ref, 0.02 * (h_ref / hs[0]) ** 1, "k--", lw=1, label="O(h¹)")
+    ax.loglog(h_ref, 0.02 * (h_ref / hs[0]) ** 2, "k:", lw=1, label="O(h²)")
+    ax.set_xlabel("h = 1/(N-1)")
+    ax.set_ylabel("Relative L2 error")
+    ax.set_title("F.nucleatum + P.gingivalis (deterministic IC)")
+    ax.legend(fontsize=8)
     ax.grid(True, which="both", alpha=0.3)
 
     fig.tight_layout()
     p = out_dir / "conv_E_rate.png"
-    fig.savefig(p, dpi=150, bbox_inches="tight"); plt.close(fig)
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
     print(f"  Saved: {p.name}")
     return p
 
@@ -217,14 +257,14 @@ def fig_E_rate(all_data, labels, grid_Ns, l2s, out_dir):
 def write_md(all_data, labels, grid_Ns, l2s, linfs, out_dir, condition="dh_baseline"):
     rows = []
     for k, (phi, t, x, y) in enumerate(all_data):
-        N       = len(x)
-        phi_f   = phi[-1]
-        pm      = phi_f.mean(axis=(1, 2))
-        pg_max  = phi_f[4].max()
-        psum    = phi_f.sum(axis=0).clip(1e-12)
-        H       = -np.sum((phi_f / psum) * np.log(phi_f / psum + 1e-12), axis=0)
+        N = len(x)
+        phi_f = phi[-1]
+        pm = phi_f.mean(axis=(1, 2))
+        pg_max = phi_f[4].max()
+        psum = phi_f.sum(axis=0).clip(1e-12)
+        H = -np.sum((phi_f / psum) * np.log(phi_f / psum + 1e-12), axis=0)
         DI_mean = (1.0 - H / np.log(5)).mean()
-        rows.append((labels[k], N, N*N, *pm, pg_max, DI_mean))
+        rows.append((labels[k], N, N * N, *pm, pg_max, DI_mean))
 
     hs = [1.0 / (N - 1) for N in grid_Ns]
 
@@ -305,7 +345,7 @@ def write_md(all_data, labels, grid_Ns, l2s, linfs, out_dir, condition="dh_basel
         "**→ For publication-quality spatial plots, N=30–40 recommended.**",
         "",
         "---",
-        f"*Generated by `fem_convergence.py`*",
+        "*Generated by `fem_convergence.py`*",
     ]
 
     md_path = out_dir / "convergence_report.md"
@@ -317,8 +357,8 @@ def write_md(all_data, labels, grid_Ns, l2s, linfs, out_dir, condition="dh_basel
 # ── main ──────────────────────────────────────────────────────────────────────
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dirs",    nargs="+", required=True)
-    ap.add_argument("--labels",  nargs="+", required=True)
+    ap.add_argument("--dirs", nargs="+", required=True)
+    ap.add_argument("--labels", nargs="+", required=True)
     ap.add_argument("--out-dir", default="_results_2d/convergence")
     ap.add_argument("--condition", default="dh_baseline")
     args = ap.parse_args()
@@ -338,15 +378,15 @@ def main():
 
     # sort finest last
     all_data = sorted(all_data, key=lambda d: d[2].size)
-    labels   = sorted(args.labels, key=lambda lbl: int(
-        args.labels.index(lbl) and all_data[0][2].size))
+    labels = sorted(
+        args.labels, key=lambda lbl: int(args.labels.index(lbl) and all_data[0][2].size)
+    )
     # re-sort labels to match sorted all_data
-    idx_sort  = sorted(range(len(args.dirs)),
-                       key=lambda k: len(load(Path(args.dirs[k]))[2]))
-    all_data  = [all_data[i] for i in range(len(all_data))]   # already sorted above
-    labels    = [args.labels[idx_sort[i]] for i in range(len(idx_sort))]
+    idx_sort = sorted(range(len(args.dirs)), key=lambda k: len(load(Path(args.dirs[k]))[2]))
+    all_data = [all_data[i] for i in range(len(all_data))]  # already sorted above
+    labels = [args.labels[idx_sort[i]] for i in range(len(idx_sort))]
 
-    print(f"\nGenerating figures ...")
+    print("\nGenerating figures ...")
     fig_A_mean_phi(all_data, labels, out_dir)
     grid_Ns, l2s, linfs, _ = fig_B_errors(all_data, labels, out_dir)
     fig_C_depth(all_data, labels, out_dir)
@@ -361,15 +401,15 @@ def main():
     hdr = f"  {'Label':>6}  {'Nodes':>6}  " + "  ".join(f"{'φ̄_'+s[:3]:>7}" for s in SPECIES)
     print(hdr + f"  {'pg_max':>7}  {'DI':>7}")
     for phi, t, x, y in all_data:
-        k    = [len(d[2]) for d in all_data].index(len(x))
-        N    = len(x)
-        lbl  = labels[k]
-        pm   = phi[-1].mean(axis=(1, 2))
+        k = [len(d[2]) for d in all_data].index(len(x))
+        N = len(x)
+        lbl = labels[k]
+        pm = phi[-1].mean(axis=(1, 2))
         pg_m = phi[-1, 4].max()
-        ps   = phi[-1].sum(axis=0).clip(1e-12)
-        H    = -np.sum((phi[-1]/ps)*np.log(phi[-1]/ps+1e-12), axis=0)
-        di   = (1 - H/np.log(5)).mean()
-        row  = "  ".join(f"{v:7.4f}" for v in pm)
+        ps = phi[-1].sum(axis=0).clip(1e-12)
+        H = -np.sum((phi[-1] / ps) * np.log(phi[-1] / ps + 1e-12), axis=0)
+        di = (1 - H / np.log(5)).mean()
+        row = "  ".join(f"{v:7.4f}" for v in pm)
         print(f"  {lbl:>6}  {N*N:6d}  {row}  {pg_m:7.4f}  {di:7.4f}")
 
     print(f"\nDone. Output in: {out_dir}")

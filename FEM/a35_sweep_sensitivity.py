@@ -24,6 +24,7 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -31,9 +32,11 @@ jax.config.update("jax_enable_x64", True)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from jax_hamilton_to_rd_2d_pipeline import (
-    run_hamilton_0d, make_biofilm_profile_2d, solve_2d_nutrient,
-    compute_di_2d, thiele_modulus,
-    SPECIES_NAMES, SPECIES_COLORS,
+    run_hamilton_0d,
+    make_biofilm_profile_2d,
+    solve_2d_nutrient,
+    SPECIES_NAMES,
+    SPECIES_COLORS,
 )
 
 # ---------------------------------------------------------------------------
@@ -55,11 +58,11 @@ K_MONOD = 1.0
 C_INF = 1.0
 
 # Base theta: Dysbiotic Static MAP
-_RUNS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "..", "data_5species", "_runs")
+_RUNS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data_5species", "_runs")
 
-OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                       "klempt2024_results", "a35_sweep")
+OUT_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "klempt2024_results", "a35_sweep"
+)
 
 
 def load_theta_map(run_name):
@@ -74,6 +77,7 @@ def load_theta_map(run_name):
 # ---------------------------------------------------------------------------
 # Sweep
 # ---------------------------------------------------------------------------
+
 
 def run_a35_sweep():
     """Sweep a35 and compute observables."""
@@ -91,9 +95,9 @@ def run_a35_sweep():
         "phi_total_mean": np.zeros(n_vals),
         "phi_final_all": np.zeros((n_vals, 5)),
         "c_min": np.zeros(n_vals),
-        "c_tooth": np.zeros(n_vals),     # c at (x=0, y=Ly/2)
+        "c_tooth": np.zeros(n_vals),  # c at (x=0, y=Ly/2)
         "c_mean": np.zeros(n_vals),
-        "di_0d": np.zeros(n_vals),       # DI from 0D composition
+        "di_0d": np.zeros(n_vals),  # DI from 0D composition
     }
 
     for i, a35 in enumerate(A35_VALUES):
@@ -105,13 +109,14 @@ def run_a35_sweep():
         _, phi_final = run_hamilton_0d(theta_jnp, t_final=T_FINAL, dt_h=DT_H)
 
         # Step 2: 2D spatial profile
-        phi_sp, phi_tot = make_biofilm_profile_2d(phi_final, x_grid, y_grid,
-                                                  depth_scale=DEPTH_SCALE)
+        phi_sp, phi_tot = make_biofilm_profile_2d(
+            phi_final, x_grid, y_grid, depth_scale=DEPTH_SCALE
+        )
 
         # Step 3: 2D nutrient PDE
-        c_sol = solve_2d_nutrient(phi_tot, x_grid, y_grid,
-                                  D_c=D_C, k_monod=K_MONOD,
-                                  g_eff=G_EFF, c_inf=C_INF, n_newton=40)
+        c_sol = solve_2d_nutrient(
+            phi_tot, x_grid, y_grid, D_c=D_C, k_monod=K_MONOD, g_eff=G_EFF, c_inf=C_INF, n_newton=40
+        )
 
         # DI from 0D composition
         p = phi_final / max(phi_final.sum(), 1e-12)
@@ -128,9 +133,11 @@ def run_a35_sweep():
         results["di_0d"][i] = di_0d
 
         if (i + 1) % 10 == 0 or i == 0:
-            print(f"    [{i+1}/{n_vals}] a35={a35:.1f}: "
-                  f"Pg={phi_final[4]:.4f}, c_min={c_sol.min():.4f}, "
-                  f"DI={di_0d:.3f}")
+            print(
+                f"    [{i+1}/{n_vals}] a35={a35:.1f}: "
+                f"Pg={phi_final[4]:.4f}, c_min={c_sol.min():.4f}, "
+                f"DI={di_0d:.3f}"
+            )
 
     return results
 
@@ -138,6 +145,7 @@ def run_a35_sweep():
 # ---------------------------------------------------------------------------
 # Plotting
 # ---------------------------------------------------------------------------
+
 
 def plot_sweep(results, out_dir):
     a35 = results["a35"]
@@ -175,8 +183,7 @@ def plot_sweep(results, out_dir):
 
     # (1,1): c_min vs Pg (the key nonlinear relationship)
     ax = axes[1, 1]
-    sc = ax.scatter(pg, c_min, c=a35, cmap="viridis", s=30, edgecolors="k",
-                    linewidths=0.5)
+    sc = ax.scatter(pg, c_min, c=a35, cmap="viridis", s=30, edgecolors="k", linewidths=0.5)
     fig.colorbar(sc, ax=ax, label="a₃₅", shrink=0.8)
     ax.set_xlabel("P. gingivalis fraction (φ_Pg)")
     ax.set_ylabel("c_min (minimum nutrient)")
@@ -185,7 +192,9 @@ def plot_sweep(results, out_dir):
     plt.suptitle(
         "Issue #6: a₃₅ Sweep Sensitivity (Dysbiotic Static MAP)\n"
         f"a₃₅ ∈ [0, 25], {len(a35)} points, T*=25, g_eff={G_EFF}",
-        fontsize=12, fontweight="bold")
+        fontsize=12,
+        fontweight="bold",
+    )
     plt.tight_layout(rect=[0, 0, 1, 0.93])
     path = os.path.join(out_dir, "fig1_a35_sweep_overview.png")
     plt.savefig(path, dpi=150, bbox_inches="tight")
@@ -198,9 +207,14 @@ def plot_sweep(results, out_dir):
     # Stacked area plot
     y_bottom = np.zeros(len(a35))
     for s in range(5):
-        ax.fill_between(a35, y_bottom, y_bottom + phi_all[:, s],
-                        color=SPECIES_COLORS[s], alpha=0.7,
-                        label=SPECIES_NAMES[s])
+        ax.fill_between(
+            a35,
+            y_bottom,
+            y_bottom + phi_all[:, s],
+            color=SPECIES_COLORS[s],
+            alpha=0.7,
+            label=SPECIES_NAMES[s],
+        )
         y_bottom += phi_all[:, s]
     ax.set_xlabel("a₃₅ (Vd→Pg coupling)")
     ax.set_ylabel("Volume fraction")
@@ -236,7 +250,8 @@ def plot_sweep(results, out_dir):
 
     ax1.set_title(
         f"a₃₅ Sweep: Pg Abundance & Nutrient Depletion\n"
-        f"(Dysbiotic Static MAP, T*=25, g_eff={G_EFF})")
+        f"(Dysbiotic Static MAP, T*=25, g_eff={G_EFF})"
+    )
     plt.tight_layout()
     path = os.path.join(out_dir, "fig3_dual_axis_pg_cmin.png")
     plt.savefig(path, dpi=150, bbox_inches="tight")
@@ -248,11 +263,11 @@ def plot_sweep(results, out_dir):
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
     print("=" * 70)
     print("Issue #6: a35 Sweep Sensitivity")
-    print(f"  a35 range: [{A35_VALUES[0]:.1f}, {A35_VALUES[-1]:.1f}], "
-          f"n={len(A35_VALUES)}")
+    print(f"  a35 range: [{A35_VALUES[0]:.1f}, {A35_VALUES[-1]:.1f}], " f"n={len(A35_VALUES)}")
     print(f"  T*={T_FINAL}, g_eff={G_EFF}, grid={NX}x{NY}")
     print("=" * 70)
 
@@ -270,13 +285,18 @@ def main():
     # Save CSV
     csv_path = os.path.join(OUT_DIR, "a35_sweep_results.csv")
     header = "a35,pg_final,phi_total_mean,c_min,c_tooth,c_mean,di_0d"
-    data = np.column_stack([
-        results["a35"], results["pg_final"], results["phi_total_mean"],
-        results["c_min"], results["c_tooth"], results["c_mean"],
-        results["di_0d"],
-    ])
-    np.savetxt(csv_path, data, header=header, delimiter=",", fmt="%.6f",
-               comments="")
+    data = np.column_stack(
+        [
+            results["a35"],
+            results["pg_final"],
+            results["phi_total_mean"],
+            results["c_min"],
+            results["c_tooth"],
+            results["c_mean"],
+            results["di_0d"],
+        ]
+    )
+    np.savetxt(csv_path, data, header=header, delimiter=",", fmt="%.6f", comments="")
     print(f"  CSV saved: {csv_path}")
 
     # Summary
@@ -286,7 +306,7 @@ def main():
     if pg[threshold_idx] > 0.05:
         print(f"  Pg > 5% threshold: a35 ≈ {results['a35'][threshold_idx]:.1f}")
     else:
-        print(f"  Pg never exceeds 5%")
+        print("  Pg never exceeds 5%")
 
     max_pg_idx = np.argmax(pg)
     print(f"  Max Pg = {pg[max_pg_idx]:.4f} at a35 = {results['a35'][max_pg_idx]:.1f}")

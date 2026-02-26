@@ -14,9 +14,9 @@ from typing import Dict
 class LikelihoodHealthCounter:
     """
     Lightweight health counters for likelihood/TSM evaluation.
-    
+
     Stored in diagnostics + metrics.json so failures can be triaged quickly.
-    
+
     Attributes
     ----------
     n_calls : int
@@ -31,14 +31,14 @@ class LikelihoodHealthCounter:
         Number of non-finite variance values encountered
     n_var_total_clipped : int
         Number of variance entries clipped to 1e-20
-        
+
     Examples
     --------
     >>> health = LikelihoodHealthCounter()
     >>> health.n_calls += 1
     >>> health_dict = health.to_dict()
     """
-    
+
     n_calls: int = 0
     n_tsm_fail: int = 0
     n_output_nonfinite: int = 0  # count of non-finite entries seen in (t_arr/x0/sig2/mu/sig)
@@ -51,7 +51,7 @@ class LikelihoodHealthCounter:
     def to_dict(self) -> Dict[str, int]:
         """
         Convert health counters to dictionary.
-        
+
         Returns
         -------
         Dict[str, int]
@@ -69,7 +69,7 @@ class LikelihoodHealthCounter:
     def add_from_dict(self, d: Dict[str, int]) -> None:
         """
         Add counts from another dictionary.
-        
+
         Parameters
         ----------
         d : Dict[str, int]

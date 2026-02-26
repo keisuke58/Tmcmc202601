@@ -26,10 +26,7 @@ Usage
 """
 import argparse
 import json
-import os
-import re
 import subprocess
-import sys
 import time
 from pathlib import Path
 
@@ -61,6 +58,7 @@ def submit_abaqus_job(inp_path, work_dir, cpus=4, dry_run=False):
     dst_inp = work_dir / inp_path.name
     if not dst_inp.exists() or dst_inp.stat().st_mtime < inp_path.stat().st_mtime:
         import shutil
+
         shutil.copy2(str(inp_path), str(dst_inp))
 
     cmd = f"abaqus job={job_name} cpus={cpus} interactive"
@@ -87,9 +85,9 @@ def submit_abaqus_job(inp_path, work_dir, cpus=4, dry_run=False):
         else:
             print(f"  Abaqus job completed: {job_name}")
     except subprocess.TimeoutExpired:
-        print(f"  [WARN] Abaqus job timed out after 3600s")
+        print("  [WARN] Abaqus job timed out after 3600s")
     except FileNotFoundError:
-        print(f"  [ERROR] abaqus command not found. Is Abaqus installed?")
+        print("  [ERROR] abaqus command not found. Is Abaqus installed?")
         return None
 
     return job_name
@@ -120,7 +118,8 @@ def extract_odb_results(work_dir, job_name, dry_run=False):
 
     # Write extraction script
     extract_script = work_dir / "_extract_stress.py"
-    extract_script.write_text(f'''#!/usr/bin/env python
+    extract_script.write_text(
+        f"""#!/usr/bin/env python
 # Auto-generated ODB extraction script
 from __future__ import print_function
 import sys, os, json
@@ -221,7 +220,8 @@ print("Element CSV:", OUT_CSV)
 
 odb.close()
 print("Done.")
-''')
+"""
+    )
 
     if dry_run:
         print(f"  [DRY] abaqus python {extract_script}")
@@ -242,7 +242,7 @@ print("Done.")
             if proc.stderr:
                 print(f"  stderr: {proc.stderr[:300]}")
     except FileNotFoundError:
-        print(f"  [WARN] abaqus python not available, trying CSV-only mode")
+        print("  [WARN] abaqus python not available, trying CSV-only mode")
         return _extract_from_existing_csv(work_dir, job_name)
 
     stress_json = work_dir / f"{job_name}_stress.json"
@@ -295,7 +295,7 @@ def run_condition(condition, args):
     inps = find_inp_files(condition, tooth)
     if inps["tie"] is None:
         print(f"  [SKIP] No Tie INP found for {condition}/{tooth}")
-        print(f"  Run generate_3d_conformal_auto.py first")
+        print("  Run generate_3d_conformal_auto.py first")
         return None
 
     work_dir = _ABAQUS_WORK / f"{condition}_{tooth}"
@@ -316,11 +316,11 @@ def run_condition(condition, args):
         print(f"\n[EXTRACT] {job_name}")
 
     # Extract results
-    print(f"\n[2/2] Extracting stress results...")
+    print("\n[2/2] Extracting stress results...")
     stress = extract_odb_results(work_dir, job_name, dry_run=args.dry_run)
 
     if stress:
-        print(f"\n  Mises stress [MPa]:")
+        print("\n  Mises stress [MPa]:")
         print(f"    max  = {stress['mises']['max']:.4f}")
         print(f"    mean = {stress['mises']['mean']:.4f}")
         print(f"    p95  = {stress['mises']['p95']:.4f}")
@@ -346,19 +346,23 @@ def run_condition(condition, args):
 
 def main():
     ap = argparse.ArgumentParser(description="Automated Abaqus execution pipeline")
-    ap.add_argument("--condition", default="dh_baseline",
-                    choices=["dh_baseline", "commensal_static",
-                             "commensal_hobic", "dysbiotic_static"])
+    ap.add_argument(
+        "--condition",
+        default="dh_baseline",
+        choices=["dh_baseline", "commensal_static", "commensal_hobic", "dysbiotic_static"],
+    )
     ap.add_argument("--all", action="store_true")
-    ap.add_argument("--tooth", default="T23",
-                    choices=["T23", "T30", "T31"])
+    ap.add_argument("--tooth", default="T23", choices=["T23", "T30", "T31"])
     ap.add_argument("--cpus", type=int, default=4)
     ap.add_argument("--extract-only", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
-    conditions = (["dh_baseline", "commensal_static", "commensal_hobic", "dysbiotic_static"]
-                  if args.all else [args.condition])
+    conditions = (
+        ["dh_baseline", "commensal_static", "commensal_hobic", "dysbiotic_static"]
+        if args.all
+        else [args.condition]
+    )
 
     results = {}
     for cond in conditions:
@@ -373,8 +377,10 @@ def main():
             if r and r.get("stress"):
                 s = r["stress"]
                 u_max = s.get("displacement", {}).get("max_mag", 0)
-                print(f"{cond:<25} {s['mises']['max']:>12.4f} "
-                      f"{s['mises']['mean']:>12.4f} {u_max:>10.6f}")
+                print(
+                    f"{cond:<25} {s['mises']['max']:>12.4f} "
+                    f"{s['mises']['mean']:>12.4f} {u_max:>10.6f}"
+                )
             else:
                 print(f"{cond:<25} {'N/A':>12} {'N/A':>12} {'N/A':>10}")
         print(f"{'='*70}")

@@ -29,12 +29,12 @@ import numpy as np
 import pandas as pd
 import time
 from pathlib import Path
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional
 from datetime import datetime
 
 # Add project root to sys.path
 PROJECT_ROOT = Path(__file__).parent.parent.parent  # /home/.../Tmcmc202601
-DATA_5SPECIES_ROOT = Path(__file__).parent.parent    # /home/.../Tmcmc202601/data_5species
+DATA_5SPECIES_ROOT = Path(__file__).parent.parent  # /home/.../Tmcmc202601/data_5species
 
 # Add data_5species folder (contains core, debug, utils, visualization)
 sys.path.insert(0, str(DATA_5SPECIES_ROOT))
@@ -46,7 +46,6 @@ sys.path.insert(0, str(PROJECT_ROOT / "tmcmc"))
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import (
-    MODEL_CONFIGS,
     setup_logging,
     DebugConfig,
     DebugLevel,
@@ -60,9 +59,10 @@ from core import (
 from debug import DebugLogger
 from utils import save_json, save_npy
 from visualization import PlotManager, compute_fit_metrics, compute_phibar
-from improved_5species_jit import BiofilmNewtonSolver5S, HAS_NUMBA
+from improved_5species_jit import BiofilmNewtonSolver5S
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -72,21 +72,21 @@ logger = logging.getLogger(__name__)
 
 # Species color to model index mapping
 SPECIES_MAP = {
-    "Blue": 0,      # S. oralis
-    "Green": 1,     # A. naeslundii
-    "Yellow": 2,    # V. dispar
-    "Orange": 2,    # V. parvula (Dysbiotic strain of Veillonella)
-    "Purple": 3,    # F. nucleatum
-    "Red": 4,       # P. gingivalis
+    "Blue": 0,  # S. oralis
+    "Green": 1,  # A. naeslundii
+    "Yellow": 2,  # V. dispar
+    "Orange": 2,  # V. parvula (Dysbiotic strain of Veillonella)
+    "Purple": 3,  # F. nucleatum
+    "Red": 4,  # P. gingivalis
 }
 
 # For Commensal (no Orange/V. parvula), remap Purple and Red
 SPECIES_MAP_COMMENSAL = {
-    "Blue": 0,      # S. oralis
-    "Green": 1,     # A. naeslundii
-    "Yellow": 2,    # V. dispar
-    "Purple": 3,    # F. nucleatum
-    "Red": 4,       # P. gingivalis
+    "Blue": 0,  # S. oralis
+    "Green": 1,  # A. naeslundii
+    "Yellow": 2,  # V. dispar
+    "Purple": 3,  # F. nucleatum
+    "Red": 4,  # P. gingivalis
 }
 
 
@@ -95,7 +95,7 @@ def load_experimental_data(
     condition: str = "Commensal",
     cultivation: str = "Static",
     start_from_day: int = 1,
-    normalize: bool = False
+    normalize: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Dict[str, Any]]:
     """
     Load experimental data and convert to model format.
@@ -114,23 +114,25 @@ def load_experimental_data(
         data_dir / "biofilm_boxplot_data.csv",
         data_dir / "experiment_data" / "biofilm_boxplot_data.csv",
     ]
-    
+
     boxplot_file = None
     for f in possible_boxplot_files:
         if f.exists():
             boxplot_file = f
             break
-            
+
     if boxplot_file is None:
         # Fallback to checking if files are in experiment_data subdirectory relative to data_dir
         # If data_dir is already the root
-        raise FileNotFoundError(f"Could not find boxplot data. Checked: {[str(f) for f in possible_boxplot_files]}")
+        raise FileNotFoundError(
+            f"Could not find boxplot data. Checked: {[str(f) for f in possible_boxplot_files]}"
+        )
 
     boxplot_df = pd.read_csv(boxplot_file)
 
     # Filter for condition/cultivation
-    if 'condition' in boxplot_df.columns:
-        mask = (boxplot_df['condition'] == condition) & (boxplot_df['cultivation'] == cultivation)
+    if "condition" in boxplot_df.columns:
+        mask = (boxplot_df["condition"] == condition) & (boxplot_df["cultivation"] == cultivation)
         boxplot_df = boxplot_df[mask]
 
     # Load species distribution data
@@ -138,24 +140,26 @@ def load_experimental_data(
         data_dir / "species_distribution_data.csv",
         data_dir / "experiment_data" / "species_distribution_data.csv",
     ]
-    
+
     species_file = None
     for f in possible_species_files:
         if f.exists():
             species_file = f
             break
-            
+
     if species_file is None:
-        raise FileNotFoundError(f"Could not find species data. Checked: {[str(f) for f in possible_species_files]}")
+        raise FileNotFoundError(
+            f"Could not find species data. Checked: {[str(f) for f in possible_species_files]}"
+        )
 
     species_df = pd.read_csv(species_file)
 
     # Filter
-    mask = (species_df['condition'] == condition) & (species_df['cultivation'] == cultivation)
+    mask = (species_df["condition"] == condition) & (species_df["cultivation"] == cultivation)
     species_df = species_df[mask]
 
     # Get unique days
-    days = sorted(boxplot_df['day'].unique())
+    days = sorted(boxplot_df["day"].unique())
     n_timepoints = len(days)
     n_species = 5  # Always 5 species in model
 
@@ -170,23 +174,23 @@ def load_experimental_data(
 
     for i, day in enumerate(days):
         # Get total volume for this day
-        day_volume = boxplot_df[boxplot_df['day'] == day]
+        day_volume = boxplot_df[boxplot_df["day"] == day]
         if len(day_volume) > 0:
-            total_vol = day_volume['median'].values[0]
+            total_vol = day_volume["median"].values[0]
             total_volumes[i] = total_vol
 
             # Estimate sigma from IQR: sigma ≈ IQR / 1.35
-            q1 = day_volume['q1'].values[0]
-            q3 = day_volume['q3'].values[0]
+            q1 = day_volume["q1"].values[0]
+            q3 = day_volume["q3"].values[0]
             iqr = q3 - q1
             sigma_obs_estimates.append(iqr / 1.35)
 
         # Get species percentages for this day
-        for _, row in species_df[species_df['day'] == day].iterrows():
-            species_color = row['species']
+        for _, row in species_df[species_df["day"] == day].iterrows():
+            species_color = row["species"]
             if species_color in species_map:
                 species_idx = species_map[species_color]
-                percentage = row['median'] / 100.0  # Convert % to fraction
+                percentage = row["median"] / 100.0  # Convert % to fraction
 
                 # Absolute volume = total_volume * percentage
                 data[i, species_idx] = total_vol * percentage
@@ -212,7 +216,9 @@ def load_experimental_data(
         days = [days[i] for i in day_indices]
         total_volumes = total_volumes[day_indices]
         n_timepoints = len(days)
-        logger.info(f"Filtering data to start from day {start_from_day}: {n_timepoints} timepoints remaining")
+        logger.info(
+            f"Filtering data to start from day {start_from_day}: {n_timepoints} timepoints remaining"
+        )
 
     # Extract initial conditions from the FIRST timepoint after filtering
     # (this is Day 3 if start_from_day=3)
@@ -233,10 +239,7 @@ def load_experimental_data(
 
 
 def convert_days_to_model_time(
-    t_days: np.ndarray,
-    dt: float,
-    maxtimestep: int,
-    day_scale: float = None
+    t_days: np.ndarray, dt: float, maxtimestep: int, day_scale: float = None
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Convert experimental days to model time indices.
@@ -282,13 +285,14 @@ def convert_days_to_model_time(
 # ESTIMATION
 # =============================================================================
 
+
 def run_estimation(
     data: np.ndarray,
     idx_sparse: np.ndarray,
     args: argparse.Namespace,
     output_dir: Path,
     metadata: Dict[str, Any],
-    phi_init_array: Optional[np.ndarray] = None
+    phi_init_array: Optional[np.ndarray] = None,
 ) -> Dict[str, Any]:
     """
     Run TMCMC parameter estimation on experimental data.
@@ -330,14 +334,14 @@ def run_estimation(
     # Determine prior bounds
     p_min = args.prior_min if args.prior_min is not None else PRIOR_BOUNDS_DEFAULT[0]
     p_max = args.prior_max if args.prior_max is not None else PRIOR_BOUNDS_DEFAULT[1]
-    
+
     # Initialize theta_base with prior mean
     prior_mean = (p_min + p_max) / 2.0
     theta_base = np.full(20, prior_mean)
 
     # Prior bounds for all parameters
     prior_bounds = [(p_min, p_max) for _ in range(20)]
-    
+
     # Widen M1 priors if requested
     if args.widen_m1_priors:
         logger.info("Widening M1 priors (indices 0-4) to [0.0, 10.0]")
@@ -351,14 +355,16 @@ def run_estimation(
     DECAY_INDICES = [3, 4, 8, 9, 15]
     if args.prior_decay_max is not None:
         decay_max = args.prior_decay_max
-        logger.info(f"Tightening decay priors (b1-b5, indices {DECAY_INDICES}) to [0.0, {decay_max}]")
+        logger.info(
+            f"Tightening decay priors (b1-b5, indices {DECAY_INDICES}) to [0.0, {decay_max}]"
+        )
         for idx in DECAY_INDICES:
             prior_bounds[idx] = (0.0, decay_max)
             # Update base to mean of new range
             theta_base[idx] = decay_max / 2.0
 
     # Sigma for likelihood
-    sigma_obs = args.sigma_obs if args.sigma_obs else metadata.get('sigma_obs_estimated', 0.05)
+    sigma_obs = args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
 
     logger.info(f"Using sigma_obs = {sigma_obs}")
     logger.info(f"Data shape: {data.shape}")
@@ -441,47 +447,91 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Estimate parameters from Commensal Static data")
 
     # Data options
-    parser.add_argument("--data-dir", type=str,
-                        default=str(Path(__file__).parent.parent),
-                        help="Directory containing experimental data")
-    parser.add_argument("--condition", type=str, default="Commensal",
-                        choices=["Commensal", "Dysbiotic"])
-    parser.add_argument("--cultivation", type=str, default="Static",
-                        choices=["Static", "HOBIC"])
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default=str(Path(__file__).parent.parent),
+        help="Directory containing experimental data",
+    )
+    parser.add_argument(
+        "--condition", type=str, default="Commensal", choices=["Commensal", "Dysbiotic"]
+    )
+    parser.add_argument("--cultivation", type=str, default="Static", choices=["Static", "HOBIC"])
 
     # Model options
     parser.add_argument("--dt", type=float, default=1e-4, help="Time step")
     parser.add_argument("--maxtimestep", type=int, default=2500, help="Max time steps")
-    parser.add_argument("--c-const", type=float, default=100.0, help="c constant (interaction strength, increased from 25.0 to overcome CH barrier)")
-    parser.add_argument("--alpha-const", type=float, default=1.0, help="alpha constant (enabled decay terms)")
-    parser.add_argument("--phi-init", type=float, default=0.02, help="Initial phi (ignored if --use-exp-init)")
-    parser.add_argument("--day-scale", type=float, default=None,
-                        help="Scaling factor: model_time = day * day_scale (auto if None)")
-    parser.add_argument("--use-exp-init", action="store_true",
-                        help="Use experimental data (from start-from-day) as initial conditions")
-    parser.add_argument("--start-from-day", type=int, default=1,
-                        help="Start fitting from this day (default: 1)")
-    parser.add_argument("--normalize-data", action="store_true",
-                        help="Normalize data to species fractions (sum=1) instead of absolute volumes")
+    parser.add_argument(
+        "--c-const",
+        type=float,
+        default=100.0,
+        help="c constant (interaction strength, increased from 25.0 to overcome CH barrier)",
+    )
+    parser.add_argument(
+        "--alpha-const", type=float, default=1.0, help="alpha constant (enabled decay terms)"
+    )
+    parser.add_argument(
+        "--phi-init", type=float, default=0.02, help="Initial phi (ignored if --use-exp-init)"
+    )
+    parser.add_argument(
+        "--day-scale",
+        type=float,
+        default=None,
+        help="Scaling factor: model_time = day * day_scale (auto if None)",
+    )
+    parser.add_argument(
+        "--use-exp-init",
+        action="store_true",
+        help="Use experimental data (from start-from-day) as initial conditions",
+    )
+    parser.add_argument(
+        "--start-from-day", type=int, default=1, help="Start fitting from this day (default: 1)"
+    )
+    parser.add_argument(
+        "--normalize-data",
+        action="store_true",
+        help="Normalize data to species fractions (sum=1) instead of absolute volumes",
+    )
 
     # Estimation options
-    parser.add_argument("--sigma-obs", type=float, default=None,
-                        help="Observation noise (default: estimated from data)")
-    parser.add_argument("--cov-rel", type=float, default=0.005,
-                        help="Relative covariance for ROM")
-    parser.add_argument("--use-absolute-volume", action="store_true",
-                        help="Use absolute volume (phi*gamma) for likelihood")
+    parser.add_argument(
+        "--sigma-obs",
+        type=float,
+        default=None,
+        help="Observation noise (default: estimated from data)",
+    )
+    parser.add_argument("--cov-rel", type=float, default=0.005, help="Relative covariance for ROM")
+    parser.add_argument(
+        "--use-absolute-volume",
+        action="store_true",
+        help="Use absolute volume (phi*gamma) for likelihood",
+    )
 
     # Prior options
-    parser.add_argument("--prior-min", type=float, default=None,
-                        help="Minimum value for prior uniform distribution (default: use config)")
-    parser.add_argument("--prior-max", type=float, default=None,
-                        help="Maximum value for prior uniform distribution (default: use config)")
-    parser.add_argument("--widen-m1-priors", action="store_true",
-                        help="Widen priors for M1 parameters (indices 0-4) to [0, 10]")
-    parser.add_argument("--prior-decay-max", type=float, default=None,
-                        help="Maximum value for decay parameters b1-b5 (indices 3,4,8,9,15). "
-                             "Use smaller values (e.g., 1.0) if model over-predicts decline.")
+    parser.add_argument(
+        "--prior-min",
+        type=float,
+        default=None,
+        help="Minimum value for prior uniform distribution (default: use config)",
+    )
+    parser.add_argument(
+        "--prior-max",
+        type=float,
+        default=None,
+        help="Maximum value for prior uniform distribution (default: use config)",
+    )
+    parser.add_argument(
+        "--widen-m1-priors",
+        action="store_true",
+        help="Widen priors for M1 parameters (indices 0-4) to [0, 10]",
+    )
+    parser.add_argument(
+        "--prior-decay-max",
+        type=float,
+        default=None,
+        help="Maximum value for decay parameters b1-b5 (indices 3,4,8,9,15). "
+        "Use smaller values (e.g., 1.0) if model over-predicts decline.",
+    )
 
     # TMCMC options
     parser.add_argument("--n-particles", type=int, default=500, help="Number of particles")
@@ -491,10 +541,12 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
 
     # Output options
-    parser.add_argument("--output-dir", type=str, default=None,
-                        help="Output directory (default: auto-generated)")
-    parser.add_argument("--debug-level", type=str, default="INFO",
-                        choices=["DEBUG", "INFO", "WARNING", "ERROR"])
+    parser.add_argument(
+        "--output-dir", type=str, default=None, help="Output directory (default: auto-generated)"
+    )
+    parser.add_argument(
+        "--debug-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"]
+    )
 
     return parser.parse_args()
 
@@ -592,33 +644,41 @@ def main():
     save_npy(output_dir / "samples.npy", results["samples"])
     save_npy(output_dir / "logL.npy", results["logL"])
 
-    save_json(output_dir / "theta_MAP.json", {
-        "theta_sub": results["MAP"].tolist(),
-        "theta_full": results["theta_MAP_full"].tolist(),
-        "active_indices": list(range(20)),
-    })
+    save_json(
+        output_dir / "theta_MAP.json",
+        {
+            "theta_sub": results["MAP"].tolist(),
+            "theta_full": results["theta_MAP_full"].tolist(),
+            "active_indices": list(range(20)),
+        },
+    )
 
-    save_json(output_dir / "theta_mean.json", {
-        "theta_sub": results["mean"].tolist(),
-        "theta_full": results["theta_mean_full"].tolist(),
-        "active_indices": list(range(20)),
-    })
+    save_json(
+        output_dir / "theta_mean.json",
+        {
+            "theta_sub": results["mean"].tolist(),
+            "theta_full": results["theta_mean_full"].tolist(),
+            "active_indices": list(range(20)),
+        },
+    )
 
-    save_json(output_dir / "results_summary.json", {
-        "elapsed_time": results["elapsed_time"],
-        "converged": [bool(c) for c in results["converged"]],
-        "MAP": results["MAP"].tolist(),
-        "mean": results["mean"].tolist(),
-    })
+    save_json(
+        output_dir / "results_summary.json",
+        {
+            "elapsed_time": results["elapsed_time"],
+            "converged": [bool(c) for c in results["converged"]],
+            "MAP": results["MAP"].tolist(),
+            "mean": results["mean"].tolist(),
+        },
+    )
 
     # Export TMCMC diagnostics tables (if available)
     if "diagnostics" in results and results["diagnostics"]:
         try:
             from visualization import export_tmcmc_diagnostics_tables
+
             export_tmcmc_diagnostics_tables(
-                output_dir,
-                f"{args.condition}_{args.cultivation}",
-                results["diagnostics"]
+                output_dir, f"{args.condition}_{args.cultivation}", results["diagnostics"]
             )
             logger.info("Exported TMCMC diagnostics tables")
         except Exception as e:
@@ -644,11 +704,26 @@ def main():
 
     # Parameter names for plotting
     param_names = [
-        "a11", "a12", "a22", "b1", "b2",      # M1
-        "a33", "a34", "a44", "b3", "b4",      # M2
-        "a13", "a14", "a23", "a24",           # M3
-        "a55", "b5",                          # M4
-        "a15", "a25", "a35", "a45",           # M5
+        "a11",
+        "a12",
+        "a22",
+        "b1",
+        "b2",  # M1
+        "a33",
+        "a34",
+        "a44",
+        "b3",
+        "b4",  # M2
+        "a13",
+        "a14",
+        "a23",
+        "a24",  # M3
+        "a55",
+        "b5",  # M4
+        "a15",
+        "a25",
+        "a35",
+        "a45",  # M5
     ]
 
     # Run simulations for MAP and Mean estimates
@@ -662,10 +737,13 @@ def main():
     # 1. MAP Fit
     try:
         plot_mgr.plot_TSM_simulation(
-            t_fit, x_fit_map, active_species,
+            t_fit,
+            x_fit_map,
+            active_species,
             f"{name_tag}_MAP_Fit",
-            data, idx_sparse,
-            phibar=phibar_map
+            data,
+            idx_sparse,
+            phibar=phibar_map,
         )
     except Exception as e:
         logger.warning(f"Failed to generate MAP fit plot: {e}")
@@ -673,10 +751,13 @@ def main():
     # 2. Mean Fit (NEW)
     try:
         plot_mgr.plot_TSM_simulation(
-            t_fit, x_fit_mean, active_species,
+            t_fit,
+            x_fit_mean,
+            active_species,
             f"{name_tag}_Mean_Fit",
-            data, idx_sparse,
-            phibar=phibar_mean
+            data,
+            idx_sparse,
+            phibar=phibar_mean,
         )
     except Exception as e:
         logger.warning(f"Failed to generate Mean fit plot: {e}")
@@ -684,27 +765,20 @@ def main():
     # 3. Residuals
     try:
         plot_mgr.plot_residuals(
-            t_fit, phibar_map, data, idx_sparse, active_species,
-            f"{name_tag}_Residuals"
+            t_fit, phibar_map, data, idx_sparse, active_species, f"{name_tag}_Residuals"
         )
     except Exception as e:
         logger.warning(f"Failed to generate residuals plot: {e}")
 
     # 4. Parameter Distributions (Trace/Hist)
     try:
-        plot_mgr.plot_trace(
-            results["samples"], results["logL"], param_names,
-            f"{name_tag}_Params"
-        )
+        plot_mgr.plot_trace(results["samples"], results["logL"], param_names, f"{name_tag}_Params")
     except Exception as e:
         logger.warning(f"Failed to generate parameter distribution plot: {e}")
 
     # 5. Corner Plot
     try:
-        plot_mgr.plot_corner(
-            results["samples"], param_names,
-            f"{name_tag}_Corner"
-        )
+        plot_mgr.plot_corner(results["samples"], param_names, f"{name_tag}_Corner")
     except Exception as e:
         logger.warning(f"Failed to generate corner plot: {e}")
 
@@ -714,7 +788,9 @@ def main():
     n_total_samples = results["samples"].shape[0]
 
     if n_total_samples < n_plot_samples:
-        logger.warning(f"Number of samples ({n_total_samples}) is less than requested for plotting ({n_plot_samples}). Using all samples.")
+        logger.warning(
+            f"Number of samples ({n_total_samples}) is less than requested for plotting ({n_plot_samples}). Using all samples."
+        )
         indices = np.arange(n_total_samples)
     else:
         indices = np.random.choice(n_total_samples, n_plot_samples, replace=False)
@@ -735,9 +811,7 @@ def main():
         # Posterior Band
         try:
             plot_mgr.plot_posterior_predictive_band(
-                t_fit, phibar_samples, active_species,
-                f"{name_tag}_PosteriorBand",
-                data, idx_sparse
+                t_fit, phibar_samples, active_species, f"{name_tag}_PosteriorBand", data, idx_sparse
             )
         except Exception as e:
             logger.warning(f"Failed to generate posterior band plot: {e}")
@@ -745,10 +819,13 @@ def main():
         # Spaghetti Plot
         try:
             plot_mgr.plot_posterior_predictive_spaghetti(
-                t_fit, phibar_samples, active_species,
+                t_fit,
+                phibar_samples,
+                active_species,
                 f"{name_tag}_PosteriorSpaghetti",
-                data, idx_sparse,
-                num_trajectories=50
+                data,
+                idx_sparse,
+                num_trajectories=50,
             )
         except Exception as e:
             logger.warning(f"Failed to generate spaghetti plot: {e}")
@@ -784,10 +861,16 @@ def main():
         fit_metrics = {
             "MAP": to_serializable(metrics_map),
             "Mean": to_serializable(metrics_mean),
-            "species_names": ["S. oralis", "A. naeslundii", "V. dispar", "F. nucleatum", "P. gingivalis"],
+            "species_names": [
+                "S. oralis",
+                "A. naeslundii",
+                "V. dispar",
+                "F. nucleatum",
+                "P. gingivalis",
+            ],
         }
 
-        with open(output_dir / "fit_metrics.json", 'w') as f:
+        with open(output_dir / "fit_metrics.json", "w") as f:
             json.dump(fit_metrics, f, indent=2)
         logger.info("Saved fit metrics to fit_metrics.json")
 
@@ -803,13 +886,13 @@ def main():
     logger.info(f"Estimation complete. Results saved to {output_dir}")
 
     # Print summary
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("ESTIMATION SUMMARY")
 
     for i, (name, val) in enumerate(zip(param_names, results["MAP"])):
         print(f"  {name}: {val:.4f}")
 
-    print("="*60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":

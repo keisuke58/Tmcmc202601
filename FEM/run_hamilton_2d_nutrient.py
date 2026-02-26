@@ -44,33 +44,47 @@ from pathlib import Path
 import numpy as np
 
 # ── paths ────────────────────────────────────────────────────────────────────
-_HERE       = Path(__file__).resolve().parent
+_HERE = Path(__file__).resolve().parent
 _TMCMC_ROOT = _HERE.parent
-_RUNS_ROOT  = _TMCMC_ROOT / "data_5species" / "_runs"
+_RUNS_ROOT = _TMCMC_ROOT / "data_5species" / "_runs"
 sys.path.insert(0, str(_HERE))
 
 # ── TMCMC run dirs for each condition ────────────────────────────────────────
 CONDITION_RUNS = {
-    "dh_baseline":      _RUNS_ROOT / "sweep_pg_20260217_081459" / "dh_baseline",
+    "dh_baseline": _RUNS_ROOT / "sweep_pg_20260217_081459" / "dh_baseline",
     "commensal_static": _RUNS_ROOT / "Commensal_Static_20260208_002100",
-    "commensal_hobic":  _RUNS_ROOT / "Commensal_HOBIC_20260208_002100",
+    "commensal_hobic": _RUNS_ROOT / "Commensal_HOBIC_20260208_002100",
     "dysbiotic_static": _RUNS_ROOT / "Dysbiotic_Static_20260207_203752",
 }
 
 _PARAM_KEYS = [
-    "a11", "a12", "a22", "b1", "b2",
-    "a33", "a34", "a44", "b3", "b4",
-    "a13", "a14", "a23", "a24",
-    "a55", "b5",
-    "a15", "a25", "a35", "a45",
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45",
 ]
 
-_DEFAULT_THETA = str(
-    _RUNS_ROOT / "sweep_pg_20260217_081459" / "dh_baseline" / "theta_MAP.json"
-)
+_DEFAULT_THETA = str(_RUNS_ROOT / "sweep_pg_20260217_081459" / "dh_baseline" / "theta_MAP.json")
 
 
 # ── theta loading (shared pattern with fem_2d_extension.py) ──────────────────
+
 
 def load_theta(path: str) -> np.ndarray:
     """Load theta vector from theta_MAP.json."""
@@ -90,19 +104,21 @@ def load_theta(path: str) -> np.ndarray:
 
 # ── export for Abaqus ────────────────────────────────────────────────────────
 
-def export_abaqus_csv(phi_snaps, c_snaps, di_field, mesh_x, mesh_y,
-                      out_csv: Path, snap_idx: int = -1):
+
+def export_abaqus_csv(
+    phi_snaps, c_snaps, di_field, mesh_x, mesh_y, out_csv: Path, snap_idx: int = -1
+):
     """
     Export 2D field data to CSV for Abaqus import.
 
     Columns: x, y, phi_pg, di, phi_total, c, r_pg
     """
     phi = phi_snaps[snap_idx]  # (5, Nx, Ny)
-    di = di_field[snap_idx]    # (Nx, Ny)
-    c = c_snaps[snap_idx]      # (Nx, Ny)
+    di = di_field[snap_idx]  # (Nx, Ny)
+    c = c_snaps[snap_idx]  # (Nx, Ny)
     Nx, Ny = di.shape
 
-    phi_pg = phi[4]            # P.gingivalis
+    phi_pg = phi[4]  # P.gingivalis
     phi_total = phi.sum(axis=0)
     phi_total_safe = np.where(phi_total > 0, phi_total, 1.0)
     r_pg = phi_pg / phi_total_safe  # relative abundance of Pg
@@ -112,21 +128,27 @@ def export_abaqus_csv(phi_snaps, c_snaps, di_field, mesh_x, mesh_y,
         f.write("x,y,phi_pg,di,phi_total,c,r_pg\n")
         for ix in range(Nx):
             for iy in range(Ny):
-                f.write("%.8e,%.8e,%.8e,%.8e,%.8e,%.8e,%.8e\n" % (
-                    mesh_x[ix], mesh_y[iy],
-                    float(phi_pg[ix, iy]),
-                    float(di[ix, iy]),
-                    float(phi_total[ix, iy]),
-                    float(c[ix, iy]),
-                    float(r_pg[ix, iy]),
-                ))
+                f.write(
+                    "%.8e,%.8e,%.8e,%.8e,%.8e,%.8e,%.8e\n"
+                    % (
+                        mesh_x[ix],
+                        mesh_y[iy],
+                        float(phi_pg[ix, iy]),
+                        float(di[ix, iy]),
+                        float(phi_total[ix, iy]),
+                        float(c[ix, iy]),
+                        float(r_pg[ix, iy]),
+                    )
+                )
     print(f"Exported Abaqus CSV -> {out_csv}")
 
 
 # ── macro eigenstrain CSV (bridge to P1 Abaqus) ─────────────────────────────
 
-def export_eigenstrain_csv(alpha_monod, di_field, mesh_x, mesh_y,
-                           out_csv: Path, snap_idx: int = -1):
+
+def export_eigenstrain_csv(
+    alpha_monod, di_field, mesh_x, mesh_y, out_csv: Path, snap_idx: int = -1
+):
     """
     Export eigenstrain field for Abaqus thermal-analogy import.
 
@@ -139,8 +161,8 @@ def export_eigenstrain_csv(alpha_monod, di_field, mesh_x, mesh_y,
     Nx, Ny = di.shape
 
     # Material model: power-law DI -> E
-    E_MAX = 10.0    # GPa (healthy = high DI = dominated by commensals)
-    E_MIN = 0.5     # GPa (dysbiotic = low DI = diverse community)
+    E_MAX = 10.0  # GPa (healthy = high DI = dominated by commensals)
+    E_MIN = 0.5  # GPa (dysbiotic = low DI = diverse community)
     DI_EXP = 2.0
     E_Pa = (E_MIN + (E_MAX - E_MIN) * np.clip(di, 0, 1) ** DI_EXP) * 1e9
 
@@ -152,17 +174,22 @@ def export_eigenstrain_csv(alpha_monod, di_field, mesh_x, mesh_y,
         f.write("x,y,alpha_monod,eps_growth,di,E_Pa\n")
         for ix in range(Nx):
             for iy in range(Ny):
-                f.write("%.8e,%.8e,%.8e,%.8e,%.8e,%.8e\n" % (
-                    mesh_x[ix], mesh_y[iy],
-                    float(alpha_monod[ix, iy]),
-                    float(eps_growth[ix, iy]),
-                    float(di[ix, iy]),
-                    float(E_Pa[ix, iy]),
-                ))
+                f.write(
+                    "%.8e,%.8e,%.8e,%.8e,%.8e,%.8e\n"
+                    % (
+                        mesh_x[ix],
+                        mesh_y[iy],
+                        float(alpha_monod[ix, iy]),
+                        float(eps_growth[ix, iy]),
+                        float(di[ix, iy]),
+                        float(E_Pa[ix, iy]),
+                    )
+                )
     print(f"Exported eigenstrain CSV -> {out_csv}")
 
 
 # ── run for one condition ────────────────────────────────────────────────────
+
 
 def run_condition(theta, condition, cfg, out_dir):
     """Run 2D Hamilton+nutrient and save all outputs."""
@@ -170,7 +197,6 @@ def run_condition(theta, condition, cfg, out_dir):
         run_simulation,
         compute_di_field,
         compute_alpha_monod,
-        Config2D,
     )
 
     out_dir = Path(out_dir)
@@ -190,10 +216,10 @@ def run_condition(theta, condition, cfg, out_dir):
 
     # Save numpy arrays
     np.save(out_dir / "snapshots_phi.npy", phi_snaps)
-    np.save(out_dir / "snapshots_c.npy",   c_snaps)
-    np.save(out_dir / "snapshots_t.npy",   t_snaps)
-    np.save(out_dir / "di_field.npy",      di_field)
-    np.save(out_dir / "alpha_monod.npy",   alpha_monod)
+    np.save(out_dir / "snapshots_c.npy", c_snaps)
+    np.save(out_dir / "snapshots_t.npy", t_snaps)
+    np.save(out_dir / "di_field.npy", di_field)
+    np.save(out_dir / "alpha_monod.npy", alpha_monod)
     mesh_x = np.linspace(0, cfg.Lx, cfg.Nx)
     mesh_y = np.linspace(0, cfg.Ly, cfg.Ny)
     np.save(out_dir / "mesh_x.npy", mesh_x)
@@ -202,19 +228,28 @@ def run_condition(theta, condition, cfg, out_dir):
 
     # Export CSVs
     export_abaqus_csv(
-        phi_snaps, c_snaps, di_field, mesh_x, mesh_y,
+        phi_snaps,
+        c_snaps,
+        di_field,
+        mesh_x,
+        mesh_y,
         out_dir / "abaqus_field_2d.csv",
     )
     export_eigenstrain_csv(
-        alpha_monod, di_field, mesh_x, mesh_y,
+        alpha_monod,
+        di_field,
+        mesh_x,
+        mesh_y,
         out_dir / "macro_eigenstrain_2d.csv",
     )
 
     # Config metadata
     config = {
         "condition": condition,
-        "Nx": cfg.Nx, "Ny": cfg.Ny,
-        "Lx": cfg.Lx, "Ly": cfg.Ly,
+        "Nx": cfg.Nx,
+        "Ny": cfg.Ny,
+        "Lx": cfg.Lx,
+        "Ly": cfg.Ly,
         "dt_h": cfg.dt_h,
         "n_react_sub": cfg.n_react_sub,
         "n_macro": cfg.n_macro,
@@ -244,15 +279,14 @@ def run_condition(theta, condition, cfg, out_dir):
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
+
 def main():
     ap = argparse.ArgumentParser(
         description="2D Hamilton + Nutrient PDE coupling (JAX)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    ap.add_argument("--theta-json", default=_DEFAULT_THETA,
-                    help="Path to theta_MAP.json")
-    ap.add_argument("--condition", default="dh_baseline",
-                    help="Condition name")
+    ap.add_argument("--theta-json", default=_DEFAULT_THETA, help="Path to theta_MAP.json")
+    ap.add_argument("--condition", default="dh_baseline", help="Condition name")
     ap.add_argument("--nx", type=int, default=20)
     ap.add_argument("--ny", type=int, default=20)
     ap.add_argument("--lx", type=float, default=1.0)
@@ -261,19 +295,17 @@ def main():
     ap.add_argument("--n-react-sub", type=int, default=20)
     ap.add_argument("--dt-h", type=float, default=1e-5)
     ap.add_argument("--save-every", type=int, default=10)
-    ap.add_argument("--D-c", type=float, default=0.01,
-                    help="Nutrient diffusion coefficient")
-    ap.add_argument("--k-monod", type=float, default=1.0,
-                    help="Monod half-saturation constant")
-    ap.add_argument("--K-hill", type=float, default=0.05,
-                    help="Hill gate K for Fn->Pg")
-    ap.add_argument("--n-hill", type=float, default=4.0,
-                    help="Hill gate exponent")
+    ap.add_argument("--D-c", type=float, default=0.01, help="Nutrient diffusion coefficient")
+    ap.add_argument("--k-monod", type=float, default=1.0, help="Monod half-saturation constant")
+    ap.add_argument("--K-hill", type=float, default=0.05, help="Hill gate K for Fn->Pg")
+    ap.add_argument("--n-hill", type=float, default=4.0, help="Hill gate exponent")
     ap.add_argument("--out-dir", default="_results_2d_nutrient/run")
-    ap.add_argument("--all-conditions", action="store_true",
-                    help="Run all 4 conditions sequentially")
-    ap.add_argument("--quick-test", action="store_true",
-                    help="Quick sanity test (small grid, few steps)")
+    ap.add_argument(
+        "--all-conditions", action="store_true", help="Run all 4 conditions sequentially"
+    )
+    ap.add_argument(
+        "--quick-test", action="store_true", help="Quick sanity test (small grid, few steps)"
+    )
     args = ap.parse_args()
 
     # Lazy import to avoid JAX startup if just checking --help
@@ -281,19 +313,27 @@ def main():
 
     if args.quick_test:
         cfg = Config2D(
-            Nx=10, Ny=10, n_macro=10, n_react_sub=5,
-            dt_h=1e-5, save_every=5,
-            D_c=args.D_c, k_monod=args.k_monod,
-            K_hill=args.K_hill, n_hill=args.n_hill,
+            Nx=10,
+            Ny=10,
+            n_macro=10,
+            n_react_sub=5,
+            dt_h=1e-5,
+            save_every=5,
+            D_c=args.D_c,
+            k_monod=args.k_monod,
+            K_hill=args.K_hill,
+            n_hill=args.n_hill,
         )
         from JAXFEM.core_hamilton_2d_nutrient import THETA_DEMO
-        run_condition(THETA_DEMO, "quick_test", cfg,
-                      _HERE / "_results_2d_nutrient" / "quick_test")
+
+        run_condition(THETA_DEMO, "quick_test", cfg, _HERE / "_results_2d_nutrient" / "quick_test")
         return
 
     cfg = Config2D(
-        Nx=args.nx, Ny=args.ny,
-        Lx=args.lx, Ly=args.ly,
+        Nx=args.nx,
+        Ny=args.ny,
+        Lx=args.lx,
+        Ly=args.ly,
         dt_h=args.dt_h,
         n_react_sub=args.n_react_sub,
         n_macro=args.n_macro,

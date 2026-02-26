@@ -483,32 +483,32 @@ Heine et al. (2025) の生物学的エビデンスと 提案アルゴリズム�
 \textbf{条件 (モード)} & \textbf{生物学的仮説} & \textbf{増殖率 ($b$) 設定} & \textbf{相互作用 ($a$) 設定} & \textbf{注記} \\
 \midrule
 \rowcolor{green!10}
-\textbf{1. Commensal Static} \newline (Lock Mode) & 
-病原菌は検出限界以下であり，健康なCommensal菌種のみが定着する． & 
-\textbf{Lock:} $b_4, b_5 = 0$ \newline (Purple/Red完全抑制) & 
+\textbf{1. Commensal Static} \newline (Lock Mode) &
+病原菌は検出限界以下であり，健康なCommensal菌種のみが定着する． &
+\textbf{Lock:} $b_4, b_5 = 0$ \newline (Purple/Red完全抑制) &
 \textbf{Lock:} 病原菌関連 $= 0$ \newline
-\textbf{Est:} Commensal $[-1, 2]$ & 
+\textbf{Est:} Commensal $[-1, 2]$ &
 Baseline \\
 \midrule
-\textbf{2. Dysbiotic Static} \newline (Restricted Mode) & 
-病原菌は存在するが，静置環境では爆発的増殖（Surge）に至らない． & 
-$b_5$ (Red) $\in [0, 0.2]$ \newline (低増殖に制限) & 
-$a_{33}$ (Orange Self) $\in [1, 5]$ \newline (自己抑制を強化) & 
+\textbf{2. Dysbiotic Static} \newline (Restricted Mode) &
+病原菌は存在するが，静置環境では爆発的増殖（Surge）に至らない． &
+$b_5$ (Red) $\in [0, 0.2]$ \newline (低増殖に制限) &
+$a_{33}$ (Orange Self) $\in [1, 5]$ \newline (自己抑制を強化) &
 No Surge \\
 \midrule
-\textbf{3. Commensal HOBIC} \newline (High-Flow Mode) & 
-高流速下で栄養供給が増加し，S.oralis (Blue) が特異的に増殖する． & 
+\textbf{3. Commensal HOBIC} \newline (High-Flow Mode) &
+高流速下で栄養供給が増加し，S.oralis (Blue) が特異的に増殖する． &
 $b_1$ (Blue) $\in \mathbf{[1, 10]}$ \newline (高流速適応) \newline
-$b_5$ (Red) = 0 & 
-標準設定 $[-1, 1]$ & 
+$b_5$ (Red) = 0 &
+標準設定 $[-1, 1]$ &
 Blue Bloom \\
 \midrule
 \rowcolor{red!10}
-\textbf{4. Dysbiotic HOBIC} \newline (\textbf{Discovery Mode}) & 
-\textbf{隠れた協力関係}により，V.parvula (Orange) と P.gingivalis (Red) が共生的に爆発増殖する． & 
-$b_3$ (Orange) $\in \mathbf{[0, 5]}$ \newline (爆発的増殖) & 
+\textbf{4. Dysbiotic HOBIC} \newline (\textbf{Discovery Mode}) &
+\textbf{隠れた協力関係}により，V.parvula (Orange) と P.gingivalis (Red) が共生的に爆発増殖する． &
+$b_3$ (Orange) $\in \mathbf{[0, 5]}$ \newline (爆発的増殖) &
 \textbf{Coop:} $a_{13}, a_{35}, a_{45} \in \mathbf{[-3, 0]}$ \newline (負の相互作用=協力) \newline
-\textbf{Self:} $a_{ii} \in [0, 5]$ & 
+\textbf{Self:} $a_{ii} \in [0, 5]$ &
 \textbf{Surge} \\
 \bottomrule
 \end{tabular}

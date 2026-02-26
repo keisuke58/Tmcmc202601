@@ -142,9 +142,7 @@ def generate_dataset(
     - rest: uniform prior
     """
     preset = CONDITION_PRESETS.get(condition, {})
-    posterior_frac = (
-        preset.get("posterior_frac", 0) if posterior_frac == 0 else posterior_frac
-    )
+    posterior_frac = preset.get("posterior_frac", 0) if posterior_frac == 0 else posterior_frac
     map_frac = preset.get("map_frac", map_frac)
 
     rng = np.random.default_rng(seed)
@@ -170,9 +168,7 @@ def generate_dataset(
             phi = run_ode(solver, th)
             if phi is not None:
                 if sigma_noise > 0:
-                    phi = np.clip(
-                        phi + rng.normal(0, sigma_noise, phi.shape), 0.01, 0.99
-                    )
+                    phi = np.clip(phi + rng.normal(0, sigma_noise, phi.shape), 0.01, 0.99)
                     phi = phi / phi.sum(axis=1, keepdims=True)
                 y_list.append(phi)
                 theta_list.append(th)

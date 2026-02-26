@@ -1,5 +1,4 @@
 from odbAccess import openOdb
-from abaqusConstants import LAST_FRAME
 import sys
 import os
 import math

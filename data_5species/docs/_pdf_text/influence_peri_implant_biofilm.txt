@@ -212,7 +212,7 @@ and cultured overnight in brain heart infusion medium (BHI,
 Oxoid Deutschland GmbH, Wesel, Germany) supplemented with
 10 mg/L vitamin K (Carl Roth GmbH + Co. KG, Karlsruhe,
 Germany) (BHI + VitK, V. dispar/parvula ) or in fastidious
-anaerobe broth (Lab M Ltd., F. nucleatum and P. gingivalis ) at 
+anaerobe broth (Lab M Ltd., F. nucleatum and P. gingivalis ) at
 37°C under anaerobic conditions. Streptococcus oralis ATCC
 9811
 TM and Actinomyces naeslundii DSM 43013 were cultured

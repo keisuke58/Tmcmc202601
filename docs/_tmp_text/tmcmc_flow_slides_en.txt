@@ -85,7 +85,7 @@ TSM-ROM essentials (linearization management)
 Local linearization
 x(θ) ≈x(θ0) + ∂x
 ∂θ
-
+
 θ0
 (θ −θ0)
 Early stages: linearization OFF (robust exploration)

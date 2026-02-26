@@ -1,8 +1,8 @@
 # 口頭試問対策・補強方向 — 統合ドキュメント
 
-> **最終更新:** 2026-02-26  
-> **Wiki 版（推奨）:** [口頭試問対策](https://github.com/keisuke58/Tmcmc202601/wiki/Oral-Exam-Preparation) — 本内容は Wiki にマージ済み  
-> **参照:** [IKM 研究者・論文一覧 §8](https://github.com/keisuke58/Tmcmc202601/wiki/IKM-Researchers-and-Publications#8-教授が本研究を見たときの予想される指摘補強方向)  
+> **最終更新:** 2026-02-26
+> **Wiki 版（推奨）:** [口頭試問対策](https://github.com/keisuke58/Tmcmc202601/wiki/Oral-Exam-Preparation) — 本内容は Wiki にマージ済み
+> **参照:** [IKM 研究者・論文一覧 §8](https://github.com/keisuke58/Tmcmc202601/wiki/IKM-Researchers-and-Publications#8-教授が本研究を見たときの予想される指摘補強方向)
 > **Issues:** [#77](https://github.com/keisuke58/Tmcmc202601/issues/77)–[#92](https://github.com/keisuke58/Tmcmc202601/issues/92)
 
 ---
@@ -281,7 +281,7 @@ $$D = D(\dot{\varphi}, \dot{\psi}, \mathrm{DI})$$
 
 ## 10. GNN × 口腔菌叢 — 口頭試問対策
 
-**Project B, Issue #39**  
+**Project B, Issue #39**
 **上司:** 村松眞由（慶應義塾大学 理工学部 機械工学科 准教授）
 
 ### 詳細は WIKI を参照
@@ -318,7 +318,7 @@ $$D = D(\dot{\varphi}, \dot{\psi}, \mathrm{DI})$$
 
 ## 11. 業界研究・2年後までの展望
 
-**Issue:** [#91](https://github.com/keisuke58/Tmcmc202601/issues/91)  
+**Issue:** [#91](https://github.com/keisuke58/Tmcmc202601/issues/91)
 **詳細:** [ISSUE_91_industry_research_2year_outlook.md](ISSUE_91_industry_research_2year_outlook.md)
 
 ---

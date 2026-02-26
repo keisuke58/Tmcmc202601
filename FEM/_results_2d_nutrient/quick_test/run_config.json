@@ -1,0 +1,16 @@
+{
+  "condition": "quick_test",
+  "Nx": 10,
+  "Ny": 10,
+  "Lx": 1.0,
+  "Ly": 1.0,
+  "dt_h": 1e-05,
+  "n_react_sub": 5,
+  "n_macro": 10,
+  "D_c": 0.01,
+  "k_monod": 1.0,
+  "K_hill": 0.05,
+  "n_hill": 4.0,
+  "elapsed_s": 8.98381932801567,
+  "n_snapshots": 3
+}

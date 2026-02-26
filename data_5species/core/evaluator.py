@@ -28,6 +28,7 @@ except ImportError:
     except ImportError:
         import sys
         from pathlib import Path
+
         current_dir = Path(__file__).parent
         utils_dir = current_dir.parent / "utils"
         if str(utils_dir.parent) not in sys.path:
@@ -41,6 +42,7 @@ except ImportError:
     except ImportError:
         import sys
         from pathlib import Path
+
         current_dir = Path(__file__).parent
         debug_dir = current_dir.parent / "debug"
         if str(debug_dir.parent) not in sys.path:
@@ -54,6 +56,7 @@ except ImportError:
     except ImportError:
         import sys
         from pathlib import Path
+
         current_dir = Path(__file__).parent
         vis_dir = current_dir.parent / "visualization"
         if str(vis_dir.parent) not in sys.path:
@@ -70,6 +73,7 @@ except ImportError:
         # Fallback if neither works (e.g. running from different directory structure)
         import sys
         from pathlib import Path
+
         # Try to find config.py in program2602 relative to this file
         current_dir = Path(__file__).parent
         program_dir = current_dir.parent / "program2602"
@@ -82,6 +86,7 @@ logger = logging.getLogger(__name__)
 # Import solver and TSM classes (these are external dependencies)
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from improved1207_paper_jit import BiofilmNewtonSolver, HAS_NUMBA
 from improved_5species_jit import BiofilmNewtonSolver5S
@@ -241,7 +246,7 @@ def log_likelihood_sparse(
         # 1. Variance vector and total covariance diagonal
         var_total_vec = np.zeros(n_species)
         for j in range(n_species):
-            var_raw = sig[i, j] + sigma_obs_arr[j]**2
+            var_raw = sig[i, j] + sigma_obs_arr[j] ** 2
 
             # Health checks
             if health is not None:
@@ -265,7 +270,7 @@ def log_likelihood_sparse(
                 v = var_total_vec[j]
                 w = 1.0 if weights is None else float(weights[i, j])
                 logL -= w * 0.5 * np.log(2 * np.pi * v)
-                logL -= w * 0.5 * (residual[j]**2) / v
+                logL -= w * 0.5 * (residual[j] ** 2) / v
         else:
             # Correlated case
             # Sigma = D R D
@@ -290,11 +295,11 @@ def log_likelihood_sparse(
             # Backward: L_R^T y = w
             try:
                 w_solve = np.linalg.solve(L_R, z)
-                quad_form = np.dot(w_solve, w_solve) # w^T w = z^T (L_R^-T L_R^-1) z = z^T R^-1 z
+                quad_form = np.dot(w_solve, w_solve)  # w^T w = z^T (L_R^-T L_R^-1) z = z^T R^-1 z
             except Exception:
-                 if health is not None:
+                if health is not None:
                     health["solve_error"] = 1
-                 return -1e20
+                return -1e20
 
             # For the correlated case, apply the mean weight for this timepoint
             w_t = 1.0
@@ -308,10 +313,10 @@ def log_likelihood_sparse(
 class LogLikelihoodEvaluator:
     """
     Log-likelihood evaluator using TSM-ROM with linearization management.
-    
+
     KEY FEATURE: Supports update_linearization_point() for 2-phase MCMC
     """
-    
+
     def __init__(
         self,
         solver_kwargs: Dict[str, Any],
@@ -332,7 +337,7 @@ class LogLikelihoodEvaluator:
     ):
         """
         Initialize likelihood evaluator with linearization support.
-        
+
         Parameters
         ----------
         theta_linearization : ndarray (14,), optional
@@ -373,11 +378,11 @@ class LogLikelihoodEvaluator:
         self.health = LikelihoodHealthCounter()  # Likelihood/TSM health counters
         self.theta_history = []
         self.logL_history = []
-        
+
         # Create solver
         # Check if we need 5-species solver
         self.is_5species = (len(self.active_species) == 5) or (max(self.active_species) >= 4)
-        
+
         if self.is_5species:
             self.solver = BiofilmNewtonSolver5S(
                 **solver_kwargs,
@@ -387,7 +392,7 @@ class LogLikelihoodEvaluator:
             # Use BiofilmTSM5S for 5-species model
             if theta_linearization is None:
                 theta_linearization = theta_base.copy()
-            
+
             self.tsm = BiofilmTSM5S(
                 self.solver,
                 active_theta_indices=self.active_indices,
@@ -400,11 +405,11 @@ class LogLikelihoodEvaluator:
                 active_species=self.active_species,
                 use_numba=HAS_NUMBA,
             )
-            
+
             # Use BiofilmTSM_Analytical with linearization management
             if theta_linearization is None:
                 theta_linearization = theta_base.copy()
-            
+
             self.tsm = BiofilmTSM_Analytical(
                 self.solver,
                 active_theta_indices=self.active_indices,
@@ -414,17 +419,19 @@ class LogLikelihoodEvaluator:
                 theta_linearization=theta_linearization,
                 paper_mode=paper_mode,
             )
-        
+
         self._theta_linearization = theta_linearization.copy()
-        self._linearization_enabled = False  # Start with linearization disabled (non-linear exploration)
+        self._linearization_enabled = (
+            False  # Start with linearization disabled (non-linear exploration)
+        )
         logger.info("TSM initialized (linearization disabled initially for exploration)")
-    
+
     def update_linearization_point(self, theta_new_full: np.ndarray):
         """
         Update TSM linearization point.
-        
+
         CRITICAL for 2-phase MCMC accuracy!
-        
+
         Parameters
         ----------
         theta_new_full : ndarray (14,)
@@ -432,21 +439,21 @@ class LogLikelihoodEvaluator:
         """
         self.tsm.update_linearization_point(theta_new_full)
         self._theta_linearization = theta_new_full.copy()
-        
+
         # Reset tracking for new phase
         self.theta_history = []
         self.logL_history = []
         self.call_count = 0
-    
+
     def enable_linearization(self, enable: bool = True):
         """
         Enable or disable linearization dynamically.
-        
+
         This allows switching between full TSM (non-linear) and linearized TSM
         during MCMC execution. Typically:
         - Initial exploration (small β): linearization disabled (full TSM)
         - Later stages (large β): linearization enabled (fast, accurate near MAP)
-        
+
         Parameters
         ----------
         enable : bool
@@ -454,28 +461,28 @@ class LogLikelihoodEvaluator:
         """
         self.tsm.enable_linearization(enable)
         self._linearization_enabled = enable
-    
+
     def get_linearization_point(self) -> np.ndarray:
         """Get current linearization point."""
         return self._theta_linearization.copy()
-    
+
     def compute_ROM_error(self, theta_full: np.ndarray) -> float:
         """
         Compute ROM error based on observable φ̄ (living bacteria volume fraction).
-        
+
         Paper-ready definition:
             ε_ROM = || φ̄_ROM(t_obs) − φ̄_FOM(t_obs) ||₂ / || φ̄_FOM(t_obs) ||₂
-        
+
         where φ̄_i = φ_i * ψ_i (observable quantity used in likelihood).
-        
+
         This is the error in the observable space, which directly relates to
         the likelihood approximation quality.
-        
+
         Parameters
         ----------
         theta_full : ndarray (14,)
             Full parameter vector
-            
+
         Returns
         -------
         rel_error : float
@@ -486,21 +493,21 @@ class LogLikelihoodEvaluator:
                 # ROM solution
                 with timed(self.timing, "tsm.solve_tsm"):
                     t_arr_rom, x0_rom, sig2_rom = self.tsm.solve_tsm(theta_full)
-                
+
                 # FOM solution
                 self.fom_call_count += 1  # Track FOM evaluations
                 with timed(self.timing, "fom.run_deterministic"):
                     t_arr_fom, x0_fom = self.solver.run_deterministic(theta_full)
-            
+
             # Compute φ̄ (observable) at observation times for comparison
             # φ̄_i = φ_i * ψ_i (living bacteria volume fraction)
             phibar_rom = compute_phibar(x0_rom, self.active_species)
             phibar_fom = compute_phibar(x0_fom, self.active_species)
-            
+
             # Extract values at observation indices (sparse observations)
             phibar_rom_obs = phibar_rom[self.idx_sparse]
             phibar_fom_obs = phibar_fom[self.idx_sparse]
-            
+
             # Relative error: || φ̄_ROM(t_obs) − φ̄_FOM(t_obs) ||₂ / || φ̄_FOM(t_obs) ||₂
             error_norm = np.linalg.norm(phibar_rom_obs - phibar_fom_obs)
             fom_norm = np.linalg.norm(phibar_fom_obs)
@@ -550,17 +557,17 @@ class LogLikelihoodEvaluator:
             else:
                 logger.warning("ROM error computation failed: %s", e)
             return np.inf  # Return large error if computation fails
-    
+
     def __call__(self, theta_sub: np.ndarray) -> float:
         """Evaluate log-likelihood for given parameter subset."""
         self.call_count += 1
         self.health.n_calls += 1
-        
+
         # Construct full parameter vector
         full_theta = self.theta_base.copy()
         for i, idx in enumerate(self.active_indices):
             full_theta[idx] = theta_sub[i]
-        
+
         # Solve TSM
         try:
             with timed(self.timing, "tsm.solve_tsm"):
@@ -587,23 +594,31 @@ class LogLikelihoodEvaluator:
         if n_bad > 0:
             self.health.n_output_nonfinite += int(n_bad)
             return -1e20
-        
+
         # Compute predicted mean and variance at observation times
         mu = np.zeros((len(self.idx_sparse), self.n_species))
         sig = np.zeros((len(self.idx_sparse), self.n_species))
-        
+
         # State vector: [phi_0..phi_{N-1}, phi0, psi_0..psi_{N-1}, gamma]
         # For N total species, psi_offset = N + 1
         n_state = x0.shape[1]
         n_total_species = (n_state - 2) // 2
         psi_offset = n_total_species + 1
-        
+
         for i, sp in enumerate(self.active_species):
             # CRITICAL FIX: Check bounds explicitly instead of silent clipping
             # Silent clipping can hide bugs (e.g., idx_sparse calculation errors)
             if np.any(self.idx_sparse < 0) or np.any(self.idx_sparse >= sig2.shape[0]):
-                invalid_min = np.min(self.idx_sparse[self.idx_sparse < 0]) if np.any(self.idx_sparse < 0) else None
-                invalid_max = np.max(self.idx_sparse[self.idx_sparse >= sig2.shape[0]]) if np.any(self.idx_sparse >= sig2.shape[0]) else None
+                invalid_min = (
+                    np.min(self.idx_sparse[self.idx_sparse < 0])
+                    if np.any(self.idx_sparse < 0)
+                    else None
+                )
+                invalid_max = (
+                    np.max(self.idx_sparse[self.idx_sparse >= sig2.shape[0]])
+                    if np.any(self.idx_sparse >= sig2.shape[0])
+                    else None
+                )
                 raise IndexError(
                     f"Invalid idx_sparse: min={invalid_min}, max={invalid_max}, "
                     f"valid range=[0, {sig2.shape[0]-1}]. "
@@ -639,14 +654,16 @@ class LogLikelihoodEvaluator:
             if x1 is not None and var_act is not None:
                 try:
                     x1_phi = x1[idx, sp, :]  # (n_obs, n_active)
-                    
+
                     if self.use_absolute_volume:
-                         gamma_idx = n_state - 1
-                         x1_other = x1[idx, gamma_idx, :]
-                         other_val = gamma
+                        gamma_idx = n_state - 1
+                        x1_other = x1[idx, gamma_idx, :]
+                        other_val = gamma
                     else:
-                         x1_other = x1[idx, psi_offset + sp, :]
-                         other_val = x0[idx, psi_offset + sp] # Re-fetch psi just in case, though we have it above
+                        x1_other = x1[idx, psi_offset + sp, :]
+                        other_val = x0[
+                            idx, psi_offset + sp
+                        ]  # Re-fetch psi just in case, though we have it above
 
                     cov_phi_other = np.sum(x1_phi * x1_other * var_act[None, :], axis=1)
                     var_phibar = var_phibar + 2.0 * phi * other_val * cov_phi_other
@@ -655,9 +672,11 @@ class LogLikelihoodEvaluator:
                     pass
 
             sig[:, i] = var_phibar
-        
+
         # Sanity: likelihood inputs must be finite
-        n_bad2 = int(np.size(mu) - np.isfinite(mu).sum()) + int(np.size(sig) - np.isfinite(sig).sum())
+        n_bad2 = int(np.size(mu) - np.isfinite(mu).sum()) + int(
+            np.size(sig) - np.isfinite(sig).sum()
+        )
         if n_bad2 > 0:
             self.health.n_output_nonfinite += int(n_bad2)
             return -1e20
@@ -665,23 +684,28 @@ class LogLikelihoodEvaluator:
         # Evaluate log-likelihood + increment per-entry variance health counters
         var_health: Dict[str, int] = {}
         logL = log_likelihood_sparse(
-            mu, sig, self.data, self.sigma_obs,
-            rho=self.rho, health=var_health, weights=self.weights,
+            mu,
+            sig,
+            self.data,
+            self.sigma_obs,
+            rho=self.rho,
+            health=var_health,
+            weights=self.weights,
         )
         self.health.n_var_raw_negative += int(var_health.get("n_var_raw_negative", 0))
         self.health.n_var_raw_nonfinite += int(var_health.get("n_var_raw_nonfinite", 0))
         self.health.n_var_total_clipped += int(var_health.get("n_var_total_clipped", 0))
-        
+
         # Track evaluation
         self.theta_history.append(theta_sub.copy())
         self.logL_history.append(logL)
-        
+
         return logL
 
     def get_health(self) -> Dict[str, int]:
         """Get health counters as dictionary."""
         return self.health.to_dict()
-    
+
     def get_MAP(self) -> Tuple[np.ndarray, float]:
         """Get MAP estimate from evaluation history."""
         if len(self.logL_history) == 0:
@@ -788,8 +812,13 @@ class DeepONetEvaluator:
         # Evaluate log-likelihood
         var_health: Dict[str, int] = {}
         logL = log_likelihood_sparse(
-            mu, sig, self.data, self.sigma_obs,
-            rho=self.rho, health=var_health, weights=self.weights,
+            mu,
+            sig,
+            self.data,
+            self.sigma_obs,
+            rho=self.rho,
+            health=var_health,
+            weights=self.weights,
         )
         self.health.n_var_raw_negative += int(var_health.get("n_var_raw_negative", 0))
         self.health.n_var_raw_nonfinite += int(var_health.get("n_var_raw_nonfinite", 0))

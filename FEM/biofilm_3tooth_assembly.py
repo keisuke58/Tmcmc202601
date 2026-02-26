@@ -40,7 +40,9 @@ Usage
 """
 
 from __future__ import print_function, division
-import sys, os, argparse
+import sys
+import os
+import argparse
 import numpy as np
 
 # ── Import from biofilm_conformal_tet.py (same directory) ────────────────────
@@ -49,15 +51,20 @@ if _THIS_DIR not in sys.path:
     sys.path.insert(0, _THIS_DIR)
 
 from biofilm_conformal_tet import (
-    read_stl, deduplicate_vertices, compute_vertex_normals,
-    laplacian_smooth_offset, build_tet_mesh,
-    read_di_csv, assign_di_bins,
+    read_stl,
+    deduplicate_vertices,
+    compute_vertex_normals,
+    laplacian_smooth_offset,
+    build_tet_mesh,
+    read_di_csv,
+    assign_di_bins,
     compute_outer_face_loads,
 )
 
 # ============================================================================
 # Approximal (slit / inter-proximal) face detection
 # ============================================================================
+
 
 def get_approximal_info(td_src, td_dst, threshold=0.30, max_dist=None):
     """
@@ -98,23 +105,23 @@ def get_approximal_info(td_src, td_dst, threshold=0.30, max_dist=None):
     v0 = verts[faces[:, 0]]
     v1 = verts[faces[:, 1]]
     v2 = verts[faces[:, 2]]
-    fn = np.cross(v1 - v0, v2 - v0)                          # (F,3)
+    fn = np.cross(v1 - v0, v2 - v0)  # (F,3)
     fn_len = np.linalg.norm(fn, axis=1, keepdims=True)
     fn /= np.where(fn_len < 1e-14, 1.0, fn_len)
 
-    face_mask = (fn @ d) > threshold                          # (F,)
+    face_mask = (fn @ d) > threshold  # (F,)
 
     node_mask = np.zeros(len(verts), dtype=bool)
     if face_mask.any():
-        node_mask[faces[face_mask].ravel()] = True            # (V,)
+        node_mask[faces[face_mask].ravel()] = True  # (V,)
 
     # ── Distance filter (P7 fix) ──────────────────────────────────────────────
     if max_dist is not None and node_mask.any():
-        dst_verts = td_dst["verts_outer"]                     # (V_dst, 3)
-        tree      = cKDTree(dst_verts)
+        dst_verts = td_dst["verts_outer"]  # (V_dst, 3)
+        tree = cKDTree(dst_verts)
         src_approx_idx = np.where(node_mask)[0]
-        dists, _  = tree.query(verts[src_approx_idx], k=1)
-        keep      = dists <= max_dist                         # (n_approx,)
+        dists, _ = tree.query(verts[src_approx_idx], k=1)
+        keep = dists <= max_dist  # (n_approx,)
 
         node_mask_new = np.zeros(len(verts), dtype=bool)
         node_mask_new[src_approx_idx[keep]] = True
@@ -126,18 +133,22 @@ def get_approximal_info(td_src, td_dst, threshold=0.30, max_dist=None):
                 face_mask_new[fi] = True
 
         n_before = node_mask.sum()
-        n_after  = node_mask_new.sum()
-        print("  [P7-dist] max_dist=%.1f mm: %d → %d approx nodes (%.0f%% retained)" % (
-            max_dist, n_before, n_after, 100.0 * n_after / max(n_before, 1)))
+        n_after = node_mask_new.sum()
+        print(
+            "  [P7-dist] max_dist=%.1f mm: %d → %d approx nodes (%.0f%% retained)"
+            % (max_dist, n_before, n_after, 100.0 * n_after / max(n_before, 1))
+        )
 
         node_mask = node_mask_new
         face_mask = face_mask_new
 
     return face_mask, node_mask, d
 
+
 # ============================================================================
 # Combined INP writer
 # ============================================================================
+
 
 def _write_nset_block(f, name, indices_1based):
     f.write("*Nset, nset=%s\n" % name)
@@ -163,10 +174,20 @@ def _write_elset_block(f, name, labels_1based):
         f.write(", ".join(row) + "\n")
 
 
-def write_combined_inp(out_path, teeth_data, bin_E_stiff, n_bins,
-                       aniso_ratio, nu, pressure, bc_mode,
-                       di_csv_path, thickness, n_layers,
-                       slit_approx=None):
+def write_combined_inp(
+    out_path,
+    teeth_data,
+    bin_E_stiff,
+    n_bins,
+    aniso_ratio,
+    nu,
+    pressure,
+    bc_mode,
+    di_csv_path,
+    thickness,
+    n_layers,
+    slit_approx=None,
+):
     """
     teeth_data : list of dict, one per tooth:
         name         : str  e.g. 'T23'
@@ -184,7 +205,7 @@ def write_combined_inp(out_path, teeth_data, bin_E_stiff, n_bins,
 
     # Pre-compute total counts for header
     total_nodes = sum(len(d["nodes"]) for d in teeth_data)
-    total_tets  = sum(len(d["tets"])  for d in teeth_data)
+    total_tets = sum(len(d["tets"]) for d in teeth_data)
 
     with open(out_path, "w") as f:
 
@@ -221,9 +242,8 @@ def write_combined_inp(out_path, teeth_data, bin_E_stiff, n_bins,
         for td, noff in zip(teeth_data, tooth_node_offsets):
             tooth_elem_offsets.append(elem_offset)
             for i, tet in enumerate(td["tets"]):
-                n1, n2, n3, n4 = tet + noff + 1   # 1-based + node offset
-                f.write(" %d, %d, %d, %d, %d\n" % (
-                    elem_offset + i + 1, n1, n2, n3, n4))
+                n1, n2, n3, n4 = tet + noff + 1  # 1-based + node offset
+                f.write(" %d, %d, %d, %d, %d\n" % (elem_offset + i + 1, n1, n2, n3, n4))
             elem_offset += len(td["tets"])
         f.write("**\n")
 
@@ -231,11 +251,9 @@ def write_combined_inp(out_path, teeth_data, bin_E_stiff, n_bins,
         f.write("** ===== NODE SETS =====\n")
         for td, noff in zip(teeth_data, tooth_node_offsets):
             name = td["name"]
-            _write_nset_block(f, "%s_INNER" % name,
-                              td["inner_nodes"] + noff + 1)
+            _write_nset_block(f, "%s_INNER" % name, td["inner_nodes"] + noff + 1)
             f.write("**\n")
-            _write_nset_block(f, "%s_OUTER" % name,
-                              td["outer_nodes"] + noff + 1)
+            _write_nset_block(f, "%s_OUTER" % name, td["outer_nodes"] + noff + 1)
             f.write("**\n")
 
         # Combined inner/outer sets (for reference)
@@ -261,7 +279,7 @@ def write_combined_inp(out_path, teeth_data, bin_E_stiff, n_bins,
                 tname = td["name"]
                 if tname not in slit_approx:
                     continue
-                nm = slit_approx[tname]["node_mask"]   # (V,) bool over outer verts
+                nm = slit_approx[tname]["node_mask"]  # (V,) bool over outer verts
                 # outer_nodes maps outer-vertex index → 0-based index into td["nodes"]
                 approx_global = []
                 for vi in range(len(nm)):
@@ -280,7 +298,7 @@ def write_combined_inp(out_path, teeth_data, bin_E_stiff, n_bins,
         for td, eoff in zip(teeth_data, tooth_elem_offsets):
             bin_labels = [[] for _ in range(n_bins)]
             for i, b in enumerate(td["tet_bins"]):
-                bin_labels[b].append(eoff + i + 1)   # 1-based global label
+                bin_labels[b].append(eoff + i + 1)  # 1-based global label
             tooth_bin_labels.append(bin_labels)
             for b in range(n_bins):
                 if bin_labels[b]:
@@ -312,7 +330,7 @@ def write_combined_inp(out_path, teeth_data, bin_E_stiff, n_bins,
         #   bin_E_stiff is stored in Pa → divide by 1e6 to get MPa
         f.write("** ===== MATERIALS (isotropic per DI bin, E in MPa = N/mm²) =====\n")
         for b in sorted(used_bins):
-            E_MPa = bin_E_stiff[b] * 1e-6   # Pa → MPa
+            E_MPa = bin_E_stiff[b] * 1e-6  # Pa → MPa
             f.write("*Material, name=MAT_ANISO_%02d\n" % b)
             f.write("*Elastic\n")
             f.write(" %.4f, %.4f\n" % (E_MPa, nu))
@@ -368,17 +386,19 @@ def write_combined_inp(out_path, teeth_data, bin_E_stiff, n_bins,
         f.write("**\n")
 
         # Cload for outer face pressure
-        f.write("** Pressure = %.3g Pa (= %.4g MPa), forces in N (Pa*1e-6*mm²)\n" % (
-            pressure, pressure * 1e-6))
+        f.write(
+            "** Pressure = %.3g Pa (= %.4g MPa), forces in N (Pa*1e-6*mm²)\n"
+            % (pressure, pressure * 1e-6)
+        )
         f.write("*Cload\n")
         for td, noff in zip(teeth_data, tooth_node_offsets):
             outer_forces = compute_outer_face_loads(
-                td["verts_outer"], td["faces"], pressure, td["vnorms_outer"])
+                td["verts_outer"], td["faces"], pressure, td["vnorms_outer"]
+            )
             # Exclude approximal (slit) nodes – they're not free outer surfaces
             if slit_approx and td["name"] in slit_approx:
                 am = slit_approx[td["name"]]["node_mask"]
-                outer_forces = {vi: fvec for vi, fvec in outer_forces.items()
-                                if not am[vi]}
+                outer_forces = {vi: fvec for vi, fvec in outer_forces.items() if not am[vi]}
             for vi, fvec in sorted(outer_forces.items()):
                 ni = int(td["outer_nodes"][vi]) + noff + 1
                 if abs(fvec[0]) > 1e-20:
@@ -408,48 +428,59 @@ def write_combined_inp(out_path, teeth_data, bin_E_stiff, n_bins,
 # ============================================================================
 
 TEETH = [
-    {"name": "T23", "stl_key": "P1_Tooth_23",
-     "role": "crown (single tooth, full-wrap biofilm)"},
-    {"name": "T30", "stl_key": "P1_Tooth_30",
-     "role": "slit/inter-proximal (T30 side)"},
-    {"name": "T31", "stl_key": "P1_Tooth_31",
-     "role": "slit/inter-proximal (T31 side)"},
+    {"name": "T23", "stl_key": "P1_Tooth_23", "role": "crown (single tooth, full-wrap biofilm)"},
+    {"name": "T30", "stl_key": "P1_Tooth_30", "role": "slit/inter-proximal (T30 side)"},
+    {"name": "T31", "stl_key": "P1_Tooth_31", "role": "slit/inter-proximal (T31 side)"},
 ]
 
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Conformal biofilm tet mesh for 3 teeth → combined INP + Abaqus run")
-    p.add_argument("--stl-root",   default="external_tooth_models/OpenJaw_Dataset/Patient_1",
-                   help="Root dir with Teeth/ sub-dir")
-    p.add_argument("--di-csv",     default="abaqus_field_dh_3d.csv")
-    p.add_argument("--out",        default="biofilm_3tooth.inp")
-    p.add_argument("--job-name",   default="BioFilm3T")
-    p.add_argument("--thickness",  type=float, default=0.5)
-    p.add_argument("--n-layers",   type=int,   default=8)
-    p.add_argument("--n-bins",     type=int,   default=20)
-    p.add_argument("--e-max",      type=float, default=10e9)
-    p.add_argument("--e-min",      type=float, default=0.5e9)
-    p.add_argument("--di-scale",   type=float, default=0.025778)
-    p.add_argument("--di-exp",     type=float, default=2.0)
-    p.add_argument("--nu",         type=float, default=0.30)
-    p.add_argument("--aniso-ratio",type=float, default=0.5)
-    p.add_argument("--pressure",   type=float, default=1.0e6)
-    p.add_argument("--bc-mode",    default="inner_fixed",
-                   choices=["inner_fixed", "bot_fixed"])
-    p.add_argument("--smooth-iter",type=int,   default=3)
-    p.add_argument("--dedup-tol",  type=float, default=1e-4)
-    p.add_argument("--run",        action="store_true",
-                   help="Submit Abaqus job after writing INP")
-    p.add_argument("--abaqus",     default="/home/nishioka/DassaultSystemes/SIMULIA/Commands/abaqus",
-                   help="Path to abaqus executable")
-    p.add_argument("--slit-threshold", type=float, default=0.30,
-                   help="Dot-product threshold for approximal face detection [0.3]")
-    p.add_argument("--slit-max-dist", type=float, default=None,
-                   help="[P7] Max distance (mm) from opposing tooth for APPROX filter. "
-                        "None = normal-only (legacy). Recommended: 2.0–5.0 mm.")
-    p.add_argument("--no-slit",    action="store_true",
-                   help="Disable T30↔T31 tie constraint (slit treatment)")
+        description="Conformal biofilm tet mesh for 3 teeth → combined INP + Abaqus run"
+    )
+    p.add_argument(
+        "--stl-root",
+        default="external_tooth_models/OpenJaw_Dataset/Patient_1",
+        help="Root dir with Teeth/ sub-dir",
+    )
+    p.add_argument("--di-csv", default="abaqus_field_dh_3d.csv")
+    p.add_argument("--out", default="biofilm_3tooth.inp")
+    p.add_argument("--job-name", default="BioFilm3T")
+    p.add_argument("--thickness", type=float, default=0.5)
+    p.add_argument("--n-layers", type=int, default=8)
+    p.add_argument("--n-bins", type=int, default=20)
+    p.add_argument("--e-max", type=float, default=10e9)
+    p.add_argument("--e-min", type=float, default=0.5e9)
+    p.add_argument("--di-scale", type=float, default=0.025778)
+    p.add_argument("--di-exp", type=float, default=2.0)
+    p.add_argument("--nu", type=float, default=0.30)
+    p.add_argument("--aniso-ratio", type=float, default=0.5)
+    p.add_argument("--pressure", type=float, default=1.0e6)
+    p.add_argument("--bc-mode", default="inner_fixed", choices=["inner_fixed", "bot_fixed"])
+    p.add_argument("--smooth-iter", type=int, default=3)
+    p.add_argument("--dedup-tol", type=float, default=1e-4)
+    p.add_argument("--run", action="store_true", help="Submit Abaqus job after writing INP")
+    p.add_argument(
+        "--abaqus",
+        default="/home/nishioka/DassaultSystemes/SIMULIA/Commands/abaqus",
+        help="Path to abaqus executable",
+    )
+    p.add_argument(
+        "--slit-threshold",
+        type=float,
+        default=0.30,
+        help="Dot-product threshold for approximal face detection [0.3]",
+    )
+    p.add_argument(
+        "--slit-max-dist",
+        type=float,
+        default=None,
+        help="[P7] Max distance (mm) from opposing tooth for APPROX filter. "
+        "None = normal-only (legacy). Recommended: 2.0–5.0 mm.",
+    )
+    p.add_argument(
+        "--no-slit", action="store_true", help="Disable T30↔T31 tie constraint (slit treatment)"
+    )
     return p.parse_args()
 
 
@@ -473,8 +504,8 @@ def process_one_tooth(stl_path, di_csv_path, cfg):
     if cfg["smooth_iter"] > 0:
         print("  [SMOOTH] %d Laplacian iterations ..." % cfg["smooth_iter"])
         verts_outer = laplacian_smooth_offset(
-            verts_outer_raw, verts_inner, faces,
-            iterations=cfg["smooth_iter"], lam=0.5)
+            verts_outer_raw, verts_inner, faces, iterations=cfg["smooth_iter"], lam=0.5
+        )
     else:
         verts_outer = verts_outer_raw
 
@@ -482,17 +513,17 @@ def process_one_tooth(stl_path, di_csv_path, cfg):
 
     print("  [TET] %d layers → prism-to-tet meshing ..." % cfg["n_layers"])
     nodes, tets, tet_layers, inner_nodes, outer_nodes = build_tet_mesh(
-        verts_inner, verts_outer, faces, cfg["n_layers"])
+        verts_inner, verts_outer, faces, cfg["n_layers"]
+    )
 
     # Volume sanity check
-    tv  = nodes[tets]
-    a   = tv[:, 1] - tv[:, 0]
-    b   = tv[:, 2] - tv[:, 0]
-    c   = tv[:, 3] - tv[:, 0]
+    tv = nodes[tets]
+    a = tv[:, 1] - tv[:, 0]
+    b = tv[:, 2] - tv[:, 0]
+    c = tv[:, 3] - tv[:, 0]
     vols = np.einsum("ij,ij->i", a, np.cross(b, c)) / 6.0
     n_neg = (vols < 0).sum()
-    print("         → %d nodes  %d C3D4  neg-vol=%d" % (
-        len(nodes), len(tets), n_neg))
+    print("         → %d nodes  %d C3D4  neg-vol=%d" % (len(nodes), len(tets), n_neg))
     if n_neg > 0:
         print("  [FIX] Flipping %d negative-volume tets ..." % n_neg)
         bad = vols < 0
@@ -501,22 +532,28 @@ def process_one_tooth(stl_path, di_csv_path, cfg):
     print("  [DI] Assigning bins ...")
     xs_field, di_vals_field = read_di_csv(di_csv_path)
     tet_bins, bin_E_stiff = assign_di_bins(
-        tet_layers, cfg["n_layers"],
-        xs_field, di_vals_field,
-        cfg["n_bins"], cfg["di_scale"], cfg["di_exp"],
-        cfg["e_max"], cfg["e_min"])
+        tet_layers,
+        cfg["n_layers"],
+        xs_field,
+        di_vals_field,
+        cfg["n_bins"],
+        cfg["di_scale"],
+        cfg["di_exp"],
+        cfg["e_max"],
+        cfg["e_min"],
+    )
 
     return {
-        "nodes":        nodes,
-        "tets":         tets,
-        "tet_bins":     tet_bins,
-        "inner_nodes":  inner_nodes,
-        "outer_nodes":  outer_nodes,
-        "verts_outer":  verts_outer,
-        "faces":        faces,
+        "nodes": nodes,
+        "tets": tets,
+        "tet_bins": tet_bins,
+        "inner_nodes": inner_nodes,
+        "outer_nodes": outer_nodes,
+        "verts_outer": verts_outer,
+        "faces": faces,
         "vnorms_outer": vnorms_outer,
-        "bin_E_stiff":  bin_E_stiff,
-        "n_neg":        n_neg,
+        "bin_E_stiff": bin_E_stiff,
+        "n_neg": n_neg,
     }
 
 
@@ -532,15 +569,15 @@ def main():
     print("=" * 62)
 
     cfg = {
-        "thickness":   args.thickness,
-        "n_layers":    args.n_layers,
-        "n_bins":      args.n_bins,
-        "e_max":       args.e_max,
-        "e_min":       args.e_min,
-        "di_scale":    args.di_scale,
-        "di_exp":      args.di_exp,
+        "thickness": args.thickness,
+        "n_layers": args.n_layers,
+        "n_bins": args.n_bins,
+        "e_max": args.e_max,
+        "e_min": args.e_min,
+        "di_scale": args.di_scale,
+        "di_exp": args.di_exp,
         "smooth_iter": args.smooth_iter,
-        "dedup_tol":   args.dedup_tol,
+        "dedup_tol": args.dedup_tol,
     }
 
     # Process all teeth
@@ -566,13 +603,12 @@ def main():
     # Summary
     print("\n── Mesh Summary ──")
     total_n = sum(len(d["nodes"]) for d in teeth_data)
-    total_e = sum(len(d["tets"])  for d in teeth_data)
-    total_neg = sum(d["n_neg"]    for d in teeth_data)
+    total_e = sum(len(d["tets"]) for d in teeth_data)
+    total_neg = sum(d["n_neg"] for d in teeth_data)
     print("  Tooth | Nodes  | C3D4   | Neg-vol")
     print("  ------+--------+--------+--------")
     for d in teeth_data:
-        print("  %-5s | %6d | %6d | %d" % (
-            d["name"], len(d["nodes"]), len(d["tets"]), d["n_neg"]))
+        print("  %-5s | %6d | %6d | %d" % (d["name"], len(d["nodes"]), len(d["tets"]), d["n_neg"]))
     print("  TOTAL | %6d | %6d | %d" % (total_n, total_e, total_neg))
 
     layer_thickness = args.thickness / args.n_layers
@@ -583,30 +619,35 @@ def main():
     # ── Slit (approximal) detection for T30 ↔ T31 ──────────────────────────────
     slit_approx = None
     if not args.no_slit:
-        td30 = teeth_data[1]   # T30
-        td31 = teeth_data[2]   # T31
-        thr  = args.slit_threshold
+        td30 = teeth_data[1]  # T30
+        td31 = teeth_data[2]  # T31
+        thr = args.slit_threshold
         max_dist = getattr(args, "slit_max_dist", None)
         fm30, nm30, d30 = get_approximal_info(td30, td31, threshold=thr, max_dist=max_dist)
         fm31, nm31, d31 = get_approximal_info(td31, td30, threshold=thr, max_dist=max_dist)
         print("\n── Slit (Approximal) Detection (threshold=%.2f) ──" % thr)
         print("  T30→T31 direction : [%.3f, %.3f, %.3f]" % tuple(d30))
-        print("  T30 approx faces  : %d / %d (%.1f%%)" % (
-            fm30.sum(), len(fm30), 100. * fm30.mean()))
+        print(
+            "  T30 approx faces  : %d / %d (%.1f%%)" % (fm30.sum(), len(fm30), 100.0 * fm30.mean())
+        )
         print("  T30 approx nodes  : %d / %d" % (nm30.sum(), len(nm30)))
-        print("  T31 approx faces  : %d / %d (%.1f%%)" % (
-            fm31.sum(), len(fm31), 100. * fm31.mean()))
+        print(
+            "  T31 approx faces  : %d / %d (%.1f%%)" % (fm31.sum(), len(fm31), 100.0 * fm31.mean())
+        )
         print("  T31 approx nodes  : %d / %d" % (nm31.sum(), len(nm31)))
 
         # Approximate inter-surface gap (T30 approx outer → T31 approx outer)
         if nm30.any() and nm31.any():
             from scipy.spatial import cKDTree
+
             pts30 = td30["verts_outer"][nm30]
             pts31 = td31["verts_outer"][nm31]
             tree30 = cKDTree(pts30)
             dists, _ = tree30.query(pts31, k=1)
-            print("  Gap T31→T30 approx: min=%.3f  mean=%.3f  max=%.3f mm" % (
-                dists.min(), dists.mean(), dists.max()))
+            print(
+                "  Gap T31→T30 approx: min=%.3f  mean=%.3f  max=%.3f mm"
+                % (dists.min(), dists.mean(), dists.max())
+            )
 
         slit_approx = {
             "T30": {"face_mask": fm30, "node_mask": nm30},
@@ -616,16 +657,29 @@ def main():
     # Write combined INP
     print("\n── Writing combined INP: %s ──" % args.out)
     write_combined_inp(
-        args.out, teeth_data, bin_E_stiff_shared, args.n_bins,
-        args.aniso_ratio, args.nu, args.pressure, args.bc_mode,
-        args.di_csv, args.thickness, args.n_layers,
-        slit_approx=slit_approx)
+        args.out,
+        teeth_data,
+        bin_E_stiff_shared,
+        args.n_bins,
+        args.aniso_ratio,
+        args.nu,
+        args.pressure,
+        args.bc_mode,
+        args.di_csv,
+        args.thickness,
+        args.n_layers,
+        slit_approx=slit_approx,
+    )
 
     # Verify element coverage
     print("\n── INP verification ──")
     import subprocess
+
     result = subprocess.run(
-        ["python3", "-c", """
+        [
+            "python3",
+            "-c",
+            """
 import re, sys
 all_tets = %d
 assigned = set()
@@ -642,29 +696,29 @@ with open('%s') as f:
             current = None
 print('Elements with section:', len(assigned))
 print('Missing sections:', all_tets - len(assigned))
-""" % (total_e, args.out)],
-        capture_output=True, text=True)
+"""
+            % (total_e, args.out),
+        ],
+        capture_output=True,
+        text=True,
+    )
     if result.stdout:
         print("  " + result.stdout.strip().replace("\n", "\n  "))
 
     # Submit Abaqus job
     if args.run:
         job = args.job_name
-        inp  = os.path.abspath(args.out)
-        abq  = args.abaqus
+        inp = os.path.abspath(args.out)
+        abq = args.abaqus
 
         print("\n── Submitting Abaqus job: %s ──" % job)
         print("  Input : %s" % inp)
         print("  This may take a few minutes ...")
 
-        cmd = [abq, "job=%s" % job,
-               "input=%s" % inp,
-               "cpus=4",
-               "ask=off",
-               "interactive"]
+        cmd = [abq, "job=%s" % job, "input=%s" % inp, "cpus=4", "ask=off", "interactive"]
         import subprocess
-        ret = subprocess.run(cmd, capture_output=False,
-                             cwd=os.path.dirname(inp))
+
+        ret = subprocess.run(cmd, capture_output=False, cwd=os.path.dirname(inp))
         if ret.returncode == 0:
             odb_path = os.path.join(os.path.dirname(inp), "%s.odb" % job)
             if os.path.exists(odb_path):
@@ -676,8 +730,10 @@ print('Missing sections:', all_tets - len(assigned))
             print("\n  Abaqus returned code %d – check .msg / .sta files" % ret.returncode)
     else:
         print("\n  (To run Abaqus: add --run flag, or execute:)")
-        print("  %s job=%s input=%s cpus=4 ask=off interactive" % (
-            args.abaqus, args.job_name, os.path.abspath(args.out)))
+        print(
+            "  %s job=%s input=%s cpus=4 ask=off interactive"
+            % (args.abaqus, args.job_name, os.path.abspath(args.out))
+        )
 
 
 if __name__ == "__main__":

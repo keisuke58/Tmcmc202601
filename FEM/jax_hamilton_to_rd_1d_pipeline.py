@@ -19,38 +19,75 @@ Environment: klempt_fem (Python 3.11, jax 0.9.0.1) -- JAX only, no jax-fem neede
 """
 
 import os
-import sys
 
 import numpy as np
 import jax
 import jax.numpy as jnp
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 jax.config.update("jax_enable_x64", True)
 
-OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                       "klempt2024_results", "hamilton_rd_pipeline")
+OUT_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "klempt2024_results", "hamilton_rd_pipeline"
+)
 
 # ---------------------------------------------------------------------------
 # TMCMC MAP parameter sets (theta: 20 parameters)
 # ---------------------------------------------------------------------------
 # Commensal (mild_weight equivalent): a35=theta[18]=2.41, a45=theta[19]=2.5
-THETA_COMMENSAL = np.array([
-    1.34, -0.18, 1.79, 1.17, 2.58,    # theta[0-4]
-    3.51,  2.73, 0.71, 2.10, 0.37,    # theta[5-9]
-    2.05, -0.15, 3.56, 0.16, 0.12,    # theta[10-14]
-    0.32,  1.49, 2.10, 2.41, 2.50,    # theta[15-19]  <- a35=2.41, a45=2.50
-])
+THETA_COMMENSAL = np.array(
+    [
+        1.34,
+        -0.18,
+        1.79,
+        1.17,
+        2.58,  # theta[0-4]
+        3.51,
+        2.73,
+        0.71,
+        2.10,
+        0.37,  # theta[5-9]
+        2.05,
+        -0.15,
+        3.56,
+        0.16,
+        0.12,  # theta[10-14]
+        0.32,
+        1.49,
+        2.10,
+        2.41,
+        2.50,  # theta[15-19]  <- a35=2.41, a45=2.50
+    ]
+)
 
 # Dysbiotic (baseline MAP from K0.05_n4.0_baseline sweep): a35=20.94
-THETA_DYSBIOTIC = np.array([
-    0.9679,  2.6813, 0.6423, 0.9248, 1.0350,   # theta[0-4]
-    0.1015,  1.3271, 0.2119, 2.4925, 0.5537,   # theta[5-9]
-    1.3808,  1.4155, 2.4463, 2.2082, 3.4005,   # theta[10-14]
-    0.2979,  0.2864, 2.3241, 20.9445, 2.8122,  # theta[15-19]  <- a35=20.94
-])
+THETA_DYSBIOTIC = np.array(
+    [
+        0.9679,
+        2.6813,
+        0.6423,
+        0.9248,
+        1.0350,  # theta[0-4]
+        0.1015,
+        1.3271,
+        0.2119,
+        2.4925,
+        0.5537,  # theta[5-9]
+        1.3808,
+        1.4155,
+        2.4463,
+        2.2082,
+        3.4005,  # theta[10-14]
+        0.2979,
+        0.2864,
+        2.3241,
+        20.9445,
+        2.8122,  # theta[15-19]  <- a35=20.94
+    ]
+)
 
 SPECIES_NAMES = ["S. oralis", "A. naeslundii", "V. dispar", "F. nucleatum", "P. gingivalis"]
 SPECIES_COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
@@ -60,6 +97,7 @@ SPECIES_COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
 # Hamilton ODE: 0D model (no spatial diffusion)
 # From jax_hamilton_0d_5species_demo.py
 # ---------------------------------------------------------------------------
+
 
 def theta_to_matrices(theta):
     """Convert 20-parameter theta to interaction matrix A and growth vector b."""
@@ -98,9 +136,9 @@ def theta_to_matrices(theta):
     A = A.at[4, 0].set(theta[16])
     A = A.at[1, 4].set(theta[17])
     A = A.at[4, 1].set(theta[17])
-    A = A.at[2, 4].set(theta[18])   # a35: Vd -> Pg (theta[18])
+    A = A.at[2, 4].set(theta[18])  # a35: Vd -> Pg (theta[18])
     A = A.at[4, 2].set(theta[18])
-    A = A.at[3, 4].set(theta[19])   # a45: Fn -> Pg (theta[19])
+    A = A.at[3, 4].set(theta[19])  # a45: Fn -> Pg (theta[19])
     A = A.at[4, 3].set(theta[19])
     return A, b
 
@@ -153,8 +191,8 @@ def residual(g_new, g_prev, params):
     Ia = A @ (phi_new * psi_new)
     hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (active_mask[4] == 1).astype(jnp.float64)
     fn = jnp.maximum(phi_new[3] * psi_new[3], 0.0)
-    num = fn ** n_hill
-    den = K_hill ** n_hill + num
+    num = fn**n_hill
+    den = K_hill**n_hill + num
     factor = jnp.where(den > eps, num / den, 0.0) * hill_mask
     Ia = Ia.at[4].set(Ia[4] * factor)
 
@@ -181,9 +219,7 @@ def residual(g_new, g_prev, params):
 
     Q, _ = jax.lax.scan(body_i_phi, Q, jnp.arange(5))
     Q = Q.at[5].set(
-        gamma_new
-        + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new ** 3)
-        + phi0dot
+        gamma_new + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new**3) + phi0dot
     )
 
     def body_i_psi(carry, i):
@@ -191,8 +227,9 @@ def residual(g_new, g_prev, params):
         active = active_mask[i] == 1
 
         def active_branch():
-            t1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3) \
-               - (2.0 * Kp1) / ((psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2)
+            t1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3) - (2.0 * Kp1) / (
+                (psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2
+            )
             t2 = (b_diag[i] * alpha / Eta[i]) * psi_new[i]
             t3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i] ** 2 * psidot[i]
             t4 = (c / Eta[i]) * phi_new[i] * Ia[i]
@@ -280,6 +317,7 @@ def run_hamilton_0d(theta, t_final=0.05, dt_h=1e-5):
 # 1D biofilm spatial profile from 0D composition
 # ---------------------------------------------------------------------------
 
+
 def make_biofilm_profile(phi_final, x, depth_scale=0.4):
     """Construct 1D depth-dependent biofilm volume fraction.
 
@@ -302,7 +340,7 @@ def make_biofilm_profile(phi_final, x, depth_scale=0.4):
     phi_total : array (N,)      -- sum of species fractions
     """
     L = x[-1]
-    shape = np.exp(-x / (depth_scale * L))   # shape: 1 at x=0, decays toward x=L
+    shape = np.exp(-x / (depth_scale * L))  # shape: 1 at x=0, decays toward x=L
     # Normalize shape so mean matches 0D value
     phi_species = np.outer(shape, phi_final)
     phi_total = phi_species.sum(axis=1)
@@ -315,8 +353,8 @@ def make_biofilm_profile(phi_final, x, depth_scale=0.4):
 # 1D steady-state nutrient transport: Newton solver
 # ---------------------------------------------------------------------------
 
-def solve_1d_nutrient(phi_x, x, D_c=1.0, k_monod=1.0, g_eff=10.0, c_inf=1.0,
-                      n_newton=30):
+
+def solve_1d_nutrient(phi_x, x, D_c=1.0, k_monod=1.0, g_eff=10.0, c_inf=1.0, n_newton=30):
     """Solve -D_c d^2c/dx^2 + g*phi(x)*c/(k+c) = 0 in 1D with Newton's method.
 
     Boundary conditions:
@@ -344,33 +382,34 @@ def solve_1d_nutrient(phi_x, x, D_c=1.0, k_monod=1.0, g_eff=10.0, c_inf=1.0,
 
     # Initial guess: linear from c_inf (x=L) to c_inf*0.3 (x=0)
     c = np.linspace(c_inf * 0.3, c_inf, N)
-    c[-1] = c_inf   # enforce Dirichlet BC
+    c[-1] = c_inf  # enforce Dirichlet BC
 
     for _ in range(n_newton):
         F = np.zeros(N)
-        dF = np.zeros(N)   # diagonal of Jacobian
+        dF = np.zeros(N)  # diagonal of Jacobian
 
         # Node j=0: Neumann ghost-point (dc/dx=0 -> c_{-1}=c_1)
         j = 0
-        F[j] = D_c * 2.0 * (c[j+1] - c[j]) / dx**2 - g_eff * phi_x[j] * c[j] / (k_monod + c[j])
-        dF[j] = -2.0 * D_c / dx**2 - g_eff * phi_x[j] * k_monod / (k_monod + c[j])**2
+        F[j] = D_c * 2.0 * (c[j + 1] - c[j]) / dx**2 - g_eff * phi_x[j] * c[j] / (k_monod + c[j])
+        dF[j] = -2.0 * D_c / dx**2 - g_eff * phi_x[j] * k_monod / (k_monod + c[j]) ** 2
 
         # Interior nodes j=1,...,N-2
-        for j in range(1, N-1):
-            F[j] = D_c * (c[j+1] - 2*c[j] + c[j-1]) / dx**2 \
-                   - g_eff * phi_x[j] * c[j] / (k_monod + c[j])
-            dF[j] = -2.0 * D_c / dx**2 - g_eff * phi_x[j] * k_monod / (k_monod + c[j])**2
+        for j in range(1, N - 1):
+            F[j] = D_c * (c[j + 1] - 2 * c[j] + c[j - 1]) / dx**2 - g_eff * phi_x[j] * c[j] / (
+                k_monod + c[j]
+            )
+            dF[j] = -2.0 * D_c / dx**2 - g_eff * phi_x[j] * k_monod / (k_monod + c[j]) ** 2
 
         # Node j=N-1: Dirichlet BC (c=c_inf, residual always 0)
-        F[N-1] = 0.0
-        dF[N-1] = 1.0
+        F[N - 1] = 0.0
+        dF[N - 1] = 1.0
 
         # Build full tridiagonal Jacobian
         J = np.diag(dF)
         # Off-diagonals from Laplacian
-        for j in range(1, N-1):
-            J[j, j-1] += D_c / dx**2
-            J[j, j+1] += D_c / dx**2
+        for j in range(1, N - 1):
+            J[j, j - 1] += D_c / dx**2
+            J[j, j + 1] += D_c / dx**2
         # j=0: Neumann ghost point (only upper off-diagonal)
         J[0, 1] += 2.0 * D_c / dx**2
 
@@ -378,7 +417,7 @@ def solve_1d_nutrient(phi_x, x, D_c=1.0, k_monod=1.0, g_eff=10.0, c_inf=1.0,
         delta = np.linalg.solve(J, -F)
         c = c + delta
         c = np.clip(c, 0.0, c_inf)
-        c[-1] = c_inf   # keep Dirichlet BC
+        c[-1] = c_inf  # keep Dirichlet BC
 
     return c
 
@@ -386,6 +425,7 @@ def solve_1d_nutrient(phi_x, x, D_c=1.0, k_monod=1.0, g_eff=10.0, c_inf=1.0,
 # ---------------------------------------------------------------------------
 # Thiele modulus (dimensionless)
 # ---------------------------------------------------------------------------
+
 
 def thiele_modulus(phi_mean, g_eff, D_c, k_monod, L=1.0):
     """Phi_T = L * sqrt(g * phi_mean / (D_c * k_monod)).
@@ -398,6 +438,7 @@ def thiele_modulus(phi_mean, g_eff, D_c, k_monod, L=1.0):
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
+
 
 def main():
     print("=" * 70)
@@ -439,8 +480,10 @@ def main():
         phi_traj, phi_final = run_hamilton_0d(cfg["theta"], t_final=0.05, dt_h=1e-5)
         cfg["phi_traj"] = phi_traj
         cfg["phi_final"] = phi_final
-        print(f"    phi_final: So={phi_final[0]:.3f}, An={phi_final[1]:.3f}, "
-              f"Vd={phi_final[2]:.3f}, Fn={phi_final[3]:.3f}, Pg={phi_final[4]:.3f}")
+        print(
+            f"    phi_final: So={phi_final[0]:.3f}, An={phi_final[1]:.3f}, "
+            f"Vd={phi_final[2]:.3f}, Fn={phi_final[3]:.3f}, Pg={phi_final[4]:.3f}"
+        )
         results[name] = phi_final
 
     # --- Step 2: 1D spatial profiles ---
@@ -455,22 +498,28 @@ def main():
 
     # --- Step 3: Nutrient transport PDE (sweep over g_eff) ---
     print("\n[3/4] Solving 1D steady-state RD (Newton) ...")
-    g_eff_values = [5.0, 20.0, 50.0]   # low / medium / Klempt-benchmark
+    g_eff_values = [5.0, 20.0, 50.0]  # low / medium / Klempt-benchmark
 
     for name, cfg in cases.items():
         cfg["nutrient_profiles"] = {}
         for g_eff in g_eff_values:
             c_sol = solve_1d_nutrient(
-                cfg["phi_total_1d"], x, D_c=D_c, k_monod=k_monod,
-                g_eff=g_eff, c_inf=c_inf,
+                cfg["phi_total_1d"],
+                x,
+                D_c=D_c,
+                k_monod=k_monod,
+                g_eff=g_eff,
+                c_inf=c_inf,
             )
             cfg["nutrient_profiles"][g_eff] = c_sol
         label = name.replace("\n", " ")
         c_g50 = cfg["nutrient_profiles"][50.0]
         phi_m = float(cfg["phi_total_1d"].mean())
         Phi_T = thiele_modulus(phi_m, 50.0, D_c, k_monod)
-        print(f"  {label}: g=50 -> c_min={c_g50.min():.4f}, c_mean={c_g50.mean():.4f}, "
-              f"Thiele={Phi_T:.2f}")
+        print(
+            f"  {label}: g=50 -> c_min={c_g50.min():.4f}, c_mean={c_g50.mean():.4f}, "
+            f"Thiele={Phi_T:.2f}"
+        )
 
     # --- Step 4: Plot ---
     print("\n[4/4] Plotting ...")
@@ -507,8 +556,8 @@ def main():
     phi_d = cfg_d["phi_final"]
     bar_x = np.arange(5)
     width = 0.35
-    ax.bar(bar_x - width/2, phi_c, width, color="#2ca02c", alpha=0.8, label="Commensal")
-    ax.bar(bar_x + width/2, phi_d, width, color="#d62728", alpha=0.8, label="Dysbiotic")
+    ax.bar(bar_x - width / 2, phi_c, width, color="#2ca02c", alpha=0.8, label="Commensal")
+    ax.bar(bar_x + width / 2, phi_d, width, color="#d62728", alpha=0.8, label="Dysbiotic")
     ax.set_xticks(bar_x)
     ax.set_xticklabels(["So", "An", "Vd", "Fn", "Pg"], fontsize=9)
     ax.set_ylabel("Final volume fraction phi_i")
@@ -535,8 +584,14 @@ def main():
     c_d = cfg_d["nutrient_profiles"][g_eff_plot]
     ax.plot(x, c_c, color="#2ca02c", lw=2, label="Commensal")
     ax.plot(x, c_d, color="#d62728", lw=2, ls="--", label="Dysbiotic")
-    ax.fill_between(x, c_c, c_d, alpha=0.15, color="gray",
-                    label=f"Difference (Dysb-Comm at tooth: {c_d[0]-c_c[0]:.3f})")
+    ax.fill_between(
+        x,
+        c_c,
+        c_d,
+        alpha=0.15,
+        color="gray",
+        label=f"Difference (Dysb-Comm at tooth: {c_d[0]-c_c[0]:.3f})",
+    )
     ax.set_xlabel("Depth x  [0=tooth, 1=saliva]")
     ax.set_ylabel("Nutrient concentration c")
     ax.set_ylim(0, 1.05)
@@ -552,10 +607,22 @@ def main():
         c_d = cfg_d["nutrient_profiles"][g_eff]
         Phi_T_c = thiele_modulus(float(cfg_c["phi_total_1d"].mean()), g_eff, D_c, k_monod)
         Phi_T_d = thiele_modulus(float(cfg_d["phi_total_1d"].mean()), g_eff, D_c, k_monod)
-        ax.plot(x, c_c, color="#2ca02c", lw=1.5, ls=ls,
-                label=f"Comm g={g_eff:.0f} (Phi_T={Phi_T_c:.1f})")
-        ax.plot(x, c_d, color="#d62728", lw=1.5, ls=ls,
-                label=f"Dysb g={g_eff:.0f} (Phi_T={Phi_T_d:.1f})")
+        ax.plot(
+            x,
+            c_c,
+            color="#2ca02c",
+            lw=1.5,
+            ls=ls,
+            label=f"Comm g={g_eff:.0f} (Phi_T={Phi_T_c:.1f})",
+        )
+        ax.plot(
+            x,
+            c_d,
+            color="#d62728",
+            lw=1.5,
+            ls=ls,
+            label=f"Dysb g={g_eff:.0f} (Phi_T={Phi_T_d:.1f})",
+        )
     ax.set_xlabel("Depth x  [0=tooth, 1=saliva]")
     ax.set_ylabel("Nutrient concentration c")
     ax.set_ylim(0, 1.05)
@@ -565,7 +632,8 @@ def main():
     plt.suptitle(
         "TMCMC → Hamilton ODE → Klempt 1D Nutrient Transport Pipeline\n"
         "Commensal (a35=2.41) vs. Dysbiotic (a35=20.94) biofilm",
-        fontsize=12, fontweight="bold"
+        fontsize=12,
+        fontweight="bold",
     )
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     fig_path = os.path.join(OUT_DIR, "hamilton_rd_pipeline_comparison.png")
@@ -574,15 +642,19 @@ def main():
 
     # --- Summary table ---
     print("\n--- Summary Table ---")
-    print(f"{'Case':<25} {'phi_Pg':>8} {'phi_total_mean':>15} {'c_min(g=50)':>12} {'c_tooth(g=50)':>14} {'Thiele(g=50)':>12}")
+    print(
+        f"{'Case':<25} {'phi_Pg':>8} {'phi_total_mean':>15} {'c_min(g=50)':>12} {'c_tooth(g=50)':>14} {'Thiele(g=50)':>12}"
+    )
     print("-" * 88)
     for name, cfg in cases.items():
         label = name.replace("\n", " ")
         phi_m = float(cfg["phi_total_1d"].mean())
         c50 = cfg["nutrient_profiles"][50.0]
         Phi_T = thiele_modulus(phi_m, 50.0, D_c, k_monod)
-        print(f"{label:<25} {cfg['phi_final'][4]:>8.4f} {phi_m:>15.4f} "
-              f"{c50.min():>12.4f} {c50[0]:>14.4f} {Phi_T:>12.2f}")
+        print(
+            f"{label:<25} {cfg['phi_final'][4]:>8.4f} {phi_m:>15.4f} "
+            f"{c50.min():>12.4f} {c50[0]:>14.4f} {Phi_T:>12.2f}"
+        )
 
     print("\nDone. Results in:", OUT_DIR)
     print("=" * 70)

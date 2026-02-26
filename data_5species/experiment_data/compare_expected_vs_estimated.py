@@ -16,7 +16,6 @@ If no --run-dir given, generates demo with synthetic "estimated" data for layout
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
 from scipy.interpolate import PchipInterpolator
 import json
@@ -27,16 +26,20 @@ BASE = "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species"
 DATA_DIR = f"{BASE}/experiment_data"
 
 SPECIES_DISPLAY = [
-    "S. oralis", "A. naeslundii", "V. dispar/parvula", "F. nucleatum", "P. gingivalis"
+    "S. oralis",
+    "A. naeslundii",
+    "V. dispar/parvula",
+    "F. nucleatum",
+    "P. gingivalis",
 ]
 SPECIES_SHORT = ["S. oralis", "A. naeslundii", "V. disp./parv.", "F. nucleatum", "P. gingivalis"]
 
 SPECIES_COLORS = {
-    "S. oralis":        "#2196F3",
-    "A. naeslundii":    "#43A047",
+    "S. oralis": "#2196F3",
+    "A. naeslundii": "#43A047",
     "V. dispar/parvula": "#FF9800",
-    "F. nucleatum":     "#7B1FA2",
-    "P. gingivalis":    "#E53935",
+    "F. nucleatum": "#7B1FA2",
+    "P. gingivalis": "#E53935",
 }
 
 CONDITIONS = [
@@ -83,8 +86,12 @@ def load_estimated_from_run(run_dir):
             result[sp] = {
                 "days": sp_data["day"].values,
                 "mean": sp_data["mean"].values,
-                "ci_lo": sp_data["ci_lo"].values if "ci_lo" in sp_data.columns else sp_data["q05"].values,
-                "ci_hi": sp_data["ci_hi"].values if "ci_hi" in sp_data.columns else sp_data["q95"].values,
+                "ci_lo": (
+                    sp_data["ci_lo"].values if "ci_lo" in sp_data.columns else sp_data["q05"].values
+                ),
+                "ci_hi": (
+                    sp_data["ci_hi"].values if "ci_hi" in sp_data.columns else sp_data["q95"].values
+                ),
             }
         return condition, cultivation, result
 
@@ -101,7 +108,7 @@ def load_estimated_from_run(run_dir):
 
     # Pattern 3: fit_metrics with predicted values
     for sp_idx, sp in enumerate(SPECIES_DISPLAY):
-        fit_path = os.path.join(run_dir, f"fit_metrics_chain0.json")
+        fit_path = os.path.join(run_dir, "fit_metrics_chain0.json")
         if os.path.exists(fit_path):
             with open(fit_path) as f:
                 fit = json.load(f)
@@ -117,8 +124,7 @@ def generate_demo_estimated(df_expected, condition, cultivation):
     Adds noise + slight bias to expected values, with CI bands.
     """
     sub = df_expected[
-        (df_expected["condition"] == condition) &
-        (df_expected["cultivation"] == cultivation)
+        (df_expected["condition"] == condition) & (df_expected["cultivation"] == cultivation)
     ]
     result = {}
     np.random.seed(123)
@@ -152,13 +158,13 @@ def generate_demo_estimated(df_expected, condition, cultivation):
 # Style 1: Stream Graph with CI overlay
 # ══════════════════════════════════════════════════════════════
 
+
 def plot_stream_comparison(df_expected, estimated, condition, cultivation, output_dir):
     """Stream graph: expected as faint fill, estimated as bold line + CI."""
     fig, ax = plt.subplots(figsize=(14, 7))
 
     sub = df_expected[
-        (df_expected["condition"] == condition) &
-        (df_expected["cultivation"] == cultivation)
+        (df_expected["condition"] == condition) & (df_expected["cultivation"] == cultivation)
     ]
     days = sorted(sub["day"].unique())
     days_fine = np.linspace(min(days), max(days), 200)
@@ -174,10 +180,10 @@ def plot_stream_comparison(df_expected, estimated, condition, cultivation, outpu
         else:
             y_fine = np.zeros_like(days_fine)
 
-        ax.fill_between(days_fine, y_stack, y_stack + y_fine,
-                        color=SPECIES_COLORS[sp], alpha=0.15, linewidth=0)
-        ax.plot(days_fine, y_stack + y_fine, color=SPECIES_COLORS[sp],
-                linewidth=0.5, alpha=0.3)
+        ax.fill_between(
+            days_fine, y_stack, y_stack + y_fine, color=SPECIES_COLORS[sp], alpha=0.15, linewidth=0
+        )
+        ax.plot(days_fine, y_stack + y_fine, color=SPECIES_COLORS[sp], linewidth=0.5, alpha=0.3)
         y_stack += y_fine
 
     # ── Estimated: bold lines + CI bands ──
@@ -194,58 +200,80 @@ def plot_stream_comparison(df_expected, estimated, condition, cultivation, outpu
             interp_hi = PchipInterpolator(est["days"], est["ci_hi"])
             interp_mean = PchipInterpolator(est["days"], est["mean"])
 
-            ax.fill_between(d_fine, np.maximum(0, interp_lo(d_fine)),
-                            interp_hi(d_fine),
-                            color=color, alpha=0.2, linewidth=0)
+            ax.fill_between(
+                d_fine,
+                np.maximum(0, interp_lo(d_fine)),
+                interp_hi(d_fine),
+                color=color,
+                alpha=0.2,
+                linewidth=0,
+            )
             ax.plot(d_fine, interp_mean(d_fine), color=color, linewidth=2.5, alpha=0.9)
         else:
-            ax.fill_between(est["days"], est["ci_lo"], est["ci_hi"],
-                            color=color, alpha=0.2)
+            ax.fill_between(est["days"], est["ci_lo"], est["ci_hi"], color=color, alpha=0.2)
             ax.plot(est["days"], est["mean"], color=color, linewidth=2.5)
 
         # Data points (expected) as open circles
         sp_expected = sub[sub["species"] == sp].sort_values("day")
-        ax.plot(sp_expected["day"], sp_expected["species_volume_x1e6"],
-                'o', color=color, markersize=8, markerfacecolor='white',
-                markeredgewidth=2, alpha=0.8, zorder=5)
+        ax.plot(
+            sp_expected["day"],
+            sp_expected["species_volume_x1e6"],
+            "o",
+            color=color,
+            markersize=8,
+            markerfacecolor="white",
+            markeredgewidth=2,
+            alpha=0.8,
+            zorder=5,
+        )
 
         # Estimated points as filled
-        ax.plot(est["days"], est["mean"], 's', color=color, markersize=6,
-                alpha=0.9, zorder=5)
+        ax.plot(est["days"], est["mean"], "s", color=color, markersize=6, alpha=0.9, zorder=5)
 
     # Legend
     legend_elements = []
     for sp in SPECIES_DISPLAY:
-        legend_elements.append(
-            Line2D([0], [0], color=SPECIES_COLORS[sp], lw=2.5, label=sp))
+        legend_elements.append(Line2D([0], [0], color=SPECIES_COLORS[sp], lw=2.5, label=sp))
     legend_elements.append(
-        Line2D([0], [0], color='gray', marker='o', markerfacecolor='white',
-               markeredgewidth=2, markersize=8, lw=0, label='Expected (Fig2×Fig3)'))
+        Line2D(
+            [0],
+            [0],
+            color="gray",
+            marker="o",
+            markerfacecolor="white",
+            markeredgewidth=2,
+            markersize=8,
+            lw=0,
+            label="Expected (Fig2×Fig3)",
+        )
+    )
     legend_elements.append(
-        Line2D([0], [0], color='gray', marker='s', markersize=6, lw=0,
-               label='Estimated (TMCMC)'))
+        Line2D([0], [0], color="gray", marker="s", markersize=6, lw=0, label="Estimated (TMCMC)")
+    )
     legend_elements.append(
-        plt.Rectangle((0, 0), 1, 1, fc='gray', alpha=0.15, label='Expected stream (faint)'))
-    legend_elements.append(
-        plt.Rectangle((0, 0), 1, 1, fc='gray', alpha=0.2, label='95% CI band'))
+        plt.Rectangle((0, 0), 1, 1, fc="gray", alpha=0.15, label="Expected stream (faint)")
+    )
+    legend_elements.append(plt.Rectangle((0, 0), 1, 1, fc="gray", alpha=0.2, label="95% CI band"))
 
-    ax.legend(handles=legend_elements, fontsize=9, loc='upper right',
-              framealpha=0.95, ncol=2)
+    ax.legend(handles=legend_elements, fontsize=9, loc="upper right", framealpha=0.95, ncol=2)
 
     ax.set_xlabel("Day", fontsize=13)
     ax.set_ylabel("Species Volume [×10⁶ μm³]", fontsize=13)
-    ax.set_title(f"Expected vs Estimated  —  {condition} / {cultivation}\n"
-                 f"Faint fill = Expected (Fig2×Fig3),  Bold line + band = TMCMC Estimate ± 95% CI",
-                 fontsize=13, fontweight='bold')
+    ax.set_title(
+        f"Expected vs Estimated  —  {condition} / {cultivation}\n"
+        f"Faint fill = Expected (Fig2×Fig3),  Bold line + band = TMCMC Estimate ± 95% CI",
+        fontsize=13,
+        fontweight="bold",
+    )
     ax.set_xlim(0.5, 21.5)
     ax.set_xticks(DAYS)
     ax.set_ylim(bottom=0)
-    ax.grid(True, alpha=0.15, linestyle='--')
+    ax.grid(True, alpha=0.15, linestyle="--")
     ax.set_axisbelow(True)
 
     fig.tight_layout()
     path = os.path.join(output_dir, f"compare_stream_{condition}_{cultivation}.png")
-    fig.savefig(path, dpi=250, bbox_inches='tight', facecolor='white')
+    fig.savefig(path, dpi=250, bbox_inches="tight", facecolor="white")
     print(f"Saved: {path}")
     plt.close()
 
@@ -254,16 +282,20 @@ def plot_stream_comparison(df_expected, estimated, condition, cultivation, outpu
 # Style 2: Small Multiples with CI bands
 # ══════════════════════════════════════════════════════════════
 
+
 def plot_small_multiples_comparison(df_expected, estimated, condition, cultivation, output_dir):
     """Per-species panels: expected (gray) vs estimated (colored + CI)."""
     fig, axes = plt.subplots(1, 5, figsize=(22, 4.5), sharey=False)
-    fig.suptitle(f"Species-by-Species Comparison  —  {condition} / {cultivation}\n"
-                 f"Gray area = Expected (Fig2×Fig3),  Color = TMCMC Estimate ± 95% CI",
-                 fontsize=13, fontweight='bold', y=1.05)
+    fig.suptitle(
+        f"Species-by-Species Comparison  —  {condition} / {cultivation}\n"
+        f"Gray area = Expected (Fig2×Fig3),  Color = TMCMC Estimate ± 95% CI",
+        fontsize=13,
+        fontweight="bold",
+        y=1.05,
+    )
 
     sub = df_expected[
-        (df_expected["condition"] == condition) &
-        (df_expected["cultivation"] == cultivation)
+        (df_expected["condition"] == condition) & (df_expected["cultivation"] == cultivation)
     ]
 
     for i, sp in enumerate(SPECIES_DISPLAY):
@@ -279,14 +311,22 @@ def plot_small_multiples_comparison(df_expected, estimated, condition, cultivati
             d_fine = np.linspace(days.min(), days.max(), 200)
             interp_exp = PchipInterpolator(days, exp_vals)
             exp_fine = np.maximum(0, interp_exp(d_fine))
-            ax.fill_between(d_fine, 0, exp_fine, color='gray', alpha=0.15, linewidth=0)
-            ax.plot(d_fine, exp_fine, color='gray', linewidth=1.0, alpha=0.4,
-                    linestyle='--')
+            ax.fill_between(d_fine, 0, exp_fine, color="gray", alpha=0.15, linewidth=0)
+            ax.plot(d_fine, exp_fine, color="gray", linewidth=1.0, alpha=0.4, linestyle="--")
 
         # Expected data points
-        ax.plot(days, exp_vals, 'o', color='gray', markersize=9,
-                markerfacecolor='white', markeredgewidth=2.0, alpha=0.7, zorder=5,
-                label='Expected')
+        ax.plot(
+            days,
+            exp_vals,
+            "o",
+            color="gray",
+            markersize=9,
+            markerfacecolor="white",
+            markeredgewidth=2.0,
+            alpha=0.7,
+            zorder=5,
+            label="Expected",
+        )
 
         # Estimated: colored line + CI band
         if sp in estimated:
@@ -297,36 +337,48 @@ def plot_small_multiples_comparison(df_expected, estimated, condition, cultivati
                 interp_hi = PchipInterpolator(est["days"], est["ci_hi"])
                 interp_m = PchipInterpolator(est["days"], est["mean"])
 
-                ax.fill_between(d_fine2, np.maximum(0, interp_lo(d_fine2)),
-                                interp_hi(d_fine2),
-                                color=color, alpha=0.2, linewidth=0, label='95% CI')
-                ax.plot(d_fine2, interp_m(d_fine2), color=color, linewidth=2.5,
-                        alpha=0.9, label='TMCMC Mean')
+                ax.fill_between(
+                    d_fine2,
+                    np.maximum(0, interp_lo(d_fine2)),
+                    interp_hi(d_fine2),
+                    color=color,
+                    alpha=0.2,
+                    linewidth=0,
+                    label="95% CI",
+                )
+                ax.plot(
+                    d_fine2,
+                    interp_m(d_fine2),
+                    color=color,
+                    linewidth=2.5,
+                    alpha=0.9,
+                    label="TMCMC Mean",
+                )
             else:
-                ax.fill_between(est["days"], est["ci_lo"], est["ci_hi"],
-                                color=color, alpha=0.2, label='95% CI')
-                ax.plot(est["days"], est["mean"], color=color, linewidth=2.5,
-                        label='TMCMC Mean')
+                ax.fill_between(
+                    est["days"], est["ci_lo"], est["ci_hi"], color=color, alpha=0.2, label="95% CI"
+                )
+                ax.plot(est["days"], est["mean"], color=color, linewidth=2.5, label="TMCMC Mean")
 
-            ax.plot(est["days"], est["mean"], 's', color=color, markersize=5,
-                    alpha=0.9, zorder=5)
+            ax.plot(est["days"], est["mean"], "s", color=color, markersize=5, alpha=0.9, zorder=5)
 
-        ax.set_title(SPECIES_SHORT[i], fontsize=11, fontweight='bold',
-                     fontstyle='italic', color=color)
+        ax.set_title(
+            SPECIES_SHORT[i], fontsize=11, fontweight="bold", fontstyle="italic", color=color
+        )
         ax.set_xlabel("Day", fontsize=9)
         ax.set_xticks(DAYS)
         ax.set_xlim(0, 22)
         ax.set_ylim(bottom=0)
-        ax.grid(True, alpha=0.15, linestyle='--')
+        ax.grid(True, alpha=0.15, linestyle="--")
         ax.set_axisbelow(True)
 
         if i == 0:
             ax.set_ylabel("Volume [×10⁶ μm³]", fontsize=10)
-            ax.legend(fontsize=7, loc='upper right', framealpha=0.9)
+            ax.legend(fontsize=7, loc="upper right", framealpha=0.9)
 
     fig.tight_layout()
     path = os.path.join(output_dir, f"compare_species_{condition}_{cultivation}.png")
-    fig.savefig(path, dpi=250, bbox_inches='tight', facecolor='white')
+    fig.savefig(path, dpi=250, bbox_inches="tight", facecolor="white")
     print(f"Saved: {path}")
     plt.close()
 
@@ -335,13 +387,13 @@ def plot_small_multiples_comparison(df_expected, estimated, condition, cultivati
 # Style 3: Side-by-side stacked bars
 # ══════════════════════════════════════════════════════════════
 
+
 def plot_sidebyside_bars(df_expected, estimated, condition, cultivation, output_dir):
     """Side-by-side stacked bars: expected (left, faint) vs estimated (right, bold)."""
     fig, ax = plt.subplots(figsize=(14, 6))
 
     sub = df_expected[
-        (df_expected["condition"] == condition) &
-        (df_expected["cultivation"] == cultivation)
+        (df_expected["condition"] == condition) & (df_expected["cultivation"] == cultivation)
     ]
     days = sorted(sub["day"].unique())
     bar_w = 1.2
@@ -356,13 +408,27 @@ def plot_sidebyside_bars(df_expected, estimated, condition, cultivation, output_
             sp_data = sub[(sub["species"] == sp) & (sub["day"] == day)]
             val = sp_data["species_volume_x1e6"].values[0] if len(sp_data) > 0 else 0
 
-            ax.bar(x_center - bar_w/2 - gap/2, val, bar_w, bottom=bottom_exp,
-                   color=SPECIES_COLORS[sp], alpha=0.3, edgecolor='gray',
-                   linewidth=0.5)
+            ax.bar(
+                x_center - bar_w / 2 - gap / 2,
+                val,
+                bar_w,
+                bottom=bottom_exp,
+                color=SPECIES_COLORS[sp],
+                alpha=0.3,
+                edgecolor="gray",
+                linewidth=0.5,
+            )
             if val > 0.015:
-                ax.text(x_center - bar_w/2 - gap/2, bottom_exp + val/2,
-                        f"{val:.3f}", ha='center', va='center', fontsize=5.5,
-                        color='gray', fontweight='bold')
+                ax.text(
+                    x_center - bar_w / 2 - gap / 2,
+                    bottom_exp + val / 2,
+                    f"{val:.3f}",
+                    ha="center",
+                    va="center",
+                    fontsize=5.5,
+                    color="gray",
+                    fontweight="bold",
+                )
             bottom_exp += val
 
         # ── Estimated bar (right) ──
@@ -382,54 +448,87 @@ def plot_sidebyside_bars(df_expected, estimated, condition, cultivation, output_
                 val = 0
                 err_lo = err_hi = 0
 
-            ax.bar(x_center + bar_w/2 + gap/2, val, bar_w, bottom=bottom_est,
-                   color=SPECIES_COLORS[sp], alpha=0.85, edgecolor='white',
-                   linewidth=0.5)
+            ax.bar(
+                x_center + bar_w / 2 + gap / 2,
+                val,
+                bar_w,
+                bottom=bottom_est,
+                color=SPECIES_COLORS[sp],
+                alpha=0.85,
+                edgecolor="white",
+                linewidth=0.5,
+            )
 
             # Error bar for top species in stack
             if val > 0.015:
-                ax.text(x_center + bar_w/2 + gap/2, bottom_est + val/2,
-                        f"{val:.3f}", ha='center', va='center', fontsize=5.5,
-                        color='white', fontweight='bold')
+                ax.text(
+                    x_center + bar_w / 2 + gap / 2,
+                    bottom_est + val / 2,
+                    f"{val:.3f}",
+                    ha="center",
+                    va="center",
+                    fontsize=5.5,
+                    color="white",
+                    fontweight="bold",
+                )
             bottom_est += val
 
         # CI whisker on total estimated
         if estimated:
-            total_lo = sum(estimated[sp]["ci_lo"][estimated[sp]["days"] == day][0]
-                          if sp in estimated and (estimated[sp]["days"] == day).any() else 0
-                          for sp in SPECIES_DISPLAY)
-            total_hi = sum(estimated[sp]["ci_hi"][estimated[sp]["days"] == day][0]
-                          if sp in estimated and (estimated[sp]["days"] == day).any() else 0
-                          for sp in SPECIES_DISPLAY)
-            ax.plot([x_center + bar_w/2 + gap/2] * 2, [total_lo, total_hi],
-                    'k-', linewidth=1.5, alpha=0.5)
-            ax.plot(x_center + bar_w/2 + gap/2, total_hi, 'k_', markersize=6, alpha=0.5)
-            ax.plot(x_center + bar_w/2 + gap/2, total_lo, 'k_', markersize=6, alpha=0.5)
+            total_lo = sum(
+                (
+                    estimated[sp]["ci_lo"][estimated[sp]["days"] == day][0]
+                    if sp in estimated and (estimated[sp]["days"] == day).any()
+                    else 0
+                )
+                for sp in SPECIES_DISPLAY
+            )
+            total_hi = sum(
+                (
+                    estimated[sp]["ci_hi"][estimated[sp]["days"] == day][0]
+                    if sp in estimated and (estimated[sp]["days"] == day).any()
+                    else 0
+                )
+                for sp in SPECIES_DISPLAY
+            )
+            ax.plot(
+                [x_center + bar_w / 2 + gap / 2] * 2,
+                [total_lo, total_hi],
+                "k-",
+                linewidth=1.5,
+                alpha=0.5,
+            )
+            ax.plot(x_center + bar_w / 2 + gap / 2, total_hi, "k_", markersize=6, alpha=0.5)
+            ax.plot(x_center + bar_w / 2 + gap / 2, total_lo, "k_", markersize=6, alpha=0.5)
 
     # Labels
     ax.set_xlabel("Day", fontsize=12)
     ax.set_ylabel("Volume [×10⁶ μm³]", fontsize=12)
-    ax.set_title(f"Expected vs Estimated (Side-by-Side)  —  {condition} / {cultivation}\n"
-                 f"Left (faint) = Expected (Fig2×Fig3),  Right (bold) = TMCMC ± 95% CI",
-                 fontsize=13, fontweight='bold')
+    ax.set_title(
+        f"Expected vs Estimated (Side-by-Side)  —  {condition} / {cultivation}\n"
+        f"Left (faint) = Expected (Fig2×Fig3),  Right (bold) = TMCMC ± 95% CI",
+        fontsize=13,
+        fontweight="bold",
+    )
     ax.set_xticks(days)
     ax.set_xticklabels([f"Day {d}" for d in days], fontsize=11)
     ax.set_xlim(-1, 23)
     ax.set_ylim(bottom=0)
-    ax.grid(True, axis='y', alpha=0.15, linestyle='--')
+    ax.grid(True, axis="y", alpha=0.15, linestyle="--")
     ax.set_axisbelow(True)
 
     # Legend
-    legend_elements = [plt.Rectangle((0, 0), 1, 1, fc=SPECIES_COLORS[sp], alpha=0.85, label=sp)
-                       for sp in SPECIES_DISPLAY]
-    legend_elements.append(plt.Rectangle((0, 0), 1, 1, fc='gray', alpha=0.3, label='Expected'))
-    legend_elements.append(plt.Rectangle((0, 0), 1, 1, fc='gray', alpha=0.85, label='Estimated'))
-    ax.legend(handles=legend_elements, fontsize=8, loc='upper right',
-              framealpha=0.9, ncol=2)
+    legend_elements = [
+        plt.Rectangle((0, 0), 1, 1, fc=SPECIES_COLORS[sp], alpha=0.85, label=sp)
+        for sp in SPECIES_DISPLAY
+    ]
+    legend_elements.append(plt.Rectangle((0, 0), 1, 1, fc="gray", alpha=0.3, label="Expected"))
+    legend_elements.append(plt.Rectangle((0, 0), 1, 1, fc="gray", alpha=0.85, label="Estimated"))
+    ax.legend(handles=legend_elements, fontsize=8, loc="upper right", framealpha=0.9, ncol=2)
 
     fig.tight_layout()
     path = os.path.join(output_dir, f"compare_bars_{condition}_{cultivation}.png")
-    fig.savefig(path, dpi=250, bbox_inches='tight', facecolor='white')
+    fig.savefig(path, dpi=250, bbox_inches="tight", facecolor="white")
     print(f"Saved: {path}")
     plt.close()
 
@@ -438,14 +537,15 @@ def plot_sidebyside_bars(df_expected, estimated, condition, cultivation, output_
 # Main
 # ══════════════════════════════════════════════════════════════
 
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--run-dir", type=str, default=None,
-                        help="Path to TMCMC run directory")
+    parser.add_argument("--run-dir", type=str, default=None, help="Path to TMCMC run directory")
     parser.add_argument("--condition", type=str, default=None)
     parser.add_argument("--cultivation", type=str, default=None)
-    parser.add_argument("--demo", action="store_true",
-                        help="Generate demo with synthetic data for all 4 conditions")
+    parser.add_argument(
+        "--demo", action="store_true", help="Generate demo with synthetic data for all 4 conditions"
+    )
     args = parser.parse_args()
 
     df_expected = load_expected()

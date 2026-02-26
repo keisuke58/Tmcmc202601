@@ -1950,16 +1950,16 @@
 *Solid Section, elset=_PickedSet5, orientation=Ori-1, material=MAT_ANISO_08
 ,
 *End Part
-**  
+**
 **
 ** ASSEMBLY
 **
 *Assembly, name=Assembly
-**  
+**
 *Instance, name=SlitBioInst, part=SlitBiofilm
           0.,           0., 20.7283573150635
 *End Instance
-**  
+**
 *Nset, nset=_PickedSet4, internal, instance=SlitBioInst
    73,   74,   75,   76,  149,  150,  151,  152,  225,  226,  227,  228,  301,  302,  303,  304
   377,  378,  379,  380,  453,  454,  455,  456,  529,  530,  531,  532,  605,  606,  607,  608
@@ -1976,9 +1976,9 @@
 *Surface, type=ELEMENT, name=_PickedSurf5, internal
 __PickedSurf5_S3, S3
 *End Assembly
-** 
+**
 ** MATERIALS
-** 
+**
 *Material, name=MAT_ANISO_00
 *Elastic, type=ENGINEERING CONSTANTS
  9.66586e+09, 9.66586e+09, 9.66586e+09, 0.3, 0.3, 0.3, 3.71764e+09, 3.71764e+09
@@ -2062,37 +2062,37 @@ __PickedSurf5_S3, S3
 *Material, name=MAT_TOOTH
 *Elastic
  1e+10, 0.3
-** 
+**
 ** BOUNDARY CONDITIONS
-** 
+**
 ** Name: FIX_SLIT_BOT Type: Displacement/Rotation
 *Boundary
 _PickedSet4, 1, 1
 _PickedSet4, 2, 2
 _PickedSet4, 3, 3
 ** ----------------------------------------------------------------
-** 
+**
 ** STEP: LOAD_SLIT
-** 
+**
 *Step, name=LOAD_SLIT, nlgeom=NO
 *Static
 0.1, 1., 1e-05, 1.
-** 
+**
 ** LOADS
-** 
+**
 ** Name: PRESS_SLIT   Type: Pressure
 *Dsload
 _PickedSurf5, P, 1e+06
-** 
+**
 ** OUTPUT REQUESTS
-** 
+**
 *Restart, write, frequency=0
-** 
+**
 ** FIELD OUTPUT: F-Output-1
-** 
+**
 *Output, field, variable=PRESELECT
-** 
+**
 ** HISTORY OUTPUT: H-Output-1
-** 
+**
 *Output, history, variable=PRESELECT
 *End Step

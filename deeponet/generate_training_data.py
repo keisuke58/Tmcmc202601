@@ -13,7 +13,6 @@ Output:
 """
 
 import sys
-import os
 import json
 import numpy as np
 from pathlib import Path
@@ -50,8 +49,12 @@ def load_prior_bounds(condition: str = "Dysbiotic_HOBIC") -> np.ndarray:
     return bounds
 
 
-def sample_theta(bounds: np.ndarray, rng: np.random.Generator,
-                 theta_map: np.ndarray = None, map_std_frac: float = 0.1) -> np.ndarray:
+def sample_theta(
+    bounds: np.ndarray,
+    rng: np.random.Generator,
+    theta_map: np.ndarray = None,
+    map_std_frac: float = 0.1,
+) -> np.ndarray:
     """Sample a single θ from uniform prior, or Gaussian around θ_MAP.
 
     If theta_map is provided, samples N(θ_MAP, (σ_i)^2) where σ_i = map_std_frac * range_i,
@@ -177,8 +180,10 @@ def generate_dataset(
     if theta_map is not None:
         n_map = int(n_samples * map_frac)
         n_uniform = n_samples - n_map
-        print(f"Importance sampling: {n_map} MAP-centered + {n_uniform} uniform "
-              f"(std={map_std_frac:.0%} of range)")
+        print(
+            f"Importance sampling: {n_map} MAP-centered + {n_uniform} uniform "
+            f"(std={map_std_frac:.0%} of range)"
+        )
     else:
         n_map = 0
         n_uniform = n_samples
@@ -218,9 +223,10 @@ def generate_dataset(
 
     while n_success < n_samples:
         # Decide: MAP-centered or uniform
-        use_map = (theta_map is not None and n_map_done < n_map)
+        use_map = theta_map is not None and n_map_done < n_map
         theta = sample_theta(
-            bounds, rng,
+            bounds,
+            rng,
             theta_map=theta_map if use_map else None,
             map_std_frac=map_std_frac,
         )
@@ -249,33 +255,43 @@ def generate_dataset(
             elapsed = time.time() - t0
             rate = n_success / elapsed
             map_info = f", MAP={n_map_done}" if theta_map is not None else ""
-            print(f"  {n_success}/{n_samples} done ({rate:.0f} samples/s, "
-                  f"{n_failed} failed{map_info})")
+            print(
+                f"  {n_success}/{n_samples} done ({rate:.0f} samples/s, "
+                f"{n_failed} failed{map_info})"
+            )
 
     elapsed = time.time() - t0
-    print(f"Done: {n_success} samples in {elapsed:.1f}s "
-          f"({n_success/elapsed:.0f}/s, {n_failed} failed)")
+    print(
+        f"Done: {n_success} samples in {elapsed:.1f}s "
+        f"({n_success/elapsed:.0f}/s, {n_failed} failed)"
+    )
     if theta_map is not None:
         print(f"  MAP-centered: {n_map_done}, Uniform: {n_success - n_map_done}")
 
-    theta_arr = np.array(theta_list)   # (N, 20)
-    phi_arr = np.array(phi_list)       # (N, n_time_out, 5)
+    theta_arr = np.array(theta_list)  # (N, 20)
+    phi_arr = np.array(phi_list)  # (N, n_time_out, 5)
 
     return theta_arr, phi_arr, t_out, bounds
 
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--n-samples", type=int, default=10000)
     parser.add_argument("--condition", default="Dysbiotic_HOBIC")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n-time", type=int, default=100)
     parser.add_argument("--maxtimestep", type=int, default=500)
-    parser.add_argument("--map-frac", type=float, default=0.3,
-                        help="Fraction of MAP-centered samples (0=uniform only)")
-    parser.add_argument("--map-std", type=float, default=0.1,
-                        help="Gaussian std as fraction of prior range")
+    parser.add_argument(
+        "--map-frac",
+        type=float,
+        default=0.3,
+        help="Fraction of MAP-centered samples (0=uniform only)",
+    )
+    parser.add_argument(
+        "--map-std", type=float, default=0.1, help="Gaussian std as fraction of prior range"
+    )
     args = parser.parse_args()
 
     theta_arr, phi_arr, t_out, bounds = generate_dataset(

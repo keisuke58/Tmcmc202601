@@ -17,11 +17,11 @@ Usage:
 
 import argparse
 import json
-import sys
 import time
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,8 +41,8 @@ RUNS_DIR = PROJECT_ROOT / "data_5species" / "_runs"
 # ============================================================
 # Constants (shared with DEM)
 # ============================================================
-E_MAX = 1000.0   # Pa
-E_MIN = 10.0     # Pa
+E_MAX = 1000.0  # Pa
+E_MIN = 10.0  # Pa
 NU = 0.30
 W, H, D = 1.0, 0.2, 1.0  # mm
 P_APPLIED = 1.0  # Pa
@@ -53,10 +53,10 @@ SPECIES = ["So", "An", "Vd", "Fn", "Pg"]
 
 # Condition → DeepONet checkpoint mapping (best validated per condition)
 CONDITION_CHECKPOINTS = {
-    "Commensal_Static": "checkpoints_Commensal_Static",      # original: 62% MAP err
-    "Commensal_HOBIC": "checkpoints_Commensal_HOBIC",        # original: 44% MAP err
-    "Dysbiotic_Static": "checkpoints_DS_v2",                 # v2 MAP-centered: 52%
-    "Dysbiotic_HOBIC": "checkpoints_Dysbiotic_HOBIC_50k",    # 50k: 11% MAP err
+    "Commensal_Static": "checkpoints_Commensal_Static",  # original: 62% MAP err
+    "Commensal_HOBIC": "checkpoints_Commensal_HOBIC",  # original: 44% MAP err
+    "Dysbiotic_Static": "checkpoints_DS_v2",  # v2 MAP-centered: 52%
+    "Dysbiotic_HOBIC": "checkpoints_Dysbiotic_HOBIC_50k",  # 50k: 11% MAP err
 }
 
 # Condition → theta_MAP mapping
@@ -94,8 +94,7 @@ def load_deeponet(condition: str):
         n_layers = cfg.get("n_layers", n_layers)
 
     key = jr.PRNGKey(0)
-    model = DeepONet(theta_dim=20, n_species=5, p=p, hidden=hidden,
-                     n_layers=n_layers, key=key)
+    model = DeepONet(theta_dim=20, n_species=5, p=p, hidden=hidden, n_layers=n_layers, key=key)
     model = eqx.tree_deserialise_leaves(str(ckpt_path), model)
 
     # Normalization stats
@@ -145,7 +144,7 @@ def di_to_E(di, di_scale=1.0, exponent=2.0):
     E = E_MAX * (1 - r)^n + E_MIN * r, where r = clip(di/di_scale, 0, 1).
     """
     r = jnp.clip(di / di_scale, 0.0, 1.0)
-    return E_MAX * (1.0 - r)**exponent + E_MIN * r
+    return E_MAX * (1.0 - r) ** exponent + E_MIN * r
 
 
 # ============================================================
@@ -176,7 +175,7 @@ def dem_predict_max_uy(dem_model, E_val):
     """
     E_norm = E_val / E_MAX
     # Top center point
-    u = dem_model(jnp.float32(W/2), jnp.float32(H), jnp.float32(D/2), E_norm)
+    u = dem_model(jnp.float32(W / 2), jnp.float32(H), jnp.float32(D / 2), E_norm)
     return u[1]  # u_y
 
 
@@ -188,6 +187,7 @@ def make_pipeline(don_model, theta_lo, theta_width, dem_model):
     Create the full differentiable pipeline function.
     Returns a function: θ_raw (20,) → u_y_max (scalar).
     """
+
     def pipeline(theta_raw):
         # Step 1: DeepONet → φ
         phi = deeponet_predict_final(don_model, theta_raw, theta_lo, theta_width)
@@ -207,6 +207,7 @@ def make_pipeline_full(don_model, theta_lo, theta_width, dem_model):
     Full pipeline returning all intermediate values.
     θ_raw → (φ, DI, E, u_y_max)
     """
+
     def pipeline(theta_raw):
         phi = deeponet_predict_final(don_model, theta_raw, theta_lo, theta_width)
         di = compute_di(phi)
@@ -248,8 +249,7 @@ def run_demo():
 
     results = {}
 
-    for cond in ["Commensal_Static", "Commensal_HOBIC",
-                 "Dysbiotic_Static", "Dysbiotic_HOBIC"]:
+    for cond in ["Commensal_Static", "Commensal_HOBIC", "Dysbiotic_Static", "Dysbiotic_HOBIC"]:
         print(f"\n--- {cond} ---")
 
         # Load DeepONet
@@ -306,14 +306,18 @@ def run_demo():
         # Top 5 sensitive parameters
         abs_grad = np.abs(grads_np)
         top_idx = np.argsort(abs_grad)[::-1][:5]
-        print(f"  Top sensitivities ∂u_y/∂θ:")
+        print("  Top sensitivities ∂u_y/∂θ:")
         for i in top_idx:
             print(f"    θ[{i:2d}]: {grads_np[i]:+.4e}")
 
         results[cond] = {
-            "phi": phi_np, "DI": float(di), "E": float(E),
-            "uy": float(uy), "grads": grads_np,
-            "t_forward": t_per_call, "t_grad": t_grad,
+            "phi": phi_np,
+            "DI": float(di),
+            "E": float(E),
+            "uy": float(uy),
+            "grads": grads_np,
+            "t_forward": t_per_call,
+            "t_grad": t_grad,
             "theta_MAP": np.array(theta_map),
         }
 
@@ -328,14 +332,23 @@ def run_demo():
     n = len(conds)
 
     fig = plt.figure(figsize=(20, 14))
-    fig.suptitle("End-to-End Differentiable Pipeline: θ → DeepONet → DI → DEM → u\n"
-                 "All steps JAX-differentiable", fontsize=14, fontweight="bold")
+    fig.suptitle(
+        "End-to-End Differentiable Pipeline: θ → DeepONet → DI → DEM → u\n"
+        "All steps JAX-differentiable",
+        fontsize=14,
+        fontweight="bold",
+    )
 
-    gs = fig.add_gridspec(3, n, hspace=0.4, wspace=0.35,
-                          left=0.06, right=0.96, top=0.90, bottom=0.06)
+    gs = fig.add_gridspec(
+        3, n, hspace=0.4, wspace=0.35, left=0.06, right=0.96, top=0.90, bottom=0.06
+    )
 
-    colors = {"Commensal_Static": "#4CAF50", "Commensal_HOBIC": "#2196F3",
-              "Dysbiotic_Static": "#F44336", "Dysbiotic_HOBIC": "#FF9800"}
+    colors = {
+        "Commensal_Static": "#4CAF50",
+        "Commensal_HOBIC": "#2196F3",
+        "Dysbiotic_Static": "#F44336",
+        "Dysbiotic_HOBIC": "#FF9800",
+    }
 
     # --- Row 1: Species bar charts ---
     for col, cond in enumerate(conds):
@@ -343,8 +356,7 @@ def run_demo():
         r = results[cond]
         bars = ax.bar(SPECIES, r["phi"], color=colors[cond], alpha=0.8)
         ax.set_ylim(0, 1)
-        ax.set_title(f"{cond}\nDI={r['DI']:.3f}  E={r['E']:.0f} Pa",
-                     fontsize=10)
+        ax.set_title(f"{cond}\nDI={r['DI']:.3f}  E={r['E']:.0f} Pa", fontsize=10)
         ax.set_ylabel("φ (fraction)" if col == 0 else "")
 
     # --- Row 2: DEM displacement profiles ---
@@ -360,12 +372,12 @@ def run_demo():
         # Evaluate DEM along vertical line at center
         uy_profile = []
         for yi in y_pts:
-            u = dem_model(jnp.float32(W/2), yi, jnp.float32(D/2), E_norm)
+            u = dem_model(jnp.float32(W / 2), yi, jnp.float32(D / 2), E_norm)
             uy_profile.append(float(u[1]))
         uy_arr = np.array(uy_profile) * 1000  # mm → μm
 
-        ax.plot(uy_arr, np.array(y_pts) * 1000, '-', color=colors[cond], lw=2)
-        ax.axhline(H * 1000, color='gray', ls='--', alpha=0.5, label='Top')
+        ax.plot(uy_arr, np.array(y_pts) * 1000, "-", color=colors[cond], lw=2)
+        ax.axhline(H * 1000, color="gray", ls="--", alpha=0.5, label="Top")
         ax.set_xlabel("u_y [μm]")
         ax.set_ylabel("y [μm]" if col == 0 else "")
         ax.set_title(f"u_y max = {r['uy']*1000:.2f} μm", fontsize=10)
@@ -378,16 +390,17 @@ def run_demo():
 
     for i, cond in enumerate(conds):
         r = results[cond]
-        offset = (i - n/2 + 0.5) * bar_width
-        ax_sens.bar(x_pos + offset, r["grads"], bar_width,
-                    color=colors[cond], alpha=0.7, label=cond)
+        offset = (i - n / 2 + 0.5) * bar_width
+        ax_sens.bar(
+            x_pos + offset, r["grads"], bar_width, color=colors[cond], alpha=0.7, label=cond
+        )
 
     ax_sens.set_xlabel("Parameter index θ[i]")
     ax_sens.set_ylabel("∂u_y / ∂θ[i]")
     ax_sens.set_title("Exact Sensitivity via JAX Autodiff (no finite differences)")
     ax_sens.set_xticks(range(20))
     ax_sens.legend(fontsize=8, ncol=2)
-    ax_sens.grid(True, alpha=0.3, axis='y')
+    ax_sens.grid(True, alpha=0.3, axis="y")
 
     out_path = str(SCRIPT_DIR / "e2e_pipeline_3d.png")
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
@@ -395,13 +408,17 @@ def run_demo():
 
     # Summary table
     print("\n" + "=" * 70)
-    print(f"{'Condition':<22} {'DI':>6} {'E [Pa]':>8} {'u_y [μm]':>10} "
-          f"{'Fwd [ms]':>9} {'Grad [ms]':>10}")
+    print(
+        f"{'Condition':<22} {'DI':>6} {'E [Pa]':>8} {'u_y [μm]':>10} "
+        f"{'Fwd [ms]':>9} {'Grad [ms]':>10}"
+    )
     print("-" * 70)
     for cond in conds:
         r = results[cond]
-        print(f"{cond:<22} {r['DI']:>6.3f} {r['E']:>8.1f} "
-              f"{r['uy']*1000:>10.2f} {r['t_forward']:>9.2f} {r['t_grad']:>10.2f}")
+        print(
+            f"{cond:<22} {r['DI']:>6.3f} {r['E']:>8.1f} "
+            f"{r['uy']*1000:>10.2f} {r['t_forward']:>9.2f} {r['t_grad']:>10.2f}"
+        )
 
     # Speedup vs Abaqus
     if conds:
@@ -410,13 +427,14 @@ def run_demo():
         print(f"\nAvg forward pass: {avg_fwd:.2f} ms")
         print(f"Abaqus FEM: ~{abaqus_time_ms/1000:.0f} s")
         print(f"Speedup: ~{abaqus_time_ms/avg_fwd:.0f}x")
-        print(f"+ exact ∂u/∂θ via autodiff (Abaqus: impossible)")
+        print("+ exact ∂u/∂θ via autodiff (Abaqus: impossible)")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sensitivity", action="store_true",
-                        help="Detailed sensitivity analysis only")
+    parser.add_argument(
+        "--sensitivity", action="store_true", help="Detailed sensitivity analysis only"
+    )
     args = parser.parse_args()
 
     run_demo()

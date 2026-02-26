@@ -32,95 +32,98 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def parse_args():
-    p = argparse.ArgumentParser(
-        description="3-tooth DI→Eeff material-model sensitivity sweep")
-    p.add_argument("--stl-root",
-                   default="external_tooth_models/OpenJaw_Dataset/Patient_1",
-                   help="Root directory containing Teeth/ STL files")
-    p.add_argument("--di-csv",
-                   default="abaqus_field_dh_3d.csv",
-                   help="DI field CSV used for binning")
-    p.add_argument("--abaqus",
-                   default="/home/nishioka/DassaultSystemes/SIMULIA/Commands/abaqus",
-                   help="Path to abaqus executable")
+    p = argparse.ArgumentParser(description="3-tooth DI→Eeff material-model sensitivity sweep")
+    p.add_argument(
+        "--stl-root",
+        default="external_tooth_models/OpenJaw_Dataset/Patient_1",
+        help="Root directory containing Teeth/ STL files",
+    )
+    p.add_argument(
+        "--di-csv", default="abaqus_field_dh_3d.csv", help="DI field CSV used for binning"
+    )
+    p.add_argument(
+        "--abaqus",
+        default="/home/nishioka/DassaultSystemes/SIMULIA/Commands/abaqus",
+        help="Path to abaqus executable",
+    )
     p.add_argument("--base-e-max-mpa", type=float, default=10.0)
     p.add_argument("--base-e-min-mpa", type=float, default=0.5)
-    p.add_argument("--base-di-exp",    type=float, default=2.0)
-    p.add_argument("--base-di-scale",  type=float, default=0.025778)
-    p.add_argument("--pressure",       type=float, default=1.0e6,
-                   help="Applied pressure in Pa (default 1 MPa)")
-    p.add_argument("--n-layers",       type=int,   default=8)
-    p.add_argument("--n-bins",         type=int,   default=20)
-    p.add_argument("--nu",             type=float, default=0.30)
+    p.add_argument("--base-di-exp", type=float, default=2.0)
+    p.add_argument("--base-di-scale", type=float, default=0.025778)
+    p.add_argument(
+        "--pressure", type=float, default=1.0e6, help="Applied pressure in Pa (default 1 MPa)"
+    )
+    p.add_argument("--n-layers", type=int, default=8)
+    p.add_argument("--n-bins", type=int, default=20)
+    p.add_argument("--nu", type=float, default=0.30)
     p.add_argument("--slit-threshold", type=float, default=0.30)
-    p.add_argument("--slit-max-dist",  type=float, default=None)
-    p.add_argument("--no-slit",        action="store_true")
-    p.add_argument("--summary-csv",
-                   default="eeff_sensitivity_summary.csv")
-    p.add_argument("--dry-run", action="store_true",
-                   help="Print planned jobs but do not run Abaqus")
+    p.add_argument("--slit-max-dist", type=float, default=None)
+    p.add_argument("--no-slit", action="store_true")
+    p.add_argument("--summary-csv", default="eeff_sensitivity_summary.csv")
+    p.add_argument(
+        "--dry-run", action="store_true", help="Print planned jobs but do not run Abaqus"
+    )
     return p.parse_args()
 
 
-def build_experiment_grid(base_e_max_mpa, base_e_min_mpa,
-                          base_di_exp, base_di_scale):
+def build_experiment_grid(base_e_max_mpa, base_e_min_mpa, base_di_exp, base_di_scale):
     exps = []
 
-    emax_values = [0.75 * base_e_max_mpa,
-                   base_e_max_mpa,
-                   1.25 * base_e_max_mpa]
+    emax_values = [0.75 * base_e_max_mpa, base_e_max_mpa, 1.25 * base_e_max_mpa]
     for v in emax_values:
         label = "Emax_%.2f" % v
-        exps.append({
-            "label": label,
-            "param_type": "Emax",
-            "E_max_MPa": v,
-            "E_min_MPa": base_e_min_mpa,
-            "DI_EXP": base_di_exp,
-            "DI_SCALE": base_di_scale,
-        })
+        exps.append(
+            {
+                "label": label,
+                "param_type": "Emax",
+                "E_max_MPa": v,
+                "E_min_MPa": base_e_min_mpa,
+                "DI_EXP": base_di_exp,
+                "DI_SCALE": base_di_scale,
+            }
+        )
 
-    emin_values = [0.5 * base_e_min_mpa,
-                   base_e_min_mpa,
-                   2.0 * base_e_min_mpa]
+    emin_values = [0.5 * base_e_min_mpa, base_e_min_mpa, 2.0 * base_e_min_mpa]
     for v in emin_values:
         label = "Emin_%.3f" % v
-        exps.append({
-            "label": label,
-            "param_type": "Emin",
-            "E_max_MPa": base_e_max_mpa,
-            "E_min_MPa": v,
-            "DI_EXP": base_di_exp,
-            "DI_SCALE": base_di_scale,
-        })
+        exps.append(
+            {
+                "label": label,
+                "param_type": "Emin",
+                "E_max_MPa": base_e_max_mpa,
+                "E_min_MPa": v,
+                "DI_EXP": base_di_exp,
+                "DI_SCALE": base_di_scale,
+            }
+        )
 
-    di_exp_values = [0.5 * base_di_exp,
-                     base_di_exp,
-                     1.5 * base_di_exp]
+    di_exp_values = [0.5 * base_di_exp, base_di_exp, 1.5 * base_di_exp]
     for v in di_exp_values:
         label = "DIexp_%.2f" % v
-        exps.append({
-            "label": label,
-            "param_type": "DI_EXP",
-            "E_max_MPa": base_e_max_mpa,
-            "E_min_MPa": base_e_min_mpa,
-            "DI_EXP": v,
-            "DI_SCALE": base_di_scale,
-        })
+        exps.append(
+            {
+                "label": label,
+                "param_type": "DI_EXP",
+                "E_max_MPa": base_e_max_mpa,
+                "E_min_MPa": base_e_min_mpa,
+                "DI_EXP": v,
+                "DI_SCALE": base_di_scale,
+            }
+        )
 
-    di_scale_values = [0.75 * base_di_scale,
-                       base_di_scale,
-                       1.25 * base_di_scale]
+    di_scale_values = [0.75 * base_di_scale, base_di_scale, 1.25 * base_di_scale]
     for v in di_scale_values:
         label = "DIscale_%.5f" % v
-        exps.append({
-            "label": label,
-            "param_type": "DI_SCALE",
-            "E_max_MPa": base_e_max_mpa,
-            "E_min_MPa": base_e_min_mpa,
-            "DI_EXP": base_di_exp,
-            "DI_SCALE": v,
-        })
+        exps.append(
+            {
+                "label": label,
+                "param_type": "DI_SCALE",
+                "E_max_MPa": base_e_max_mpa,
+                "E_min_MPa": base_e_min_mpa,
+                "DI_EXP": base_di_exp,
+                "DI_SCALE": v,
+            }
+        )
 
     return exps
 
@@ -135,21 +138,36 @@ def run_assembly_and_abaqus(exp, args):
 
     assembly_script = os.path.join(SCRIPT_DIR, "biofilm_3tooth_assembly.py")
     cmd = [
-        sys.executable, assembly_script,
-        "--stl-root", args.stl_root,
-        "--di-csv", args.di_csv,
-        "--out", inp_name,
-        "--job-name", job_name,
-        "--n-layers", str(args.n_layers),
-        "--n-bins", str(args.n_bins),
-        "--e-max", str(e_max_pa),
-        "--e-min", str(e_min_pa),
-        "--di-scale", str(exp["DI_SCALE"]),
-        "--di-exp", str(exp["DI_EXP"]),
-        "--nu", str(args.nu),
-        "--pressure", str(args.pressure),
-        "--slit-threshold", str(args.slit_threshold),
-        "--abaqus", args.abaqus,
+        sys.executable,
+        assembly_script,
+        "--stl-root",
+        args.stl_root,
+        "--di-csv",
+        args.di_csv,
+        "--out",
+        inp_name,
+        "--job-name",
+        job_name,
+        "--n-layers",
+        str(args.n_layers),
+        "--n-bins",
+        str(args.n_bins),
+        "--e-max",
+        str(e_max_pa),
+        "--e-min",
+        str(e_min_pa),
+        "--di-scale",
+        str(exp["DI_SCALE"]),
+        "--di-exp",
+        str(exp["DI_EXP"]),
+        "--nu",
+        str(args.nu),
+        "--pressure",
+        str(args.pressure),
+        "--slit-threshold",
+        str(args.slit_threshold),
+        "--abaqus",
+        args.abaqus,
     ]
     if args.slit_max_dist is not None:
         cmd.extend(["--slit-max-dist", str(args.slit_max_dist)])
@@ -159,9 +177,10 @@ def run_assembly_and_abaqus(exp, args):
 
     print("=" * 72)
     print("Experiment:", label)
-    print("  E_max=%.3f MPa  E_min=%.3f MPa  DI_EXP=%.3f  DI_SCALE=%.6f" % (
-        exp["E_max_MPa"], exp["E_min_MPa"],
-        exp["DI_EXP"], exp["DI_SCALE"]))
+    print(
+        "  E_max=%.3f MPa  E_min=%.3f MPa  DI_EXP=%.3f  DI_SCALE=%.6f"
+        % (exp["E_max_MPa"], exp["E_min_MPa"], exp["DI_EXP"], exp["DI_SCALE"])
+    )
     print("  Job name:", job_name)
     print("  INP     :", inp_name)
 
@@ -188,7 +207,8 @@ def run_odb_extract(odb_path, args, label):
         return None, None
 
     cmd = [
-        args.abaqus, "python",
+        args.abaqus,
+        "python",
         os.path.join(SCRIPT_DIR, "odb_extract.py"),
         odb_path,
     ]
@@ -246,11 +266,18 @@ def compute_metrics(nodes_csv, elems_csv):
 
 def append_summary_row(summary_csv, exp, metrics):
     header = [
-        "label", "param_type",
-        "E_max_MPa", "E_min_MPa",
-        "DI_EXP", "DI_SCALE",
-        "T23_mises_med", "T30_mises_med", "T31_mises_med",
-        "T23_u_outer_med", "T30_u_outer_med", "T31_u_outer_med",
+        "label",
+        "param_type",
+        "E_max_MPa",
+        "E_min_MPa",
+        "DI_EXP",
+        "DI_SCALE",
+        "T23_mises_med",
+        "T30_mises_med",
+        "T31_mises_med",
+        "T23_u_outer_med",
+        "T30_u_outer_med",
+        "T31_u_outer_med",
     ]
 
     need_header = not os.path.exists(summary_csv)
@@ -309,4 +336,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

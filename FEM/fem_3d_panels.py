@@ -3,6 +3,7 @@ import argparse
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -11,10 +12,10 @@ def make_pg_overview_panel(out_path: Path):
     fem_dir = Path(__file__).resolve().parent
     base = fem_dir / "_results_3d"
     cfgs = [
-        ("Commensal_Static",   "Commensal Static"),
-        ("Dysbiotic_Static",   "Dysbiotic Static"),
-        ("Commensal_HOBIC",    "Commensal HOBIC"),
-        ("Dysbiotic_HOBIC",    "Dysbiotic HOBIC"),
+        ("Commensal_Static", "Commensal Static"),
+        ("Dysbiotic_Static", "Dysbiotic Static"),
+        ("Commensal_HOBIC", "Commensal HOBIC"),
+        ("Dysbiotic_HOBIC", "Dysbiotic HOBIC"),
     ]
 
     fig, axes = plt.subplots(2, 2, figsize=(10, 9))
@@ -59,4 +60,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

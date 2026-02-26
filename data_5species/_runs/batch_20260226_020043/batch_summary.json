@@ -1,0 +1,47 @@
+{
+  "timestamp": "20260226_020043",
+  "mode": "sequential",
+  "max_workers": 1,
+  "total_elapsed_seconds": 142.49400997161865,
+  "total_elapsed_minutes": 2.3749001661936444,
+  "conditions": [
+    "Commensal:Static",
+    "Commensal:HOBIC",
+    "Dysbiotic:Static",
+    "Dysbiotic:HOBIC"
+  ],
+  "results": {
+    "Commensal_Static": {
+      "success": true,
+      "output_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/_runs/batch_20260226_020043/Commensal_Static",
+      "error": null,
+      "logL_max": -1.4105086289993205,
+      "converged": false,
+      "elapsed_time": 36.38501954078674
+    },
+    "Commensal_HOBIC": {
+      "success": true,
+      "output_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/_runs/batch_20260226_020043/Commensal_HOBIC",
+      "error": null,
+      "logL_max": -12.429677000291722,
+      "converged": false,
+      "elapsed_time": 32.9791533946991
+    },
+    "Dysbiotic_Static": {
+      "success": true,
+      "output_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/_runs/batch_20260226_020043/Dysbiotic_Static",
+      "error": null,
+      "logL_max": -17.162269949077228,
+      "converged": false,
+      "elapsed_time": 34.64409160614014
+    },
+    "Dysbiotic_HOBIC": {
+      "success": true,
+      "output_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/_runs/batch_20260226_020043/Dysbiotic_HOBIC",
+      "error": null,
+      "logL_max": -7.345183083186151,
+      "converged": true,
+      "elapsed_time": 33.326833724975586
+    }
+  }
+}

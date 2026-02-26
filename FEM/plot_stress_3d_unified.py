@@ -17,12 +17,11 @@ from pathlib import Path
 
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.colors import LogNorm, Normalize
+from matplotlib.colors import LogNorm
 from matplotlib import cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 _HERE = Path(__file__).resolve().parent
 _FIG_DIR = _HERE / "figures"
@@ -30,19 +29,18 @@ _FIG_DIR.mkdir(exist_ok=True)
 _JOBS = _HERE / "_abaqus_auto_jobs"
 _CONFORMAL = _HERE / "_3d_conformal_auto"
 
-CONDITIONS = ["commensal_static", "commensal_hobic",
-              "dh_baseline", "dysbiotic_static"]
+CONDITIONS = ["commensal_static", "commensal_hobic", "dh_baseline", "dysbiotic_static"]
 
 COND_LABELS = {
     "commensal_static": "Commensal Static",
-    "commensal_hobic":  "Commensal HOBIC",
-    "dh_baseline":      "Dysbiotic HOBIC",
+    "commensal_hobic": "Commensal HOBIC",
+    "dh_baseline": "Dysbiotic HOBIC",
     "dysbiotic_static": "Dysbiotic Static",
 }
 COND_COLORS = {
     "commensal_static": "#2ca02c",
-    "commensal_hobic":  "#17becf",
-    "dh_baseline":      "#d62728",
+    "commensal_hobic": "#17becf",
+    "dh_baseline": "#d62728",
     "dysbiotic_static": "#ff7f0e",
 }
 
@@ -61,8 +59,10 @@ def load_nodes_csv(csv_path):
             zs.append(float(parts[4]))
             umags.append(float(parts[8]))
     return {
-        "x": np.array(xs), "y": np.array(ys),
-        "z": np.array(zs), "u_mag": np.array(umags),
+        "x": np.array(xs),
+        "y": np.array(ys),
+        "z": np.array(zs),
+        "u_mag": np.array(umags),
     }
 
 
@@ -140,10 +140,15 @@ def fig_unified_3d(all_data):
             sel = np.arange(n_nodes)
 
         sc = ax.scatter(
-            d["x"][sel], d["y"][sel], d["z"][sel],
+            d["x"][sel],
+            d["y"][sel],
+            d["z"][sel],
             c=np.clip(d["u_mag"][sel], vmin, vmax),
-            cmap="inferno", norm=norm,
-            s=3, alpha=0.6, rasterized=True,
+            cmap="inferno",
+            norm=norm,
+            s=3,
+            alpha=0.6,
+            rasterized=True,
         )
 
         # Annotations
@@ -170,10 +175,11 @@ def fig_unified_3d(all_data):
     fig.suptitle(
         "3D Abaqus: Biofilm Displacement — Unified Colorbar (Log Scale)\n"
         "Hybrid DI: 0D condition scale × 2D spatial pattern → $E(DI)$",
-        fontsize=13, fontweight="bold", y=0.98,
+        fontsize=13,
+        fontweight="bold",
+        y=0.98,
     )
-    fig.subplots_adjust(left=0.03, right=0.90, top=0.90, bottom=0.05,
-                        wspace=0.15, hspace=0.25)
+    fig.subplots_adjust(left=0.03, right=0.90, top=0.90, bottom=0.05, wspace=0.15, hspace=0.25)
 
     out = _FIG_DIR / "stress_3d_unified_log.png"
     fig.savefig(out, dpi=200, bbox_inches="tight")
@@ -204,20 +210,21 @@ def fig_di_overlay(all_data):
         ax_di = fig.add_subplot(2, n, idx + 1)
         di_field = d.get("di_field", None)
         if di_field is not None:
-            im = ax_di.imshow(di_field.T, origin="lower", cmap="RdYlGn_r",
-                              aspect="equal", extent=[0, 1, 0, 1])
+            im = ax_di.imshow(
+                di_field.T, origin="lower", cmap="RdYlGn_r", aspect="equal", extent=[0, 1, 0, 1]
+            )
             cb = fig.colorbar(im, ax=ax_di, shrink=0.8, pad=0.02)
             cb.set_label("DI", fontsize=8)
             cb.ax.tick_params(labelsize=7)
         else:
-            ax_di.text(0.5, 0.5, "No DI data", ha="center", va="center",
-                       transform=ax_di.transAxes)
+            ax_di.text(0.5, 0.5, "No DI data", ha="center", va="center", transform=ax_di.transAxes)
 
         label = COND_LABELS[cond]
         di_0d = d.get("meta", {}).get("di_0d", 0)
         e_pa = d.get("meta", {}).get("E_di_Pa", 0)
-        ax_di.set_title(f"{label}\n$DI_{{0D}}$={di_0d:.3f}, $E$={e_pa:.0f} Pa",
-                        fontsize=9, fontweight="bold")
+        ax_di.set_title(
+            f"{label}\n$DI_{{0D}}$={di_0d:.3f}, $E$={e_pa:.0f} Pa", fontsize=9, fontweight="bold"
+        )
         ax_di.set_xlabel("x/L", fontsize=8)
         ax_di.set_ylabel("y/L", fontsize=8)
         ax_di.tick_params(labelsize=7)
@@ -228,14 +235,18 @@ def fig_di_overlay(all_data):
         sel = rng.choice(n_nodes, min(max_pts, n_nodes), replace=False)
 
         sc = ax_3d.scatter(
-            d["x"][sel], d["y"][sel], d["z"][sel],
+            d["x"][sel],
+            d["y"][sel],
+            d["z"][sel],
             c=np.clip(d["u_mag"][sel], vmin_u, vmax_u),
-            cmap="inferno", norm=norm_u,
-            s=3, alpha=0.6, rasterized=True,
+            cmap="inferno",
+            norm=norm_u,
+            s=3,
+            alpha=0.6,
+            rasterized=True,
         )
 
-        disp_max = d.get("stress", {}).get("displacement", {}).get(
-            "max_mag", np.max(d["u_mag"]))
+        disp_max = d.get("stress", {}).get("displacement", {}).get("max_mag", np.max(d["u_mag"]))
         ax_3d.set_title(f"$U_{{max}}$ = {disp_max:.0f} mm", fontsize=9)
         ax_3d.set_xlabel("X", fontsize=7)
         ax_3d.set_ylabel("Y", fontsize=7)
@@ -254,10 +265,11 @@ def fig_di_overlay(all_data):
         "DI Spatial Field (top) → 3D Biofilm Displacement (bottom)\n"
         "Row 1: Hybrid DI from 0D ODE + 2D Hamilton+PDE   |   "
         "Row 2: Abaqus displacement on T23 conformal mesh",
-        fontsize=12, fontweight="bold", y=0.99,
+        fontsize=12,
+        fontweight="bold",
+        y=0.99,
     )
-    fig.subplots_adjust(left=0.04, right=0.90, top=0.90, bottom=0.04,
-                        wspace=0.20, hspace=0.30)
+    fig.subplots_adjust(left=0.04, right=0.90, top=0.90, bottom=0.04, wspace=0.20, hspace=0.30)
 
     out = _FIG_DIR / "stress_3d_di_overlay.png"
     fig.savefig(out, dpi=200, bbox_inches="tight")
@@ -278,7 +290,8 @@ def fig_bar_summary(all_data):
     ax = axes[0]
     vals = [all_data[c].get("meta", {}).get("di_0d", 0) for c in conds]
     ax.bar(x, vals, color=colors, edgecolor="k", linewidth=0.5)
-    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=7)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=7)
     ax.set_ylabel("$DI_{0D}$", fontsize=11)
     ax.set_title("(a) Dysbiosis Index (0D)", fontsize=11, weight="bold")
     ax.grid(True, alpha=0.3, axis="y")
@@ -287,18 +300,25 @@ def fig_bar_summary(all_data):
     ax = axes[1]
     vals = [all_data[c].get("meta", {}).get("E_di_Pa", 0) for c in conds]
     ax.bar(x, vals, color=colors, edgecolor="k", linewidth=0.5)
-    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=7)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=7)
     ax.set_ylabel("$E_{bio}$ [Pa]", fontsize=11)
     ax.set_title("(b) Biofilm Stiffness", fontsize=11, weight="bold")
     ax.grid(True, alpha=0.3, axis="y")
 
     # (c) U_max [mm] (log scale)
     ax = axes[2]
-    vals = [all_data[c].get("stress", {}).get("displacement", {}).get(
-                "max_mag", np.max(all_data[c]["u_mag"])) for c in conds]
+    vals = [
+        all_data[c]
+        .get("stress", {})
+        .get("displacement", {})
+        .get("max_mag", np.max(all_data[c]["u_mag"]))
+        for c in conds
+    ]
     ax.bar(x, vals, color=colors, edgecolor="k", linewidth=0.5)
     ax.set_yscale("log")
-    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=7)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=7)
     ax.set_ylabel("$U_{max}$ [mm] (log)", fontsize=11)
     ax.set_title("(c) Max Displacement", fontsize=11, weight="bold")
     ax.grid(True, alpha=0.3, axis="y")
@@ -307,19 +327,22 @@ def fig_bar_summary(all_data):
     ax = axes[3]
     for i, c in enumerate(conds):
         e = all_data[c].get("meta", {}).get("E_di_Pa", 0)
-        u = all_data[c].get("stress", {}).get("displacement", {}).get(
-                "max_mag", np.max(all_data[c]["u_mag"]))
-        ax.scatter(e, u, color=COND_COLORS[c], s=120, edgecolor="k",
-                   zorder=5, label=COND_LABELS[c])
-    ax.set_xscale("log"); ax.set_yscale("log")
+        u = (
+            all_data[c]
+            .get("stress", {})
+            .get("displacement", {})
+            .get("max_mag", np.max(all_data[c]["u_mag"]))
+        )
+        ax.scatter(e, u, color=COND_COLORS[c], s=120, edgecolor="k", zorder=5, label=COND_LABELS[c])
+    ax.set_xscale("log")
+    ax.set_yscale("log")
     ax.set_xlabel("$E_{bio}$ [Pa]", fontsize=11)
     ax.set_ylabel("$U_{max}$ [mm]", fontsize=11)
     ax.set_title("(d) Stiffness vs Displacement", fontsize=11, weight="bold")
     ax.legend(fontsize=7, loc="upper right")
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle("Cross-Condition Biofilm Mechanics Summary",
-                 fontsize=13, weight="bold")
+    fig.suptitle("Cross-Condition Biofilm Mechanics Summary", fontsize=13, weight="bold")
     fig.tight_layout(rect=[0, 0, 1, 0.93])
 
     out = _FIG_DIR / "stress_3d_bar_summary.png"

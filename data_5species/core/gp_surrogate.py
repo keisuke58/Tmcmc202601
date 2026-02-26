@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -38,7 +37,14 @@ class GPSurrogate:
         n = k.shape[0]
         k[np.diag_indices(n)] += noise
         k_inv = np.linalg.inv(k)
-        return cls(x_train=x_train, y_train=y_train, length_scale=length_scale, variance=variance, noise=noise, _k_inv=k_inv)
+        return cls(
+            x_train=x_train,
+            y_train=y_train,
+            length_scale=length_scale,
+            variance=variance,
+            noise=noise,
+            _k_inv=k_inv,
+        )
 
     def predict(self, x_test: np.ndarray, return_std: bool = False):
         x_test = np.asarray(x_test, dtype=np.float64)
@@ -69,4 +75,3 @@ def surrogate_log_likelihood(
         return -1e20
     resid2 = (y_obs - mu[0]) ** 2
     return -0.5 * np.log(2.0 * np.pi * var_total) - 0.5 * resid2 / var_total
-

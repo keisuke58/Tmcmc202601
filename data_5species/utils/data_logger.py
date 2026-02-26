@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 class DataLogger:
     """Logger for saving TMCMC execution data and logs."""
-    
+
     def __init__(self, output_dir: str | Path):
         """
         Initialize data logger.
-        
+
         Parameters
         ----------
         output_dir : str | Path
@@ -37,36 +37,40 @@ class DataLogger:
         self.logs_dir = self.output_dir / "logs"
         self.data_dir = self.output_dir / "data"
         self.metadata_dir = self.output_dir / "metadata"
-        
+
         # Create directories
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.metadata_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Log file handles
         self.tmcmc_log_file = None
         self.linearization_log_file = None
         self.rom_error_log_file = None
         self.parameter_evolution_log_file = None
-    
+
     def __enter__(self):
         """Context manager entry."""
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit - close log files."""
         self.close_logs()
-    
+
     def close_logs(self):
         """Close all log file handles."""
-        for log_file in [self.tmcmc_log_file, self.linearization_log_file, 
-                         self.rom_error_log_file, self.parameter_evolution_log_file]:
+        for log_file in [
+            self.tmcmc_log_file,
+            self.linearization_log_file,
+            self.rom_error_log_file,
+            self.parameter_evolution_log_file,
+        ]:
             if log_file is not None:
                 try:
                     log_file.close()
                 except Exception:
                     pass
-    
+
     def save_tmcmc_log_entry(
         self,
         model: str,
@@ -82,7 +86,7 @@ class DataLogger:
     ):
         """
         Save a TMCMC stage log entry.
-        
+
         Parameters
         ----------
         model : str
@@ -108,7 +112,7 @@ class DataLogger:
         """
         if self.tmcmc_log_file is None:
             self.tmcmc_log_file = open(self.logs_dir / "tmcmc_detailed.log", "a", encoding="utf-8")
-        
+
         entry = {
             "timestamp": datetime.now().isoformat(),
             "model": model,
@@ -123,10 +127,10 @@ class DataLogger:
             "logL_max": float(logL_max),
             "n_particles": int(n_particles),
         }
-        
+
         self.tmcmc_log_file.write(json.dumps(entry, ensure_ascii=False) + "\n")
         self.tmcmc_log_file.flush()
-    
+
     def save_linearization_update(
         self,
         model: str,
@@ -139,7 +143,7 @@ class DataLogger:
     ):
         """
         Save a linearization update log entry.
-        
+
         Parameters
         ----------
         model : str
@@ -161,16 +165,18 @@ class DataLogger:
             self.linearization_log_file = open(
                 self.logs_dir / "linearization_updates.log", "a", encoding="utf-8"
             )
-        
+
         if active_indices is not None:
             theta0_before_subset = theta0_before[active_indices].tolist()
             theta0_after_subset = theta0_after[active_indices].tolist()
-            step_norm = float(np.linalg.norm(theta0_after[active_indices] - theta0_before[active_indices]))
+            step_norm = float(
+                np.linalg.norm(theta0_after[active_indices] - theta0_before[active_indices])
+            )
         else:
             theta0_before_subset = theta0_before.tolist()
             theta0_after_subset = theta0_after.tolist()
             step_norm = float(np.linalg.norm(theta0_after - theta0_before))
-        
+
         entry = {
             "timestamp": datetime.now().isoformat(),
             "model": model,
@@ -182,10 +188,10 @@ class DataLogger:
             "rom_error_after": float(rom_error_after),
             "rom_error_improvement": float(rom_error_before - rom_error_after),
         }
-        
+
         self.linearization_log_file.write(json.dumps(entry, ensure_ascii=False) + "\n")
         self.linearization_log_file.flush()
-    
+
     def save_rom_error_entry(
         self,
         model: str,
@@ -195,7 +201,7 @@ class DataLogger:
     ):
         """
         Save a ROM error log entry.
-        
+
         Parameters
         ----------
         model : str
@@ -211,7 +217,7 @@ class DataLogger:
             self.rom_error_log_file = open(
                 self.logs_dir / "rom_error_history.log", "a", encoding="utf-8"
             )
-        
+
         entry = {
             "timestamp": datetime.now().isoformat(),
             "model": model,
@@ -220,10 +226,10 @@ class DataLogger:
             "threshold": float(threshold),
             "below_threshold": rom_error < threshold,
         }
-        
+
         self.rom_error_log_file.write(json.dumps(entry, ensure_ascii=False) + "\n")
         self.rom_error_log_file.flush()
-    
+
     def save_parameter_evolution(
         self,
         model: str,
@@ -235,7 +241,7 @@ class DataLogger:
     ):
         """
         Save parameter evolution log entry.
-        
+
         Parameters
         ----------
         model : str
@@ -255,7 +261,7 @@ class DataLogger:
             self.parameter_evolution_log_file = open(
                 self.logs_dir / "parameter_evolution.log", "a", encoding="utf-8"
             )
-        
+
         if active_indices is not None:
             theta_MAP_subset = theta_MAP[active_indices].tolist()
             theta_mean_subset = theta_mean[active_indices].tolist()
@@ -264,7 +270,7 @@ class DataLogger:
             theta_MAP_subset = theta_MAP.tolist()
             theta_mean_subset = theta_mean.tolist()
             theta_std_subset = theta_std.tolist()
-        
+
         entry = {
             "timestamp": datetime.now().isoformat(),
             "model": model,
@@ -273,10 +279,10 @@ class DataLogger:
             "theta_mean": theta_mean_subset,
             "theta_std": theta_std_subset,
         }
-        
+
         self.parameter_evolution_log_file.write(json.dumps(entry, ensure_ascii=False) + "\n")
         self.parameter_evolution_log_file.flush()
-    
+
     def save_posterior_samples(
         self,
         model: str,
@@ -285,7 +291,7 @@ class DataLogger:
     ):
         """
         Save posterior samples to NPZ file.
-        
+
         Parameters
         ----------
         model : str
@@ -301,9 +307,13 @@ class DataLogger:
             samples=samples,
             param_names=np.array(param_names, dtype=object),
         )
-        logger.info("Saved posterior samples: %s (%d samples, %d params)", 
-                   filename.name, samples.shape[0], samples.shape[1])
-    
+        logger.info(
+            "Saved posterior samples: %s (%d samples, %d params)",
+            filename.name,
+            samples.shape[0],
+            samples.shape[1],
+        )
+
     def save_phibar_samples(
         self,
         model: str,
@@ -313,7 +323,7 @@ class DataLogger:
     ):
         """
         Save posterior predictive phibar samples.
-        
+
         Parameters
         ----------
         model : str
@@ -332,24 +342,28 @@ class DataLogger:
             t_arr=t_arr,
             active_species=np.array(active_species),
         )
-        logger.info("Saved phibar samples: %s (%d draws, %d time points, %d species)",
-                   filename.name, phibar_samples.shape[0], phibar_samples.shape[1], 
-                   phibar_samples.shape[2])
-    
+        logger.info(
+            "Saved phibar samples: %s (%d draws, %d time points, %d species)",
+            filename.name,
+            phibar_samples.shape[0],
+            phibar_samples.shape[1],
+            phibar_samples.shape[2],
+        )
+
     def save_beta_schedules(
         self,
         beta_schedules: Dict[str, List[List[float]]],
     ):
         """
         Save beta schedules for all models.
-        
+
         Parameters
         ----------
         beta_schedules : Dict[str, List[List[float]]]
             Beta schedules per model (model_name -> list of chains)
         """
         filename = self.data_dir / "beta_schedules.npz"
-        
+
         # Convert to arrays
         beta_dict = {}
         for model, chains in beta_schedules.items():
@@ -361,10 +375,10 @@ class DataLogger:
                     padded = chain + [chain[-1]] * (max_len - len(chain))
                     padded_chains.append(padded)
                 beta_dict[f"{model}_beta_schedules"] = np.array(padded_chains)
-        
+
         np.savez_compressed(filename, **beta_dict)
         logger.info("Saved beta schedules: %s", filename.name)
-    
+
     def save_history_data(
         self,
         model: str,
@@ -376,7 +390,7 @@ class DataLogger:
     ):
         """
         Save history data (MAP, Mean, ESS, acceptance rate, ROM error).
-        
+
         Parameters
         ----------
         model : str
@@ -393,20 +407,20 @@ class DataLogger:
             ROM error history
         """
         filename = self.data_dir / f"history_{model}.npz"
-        
+
         save_dict = {
             "theta_MAP_history": np.array(theta_MAP_history),
             "theta_mean_history": np.array(theta_mean_history),
             "ess_history": np.array(ess_history),
             "acc_rate_history": np.array(acc_rate_history),
         }
-        
+
         if rom_error_history is not None:
             save_dict["rom_error_history"] = np.array(rom_error_history)
-        
+
         np.savez_compressed(filename, **save_dict)
         logger.info("Saved history data: %s", filename.name)
-    
+
     def save_metadata(
         self,
         experiment_config: Dict[str, Any],
@@ -417,7 +431,7 @@ class DataLogger:
     ):
         """
         Save metadata files.
-        
+
         Parameters
         ----------
         experiment_config : Dict[str, Any]
@@ -431,6 +445,7 @@ class DataLogger:
         timing_breakdown : Dict[str, Any]
             Timing breakdown
         """
+
         def to_jsonable(obj: Any) -> Any:
             """Convert numpy types to JSON-serializable types."""
             if isinstance(obj, np.ndarray):
@@ -443,25 +458,25 @@ class DataLogger:
                 return [to_jsonable(item) for item in obj]
             else:
                 return obj
-        
+
         # Save experiment config
         with open(self.metadata_dir / "experiment_config.json", "w", encoding="utf-8") as f:
             json.dump(to_jsonable(experiment_config), f, indent=2, ensure_ascii=False)
-        
+
         # Save model configs
         with open(self.metadata_dir / "model_configs.json", "w", encoding="utf-8") as f:
             json.dump(to_jsonable(model_configs), f, indent=2, ensure_ascii=False)
-        
+
         # Save data generation
         with open(self.metadata_dir / "data_generation.json", "w", encoding="utf-8") as f:
             json.dump(to_jsonable(data_generation), f, indent=2, ensure_ascii=False)
-        
+
         # Save convergence summary
         with open(self.metadata_dir / "convergence_summary.json", "w", encoding="utf-8") as f:
             json.dump(to_jsonable(convergence_summary), f, indent=2, ensure_ascii=False)
-        
+
         # Save timing breakdown
         with open(self.metadata_dir / "timing_breakdown.json", "w", encoding="utf-8") as f:
             json.dump(to_jsonable(timing_breakdown), f, indent=2, ensure_ascii=False)
-        
+
         logger.info("Saved metadata files to %s", self.metadata_dir)

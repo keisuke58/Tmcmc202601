@@ -871,7 +871,7 @@ run\_dir に最低限残すべきもの:
   \node[node,below=6mm of start] (init) {初期化\\事前分布から\\$N$個の粒子生成};
   \node[node,below=6mm of init] (beta0) {$\beta_0 = 0$\\初期尤度評価};
   \node[decision,below=7mm of beta0] (loop) {ステージ\\$s=1,2,\ldots$};
-  
+
   \node[node,right=16mm of loop] (delta) {$\Delta\beta$決定\\（二分探索）};
   \node[node,below=6mm of delta] (beta) {$\beta_{s+1} = \min(\beta_s + \Delta\beta, 1.0)$};
   \node[node,below=6mm of beta] (weight) {重み更新\\$w_i \propto \exp((\beta_{s+1}-\beta_s)\log L_i)$};
@@ -879,12 +879,12 @@ run\_dir に最低限残すべきもの:
   \node[node,below=6mm of ess] (resample) {重み付き\\リサンプリング};
   \node[node,below=6mm of resample] (mutation) {K-step\\Mutation};
   \node[decision,below=7mm of mutation] (lin_check) {$\beta \geq$\\閾値?};
-  
+
   \node[node,left=16mm of lin_check] (lin_update) {線形化点\\更新};
   \node[decision,below=7mm of lin_update] (beta1) {$\beta = 1.0$?};
-  
+
   \node[end,below=7mm of beta1] (end) {終了\\Posterior取得};
-  
+
   \draw[arrow] (start) -- (init);
   \draw[arrow] (init) -- (beta0);
   \draw[arrow] (beta0) -- (loop);
@@ -915,13 +915,13 @@ run\_dir に最低限残すべきもの:
   \node[decision] (beta_check) {$\beta \geq$\\linearization\_threshold?};
   \node[decision,below=7mm of beta_check] (interval) {更新間隔\\（例：3ステージ）\\経過?};
   \node[decision,below=7mm of interval] (rom_check) {ROM error\\$<$ 閾値?};
-  
+
   \node[node,right=18mm of rom_check] (map) {MAP計算\\または\\観測ベース選択};
   \node[node,below=6mm of map] (update) {$\theta_0$更新\\キャッシュ無効化};
   \node[node,below=6mm of update] (enable) {線形化ON\\（初回のみ）};
-  
+
   \node[node,left=18mm of rom_check] (skip) {更新スキップ};
-  
+
   \draw[arrow] (beta_check) -- node[left,font=\tiny] {No} (skip);
   \draw[arrow] (beta_check) -- node[right,font=\tiny] {Yes} (interval);
   \draw[arrow] (interval) -- node[left,font=\tiny] {No} (skip);
@@ -943,20 +943,20 @@ run\_dir に最低限残すべきもの:
   arrow/.style={-Latex,thick,shorten >=2pt,shorten <=2pt}
 ]
   \node[decision] (lin_enabled) {線形化\\有効?};
-  
+
   \node[node,right=22mm of lin_enabled] (lin_on) {線形化ON\\$x(\theta) \approx x(\theta_0) + J(\theta-\theta_0)$};
   \node[decision,below=7mm of lin_on] (cache) {キャッシュ\\存在?};
   \node[node,right=16mm of cache] (use_cache) {キャッシュから\\取得};
   \node[node,left=16mm of cache] (compute) {$x^{(0)}(\theta_0)$\\$x^{(1)}$計算};
   \node[node,below=7mm of compute] (cache_store) {キャッシュに保存};
-  
+
   \node[node,left=22mm of lin_enabled] (lin_off) {線形化OFF\\フルTSM評価};
   \node[node,below=7mm of lin_off] (deterministic) {決定論的軌道\\$x^{(0)}(\theta)$計算};
   \node[node,below=6mm of deterministic] (sensitivity) {感度計算\\$x^{(1)} = \partial x/\partial\theta$};
-  
+
   \node[node,below=18mm of lin_enabled] (mean_var) {平均・分散計算\\$\mu, \Sigma$};
   \node[node,below=6mm of mean_var] (likelihood) {ガウシアン尤度\\$\log p(D\mid\theta)$};
-  
+
   \draw[arrow] (lin_enabled) -- node[above,font=\tiny] {Yes} (lin_on);
   \draw[arrow] (lin_enabled) -- node[above,font=\tiny] {No} (lin_off);
   \draw[arrow] (lin_on) -- (cache);
@@ -1667,4 +1667,3 @@ Journal of Statistical Planning and Inference，140(3)，640--651，2010．DOI: 
 \end{thebibliography}
 
 \end{document}
-

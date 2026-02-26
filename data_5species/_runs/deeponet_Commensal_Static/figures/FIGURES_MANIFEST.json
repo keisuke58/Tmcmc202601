@@ -1,0 +1,15 @@
+{
+  "output_dir": "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/_runs/deeponet_Commensal_Static/figures",
+  "n_figures": 8,
+  "figures": [
+    "TSM_simulation_Commensal_Static_MAP_Fit_with_data.png",
+    "TSM_simulation_Commensal_Static_Mean_Fit_with_data.png",
+    "residuals_Commensal_Static_Residuals.png",
+    "parameter_distributions_Commensal_Static_Params.png",
+    "corner_plot_Commensal_Static_Corner.png",
+    "posterior_predictive_Commensal_Static_PosteriorBand.png",
+    "posterior_predictive_spaghetti_Commensal_Static_PosteriorSpaghetti.png",
+    "Fig01_TMCMC_beta_schedule_Commensal_Static.png"
+  ],
+  "generated_at": "2026-02-26 04:32:25"
+}

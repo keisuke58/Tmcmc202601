@@ -19,9 +19,9 @@ Usage
 """
 import argparse
 import os
-import re
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -30,9 +30,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 
 # ── Tet quality functions ──────────────────────────────────────────────────────
 
+
 def tet_volumes(nodes, tets):
     """Signed volumes of C3D4 tets. Negative = inverted."""
-    v = nodes[tets]                     # (E, 4, 3)
+    v = nodes[tets]  # (E, 4, 3)
     a = v[:, 1] - v[:, 0]
     b = v[:, 2] - v[:, 0]
     c = v[:, 3] - v[:, 0]
@@ -41,8 +42,8 @@ def tet_volumes(nodes, tets):
 
 def tet_aspect_ratios(nodes, tets):
     """Max/min edge length ratio per tet."""
-    v = nodes[tets]                     # (E, 4, 3)
-    edges = [v[:, j] - v[:, i] for i, j in [(0,1),(0,2),(0,3),(1,2),(1,3),(2,3)]]
+    v = nodes[tets]  # (E, 4, 3)
+    edges = [v[:, j] - v[:, i] for i, j in [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]]
     lengths = np.stack([np.linalg.norm(e, axis=1) for e in edges], axis=1)  # (E, 6)
     L_max = lengths.max(axis=1)
     L_min = lengths.min(axis=1)
@@ -54,9 +55,9 @@ def tet_shape_quality(nodes, tets):
     Normalised shape quality Q ∈ (0, 1].
     Q = 12 * (3 * |V|)^(2/3) / sum_of_squared_edges  (1 for equilateral tet)
     """
-    v = nodes[tets]                     # (E, 4, 3)
-    edges = [v[:, j] - v[:, i] for i, j in [(0,1),(0,2),(0,3),(1,2),(1,3),(2,3)]]
-    L2 = sum(np.sum(e**2, axis=1) for e in edges)     # (E,)
+    v = nodes[tets]  # (E, 4, 3)
+    edges = [v[:, j] - v[:, i] for i, j in [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]]
+    L2 = sum(np.sum(e**2, axis=1) for e in edges)  # (E,)
     vol = np.abs(tet_volumes(nodes, tets))
     num = 12.0 * (3.0 * vol) ** (2.0 / 3.0)
     denom = np.where(L2 < 1e-30, 1e-30, L2)
@@ -65,11 +66,12 @@ def tet_shape_quality(nodes, tets):
 
 # ── INP parser ────────────────────────────────────────────────────────────────
 
+
 def parse_inp(inp_path):
     """Return nodes (dict label→coords) and tets (list of (label, n1,n2,n3,n4))."""
     nodes = {}
-    tets  = []
-    mode  = None
+    tets = []
+    mode = None
     with open(inp_path) as f:
         for line in f:
             line = line.rstrip()
@@ -111,10 +113,14 @@ def parse_inp(inp_path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--inp",     default=os.path.join(_HERE, "biofilm_3tooth.inp"))
+    ap.add_argument("--inp", default=os.path.join(_HERE, "biofilm_3tooth.inp"))
     ap.add_argument("--out-dir", default=os.path.join(_HERE, "figures"))
-    ap.add_argument("--ar-flag", type=float, default=10.0,
-                    help="Aspect ratio threshold for flagging bad elements [10]")
+    ap.add_argument(
+        "--ar-flag",
+        type=float,
+        default=10.0,
+        help="Aspect ratio threshold for flagging bad elements [10]",
+    )
     args = ap.parse_args()
 
     print("=" * 60)
@@ -130,34 +136,34 @@ def main():
 
     # Build contiguous arrays
     labels_arr = np.array([t[0] for t in tet_list], dtype=np.int32)
-    conn_raw   = np.array([[t[1], t[2], t[3], t[4]] for t in tet_list], dtype=np.int32)
+    conn_raw = np.array([[t[1], t[2], t[3], t[4]] for t in tet_list], dtype=np.int32)
 
     # Map 1-based node labels to 0-based row indices
     node_labels = sorted(node_dict.keys())
     lbl2idx = {lbl: i for i, lbl in enumerate(node_labels)}
-    coords  = np.array([node_dict[lbl] for lbl in node_labels])   # (N, 3)
-    conn    = np.array([[lbl2idx[n] for n in row] for row in conn_raw])  # (E, 4)
+    coords = np.array([node_dict[lbl] for lbl in node_labels])  # (N, 3)
+    conn = np.array([[lbl2idx[n] for n in row] for row in conn_raw])  # (E, 4)
 
     # ── Compute metrics ───────────────────────────────────────────────────────
     print("\nComputing quality metrics...")
     vols = tet_volumes(coords, conn)
-    AR   = tet_aspect_ratios(coords, conn)
-    Q    = tet_shape_quality(coords, conn)
+    AR = tet_aspect_ratios(coords, conn)
+    Q = tet_shape_quality(coords, conn)
 
-    n_neg    = (vols < 0).sum()
+    n_neg = (vols < 0).sum()
     n_bad_ar = (AR > args.ar_flag).sum()
 
-    print(f"\nVolume (mm³):")
+    print("\nVolume (mm³):")
     for q in [0, 1, 5, 50, 95, 99, 100]:
         print(f"  p{q:3d} = {np.percentile(vols, q):.4e}")
     print(f"  Negative volumes: {n_neg}")
 
-    print(f"\nAspect ratio (L_max / L_min):")
+    print("\nAspect ratio (L_max / L_min):")
     for q in [50, 75, 90, 95, 99, 100]:
         print(f"  p{q:3d} = {np.percentile(AR, q):.2f}")
     print(f"  Elements with AR > {args.ar_flag}: {n_bad_ar} ({100.*n_bad_ar/len(AR):.2f}%)")
 
-    print(f"\nShape quality Q ∈ (0,1]  (1=equilateral):")
+    print("\nShape quality Q ∈ (0,1]  (1=equilateral):")
     for q in [0, 1, 5, 50, 95, 100]:
         print(f"  p{q:3d} = {np.percentile(Q, q):.4f}")
     print(f"  Q < 0.1 (poor quality): {(Q < 0.1).sum()} ({100.*(Q<0.1).mean():.2f}%)")
@@ -169,7 +175,7 @@ def main():
         print(f"  [FAIL] {n_neg} negative-volume elements — recheck tet orientation fix.")
         ok = False
     if n_bad_ar > 0:
-        pct = 100. * n_bad_ar / len(AR)
+        pct = 100.0 * n_bad_ar / len(AR)
         if pct > 1.0:
             print(f"  [WARN] {n_bad_ar} ({pct:.1f}%) elements have AR > {args.ar_flag}.")
             ok = False

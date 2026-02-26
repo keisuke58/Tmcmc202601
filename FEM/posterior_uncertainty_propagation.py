@@ -57,25 +57,44 @@ _RUNS_ROOT = _TMCMC_ROOT / "data_5species" / "_runs"
 _OUT_BASE = _HERE / "_uncertainty_propagation"
 
 CONDITION_RUNS = {
-    "dh_baseline":      _RUNS_ROOT / "dh_baseline",
+    "dh_baseline": _RUNS_ROOT / "dh_baseline",
     "commensal_static": _RUNS_ROOT / "commensal_static",
-    "commensal_hobic":  _RUNS_ROOT / "commensal_hobic",
+    "commensal_hobic": _RUNS_ROOT / "commensal_hobic",
     "dysbiotic_static": _RUNS_ROOT / "dysbiotic_static",
 }
 
-E_MAX = 10.0e9; E_MIN = 0.5e9; DI_SCALE = 0.025778; DI_EXP = 2.0
+E_MAX = 10.0e9
+E_MIN = 0.5e9
+DI_SCALE = 0.025778
+DI_EXP = 2.0
 
 PARAM_NAMES = [
-    "a11", "a12", "a22", "b1", "b2",
-    "a33", "a34", "a44", "b3", "b4",
-    "a13", "a14", "a23", "a24",
-    "a55", "b5", "a15", "a25", "a35", "a45",
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45",
 ]
 
 
 def di_to_eeff(di):
     r = np.clip(di / DI_SCALE, 0, 1)
-    return E_MAX * (1-r)**DI_EXP + E_MIN * r
+    return E_MAX * (1 - r) ** DI_EXP + E_MIN * r
 
 
 def load_posterior_samples(run_dir, n_samples, seed=42):
@@ -88,14 +107,14 @@ def load_posterior_samples(run_dir, n_samples, seed=42):
     if samples_path.exists():
         all_samples = np.load(samples_path)
         rng = np.random.default_rng(seed)
-        idx = rng.choice(len(all_samples), size=min(n_samples, len(all_samples)),
-                        replace=False)
+        idx = rng.choice(len(all_samples), size=min(n_samples, len(all_samples)), replace=False)
         return all_samples[idx]
 
     # Fallback: generate samples around theta_MAP
     theta_path = run_dir / "theta_MAP.json"
     if theta_path.exists():
         import json as _json
+
         with open(theta_path) as f:
             d = _json.load(f)
         if "theta_full" in d:
@@ -128,6 +147,7 @@ def compute_di_from_phi(phi_final):
 def run_single_sample(theta, cfg_dict):
     """Run single forward model: theta → DI field."""
     from JAXFEM.core_hamilton_2d_nutrient import run_simulation, Config2D
+
     cfg = Config2D(**cfg_dict)
     result = run_simulation(theta, cfg)
     phi_snaps = np.array(result["phi_snaps"])
@@ -135,8 +155,8 @@ def run_single_sample(theta, cfg_dict):
     di = compute_di_from_phi(phi_snaps[-1])
     # phi_final: (5, Nx, Ny) -> (Nx, Ny, 5) for material_models API
     phi_final_nxy5 = phi_snaps[-1].transpose(1, 2, 0)
-    e_phi_pg = compute_E_phi_pg(phi_final_nxy5)        # (Nx, Ny) [Pa]
-    e_virulence = compute_E_virulence(phi_final_nxy5)   # (Nx, Ny) [Pa]
+    e_phi_pg = compute_E_phi_pg(phi_final_nxy5)  # (Nx, Ny) [Pa]
+    e_virulence = compute_E_virulence(phi_final_nxy5)  # (Nx, Ny) [Pa]
     return {
         "phi_snaps": phi_snaps,
         "c_snaps": c_snaps,
@@ -178,10 +198,14 @@ def run_condition(condition, args):
     print(f"{'='*60}")
 
     cfg_dict = {
-        "Nx": args.nx, "Ny": args.ny,
-        "n_macro": args.n_macro, "n_react_sub": args.n_react_sub,
-        "dt_h": args.dt_h, "save_every": args.save_every,
-        "K_hill": args.k_hill, "n_hill": args.n_hill,
+        "Nx": args.nx,
+        "Ny": args.ny,
+        "n_macro": args.n_macro,
+        "n_react_sub": args.n_react_sub,
+        "dt_h": args.dt_h,
+        "save_every": args.save_every,
+        "K_hill": args.k_hill,
+        "n_hill": args.n_hill,
     }
 
     # Run samples
@@ -203,9 +227,15 @@ def run_condition(condition, args):
                     cached_meta = json.load(f)
                 cached_nx = cached_meta.get("nx", -1)
                 cached_ny = cached_meta.get("ny", -1)
-                if (cached_nx, cached_ny) != (-1, -1) and (cached_nx, cached_ny) != (args.nx, args.ny):
-                    print(f"  [{k+1}/{n_actual}] grid mismatch ({cached_nx}x{cached_ny} vs {args.nx}x{args.ny}), recomputing...")
+                if (cached_nx, cached_ny) != (-1, -1) and (cached_nx, cached_ny) != (
+                    args.nx,
+                    args.ny,
+                ):
+                    print(
+                        f"  [{k+1}/{n_actual}] grid mismatch ({cached_nx}x{cached_ny} vs {args.nx}x{args.ny}), recomputing..."
+                    )
                     import shutil
+
                     shutil.rmtree(sample_dir)
                     done_flag = sample_dir / "done.flag"  # reset
 
@@ -281,10 +311,12 @@ def run_condition(condition, args):
             # Free JAX compilation cache to prevent memory leak
             try:
                 import jax
+
                 jax.clear_caches()
             except Exception:
                 pass
             import gc
+
             gc.collect()
 
         except Exception as e:
@@ -340,7 +372,7 @@ def run_condition(condition, args):
     np.save(agg_dir / "evir_p95.npy", evir_p95)
 
     # Sensitivity indices (first-order, variance-based)
-    sensitivity = compute_sensitivity(samples[:len(di_fields)], di_arr)
+    sensitivity = compute_sensitivity(samples[: len(di_fields)], di_arr)
 
     with (agg_dir / "sensitivity_indices.json").open("w") as f:
         json.dump(sensitivity, f, indent=2)
@@ -363,8 +395,7 @@ def run_condition(condition, args):
         json.dump(summary, f, indent=2)
 
     # Generate figures
-    _plot_uncertainty_bands(di_arr, eeff_arr, epg_arr, evir_arr,
-                           fig_dir, condition)
+    _plot_uncertainty_bands(di_arr, eeff_arr, epg_arr, evir_arr, fig_dir, condition)
     _plot_sensitivity(sensitivity, fig_dir, condition)
 
     print(f"\n  DI mean: {np.mean(di_mean):.6f}")
@@ -408,18 +439,18 @@ def compute_sensitivity(theta_samples, di_arr):
         }
 
     # Sort by absolute correlation
-    sorted_params = sorted(sensitivity.items(),
-                          key=lambda x: abs(x[1]["spearman_di_mean"]),
-                          reverse=True)
+    sorted_params = sorted(
+        sensitivity.items(), key=lambda x: abs(x[1]["spearman_di_mean"]), reverse=True
+    )
     sensitivity["_ranking"] = [p[0] for p in sorted_params[:5]]
 
     return sensitivity
 
 
-def _plot_uncertainty_bands(di_arr, eeff_arr, epg_arr, evir_arr,
-                           fig_dir, condition):
+def _plot_uncertainty_bands(di_arr, eeff_arr, epg_arr, evir_arr, fig_dir, condition):
     """Plot DI, E_eff (DI), E_phi_pg, and E_virulence uncertainty bands."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -428,8 +459,7 @@ def _plot_uncertainty_bands(di_arr, eeff_arr, epg_arr, evir_arr,
     # Panel (a): DI mean with CI (spatial)
     ax = axes[0, 0]
     di_mean = np.mean(di_arr, axis=0)
-    im = ax.imshow(di_mean.T, origin="lower", cmap="RdYlGn_r",
-                   aspect="equal")
+    im = ax.imshow(di_mean.T, origin="lower", cmap="RdYlGn_r", aspect="equal")
     plt.colorbar(im, ax=ax, label="DI mean")
     ax.set_title("(a) DI Mean Field", fontsize=12)
 
@@ -444,12 +474,16 @@ def _plot_uncertainty_bands(di_arr, eeff_arr, epg_arr, evir_arr,
     ax = axes[1, 0]
     di_means = np.mean(di_arr.reshape(len(di_arr), -1), axis=1)
     ax.hist(di_means, bins=20, color="#2ca02c", alpha=0.7, density=True)
-    ax.axvline(np.mean(di_means), color="k", ls="--", lw=2,
-              label=f"mean={np.mean(di_means):.4f}")
-    ax.axvline(np.percentile(di_means, 5), color="r", ls=":",
-              label=f"5%={np.percentile(di_means, 5):.4f}")
-    ax.axvline(np.percentile(di_means, 95), color="r", ls=":",
-              label=f"95%={np.percentile(di_means, 95):.4f}")
+    ax.axvline(np.mean(di_means), color="k", ls="--", lw=2, label=f"mean={np.mean(di_means):.4f}")
+    ax.axvline(
+        np.percentile(di_means, 5), color="r", ls=":", label=f"5%={np.percentile(di_means, 5):.4f}"
+    )
+    ax.axvline(
+        np.percentile(di_means, 95),
+        color="r",
+        ls=":",
+        label=f"95%={np.percentile(di_means, 95):.4f}",
+    )
     ax.set_xlabel("DI (spatial mean)", fontsize=11)
     ax.set_ylabel("Density", fontsize=11)
     ax.set_title("(c) DI Mean Distribution", fontsize=12)
@@ -459,8 +493,9 @@ def _plot_uncertainty_bands(di_arr, eeff_arr, epg_arr, evir_arr,
     ax = axes[1, 1]
     eeff_means = np.mean(eeff_arr.reshape(len(eeff_arr), -1), axis=1)
     ax.hist(eeff_means, bins=20, color="#d62728", alpha=0.7, density=True)
-    ax.axvline(np.mean(eeff_means), color="k", ls="--", lw=2,
-              label=f"mean={np.mean(eeff_means):.2f} GPa")
+    ax.axvline(
+        np.mean(eeff_means), color="k", ls="--", lw=2, label=f"mean={np.mean(eeff_means):.2f} GPa"
+    )
     ax.axvline(np.percentile(eeff_means, 5), color="r", ls=":")
     ax.axvline(np.percentile(eeff_means, 95), color="r", ls=":")
     ax.set_xlabel("$E_{eff}$ (DI) [GPa] (spatial mean)", fontsize=11)
@@ -472,12 +507,21 @@ def _plot_uncertainty_bands(di_arr, eeff_arr, epg_arr, evir_arr,
     ax = axes[2, 0]
     epg_means = np.mean(epg_arr.reshape(len(epg_arr), -1), axis=1)
     ax.hist(epg_means, bins=20, color="#9467bd", alpha=0.7, density=True)
-    ax.axvline(np.mean(epg_means), color="k", ls="--", lw=2,
-              label=f"mean={np.mean(epg_means):.1f} Pa")
-    ax.axvline(np.percentile(epg_means, 5), color="r", ls=":",
-              label=f"5%={np.percentile(epg_means, 5):.1f}")
-    ax.axvline(np.percentile(epg_means, 95), color="r", ls=":",
-              label=f"95%={np.percentile(epg_means, 95):.1f}")
+    ax.axvline(
+        np.mean(epg_means), color="k", ls="--", lw=2, label=f"mean={np.mean(epg_means):.1f} Pa"
+    )
+    ax.axvline(
+        np.percentile(epg_means, 5),
+        color="r",
+        ls=":",
+        label=f"5%={np.percentile(epg_means, 5):.1f}",
+    )
+    ax.axvline(
+        np.percentile(epg_means, 95),
+        color="r",
+        ls=":",
+        label=f"95%={np.percentile(epg_means, 95):.1f}",
+    )
     ax.set_xlabel("$E_{\\phi_{Pg}}$ [Pa] (spatial mean)", fontsize=11)
     ax.set_ylabel("Density", fontsize=11)
     ax.set_title("(e) $E_{\\phi_{Pg}}$ (Pg Hill) Distribution", fontsize=12)
@@ -487,19 +531,29 @@ def _plot_uncertainty_bands(di_arr, eeff_arr, epg_arr, evir_arr,
     ax = axes[2, 1]
     evir_means = np.mean(evir_arr.reshape(len(evir_arr), -1), axis=1)
     ax.hist(evir_means, bins=20, color="#8c564b", alpha=0.7, density=True)
-    ax.axvline(np.mean(evir_means), color="k", ls="--", lw=2,
-              label=f"mean={np.mean(evir_means):.1f} Pa")
-    ax.axvline(np.percentile(evir_means, 5), color="r", ls=":",
-              label=f"5%={np.percentile(evir_means, 5):.1f}")
-    ax.axvline(np.percentile(evir_means, 95), color="r", ls=":",
-              label=f"95%={np.percentile(evir_means, 95):.1f}")
+    ax.axvline(
+        np.mean(evir_means), color="k", ls="--", lw=2, label=f"mean={np.mean(evir_means):.1f} Pa"
+    )
+    ax.axvline(
+        np.percentile(evir_means, 5),
+        color="r",
+        ls=":",
+        label=f"5%={np.percentile(evir_means, 5):.1f}",
+    )
+    ax.axvline(
+        np.percentile(evir_means, 95),
+        color="r",
+        ls=":",
+        label=f"95%={np.percentile(evir_means, 95):.1f}",
+    )
     ax.set_xlabel("$E_{vir}$ [Pa] (spatial mean)", fontsize=11)
     ax.set_ylabel("Density", fontsize=11)
     ax.set_title("(f) $E_{vir}$ (Pg+Fn) Distribution", fontsize=12)
     ax.legend(fontsize=8)
 
-    fig.suptitle(f"Uncertainty Propagation: {condition} (N={len(di_arr)})",
-                 fontsize=14, weight="bold")
+    fig.suptitle(
+        f"Uncertainty Propagation: {condition} (N={len(di_arr)})", fontsize=14, weight="bold"
+    )
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     out = fig_dir / "uncertainty_bands.png"
     fig.savefig(out, dpi=200)
@@ -510,6 +564,7 @@ def _plot_uncertainty_bands(di_arr, eeff_arr, epg_arr, evir_arr,
 def _plot_sensitivity(sensitivity, fig_dir, condition):
     """Plot sensitivity indices."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -534,7 +589,7 @@ def _plot_sensitivity(sensitivity, fig_dir, condition):
     ax.set_yticks(range(len(names_sorted)))
     ax.set_yticklabels(names_sorted, fontsize=8)
     ax.set_xlabel("|Spearman $\\rho$|", fontsize=11)
-    ax.set_title(f"(a) Parameter Sensitivity (DI mean)\nRed = p < 0.05", fontsize=12)
+    ax.set_title("(a) Parameter Sensitivity (DI mean)\nRed = p < 0.05", fontsize=12)
     ax.invert_yaxis()
     ax.grid(True, alpha=0.3, axis="x")
 
@@ -542,7 +597,7 @@ def _plot_sensitivity(sensitivity, fig_dir, condition):
     ax = axes[1]
     ax.axis("off")
     top5 = sensitivity.get("_ranking", names_sorted[:5])
-    lines = [f"Top-5 most influential parameters:", "="*35, ""]
+    lines = ["Top-5 most influential parameters:", "=" * 35, ""]
     for i, name in enumerate(top5):
         p = params.get(name, {})
         rho = p.get("spearman_di_mean", 0)
@@ -550,11 +605,17 @@ def _plot_sensitivity(sensitivity, fig_dir, condition):
         sig = "***" if pv < 0.001 else "**" if pv < 0.01 else "*" if pv < 0.05 else "ns"
         lines.append(f"  {i+1}. {name:5s}: rho={rho:+.3f} (p={pv:.4f}) {sig}")
     lines.extend(["", "Significance: *** p<0.001, ** p<0.01, * p<0.05"])
-    ax.text(0.05, 0.95, "\n".join(lines), transform=ax.transAxes,
-            fontsize=10, family="monospace", va="top")
+    ax.text(
+        0.05,
+        0.95,
+        "\n".join(lines),
+        transform=ax.transAxes,
+        fontsize=10,
+        family="monospace",
+        va="top",
+    )
 
-    fig.suptitle(f"Sensitivity Analysis: {condition}",
-                 fontsize=14, weight="bold")
+    fig.suptitle(f"Sensitivity Analysis: {condition}", fontsize=14, weight="bold")
     fig.tight_layout(rect=[0, 0, 1, 0.93])
     out = fig_dir / "sensitivity_spider.png"
     fig.savefig(out, dpi=200)
@@ -563,15 +624,12 @@ def _plot_sensitivity(sensitivity, fig_dir, condition):
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Posterior uncertainty propagation")
-    ap.add_argument("--conditions", nargs="+",
-                    default=["dh_baseline"])
+    ap = argparse.ArgumentParser(description="Posterior uncertainty propagation")
+    ap.add_argument("--conditions", nargs="+", default=["dh_baseline"])
     ap.add_argument("--n-samples", type=int, default=50)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--plot-only", action="store_true")
-    ap.add_argument("--force", action="store_true",
-                    help="Recompute even if cached")
+    ap.add_argument("--force", action="store_true", help="Recompute even if cached")
     ap.add_argument("--quick", action="store_true")
     # Simulation
     ap.add_argument("--nx", type=int, default=20)
@@ -592,12 +650,12 @@ def main():
         args.n_react_sub = 5
         args.save_every = 10
 
-    print("="*60)
+    print("=" * 60)
     print("Posterior Uncertainty Propagation")
     print(f"  Conditions: {args.conditions}")
     print(f"  N samples: {args.n_samples}")
     print(f"  Grid: {args.nx}x{args.ny}")
-    print("="*60)
+    print("=" * 60)
 
     results = {}
     for cond in args.conditions:
@@ -610,12 +668,15 @@ def main():
         print("Cross-condition summary:")
         for cond, r in valid.items():
             print(f"  {cond}:")
-            print(f"    DI mean: {r['di_mean_global']:.6f} "
-                  f"(CI width: {r['di_ci_width']:.6f})")
-            print(f"    E_phi_pg: {r['epg_mean_pa']:.1f} Pa "
-                  f"(CI width: {r['epg_ci_width_pa']:.1f})")
-            print(f"    E_virulence: {r['evir_mean_pa']:.1f} Pa "
-                  f"(CI width: {r['evir_ci_width_pa']:.1f})")
+            print(f"    DI mean: {r['di_mean_global']:.6f} " f"(CI width: {r['di_ci_width']:.6f})")
+            print(
+                f"    E_phi_pg: {r['epg_mean_pa']:.1f} Pa "
+                f"(CI width: {r['epg_ci_width_pa']:.1f})"
+            )
+            print(
+                f"    E_virulence: {r['evir_mean_pa']:.1f} Pa "
+                f"(CI width: {r['evir_ci_width_pa']:.1f})"
+            )
         print(f"{'='*60}")
 
     if len(valid) >= 2:
@@ -631,6 +692,7 @@ def main():
 def _plot_cross_condition(results, out_base):
     """Cross-condition CI comparison figure (publication quality)."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -645,10 +707,24 @@ def _plot_cross_condition(results, out_base):
     ax = axes[0]
     means = [results[c]["di_mean_global"] for c in conds]
     widths = [results[c]["di_ci_width"] for c in conds]
-    ax.bar(x, means, color=[colors[i % len(colors)] for i in range(n)],
-           alpha=0.8, edgecolor="k", linewidth=0.5)
-    ax.errorbar(x, means, yerr=[w/2 for w in widths], fmt="none",
-                ecolor="k", capsize=5, capthick=1.5, linewidth=1.5)
+    ax.bar(
+        x,
+        means,
+        color=[colors[i % len(colors)] for i in range(n)],
+        alpha=0.8,
+        edgecolor="k",
+        linewidth=0.5,
+    )
+    ax.errorbar(
+        x,
+        means,
+        yerr=[w / 2 for w in widths],
+        fmt="none",
+        ecolor="k",
+        capsize=5,
+        capthick=1.5,
+        linewidth=1.5,
+    )
     ax.set_xticks(x)
     ax.set_xticklabels([c.replace("_", "\n") for c in conds], fontsize=8)
     ax.set_ylabel("DI (mean)", fontsize=11)
@@ -659,10 +735,24 @@ def _plot_cross_condition(results, out_base):
     ax = axes[1]
     means = [results[c]["epg_mean_pa"] for c in conds]
     widths = [results[c]["epg_ci_width_pa"] for c in conds]
-    ax.bar(x, means, color=[colors[i % len(colors)] for i in range(n)],
-           alpha=0.8, edgecolor="k", linewidth=0.5)
-    ax.errorbar(x, means, yerr=[w/2 for w in widths], fmt="none",
-                ecolor="k", capsize=5, capthick=1.5, linewidth=1.5)
+    ax.bar(
+        x,
+        means,
+        color=[colors[i % len(colors)] for i in range(n)],
+        alpha=0.8,
+        edgecolor="k",
+        linewidth=0.5,
+    )
+    ax.errorbar(
+        x,
+        means,
+        yerr=[w / 2 for w in widths],
+        fmt="none",
+        ecolor="k",
+        capsize=5,
+        capthick=1.5,
+        linewidth=1.5,
+    )
     ax.set_xticks(x)
     ax.set_xticklabels([c.replace("_", "\n") for c in conds], fontsize=8)
     ax.set_ylabel("$E_{\\phi_{Pg}}$ [Pa]", fontsize=11)
@@ -673,18 +763,31 @@ def _plot_cross_condition(results, out_base):
     ax = axes[2]
     means = [results[c]["evir_mean_pa"] for c in conds]
     widths = [results[c]["evir_ci_width_pa"] for c in conds]
-    ax.bar(x, means, color=[colors[i % len(colors)] for i in range(n)],
-           alpha=0.8, edgecolor="k", linewidth=0.5)
-    ax.errorbar(x, means, yerr=[w/2 for w in widths], fmt="none",
-                ecolor="k", capsize=5, capthick=1.5, linewidth=1.5)
+    ax.bar(
+        x,
+        means,
+        color=[colors[i % len(colors)] for i in range(n)],
+        alpha=0.8,
+        edgecolor="k",
+        linewidth=0.5,
+    )
+    ax.errorbar(
+        x,
+        means,
+        yerr=[w / 2 for w in widths],
+        fmt="none",
+        ecolor="k",
+        capsize=5,
+        capthick=1.5,
+        linewidth=1.5,
+    )
     ax.set_xticks(x)
     ax.set_xticklabels([c.replace("_", "\n") for c in conds], fontsize=8)
     ax.set_ylabel("$E_{vir}$ [Pa]", fontsize=11)
     ax.set_title("(c) Young's Modulus (Pg+Fn)", fontsize=12)
     ax.grid(True, alpha=0.3, axis="y")
 
-    fig.suptitle("Cross-Condition Uncertainty Comparison (90% CI)",
-                 fontsize=14, weight="bold")
+    fig.suptitle("Cross-Condition Uncertainty Comparison (90% CI)", fontsize=14, weight="bold")
     fig.tight_layout(rect=[0, 0, 1, 0.93])
     out = out_base / "cross_condition_ci_comparison.png"
     fig.savefig(out, dpi=200)

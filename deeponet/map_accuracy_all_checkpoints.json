@@ -1,0 +1,65 @@
+[
+  {
+    "condition": "Commensal_Static",
+    "checkpoint": "checkpoints_Commensal_Static",
+    "mse": 0.021256856620311737,
+    "mae": 0.11957814544439316,
+    "rel_err_pct": 61.64142608642578
+  },
+  {
+    "condition": "Commensal_Static",
+    "checkpoint": "checkpoints_CS_v2",
+    "mse": 0.026022499427199364,
+    "mae": 0.1474994719028473,
+    "rel_err_pct": 76.03460693359375
+  },
+  {
+    "condition": "Commensal_Static",
+    "checkpoint": "checkpoints_CS_50k",
+    "mse": 0.0030876765958964825,
+    "mae": 0.042606811970472336,
+    "rel_err_pct": 21.963415145874023
+  },
+  {
+    "condition": "Commensal_HOBIC",
+    "checkpoint": "checkpoints_Commensal_HOBIC",
+    "mse": 0.008850079961121082,
+    "mae": 0.08557937294244766,
+    "rel_err_pct": 44.104217529296875
+  },
+  {
+    "condition": "Commensal_HOBIC",
+    "checkpoint": "checkpoints_CH_v2",
+    "mse": 0.020128745585680008,
+    "mae": 0.10775121301412582,
+    "rel_err_pct": 55.53070831298828
+  },
+  {
+    "condition": "Dysbiotic_Static",
+    "checkpoint": "checkpoints_Dysbiotic_Static",
+    "mse": 0.023358862847089767,
+    "mae": 0.13601383566856384,
+    "rel_err_pct": 70.0745849609375
+  },
+  {
+    "condition": "Dysbiotic_Static",
+    "checkpoint": "checkpoints_DS_v2",
+    "mse": 0.014220085926353931,
+    "mae": 0.10060501098632812,
+    "rel_err_pct": 51.83189392089844
+  },
+  {
+    "condition": "Dysbiotic_HOBIC",
+    "checkpoint": "checkpoints_Dysbiotic_HOBIC",
+    "mse": 0.0017329592956230044,
+    "mae": 0.027653278782963753,
+    "rel_err_pct": 14.056748390197754
+  },
+  {
+    "condition": "Dysbiotic_HOBIC",
+    "checkpoint": "checkpoints_Dysbiotic_HOBIC_50k",
+    "mse": 0.001457488164305687,
+    "mae": 0.021995196118950844,
+    "rel_err_pct": 11.180624008178711
+  }
+]

@@ -9,8 +9,6 @@ Usage:
   python generate_1kpa_inp.py
 """
 import re
-import shutil
-import subprocess
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
@@ -32,12 +30,12 @@ def scale_inp(src_inp: Path, dst_inp: Path):
 
         # Update comment
         if "Pressure = " in line and "Pa" in line:
-            line = line.replace("1e+06 Pa (= 1 MPa)",
-                                "1000 Pa (= 0.001 MPa)")
+            line = line.replace("1e+06 Pa (= 1 MPa)", "1000 Pa (= 0.001 MPa)")
             line = line.replace("1e+06", "1000")
         if "Inward pressure" in line and "MPa" in line:
-            line = re.sub(r"pressure\s+[\d.e+-]+\s+MPa",
-                          "pressure 0.001 MPa", line, flags=re.IGNORECASE)
+            line = re.sub(
+                r"pressure\s+[\d.e+-]+\s+MPa", "pressure 0.001 MPa", line, flags=re.IGNORECASE
+            )
             line = line.replace("1 MPa", "0.001 MPa")
 
         if stripped.startswith("*Cload"):

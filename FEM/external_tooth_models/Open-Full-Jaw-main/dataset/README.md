@@ -1,6 +1,6 @@
 ### Dataset's structure
 
-The folders' structure for a patient is shown below. The input folder contains the inputs to our pipeline, and the output folder includes the final outputs of the pipeline. Note that both mandible and maxilla subfolders in the input and output folder have the same structures. 
+The folders' structure for a patient is shown below. The input folder contains the inputs to our pipeline, and the output folder includes the final outputs of the pipeline. Note that both mandible and maxilla subfolders in the input and output folder have the same structures.
 
 ![dataset_structure](https://user-images.githubusercontent.com/30265621/176718316-b3254042-7695-402d-8016-6457b3af4591.png)
 
@@ -26,11 +26,10 @@ The dataset includes:
    > - They are saved in FEBio (.FEB) file format.
    > - All tipping simulations can be imported in FEBioStudio and be run using [FEBio](https://febio.org/) solver.
    > - NOTE: In this study, we use [PolyFEM](https://polyfem.github.io/) solver for running both the biting and tipping simulations. This is to avoid any required parameter tweaking for the Augmented Lagrangian method used in FEBio for solving contact problems. By using PolyFEM, we can benefit from the Incremental Potential Contact ([IPC](https://ipc-sim.github.io/ipc-toolkit/)) formulation that ensures valid, penetration-free meshes during the entire simulation, with no parameter tweaking process.
-   
+
 
 
 ### Different mesh sizes
 The below table compares the total number of elements (x10^3) of the surface meshes (triangles) and volumetric meshes (tetrahedra). The number of elements is significantly reduced in the adaptive output surface meshes compared to that of the dense input surface meshes.
 
 ![mesh_size_table2](https://user-images.githubusercontent.com/30265621/176729288-9c5d4f62-5a7a-4dbd-9705-711ecbda32f7.png)
-

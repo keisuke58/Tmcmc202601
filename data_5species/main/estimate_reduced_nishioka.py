@@ -56,15 +56,13 @@ import pickle
 import os
 import requests
 from pathlib import Path
-from typing import Dict, Any, List, Tuple, Optional, Callable
+from typing import Dict, Any, List, Tuple, Optional
 from datetime import datetime
-from scipy import stats
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from functools import partial
 
 # Add project root to sys.path
 PROJECT_ROOT = Path(__file__).parent.parent.parent  # /home/.../Tmcmc202601
-DATA_5SPECIES_ROOT = Path(__file__).parent.parent    # /home/.../Tmcmc202601/data_5species
+DATA_5SPECIES_ROOT = Path(__file__).parent.parent  # /home/.../Tmcmc202601/data_5species
 
 # Add data_5species folder (contains core, debug, utils, visualization)
 sys.path.insert(0, str(DATA_5SPECIES_ROOT))
@@ -76,7 +74,6 @@ sys.path.insert(0, str(PROJECT_ROOT / "tmcmc"))
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import (
-    MODEL_CONFIGS,
     setup_logging,
     DebugConfig,
     DebugLevel,
@@ -92,19 +89,26 @@ from core import (
 from debug import DebugLogger
 from utils import save_json, save_npy
 from visualization import PlotManager, compute_fit_metrics, compute_phibar
-from improved_5species_jit import BiofilmNewtonSolver5S, HAS_NUMBA
+from improved_5species_jit import BiofilmNewtonSolver5S
+
 try:
-    from data_5species.core.nishioka_model import get_nishioka_bounds, get_condition_bounds, get_model_constants
+    from data_5species.core.nishioka_model import (
+        get_nishioka_bounds,
+        get_condition_bounds,
+        get_model_constants,
+    )
 except ImportError:
-    from core.nishioka_model import get_nishioka_bounds, get_condition_bounds, get_model_constants
+    from core.nishioka_model import get_condition_bounds, get_model_constants
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
 # =============================================================================
 # IMPROVEMENT 1: CHECKPOINT & RESUME SUPPORT
 # =============================================================================
+
 
 class TMCMCCheckpointManager:
     """
@@ -138,21 +142,23 @@ class TMCMCCheckpointManager:
         beta_schedule: List[float],
         diagnostics: Dict[str, Any],
         random_state: Any,
-        config: Dict[str, Any]
+        config: Dict[str, Any],
     ):
         """Save current TMCMC state to checkpoint."""
         checkpoint_data = {
             "stage": stage,
             "chains": [c.copy() for c in chains],
             "logL": [l.copy() for l in logL],
-            "beta_schedule": beta_schedule.copy() if isinstance(beta_schedule, list) else list(beta_schedule),
+            "beta_schedule": (
+                beta_schedule.copy() if isinstance(beta_schedule, list) else list(beta_schedule)
+            ),
             "diagnostics": diagnostics,
             "random_state": random_state,
             "timestamp": datetime.now().isoformat(),
         }
 
         # Save binary checkpoint
-        with open(self.checkpoint_file, 'wb') as f:
+        with open(self.checkpoint_file, "wb") as f:
             pickle.dump(checkpoint_data, f)
 
         # Save human-readable metadata
@@ -164,7 +170,7 @@ class TMCMCCheckpointManager:
             "timestamp": checkpoint_data["timestamp"],
             "config": config,
         }
-        with open(self.metadata_file, 'w') as f:
+        with open(self.metadata_file, "w") as f:
             json.dump(metadata, f, indent=2)
 
         logger.info(f"Checkpoint saved at stage {stage} (beta={beta_schedule[-1]:.4f})")
@@ -175,7 +181,7 @@ class TMCMCCheckpointManager:
             return None
 
         try:
-            with open(self.checkpoint_file, 'rb') as f:
+            with open(self.checkpoint_file, "rb") as f:
                 checkpoint_data = pickle.load(f)
             logger.info(f"Loaded checkpoint from stage {checkpoint_data['stage']}")
             return checkpoint_data
@@ -199,6 +205,7 @@ class TMCMCCheckpointManager:
 # =============================================================================
 # IMPROVEMENT 2: ENHANCED CONVERGENCE DIAGNOSTICS
 # =============================================================================
+
 
 def compute_gelman_rubin_rhat(chains: List[np.ndarray]) -> np.ndarray:
     """
@@ -277,7 +284,7 @@ def compute_effective_sample_size(samples: np.ndarray, max_lag: int = None) -> n
 
         # Compute autocorrelation using FFT (faster)
         n = len(x_centered)
-        fft_x = np.fft.fft(x_centered, n=2*n)
+        fft_x = np.fft.fft(x_centered, n=2 * n)
         acf = np.fft.ifft(fft_x * np.conj(fft_x))[:n].real
         acf = acf / acf[0]  # Normalize
 
@@ -297,9 +304,7 @@ def compute_effective_sample_size(samples: np.ndarray, max_lag: int = None) -> n
 
 
 def compute_mcmc_diagnostics(
-    chains: List[np.ndarray],
-    logL: List[np.ndarray],
-    param_names: List[str] = None
+    chains: List[np.ndarray], logL: List[np.ndarray], param_names: List[str] = None
 ) -> Dict[str, Any]:
     """
     Compute comprehensive MCMC diagnostics.
@@ -350,13 +355,15 @@ def compute_mcmc_diagnostics(
     # Per-parameter diagnostics
     per_param = []
     for i, name in enumerate(param_names):
-        per_param.append({
-            "name": name,
-            "mean": float(means[i]),
-            "std": float(stds[i]),
-            "rhat": float(rhat[i]) if not np.isnan(rhat[i]) else None,
-            "ess": float(ess[i]),
-        })
+        per_param.append(
+            {
+                "name": name,
+                "mean": float(means[i]),
+                "std": float(stds[i]),
+                "rhat": float(rhat[i]) if not np.isnan(rhat[i]) else None,
+                "ess": float(ess[i]),
+            }
+        )
     diagnostics["per_parameter"] = per_param
 
     return diagnostics
@@ -365,6 +372,7 @@ def compute_mcmc_diagnostics(
 # =============================================================================
 # IMPROVEMENT 3: HIGHEST DENSITY INTERVALS (HDI)
 # =============================================================================
+
 
 def compute_hdi(samples: np.ndarray, credibility: float = 0.95) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -413,8 +421,7 @@ def compute_hdi(samples: np.ndarray, credibility: float = 0.95) -> Tuple[np.ndar
 
 
 def compute_credible_intervals(
-    samples: np.ndarray,
-    credibility: float = 0.95
+    samples: np.ndarray, credibility: float = 0.95
 ) -> Dict[str, np.ndarray]:
     """
     Compute both HDI and equal-tailed credible intervals.
@@ -452,9 +459,9 @@ def compute_credible_intervals(
 # IMPROVEMENT 6: MODEL EVIDENCE (MARGINAL LIKELIHOOD)
 # =============================================================================
 
+
 def estimate_log_evidence_harmonic_mean(
-    logL: np.ndarray,
-    stabilize: bool = True
+    logL: np.ndarray, stabilize: bool = True
 ) -> Tuple[float, float]:
     """
     Estimate log marginal likelihood using the harmonic mean estimator.
@@ -501,8 +508,7 @@ def estimate_log_evidence_harmonic_mean(
 
 
 def estimate_log_evidence_thermodynamic(
-    beta_schedule: List[float],
-    mean_logL_per_stage: List[float]
+    beta_schedule: List[float], mean_logL_per_stage: List[float]
 ) -> Tuple[float, float]:
     """
     Estimate log marginal likelihood using thermodynamic integration.
@@ -547,7 +553,7 @@ def compute_model_evidence(
     prior_bounds: List[Tuple[float, float]],
     active_indices: List[int],
     beta_schedule: List[float] = None,
-    mean_logL_per_stage: List[float] = None
+    mean_logL_per_stage: List[float] = None,
 ) -> Dict[str, Any]:
     """
     Compute model evidence (marginal likelihood) using multiple methods.
@@ -623,6 +629,7 @@ def compute_model_evidence(
 # IMPROVEMENT 5: PRIOR PREDICTIVE CHECKS
 # =============================================================================
 
+
 def run_prior_predictive_check(
     n_samples: int,
     prior_bounds: List[Tuple[float, float]],
@@ -630,7 +637,7 @@ def run_prior_predictive_check(
     theta_base: np.ndarray,
     solver_kwargs: Dict[str, Any],
     active_species: List[int],
-    seed: int = 42
+    seed: int = 42,
 ) -> Dict[str, Any]:
     """
     Run prior predictive checks by sampling from priors and simulating.
@@ -696,7 +703,9 @@ def run_prior_predictive_check(
             failed_count += 1
 
     success_rate = len(successful_sims) / n_samples
-    logger.info(f"Prior predictive: {len(successful_sims)}/{n_samples} successful ({success_rate*100:.1f}%)")
+    logger.info(
+        f"Prior predictive: {len(successful_sims)}/{n_samples} successful ({success_rate*100:.1f}%)"
+    )
 
     # Compute summary statistics
     if len(final_states) > 0:
@@ -727,7 +736,7 @@ def plot_prior_predictive(
     ppc_results: Dict[str, Any],
     output_dir: Path,
     data: np.ndarray = None,
-    param_names: List[str] = None
+    param_names: List[str] = None,
 ):
     """Generate prior predictive check plots."""
     import matplotlib.pyplot as plt
@@ -743,12 +752,12 @@ def plot_prior_predictive(
     n_cols = min(5, n_params)
     n_rows = (n_params + n_cols - 1) // n_cols
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(3*n_cols, 3*n_rows))
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 3 * n_rows))
     axes = np.atleast_2d(axes).flatten()
 
     for i, name in enumerate(param_names):
         ax = axes[i]
-        ax.hist(ppc_results["prior_samples"][:, i], bins=30, alpha=0.7, color='steelblue')
+        ax.hist(ppc_results["prior_samples"][:, i], bins=30, alpha=0.7, color="steelblue")
         ax.set_xlabel(name)
         ax.set_ylabel("Count")
         ax.set_title(f"Prior: {name}")
@@ -763,18 +772,18 @@ def plot_prior_predictive(
 
     # Plot 2: Final state distributions
     if ppc_results["final_states"] is not None:
-        species_names = ['S.o', 'A.n', 'Vei', 'F.n', 'P.g']
+        species_names = ["S.o", "A.n", "Vei", "F.n", "P.g"]
         n_species = ppc_results["final_states"].shape[1]
 
-        fig, axes = plt.subplots(1, n_species, figsize=(3*n_species, 3))
+        fig, axes = plt.subplots(1, n_species, figsize=(3 * n_species, 3))
         if n_species == 1:
             axes = [axes]
 
         for i in range(n_species):
             ax = axes[i]
-            ax.hist(ppc_results["final_states"][:, i], bins=30, alpha=0.7, color='green')
+            ax.hist(ppc_results["final_states"][:, i], bins=30, alpha=0.7, color="green")
             if data is not None and i < data.shape[1]:
-                ax.axvline(data[-1, i], color='red', linestyle='--', linewidth=2, label='Observed')
+                ax.axvline(data[-1, i], color="red", linestyle="--", linewidth=2, label="Observed")
             ax.set_xlabel(f"Final {species_names[i] if i < len(species_names) else f'Sp{i}'}")
             ax.set_ylabel("Count")
 
@@ -789,6 +798,7 @@ def plot_prior_predictive(
 # =============================================================================
 # IMPROVEMENT 3 (v3): SLACK NOTIFICATION SYSTEM
 # =============================================================================
+
 
 def load_env_file(env_path: str = None) -> Dict[str, str]:
     """
@@ -816,11 +826,11 @@ def load_env_file(env_path: str = None) -> Dict[str, str]:
         return {}
 
     env_vars = {}
-    with open(env_path, 'r') as f:
+    with open(env_path, "r") as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, value = line.split('=', 1)
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
                 env_vars[key.strip()] = value.strip()
 
     return env_vars
@@ -887,7 +897,7 @@ class SlackNotifier:
                 self.webhook_url,
                 json=payload,
                 headers={"Content-Type": "application/json"},
-                timeout=10
+                timeout=10,
             )
 
             if response.status_code == 200:
@@ -917,7 +927,7 @@ class SlackNotifier:
         elapsed_time: float,
         converged: bool,
         logL_max: float,
-        output_dir: str
+        output_dir: str,
     ):
         """Send notification when estimation completes."""
         status = "✅ CONVERGED" if converged else "⚠️ NOT CONVERGED"
@@ -994,7 +1004,9 @@ def parse_batch_conditions(batch_str: str) -> List[Tuple[str, str]]:
 
             # Validate
             if condition not in ["Commensal", "Dysbiotic"]:
-                raise ValueError(f"Invalid condition: {condition}. Must be 'Commensal' or 'Dysbiotic'")
+                raise ValueError(
+                    f"Invalid condition: {condition}. Must be 'Commensal' or 'Dysbiotic'"
+                )
             if cultivation not in ["Static", "HOBIC"]:
                 raise ValueError(f"Invalid cultivation: {cultivation}. Must be 'Static' or 'HOBIC'")
 
@@ -1006,11 +1018,7 @@ def parse_batch_conditions(batch_str: str) -> List[Tuple[str, str]]:
 
 
 def run_single_condition_estimation(
-    condition: str,
-    cultivation: str,
-    args_dict: Dict[str, Any],
-    data_dir: Path,
-    output_dir: Path
+    condition: str, cultivation: str, args_dict: Dict[str, Any], data_dir: Path, output_dir: Path
 ) -> Dict[str, Any]:
     """
     Run estimation for a single condition (used by parallel processing).
@@ -1059,22 +1067,21 @@ def run_single_condition_estimation(
         )
 
         # Run estimation (using function directly, no import)
-        results = run_estimation(
-            data, idx_sparse, args, output_dir, metadata, phi_init_array
-        )
+        results = run_estimation(data, idx_sparse, args, output_dir, metadata, phi_init_array)
 
         return {
             "name": name,
             "success": True,
             "results": results,
             "output_dir": str(output_dir),
-            "logL_max": float(np.max(results['logL'])),
+            "logL_max": float(np.max(results["logL"])),
             "converged": results["mcmc_diagnostics"]["converged"],
             "elapsed_time": results["elapsed_time"],
         }
 
     except Exception as e:
         import traceback
+
         return {
             "name": name,
             "success": False,
@@ -1091,7 +1098,7 @@ def run_batch_estimation(
     base_output_dir: Path,
     parallel: bool = False,
     max_workers: int = None,
-    notifier: SlackNotifier = None
+    notifier: SlackNotifier = None,
 ) -> Dict[str, Dict[str, Any]]:
     """
     Run estimation for multiple conditions (sequential or parallel).
@@ -1144,7 +1151,7 @@ def run_batch_estimation(
                     cultivation,
                     args_dict,
                     data_dir,
-                    output_dir
+                    output_dir,
                 )
                 futures_to_condition[future] = name
 
@@ -1160,11 +1167,12 @@ def run_batch_estimation(
                         if notifier:
                             condition, cultivation = name.split("_")
                             notifier.notify_complete(
-                                condition, cultivation,
+                                condition,
+                                cultivation,
                                 result["elapsed_time"],
                                 result["converged"],
                                 result["logL_max"],
-                                result["output_dir"]
+                                result["output_dir"],
                             )
                     else:
                         logger.error(f"[{name}] ✗ Failed: {result['error']}")
@@ -1208,11 +1216,12 @@ def run_batch_estimation(
                 logger.info(f"[{name}] Completed. LogL_max={result['logL_max']:.2f}")
                 if notifier:
                     notifier.notify_complete(
-                        condition, cultivation,
+                        condition,
+                        cultivation,
                         result["elapsed_time"],
                         result["converged"],
                         result["logL_max"],
-                        result["output_dir"]
+                        result["output_dir"],
                     )
             else:
                 logger.error(f"[{name}] Failed: {result['error']}")
@@ -1240,7 +1249,7 @@ def run_batch_estimation(
                 "elapsed_time": r.get("elapsed_time"),
             }
             for name, r in all_results.items()
-        }
+        },
     }
     save_json(summary_file, batch_summary)
     logger.info(f"Batch summary saved to {summary_file}")
@@ -1256,9 +1265,8 @@ def run_batch_estimation(
 # IMPROVEMENT 11: WAIC / PSIS-LOO-CV
 # =============================================================================
 
-def compute_waic(
-    log_likelihood_matrix: np.ndarray
-) -> Dict[str, float]:
+
+def compute_waic(log_likelihood_matrix: np.ndarray) -> Dict[str, float]:
     """
     Compute Watanabe-Akaike Information Criterion (WAIC).
 
@@ -1305,9 +1313,7 @@ def compute_waic(
     }
 
 
-def compute_psis_loo(
-    log_likelihood_matrix: np.ndarray
-) -> Dict[str, Any]:
+def compute_psis_loo(log_likelihood_matrix: np.ndarray) -> Dict[str, Any]:
     """
     Compute Pareto-Smoothed Importance Sampling Leave-One-Out CV (PSIS-LOO).
 
@@ -1393,7 +1399,7 @@ def compute_information_criteria(
     idx_sparse: np.ndarray,
     active_indices: List[int],
     theta_base: np.ndarray,
-    n_subsample: int = 500
+    n_subsample: int = 500,
 ) -> Dict[str, Any]:
     """
     Compute WAIC and PSIS-LOO for model comparison.
@@ -1461,9 +1467,9 @@ def compute_information_criteria(
 # IMPROVEMENT 14: PARAMETER CORRELATION ANALYSIS
 # =============================================================================
 
+
 def compute_correlation_matrix(
-    samples: np.ndarray,
-    param_names: List[str] = None
+    samples: np.ndarray, param_names: List[str] = None
 ) -> Dict[str, Any]:
     """
     Compute parameter correlation matrix from posterior samples.
@@ -1490,12 +1496,14 @@ def compute_correlation_matrix(
         for j in range(i + 1, n_params):
             r = corr_matrix[i, j]
             if abs(r) > 0.7:
-                high_corr_pairs.append({
-                    "param1": param_names[i],
-                    "param2": param_names[j],
-                    "correlation": float(r),
-                    "abs_correlation": float(abs(r)),
-                })
+                high_corr_pairs.append(
+                    {
+                        "param1": param_names[i],
+                        "param2": param_names[j],
+                        "correlation": float(r),
+                        "abs_correlation": float(abs(r)),
+                    }
+                )
 
     # Sort by absolute correlation
     high_corr_pairs.sort(key=lambda x: x["abs_correlation"], reverse=True)
@@ -1519,10 +1527,7 @@ def compute_correlation_matrix(
     }
 
 
-def plot_correlation_matrix(
-    corr_results: Dict[str, Any],
-    output_dir: Path
-):
+def plot_correlation_matrix(corr_results: Dict[str, Any], output_dir: Path):
     """Generate correlation matrix heatmap."""
     import matplotlib.pyplot as plt
 
@@ -1536,28 +1541,29 @@ def plot_correlation_matrix(
     fig, ax = plt.subplots(figsize=(max(8, n_params * 0.5), max(6, n_params * 0.4)))
 
     # Create heatmap
-    im = ax.imshow(corr_matrix, cmap='RdBu_r', vmin=-1, vmax=1, aspect='auto')
+    im = ax.imshow(corr_matrix, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
 
     # Add colorbar
     cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label('Correlation')
+    cbar.set_label("Correlation")
 
     # Set ticks
     ax.set_xticks(np.arange(n_params))
     ax.set_yticks(np.arange(n_params))
-    ax.set_xticklabels(param_names, rotation=45, ha='right', fontsize=8)
+    ax.set_xticklabels(param_names, rotation=45, ha="right", fontsize=8)
     ax.set_yticklabels(param_names, fontsize=8)
 
     # Add correlation values as text
     for i in range(n_params):
         for j in range(n_params):
             r = corr_matrix[i, j]
-            color = 'white' if abs(r) > 0.5 else 'black'
+            color = "white" if abs(r) > 0.5 else "black"
             if n_params <= 15:  # Only show values for smaller matrices
-                ax.text(j, i, f'{r:.2f}', ha='center', va='center',
-                        color=color, fontsize=6)
+                ax.text(j, i, f"{r:.2f}", ha="center", va="center", color=color, fontsize=6)
 
-    ax.set_title(f'Parameter Correlation Matrix\n(Condition #: {corr_results["condition_number"]:.1f})')
+    ax.set_title(
+        f'Parameter Correlation Matrix\n(Condition #: {corr_results["condition_number"]:.1f})'
+    )
 
     plt.tight_layout()
     plt.savefig(figures_dir / "parameter_correlation_matrix.png", dpi=150)
@@ -1569,17 +1575,17 @@ def plot_correlation_matrix(
 
         pairs = corr_results["high_correlation_pairs"][:10]  # Top 10
         names = [f"{p['param1']}\nvs\n{p['param2']}" for p in pairs]
-        values = [p['correlation'] for p in pairs]
-        colors = ['red' if v > 0 else 'blue' for v in values]
+        values = [p["correlation"] for p in pairs]
+        colors = ["red" if v > 0 else "blue" for v in values]
 
         bars = ax.barh(range(len(pairs)), values, color=colors, alpha=0.7)
         ax.set_yticks(range(len(pairs)))
         ax.set_yticklabels(names, fontsize=8)
-        ax.axvline(0, color='black', linewidth=0.5)
-        ax.axvline(0.7, color='red', linestyle='--', alpha=0.5, label='|r|=0.7')
-        ax.axvline(-0.7, color='red', linestyle='--', alpha=0.5)
-        ax.set_xlabel('Correlation')
-        ax.set_title('Highly Correlated Parameter Pairs (|r| > 0.7)')
+        ax.axvline(0, color="black", linewidth=0.5)
+        ax.axvline(0.7, color="red", linestyle="--", alpha=0.5, label="|r|=0.7")
+        ax.axvline(-0.7, color="red", linestyle="--", alpha=0.5)
+        ax.set_xlabel("Correlation")
+        ax.set_title("Highly Correlated Parameter Pairs (|r| > 0.7)")
         ax.legend()
         ax.set_xlim(-1, 1)
 
@@ -1596,21 +1602,21 @@ def plot_correlation_matrix(
 
 # Species color to model index mapping
 SPECIES_MAP = {
-    "Blue": 0,      # S. oralis
-    "Green": 1,     # A. naeslundii
-    "Yellow": 2,    # V. dispar
-    "Orange": 2,    # V. parvula (Dysbiotic strain of Veillonella)
-    "Purple": 3,    # F. nucleatum
-    "Red": 4,       # P. gingivalis
+    "Blue": 0,  # S. oralis
+    "Green": 1,  # A. naeslundii
+    "Yellow": 2,  # V. dispar
+    "Orange": 2,  # V. parvula (Dysbiotic strain of Veillonella)
+    "Purple": 3,  # F. nucleatum
+    "Red": 4,  # P. gingivalis
 }
 
 # For Commensal (no Orange/V. parvula), remap Purple and Red
 SPECIES_MAP_COMMENSAL = {
-    "Blue": 0,      # S. oralis
-    "Green": 1,     # A. naeslundii
-    "Yellow": 2,    # V. dispar
-    "Purple": 3,    # F. nucleatum
-    "Red": 4,       # P. gingivalis
+    "Blue": 0,  # S. oralis
+    "Green": 1,  # A. naeslundii
+    "Yellow": 2,  # V. dispar
+    "Purple": 3,  # F. nucleatum
+    "Red": 4,  # P. gingivalis
 }
 
 
@@ -1619,7 +1625,7 @@ def load_experimental_data(
     condition: str = "Commensal",
     cultivation: str = "Static",
     start_from_day: int = 1,
-    normalize: bool = False
+    normalize: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Dict[str, Any]]:
     """
     Load experimental data and convert to model format.
@@ -1638,23 +1644,25 @@ def load_experimental_data(
         data_dir / "biofilm_boxplot_data.csv",
         data_dir / "experiment_data" / "biofilm_boxplot_data.csv",
     ]
-    
+
     boxplot_file = None
     for f in possible_boxplot_files:
         if f.exists():
             boxplot_file = f
             break
-            
+
     if boxplot_file is None:
         # Fallback to checking if files are in experiment_data subdirectory relative to data_dir
         # If data_dir is already the root
-        raise FileNotFoundError(f"Could not find boxplot data. Checked: {[str(f) for f in possible_boxplot_files]}")
+        raise FileNotFoundError(
+            f"Could not find boxplot data. Checked: {[str(f) for f in possible_boxplot_files]}"
+        )
 
     boxplot_df = pd.read_csv(boxplot_file)
 
     # Filter for condition/cultivation
-    if 'condition' in boxplot_df.columns:
-        mask = (boxplot_df['condition'] == condition) & (boxplot_df['cultivation'] == cultivation)
+    if "condition" in boxplot_df.columns:
+        mask = (boxplot_df["condition"] == condition) & (boxplot_df["cultivation"] == cultivation)
         boxplot_df = boxplot_df[mask]
 
     # Load species distribution data
@@ -1662,24 +1670,26 @@ def load_experimental_data(
         data_dir / "species_distribution_data.csv",
         data_dir / "experiment_data" / "species_distribution_data.csv",
     ]
-    
+
     species_file = None
     for f in possible_species_files:
         if f.exists():
             species_file = f
             break
-            
+
     if species_file is None:
-        raise FileNotFoundError(f"Could not find species data. Checked: {[str(f) for f in possible_species_files]}")
+        raise FileNotFoundError(
+            f"Could not find species data. Checked: {[str(f) for f in possible_species_files]}"
+        )
 
     species_df = pd.read_csv(species_file)
 
     # Filter
-    mask = (species_df['condition'] == condition) & (species_df['cultivation'] == cultivation)
+    mask = (species_df["condition"] == condition) & (species_df["cultivation"] == cultivation)
     species_df = species_df[mask]
 
     # Get unique days
-    days = sorted(boxplot_df['day'].unique())
+    days = sorted(boxplot_df["day"].unique())
     n_timepoints = len(days)
     n_species = 5  # Always 5 species in model
 
@@ -1694,23 +1704,23 @@ def load_experimental_data(
 
     for i, day in enumerate(days):
         # Get total volume for this day
-        day_volume = boxplot_df[boxplot_df['day'] == day]
+        day_volume = boxplot_df[boxplot_df["day"] == day]
         if len(day_volume) > 0:
-            total_vol = day_volume['median'].values[0]
+            total_vol = day_volume["median"].values[0]
             total_volumes[i] = total_vol
 
             # Estimate sigma from IQR: sigma ≈ IQR / 1.35
-            q1 = day_volume['q1'].values[0]
-            q3 = day_volume['q3'].values[0]
+            q1 = day_volume["q1"].values[0]
+            q3 = day_volume["q3"].values[0]
             iqr = q3 - q1
             sigma_obs_estimates.append(iqr / 1.35)
 
         # Get species percentages for this day
-        for _, row in species_df[species_df['day'] == day].iterrows():
-            species_color = row['species']
+        for _, row in species_df[species_df["day"] == day].iterrows():
+            species_color = row["species"]
             if species_color in species_map:
                 species_idx = species_map[species_color]
-                percentage = row['median'] / 100.0  # Convert % to fraction
+                percentage = row["median"] / 100.0  # Convert % to fraction
 
                 # Absolute volume = total_volume * percentage
                 data[i, species_idx] = total_vol * percentage
@@ -1736,7 +1746,9 @@ def load_experimental_data(
         days = [days[i] for i in day_indices]
         total_volumes = total_volumes[day_indices]
         n_timepoints = len(days)
-        logger.info(f"Filtering data to start from day {start_from_day}: {n_timepoints} timepoints remaining")
+        logger.info(
+            f"Filtering data to start from day {start_from_day}: {n_timepoints} timepoints remaining"
+        )
 
     # Extract initial conditions from the FIRST timepoint after filtering
     # (this is Day 3 if start_from_day=3)
@@ -1757,10 +1769,7 @@ def load_experimental_data(
 
 
 def convert_days_to_model_time(
-    t_days: np.ndarray,
-    dt: float,
-    maxtimestep: int,
-    day_scale: float = None
+    t_days: np.ndarray, dt: float, maxtimestep: int, day_scale: float = None
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Convert experimental days to model time indices.
@@ -1806,6 +1815,7 @@ def convert_days_to_model_time(
 # ESTIMATION
 # =============================================================================
 
+
 def run_estimation(
     data: np.ndarray,
     idx_sparse: np.ndarray,
@@ -1814,7 +1824,7 @@ def run_estimation(
     metadata: Dict[str, Any],
     phi_init_array: Optional[np.ndarray] = None,
     checkpoint_manager: Optional[TMCMCCheckpointManager] = None,
-    resume_data: Optional[Dict[str, Any]] = None
+    resume_data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Run TMCMC parameter estimation on experimental data.
@@ -1847,7 +1857,7 @@ def run_estimation(
 
     # Load model constants
     model_constants = get_model_constants()
-    
+
     # Model configuration
     # Use a configuration suitable for 5-species model
     solver_kwargs = {
@@ -1867,19 +1877,21 @@ def run_estimation(
     # Determine prior bounds
     p_min = args.prior_min if args.prior_min is not None else PRIOR_BOUNDS_DEFAULT[0]
     p_max = args.prior_max if args.prior_max is not None else PRIOR_BOUNDS_DEFAULT[1]
-    
+
     # Initialize theta_base with prior mean
     prior_mean = (p_min + p_max) / 2.0
     theta_base = np.full(20, prior_mean)
 
     # --- NISHIOKA ALGORITHM: Parameter Reduction ---
     # Use centralized bounds/locking logic from nishioka_model based on condition
-    logger.info(f"Nishioka Algorithm: Retrieving bounds and locked indices for {args.condition} {args.cultivation}...")
+    logger.info(
+        f"Nishioka Algorithm: Retrieving bounds and locked indices for {args.condition} {args.cultivation}..."
+    )
     nishioka_bounds, LOCKED_INDICES = get_condition_bounds(args.condition, args.cultivation)
-    
+
     # Use the exact bounds from the model (including 0.0, 0.0 for locked and 0.0, 1.0 for Vei->Pg)
     prior_bounds = list(nishioka_bounds)
-    
+
     logger.info(f"Nishioka Algorithm: Locking indices {LOCKED_INDICES} to 0.0")
     for idx in LOCKED_INDICES:
         theta_base[idx] = 0.0
@@ -1888,7 +1900,6 @@ def run_estimation(
     active_indices = [i for i in range(20) if i not in LOCKED_INDICES]
     logger.info(f"Reduced parameter space to {len(active_indices)} parameters: {active_indices}")
 
-    
     # Override specific bounds if requested (e.g. --override-bounds "18:0:3,19:0:3")
     if args.override_bounds:
         for spec in args.override_bounds.split(","):
@@ -1914,7 +1925,9 @@ def run_estimation(
     DECAY_INDICES = [3, 4, 8, 9, 15]
     if args.prior_decay_max is not None:
         decay_max = args.prior_decay_max
-        logger.info(f"Tightening decay priors (b1-b5, indices {DECAY_INDICES}) to [0.0, {decay_max}]")
+        logger.info(
+            f"Tightening decay priors (b1-b5, indices {DECAY_INDICES}) to [0.0, {decay_max}]"
+        )
         for idx in DECAY_INDICES:
             prior_bounds[idx] = (0.0, decay_max)
             # Update base to mean of new range
@@ -1923,22 +1936,28 @@ def run_estimation(
     # CRITICAL: Re-apply locks to theta_base to prevent prior options from overriding locks
     # If a parameter is in LOCKED_INDICES, it MUST be 0.0, regardless of prior_decay_max or widen_m1_priors.
     if len(LOCKED_INDICES) > 0:
-        logger.info(f"Re-applying locks to theta_base to ensure locked parameters {LOCKED_INDICES} remain 0.0")
+        logger.info(
+            f"Re-applying locks to theta_base to ensure locked parameters {LOCKED_INDICES} remain 0.0"
+        )
         for idx in LOCKED_INDICES:
             theta_base[idx] = 0.0
             # Also reset prior bounds for locked parameters to avoid confusion (though not used by TMCMC for inactive)
             prior_bounds[idx] = (0.0, 0.0)
 
     # Sigma for likelihood
-    sigma_obs_scalar = args.sigma_obs if args.sigma_obs else metadata.get('sigma_obs_estimated', 0.05)
+    sigma_obs_scalar = (
+        args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
+    )
 
     # Species-specific sigma (V. dispar gets higher noise to acknowledge
     # the model's structural inability to capture nutrient depletion dynamics)
-    if getattr(args, 'species_sigma', False):
-        vd_factor = getattr(args, 'vd_sigma_factor', 2.0)
+    if getattr(args, "species_sigma", False):
+        vd_factor = getattr(args, "vd_sigma_factor", 2.0)
         sigma_obs = build_species_sigma(
-            sigma_obs_scalar, n_species=data.shape[1],
-            vd_species_idx=2, vd_factor=vd_factor,
+            sigma_obs_scalar,
+            n_species=data.shape[1],
+            vd_species_idx=2,
+            vd_factor=vd_factor,
         )
         logger.info(f"Using species-specific sigma_obs = {sigma_obs}")
     else:
@@ -1966,7 +1985,7 @@ def run_estimation(
 
     # --- DeepONet surrogate setup (optional) ---
     deeponet_surrogate = None
-    if getattr(args, 'use_deeponet', False):
+    if getattr(args, "use_deeponet", False):
         try:
             sys.path.insert(0, str(Path(__file__).parent.parent.parent / "deeponet"))
             from surrogate_tmcmc import DeepONetSurrogate
@@ -1979,10 +1998,21 @@ def run_estimation(
                 deeponet_dir = Path(__file__).parent.parent.parent / "deeponet"
                 # Priority order: 50k trained, then v2, then original
                 candidates = {
-                    "Commensal_Static": ["checkpoints_CS_50k", "checkpoints_CS_v2", "checkpoints_Commensal_Static"],
-                    "Commensal_HOBIC": ["checkpoints_CH_50k", "checkpoints_CH_v2", "checkpoints_Commensal_HOBIC"],
+                    "Commensal_Static": [
+                        "checkpoints_CS_50k",
+                        "checkpoints_CS_v2",
+                        "checkpoints_Commensal_Static",
+                    ],
+                    "Commensal_HOBIC": [
+                        "checkpoints_CH_50k",
+                        "checkpoints_CH_v2",
+                        "checkpoints_Commensal_HOBIC",
+                    ],
                     "Dysbiotic_Static": ["checkpoints_DS_v2", "checkpoints_Dysbiotic_Static"],
-                    "Dysbiotic_HOBIC": ["checkpoints_Dysbiotic_HOBIC_50k", "checkpoints_Dysbiotic_HOBIC"],
+                    "Dysbiotic_HOBIC": [
+                        "checkpoints_Dysbiotic_HOBIC_50k",
+                        "checkpoints_Dysbiotic_HOBIC",
+                    ],
                 }
                 ckpt_name = None
                 for name in candidates.get(cond_key, ["checkpoints_Dysbiotic_HOBIC"]):
@@ -2000,7 +2030,7 @@ def run_estimation(
             )
             logger.info(f"DeepONet surrogate loaded from {ckpt_dir}")
             # JAX objects can't be pickled across forked processes; force threading
-            if not getattr(args, 'use_threads', False):
+            if not getattr(args, "use_threads", False):
                 args.use_threads = True
                 logger.info("Auto-enabled --use-threads for JAX/DeepONet compatibility")
         except Exception as e:
@@ -2014,6 +2044,7 @@ def run_estimation(
         # Use DeepONet if available
         if deeponet_surrogate is not None:
             from core.evaluator import DeepONetEvaluator
+
             # Map ODE idx_sparse (0..maxtimestep-1) to DeepONet 100-point grid (0..99)
             maxtimestep = getattr(args, "maxtimestep", 2500)
             idx_sparse_don = np.round(idx_sparse * 99.0 / max(maxtimestep - 1, 1)).astype(int)
@@ -2049,11 +2080,12 @@ def run_estimation(
 
     # GNN prior (Issue #39)
     gnn_prior_obj = None
-    if getattr(args, 'use_gnn_prior', False):
+    if getattr(args, "use_gnn_prior", False):
         try:
             from data_5species.core.gnn_prior import GNNPrior
+
             locked = [i for i, (lo, hi) in enumerate(prior_bounds) if abs(hi - lo) < 1e-12]
-            if getattr(args, 'gnn_prior_json', None):
+            if getattr(args, "gnn_prior_json", None):
                 json_path = Path(args.gnn_prior_json)
                 if not json_path.is_absolute():
                     json_path = Path(__file__).resolve().parent.parent.parent / json_path
@@ -2096,7 +2128,7 @@ def run_estimation(
         logL_scale=1.0,
         seed=args.seed,
         n_jobs=args.n_jobs,
-        use_threads=getattr(args, 'use_threads', False),
+        use_threads=getattr(args, "use_threads", False),
         debug_config=debug_config,
         gnn_prior=gnn_prior_obj,
     )
@@ -2126,11 +2158,26 @@ def run_estimation(
     # IMPROVEMENT 2: Enhanced Convergence Diagnostics (R-hat, ESS)
     # =========================================================================
     param_names = [
-        "a11", "a12", "a22", "b1", "b2",      # M1
-        "a33", "a34", "a44", "b3", "b4",      # M2
-        "a13", "a14", "a23", "a24",           # M3
-        "a55", "b5",                          # M4
-        "a15", "a25", "a35", "a45",           # M5
+        "a11",
+        "a12",
+        "a22",
+        "b1",
+        "b2",  # M1
+        "a33",
+        "a34",
+        "a44",
+        "b3",
+        "b4",  # M2
+        "a13",
+        "a14",
+        "a23",
+        "a24",  # M3
+        "a55",
+        "b5",  # M4
+        "a15",
+        "a25",
+        "a35",
+        "a45",  # M5
     ]
     active_param_names = [param_names[i] for i in active_indices]
 
@@ -2165,7 +2212,9 @@ def run_estimation(
             # Use first chain's beta schedule
             beta_schedule = diag["beta_schedules"][0] if diag["beta_schedules"] else None
         if diag and "mean_logL_per_stage" in diag:
-            mean_logL_per_stage = diag["mean_logL_per_stage"][0] if diag["mean_logL_per_stage"] else None
+            mean_logL_per_stage = (
+                diag["mean_logL_per_stage"][0] if diag["mean_logL_per_stage"] else None
+            )
 
         evidence_results = compute_model_evidence(
             chains=chains,
@@ -2173,14 +2222,16 @@ def run_estimation(
             prior_bounds=prior_bounds,
             active_indices=active_indices,
             beta_schedule=beta_schedule,
-            mean_logL_per_stage=mean_logL_per_stage
+            mean_logL_per_stage=mean_logL_per_stage,
         )
 
-        logger.info(f"Model Evidence: log(p(D)) ≈ {evidence_results['log_evidence']:.2f} "
-                    f"± {evidence_results['log_evidence_se']:.2f} ({evidence_results['method']})")
+        logger.info(
+            f"Model Evidence: log(p(D)) ≈ {evidence_results['log_evidence']:.2f} "
+            f"± {evidence_results['log_evidence_se']:.2f} ({evidence_results['method']})"
+        )
 
     # Clear checkpoints on successful completion
-    if checkpoint_manager is not None and not getattr(args, 'keep_checkpoints', False):
+    if checkpoint_manager is not None and not getattr(args, "keep_checkpoints", False):
         checkpoint_manager.clear_checkpoints()
 
     return {
@@ -2194,20 +2245,16 @@ def run_estimation(
         "elapsed_time": elapsed,
         "converged": converged,
         "diagnostics": diag,
-
         # IMPROVEMENT 2: Enhanced diagnostics
         "mcmc_diagnostics": mcmc_diagnostics,
         "rhat": mcmc_diagnostics["rhat"],
         "ess": mcmc_diagnostics["ess"],
-
         # IMPROVEMENT 3: Credible intervals
         "credible_intervals": credible_intervals,
         "hdi_lower": credible_intervals["hdi_lower"],
         "hdi_upper": credible_intervals["hdi_upper"],
-
         # IMPROVEMENT 6: Evidence
         "evidence": evidence_results,
-
         # Metadata
         "active_indices": active_indices,
         "prior_bounds": prior_bounds,
@@ -2230,69 +2277,127 @@ Examples:
 
   # Resume from checkpoint
   python estimate_reduced_nishioka.py --resume-from _runs/previous_run/checkpoints
-        """
+        """,
     )
 
     # Data options
-    parser.add_argument("--data-dir", type=str,
-                        default=str(Path(__file__).parent.parent),
-                        help="Directory containing experimental data")
-    parser.add_argument("--condition", type=str, default="Commensal",
-                        choices=["Commensal", "Dysbiotic"])
-    parser.add_argument("--cultivation", type=str, default="Static",
-                        choices=["Static", "HOBIC"])
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default=str(Path(__file__).parent.parent),
+        help="Directory containing experimental data",
+    )
+    parser.add_argument(
+        "--condition", type=str, default="Commensal", choices=["Commensal", "Dysbiotic"]
+    )
+    parser.add_argument("--cultivation", type=str, default="Static", choices=["Static", "HOBIC"])
 
     # Model options
     parser.add_argument("--dt", type=float, default=1e-4, help="Time step")
     parser.add_argument("--maxtimestep", type=int, default=2500, help="Max time steps")
     parser.add_argument("--c-const", type=float, default=25.0, help="c constant")
-    parser.add_argument("--kp1", type=float, default=1e-4, help="Cahn-Hilliard gradient energy Kp1 (default: 1e-4)")
-    parser.add_argument("--K-hill", type=float, default=0.0,
-        help="Hill threshold for F.nucleatum bridge gate (0=disabled)")
-    parser.add_argument("--n-hill", type=float, default=2.0,
-        help="Hill exponent for bridge gate")
+    parser.add_argument(
+        "--kp1", type=float, default=1e-4, help="Cahn-Hilliard gradient energy Kp1 (default: 1e-4)"
+    )
+    parser.add_argument(
+        "--K-hill",
+        type=float,
+        default=0.0,
+        help="Hill threshold for F.nucleatum bridge gate (0=disabled)",
+    )
+    parser.add_argument("--n-hill", type=float, default=2.0, help="Hill exponent for bridge gate")
     parser.add_argument("--alpha-const", type=float, default=0.0, help="alpha constant")
-    parser.add_argument("--phi-init", type=float, default=0.02, help="Initial phi (ignored if --use-exp-init)")
-    parser.add_argument("--day-scale", type=float, default=None,
-                        help="Scaling factor: model_time = day * day_scale (auto if None)")
-    parser.add_argument("--use-exp-init", action="store_true",
-                        help="Use experimental data (from start-from-day) as initial conditions")
-    parser.add_argument("--start-from-day", type=int, default=1,
-                        help="Start fitting from this day (default: 1)")
-    parser.add_argument("--normalize-data", action="store_true",
-                        help="Normalize data to species fractions (sum=1) instead of absolute volumes")
+    parser.add_argument(
+        "--phi-init", type=float, default=0.02, help="Initial phi (ignored if --use-exp-init)"
+    )
+    parser.add_argument(
+        "--day-scale",
+        type=float,
+        default=None,
+        help="Scaling factor: model_time = day * day_scale (auto if None)",
+    )
+    parser.add_argument(
+        "--use-exp-init",
+        action="store_true",
+        help="Use experimental data (from start-from-day) as initial conditions",
+    )
+    parser.add_argument(
+        "--start-from-day", type=int, default=1, help="Start fitting from this day (default: 1)"
+    )
+    parser.add_argument(
+        "--normalize-data",
+        action="store_true",
+        help="Normalize data to species fractions (sum=1) instead of absolute volumes",
+    )
 
     # Estimation options
-    parser.add_argument("--sigma-obs", type=float, default=None,
-                        help="Observation noise (default: estimated from data)")
-    parser.add_argument("--cov-rel", type=float, default=0.005,
-                        help="Relative covariance for ROM")
-    parser.add_argument("--use-absolute-volume", action="store_true",
-                        help="Use absolute volume (phi*gamma) for likelihood")
+    parser.add_argument(
+        "--sigma-obs",
+        type=float,
+        default=None,
+        help="Observation noise (default: estimated from data)",
+    )
+    parser.add_argument("--cov-rel", type=float, default=0.005, help="Relative covariance for ROM")
+    parser.add_argument(
+        "--use-absolute-volume",
+        action="store_true",
+        help="Use absolute volume (phi*gamma) for likelihood",
+    )
 
     # Weighted likelihood options (P. gingivalis late-stage emphasis)
-    parser.add_argument("--lambda-pg", type=float, default=1.0,
+    parser.add_argument(
+        "--lambda-pg",
+        type=float,
+        default=1.0,
         help="Species weight for P. gingivalis (species 4). "
-             "Values > 1 emphasise P.g. residuals. Recommended: 5.0 for Dysbiotic HOBIC")
-    parser.add_argument("--lambda-late", type=float, default=1.0,
+        "Values > 1 emphasise P.g. residuals. Recommended: 5.0 for Dysbiotic HOBIC",
+    )
+    parser.add_argument(
+        "--lambda-late",
+        type=float,
+        default=1.0,
         help="Time weight for the last N observation times. "
-             "Values > 1 emphasise late-stage fit. Recommended: 3.0 for Dysbiotic HOBIC")
-    parser.add_argument("--n-late", type=int, default=2,
-        help="Number of final observation times to up-weight (default: 2, i.e. days 15+21)")
+        "Values > 1 emphasise late-stage fit. Recommended: 3.0 for Dysbiotic HOBIC",
+    )
+    parser.add_argument(
+        "--n-late",
+        type=int,
+        default=2,
+        help="Number of final observation times to up-weight (default: 2, i.e. days 15+21)",
+    )
 
     # Prior options
-    parser.add_argument("--prior-min", type=float, default=None,
-                        help="Minimum value for prior uniform distribution (default: use config)")
-    parser.add_argument("--prior-max", type=float, default=None,
-                        help="Maximum value for prior uniform distribution (default: use config)")
-    parser.add_argument("--widen-m1-priors", action="store_true",
-                        help="Widen priors for M1 parameters (indices 0-4) to [0, 10]")
-    parser.add_argument("--prior-decay-max", type=float, default=None,
-                        help="Maximum value for decay parameters b1-b5 (indices 3,4,8,9,15). "
-                             "Use smaller values (e.g., 1.0) if model over-predicts decline.")
-    parser.add_argument("--override-bounds", type=str, default=None,
-                        help="Override specific parameter bounds. Format: 'idx:lo:hi,...' "
-                             "e.g. '18:0:3,19:0:3' sets a35 and a45 bounds to [0,3].")
+    parser.add_argument(
+        "--prior-min",
+        type=float,
+        default=None,
+        help="Minimum value for prior uniform distribution (default: use config)",
+    )
+    parser.add_argument(
+        "--prior-max",
+        type=float,
+        default=None,
+        help="Maximum value for prior uniform distribution (default: use config)",
+    )
+    parser.add_argument(
+        "--widen-m1-priors",
+        action="store_true",
+        help="Widen priors for M1 parameters (indices 0-4) to [0, 10]",
+    )
+    parser.add_argument(
+        "--prior-decay-max",
+        type=float,
+        default=None,
+        help="Maximum value for decay parameters b1-b5 (indices 3,4,8,9,15). "
+        "Use smaller values (e.g., 1.0) if model over-predicts decline.",
+    )
+    parser.add_argument(
+        "--override-bounds",
+        type=str,
+        default=None,
+        help="Override specific parameter bounds. Format: 'idx:lo:hi,...' "
+        "e.g. '18:0:3,19:0:3' sets a35 and a45 bounds to [0,3].",
+    )
 
     # TMCMC options
     parser.add_argument("--n-particles", type=int, default=500, help="Number of particles")
@@ -2300,78 +2405,147 @@ Examples:
     parser.add_argument("--n-chains", type=int, default=2, help="Number of chains")
     parser.add_argument("--n-jobs", type=int, default=12, help="Parallel jobs")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--use-gnn-prior", action="store_true",
-                        help="Use GNN-informed prior (Issue #39)")
-    parser.add_argument("--gnn-checkpoint", type=str,
-                        default="gnn/data/checkpoints/best.pt",
-                        help="Path to GNN checkpoint")
-    parser.add_argument("--gnn-sigma", type=float, default=1.0,
-                        help="GNN prior sigma (smaller = tighter prior)")
-    parser.add_argument("--gnn-weight", type=float, default=1.0,
-                        help="GNN prior weight in log-posterior")
-    parser.add_argument("--gnn-prior-json", type=str, default=None,
-                        help="Path to gnn_prior.json from predict_hmp.py (Phase 2 HMP)")
+    parser.add_argument(
+        "--use-gnn-prior", action="store_true", help="Use GNN-informed prior (Issue #39)"
+    )
+    parser.add_argument(
+        "--gnn-checkpoint",
+        type=str,
+        default="gnn/data/checkpoints/best.pt",
+        help="Path to GNN checkpoint",
+    )
+    parser.add_argument(
+        "--gnn-sigma", type=float, default=1.0, help="GNN prior sigma (smaller = tighter prior)"
+    )
+    parser.add_argument(
+        "--gnn-weight", type=float, default=1.0, help="GNN prior weight in log-posterior"
+    )
+    parser.add_argument(
+        "--gnn-prior-json",
+        type=str,
+        default=None,
+        help="Path to gnn_prior.json from predict_hmp.py (Phase 2 HMP)",
+    )
 
     # Output options
-    parser.add_argument("--output-dir", type=str, default=None,
-                        help="Output directory (default: auto-generated)")
-    parser.add_argument("--debug-level", type=str, default="INFO",
-                        choices=["DEBUG", "INFO", "WARNING", "ERROR"])
+    parser.add_argument(
+        "--output-dir", type=str, default=None, help="Output directory (default: auto-generated)"
+    )
+    parser.add_argument(
+        "--debug-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"]
+    )
 
     # Checkpoint & Resume (Improvement 1)
-    parser.add_argument("--checkpoint-every", type=int, default=5,
-                        help="Save checkpoint every N stages (0 to disable)")
-    parser.add_argument("--resume-from", type=str, default=None,
-                        help="Resume from checkpoint directory")
-    parser.add_argument("--keep-checkpoints", action="store_true",
-                        help="Keep checkpoints after successful completion")
+    parser.add_argument(
+        "--checkpoint-every",
+        type=int,
+        default=5,
+        help="Save checkpoint every N stages (0 to disable)",
+    )
+    parser.add_argument(
+        "--resume-from", type=str, default=None, help="Resume from checkpoint directory"
+    )
+    parser.add_argument(
+        "--keep-checkpoints",
+        action="store_true",
+        help="Keep checkpoints after successful completion",
+    )
 
     # Diagnostics options (Improvement 2, 3)
-    parser.add_argument("--compute-evidence", action="store_true",
-                        help="Compute model evidence (marginal likelihood)")
-    parser.add_argument("--hdi-credibility", type=float, default=0.95,
-                        help="Credibility level for HDI (default: 0.95)")
+    parser.add_argument(
+        "--compute-evidence",
+        action="store_true",
+        help="Compute model evidence (marginal likelihood)",
+    )
+    parser.add_argument(
+        "--hdi-credibility",
+        type=float,
+        default=0.95,
+        help="Credibility level for HDI (default: 0.95)",
+    )
 
     # Batch Processing (Improvement 9)
-    parser.add_argument("--batch", type=str, default=None,
-                        help='Batch mode: "all" for all 4 conditions, or comma-separated '
-                             '"Condition:Cultivation" pairs (e.g., "Commensal:Static,Dysbiotic:HOBIC")')
-    parser.add_argument("--parallel", action="store_true",
-                        help="Run batch conditions in parallel (requires --batch)")
-    parser.add_argument("--max-workers", type=int, default=None,
-                        help="Maximum parallel workers (default: auto)")
+    parser.add_argument(
+        "--batch",
+        type=str,
+        default=None,
+        help='Batch mode: "all" for all 4 conditions, or comma-separated '
+        '"Condition:Cultivation" pairs (e.g., "Commensal:Static,Dysbiotic:HOBIC")',
+    )
+    parser.add_argument(
+        "--parallel",
+        action="store_true",
+        help="Run batch conditions in parallel (requires --batch)",
+    )
+    parser.add_argument(
+        "--max-workers", type=int, default=None, help="Maximum parallel workers (default: auto)"
+    )
 
     # Notification (Improvement 3 v3) - Enabled by default
-    parser.add_argument("--no-notify-slack", action="store_true",
-                        help="Disable Slack notifications (enabled by default if webhook configured)")
-    parser.add_argument("--env-file", type=str, default=None,
-                        help="Path to .env file for Slack webhook (default: auto-detect)")
+    parser.add_argument(
+        "--no-notify-slack",
+        action="store_true",
+        help="Disable Slack notifications (enabled by default if webhook configured)",
+    )
+    parser.add_argument(
+        "--env-file",
+        type=str,
+        default=None,
+        help="Path to .env file for Slack webhook (default: auto-detect)",
+    )
 
     # Prior Predictive Checks (Improvement 5)
-    parser.add_argument("--prior-predictive", type=int, default=0,
-                        help="Run prior predictive check with N samples (0 to skip)")
+    parser.add_argument(
+        "--prior-predictive",
+        type=int,
+        default=0,
+        help="Run prior predictive check with N samples (0 to skip)",
+    )
 
     # WAIC / Information Criteria (Improvement 11)
-    parser.add_argument("--compute-waic", action="store_true",
-                        help="Compute WAIC and information criteria for model comparison")
+    parser.add_argument(
+        "--compute-waic",
+        action="store_true",
+        help="Compute WAIC and information criteria for model comparison",
+    )
 
     # Correlation Analysis (Improvement 14)
-    parser.add_argument("--correlation-analysis", action="store_true",
-                        help="Compute and plot parameter correlation matrix")
+    parser.add_argument(
+        "--correlation-analysis",
+        action="store_true",
+        help="Compute and plot parameter correlation matrix",
+    )
 
     # Species-specific sigma (V. dispar model inadequacy)
-    parser.add_argument("--species-sigma", action="store_true",
-                        help="Use per-species sigma_obs (V. dispar gets higher noise)")
-    parser.add_argument("--vd-sigma-factor", type=float, default=2.0,
-                        help="V. dispar sigma multiplier (default: 2.0)")
+    parser.add_argument(
+        "--species-sigma",
+        action="store_true",
+        help="Use per-species sigma_obs (V. dispar gets higher noise)",
+    )
+    parser.add_argument(
+        "--vd-sigma-factor",
+        type=float,
+        default=2.0,
+        help="V. dispar sigma multiplier (default: 2.0)",
+    )
 
     # DeepONet surrogate (~80× per-sample, ~29× E2E TMCMC)
-    parser.add_argument("--use-deeponet", action="store_true",
-                        help="Use DeepONet surrogate instead of ODE solver (~80× per-sample, ~29× E2E)")
-    parser.add_argument("--deeponet-checkpoint", type=str, default=None,
-                        help="Path to DeepONet checkpoint dir (default: auto-detect from condition)")
-    parser.add_argument("--use-threads", action="store_true",
-                        help="Use threads instead of processes (required for JAX/DeepONet to avoid fork issues)")
+    parser.add_argument(
+        "--use-deeponet",
+        action="store_true",
+        help="Use DeepONet surrogate instead of ODE solver (~80× per-sample, ~29× E2E)",
+    )
+    parser.add_argument(
+        "--deeponet-checkpoint",
+        type=str,
+        default=None,
+        help="Path to DeepONet checkpoint dir (default: auto-detect from condition)",
+    )
+    parser.add_argument(
+        "--use-threads",
+        action="store_true",
+        help="Use threads instead of processes (required for JAX/DeepONet to avoid fork issues)",
+    )
 
     return parser.parse_args()
 
@@ -2395,9 +2569,9 @@ def main():
     # IMPROVEMENT 9: Batch Processing Mode (with parallel support)
     # =========================================================================
     if args.batch:
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("BATCH PROCESSING MODE")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         try:
             conditions = parse_batch_conditions(args.batch)
@@ -2410,26 +2584,31 @@ def main():
 
         base_output_dir = data_dir / "_runs"
         batch_results = run_batch_estimation(
-            args, conditions, data_dir, base_output_dir,
+            args,
+            conditions,
+            data_dir,
+            base_output_dir,
             parallel=args.parallel,
             max_workers=args.max_workers,
-            notifier=notifier
+            notifier=notifier,
         )
 
         # Print batch summary
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("BATCH PROCESSING COMPLETE")
-        print("="*70)
+        print("=" * 70)
         n_success = sum(1 for r in batch_results.values() if r.get("success", False))
         print(f"Results: {n_success}/{len(batch_results)} successful")
-        print("-"*70)
+        print("-" * 70)
         for name, result in batch_results.items():
             if result.get("success", False):
-                print(f"  ✓ {name}: LogL={result.get('logL_max', 'N/A'):.2f}, "
-                      f"Converged={result.get('converged', 'N/A')}")
+                print(
+                    f"  ✓ {name}: LogL={result.get('logL_max', 'N/A'):.2f}, "
+                    f"Converged={result.get('converged', 'N/A')}"
+                )
             else:
                 print(f"  ✗ {name}: FAILED - {result.get('error', 'Unknown error')}")
-        print("="*70)
+        print("=" * 70)
 
         return  # Exit after batch processing
 
@@ -2544,7 +2723,9 @@ def main():
         # Create new checkpoint manager
         checkpoint_dir = output_dir / "checkpoints"
         checkpoint_manager = TMCMCCheckpointManager(checkpoint_dir, args.checkpoint_every)
-        logger.info(f"Checkpointing enabled: saving every {args.checkpoint_every} stages to {checkpoint_dir}")
+        logger.info(
+            f"Checkpointing enabled: saving every {args.checkpoint_every} stages to {checkpoint_dir}"
+        )
 
     # =========================================================================
     # IMPROVEMENT 5: Prior Predictive Check (before main estimation)
@@ -2580,7 +2761,7 @@ def main():
             theta_base=theta_base_ppc,
             solver_kwargs=solver_kwargs_ppc,
             active_species=[0, 1, 2, 3, 4],
-            seed=args.seed
+            seed=args.seed,
         )
 
         # Save PPC results
@@ -2595,17 +2776,34 @@ def main():
 
         # Generate PPC plots
         param_names_ppc = [
-            "a11", "a12", "a22", "b1", "b2",
-            "a33", "a34", "a44", "b3", "b4",
-            "a13", "a14", "a23", "a24",
-            "a55", "b5",
-            "a15", "a25", "a35", "a45",
+            "a11",
+            "a12",
+            "a22",
+            "b1",
+            "b2",
+            "a33",
+            "a34",
+            "a44",
+            "b3",
+            "b4",
+            "a13",
+            "a14",
+            "a23",
+            "a24",
+            "a55",
+            "b5",
+            "a15",
+            "a25",
+            "a35",
+            "a45",
         ]
         active_param_names_ppc = [param_names_ppc[i] for i in active_indices_ppc]
 
         plot_prior_predictive(ppc_results, output_dir, data, active_param_names_ppc)
 
-        logger.info(f"Prior predictive check complete: {ppc_results['success_rate']*100:.1f}% success rate")
+        logger.info(
+            f"Prior predictive check complete: {ppc_results['success_rate']*100:.1f}% success rate"
+        )
 
         if ppc_results["success_rate"] < 0.5:
             logger.warning("Low prior predictive success rate! Consider adjusting priors.")
@@ -2613,9 +2811,14 @@ def main():
     # Run estimation
     logger.info("Running parameter estimation...")
     results = run_estimation(
-        data, idx_sparse, args, output_dir, metadata, phi_init_array,
+        data,
+        idx_sparse,
+        args,
+        output_dir,
+        metadata,
+        phi_init_array,
         checkpoint_manager=checkpoint_manager,
-        resume_data=resume_data
+        resume_data=resume_data,
     )
 
     # Save results
@@ -2628,7 +2831,9 @@ def main():
 
     # Get total number of parameters from model config (avoid hardcoding)
     model_constants = get_model_constants()
-    N_FULL_PARAMS = len(model_constants.get("param_names", [f"p{i}" for i in range(20)]))  # Fallback if config missing
+    N_FULL_PARAMS = len(
+        model_constants.get("param_names", [f"p{i}" for i in range(20)])
+    )  # Fallback if config missing
 
     # Robust extraction: check for full dimension (20) explicitly
     if len(results["MAP"]) == N_FULL_PARAMS and n_active < N_FULL_PARAMS:
@@ -2640,15 +2845,24 @@ def main():
         mean_active = results["mean"]
     else:
         # Unexpected dimension - log warning and attempt extraction
-        logger.warning(f"Unexpected MAP dimension: {len(results['MAP'])} (expected {N_FULL_PARAMS} or {n_active})")
-        MAP_active = results["MAP"][:n_active] if len(results["MAP"]) >= n_active else results["MAP"]
-        mean_active = results["mean"][:n_active] if len(results["mean"]) >= n_active else results["mean"]
+        logger.warning(
+            f"Unexpected MAP dimension: {len(results['MAP'])} (expected {N_FULL_PARAMS} or {n_active})"
+        )
+        MAP_active = (
+            results["MAP"][:n_active] if len(results["MAP"]) >= n_active else results["MAP"]
+        )
+        mean_active = (
+            results["mean"][:n_active] if len(results["mean"]) >= n_active else results["mean"]
+        )
 
-    save_json(output_dir / "theta_MAP.json", {
-        "theta_sub": MAP_active.tolist(),  # Active parameters only
-        "theta_full": results["theta_MAP_full"].tolist(),
-        "active_indices": active_indices,
-    })
+    save_json(
+        output_dir / "theta_MAP.json",
+        {
+            "theta_sub": MAP_active.tolist(),  # Active parameters only
+            "theta_full": results["theta_MAP_full"].tolist(),
+            "active_indices": active_indices,
+        },
+    )
 
     # =========================================================================
     # IMPROVEMENT 2 & 3: Save Enhanced Diagnostics and HDI
@@ -2719,19 +2933,21 @@ def main():
         logger.error(f"Array length mismatches (expected {expected_len}): {mismatches}")
         raise ValueError(f"Cannot create parameter summary: array length mismatches {mismatches}")
 
-    param_summary = pd.DataFrame({
-        "name": results["param_names"],
-        "index": active_indices,
-        "MAP": MAP_active,
-        "mean": mean_active,
-        "median": ci_median,
-        "hdi_lower": ci_hdi_lower,
-        "hdi_upper": ci_hdi_upper,
-        "et_lower": ci_et_lower,
-        "et_upper": ci_et_upper,
-        "rhat": diag_rhat,
-        "ess": diag_ess,
-    })
+    param_summary = pd.DataFrame(
+        {
+            "name": results["param_names"],
+            "index": active_indices,
+            "MAP": MAP_active,
+            "mean": mean_active,
+            "median": ci_median,
+            "hdi_lower": ci_hdi_lower,
+            "hdi_upper": ci_hdi_upper,
+            "et_lower": ci_et_lower,
+            "et_upper": ci_et_upper,
+            "rhat": diag_rhat,
+            "ess": diag_ess,
+        }
+    )
     param_summary.to_csv(output_dir / "parameter_summary.csv", index=False)
 
     # =========================================================================
@@ -2746,22 +2962,25 @@ def main():
     if args.correlation_analysis:
         logger.info("Computing parameter correlation analysis...")
         try:
-            corr_results = compute_correlation_matrix(
-                results["samples"],
-                results["param_names"]
-            )
+            corr_results = compute_correlation_matrix(results["samples"], results["param_names"])
             save_json(output_dir / "correlation_analysis.json", corr_results)
 
             # Generate correlation plots
             plot_correlation_matrix(corr_results, output_dir)
 
             if corr_results["identifiability_warning"]:
-                logger.warning(f"Identifiability warning: {corr_results['n_high_correlations']} "
-                              f"highly correlated parameter pairs detected!")
+                logger.warning(
+                    f"Identifiability warning: {corr_results['n_high_correlations']} "
+                    f"highly correlated parameter pairs detected!"
+                )
                 for pair in corr_results["high_correlation_pairs"][:5]:
-                    logger.warning(f"  {pair['param1']} <-> {pair['param2']}: r={pair['correlation']:.3f}")
+                    logger.warning(
+                        f"  {pair['param1']} <-> {pair['param2']}: r={pair['correlation']:.3f}"
+                    )
 
-            logger.info(f"Correlation analysis complete. Condition number: {corr_results['condition_number']:.1f}")
+            logger.info(
+                f"Correlation analysis complete. Condition number: {corr_results['condition_number']:.1f}"
+            )
         except Exception as e:
             logger.warning(f"Failed to compute correlation analysis: {e}")
 
@@ -2793,7 +3012,9 @@ def main():
                 "n_hill": args.n_hill,
             }
 
-            sigma_obs_waic = args.sigma_obs if args.sigma_obs else metadata.get('sigma_obs_estimated', 0.05)
+            sigma_obs_waic = (
+                args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
+            )
 
             debug_config_waic = DebugConfig(level=DebugLevel.ERROR)
             debug_logger_waic = DebugLogger(debug_config_waic)
@@ -2822,36 +3043,43 @@ def main():
                 idx_sparse=idx_sparse,
                 active_indices=active_indices_waic,
                 theta_base=theta_base_waic,
-                n_subsample=min(500, results["samples"].shape[0])
+                n_subsample=min(500, results["samples"].shape[0]),
             )
 
             save_json(output_dir / "waic_results.json", waic_results)
             logger.info(f"WAIC (approximate): {waic_results['waic_approximate']:.2f}")
-            logger.info(f"lppd: {waic_results['lppd_approximate']:.2f}, p_waic: {waic_results['p_waic_approximate']:.2f}")
+            logger.info(
+                f"lppd: {waic_results['lppd_approximate']:.2f}, p_waic: {waic_results['p_waic_approximate']:.2f}"
+            )
         except Exception as e:
             logger.warning(f"Failed to compute WAIC: {e}")
 
-    save_json(output_dir / "theta_mean.json", {
-        "theta_sub": mean_active.tolist(),  # Active parameters only
-        "theta_full": results["theta_mean_full"].tolist(),
-        "active_indices": results["active_indices"],
-    })
+    save_json(
+        output_dir / "theta_mean.json",
+        {
+            "theta_sub": mean_active.tolist(),  # Active parameters only
+            "theta_full": results["theta_mean_full"].tolist(),
+            "active_indices": results["active_indices"],
+        },
+    )
 
-    save_json(output_dir / "results_summary.json", {
-        "elapsed_time": results["elapsed_time"],
-        "converged": [bool(c) for c in results["converged"]],
-        "MAP": results["MAP"].tolist(),
-        "mean": results["mean"].tolist(),
-    })
+    save_json(
+        output_dir / "results_summary.json",
+        {
+            "elapsed_time": results["elapsed_time"],
+            "converged": [bool(c) for c in results["converged"]],
+            "MAP": results["MAP"].tolist(),
+            "mean": results["mean"].tolist(),
+        },
+    )
 
     # Export TMCMC diagnostics tables (if available)
     if "diagnostics" in results and results["diagnostics"]:
         try:
             from visualization import export_tmcmc_diagnostics_tables
+
             export_tmcmc_diagnostics_tables(
-                output_dir,
-                f"{args.condition}_{args.cultivation}",
-                results["diagnostics"]
+                output_dir, f"{args.condition}_{args.cultivation}", results["diagnostics"]
             )
             logger.info("Exported TMCMC diagnostics tables")
         except Exception as e:
@@ -2878,11 +3106,26 @@ def main():
 
     # Parameter names for plotting
     param_names = [
-        "a11", "a12", "a22", "b1", "b2",      # M1
-        "a33", "a34", "a44", "b3", "b4",      # M2
-        "a13", "a14", "a23", "a24",           # M3
-        "a55", "b5",                          # M4
-        "a15", "a25", "a35", "a45",           # M5
+        "a11",
+        "a12",
+        "a22",
+        "b1",
+        "b2",  # M1
+        "a33",
+        "a34",
+        "a44",
+        "b3",
+        "b4",  # M2
+        "a13",
+        "a14",
+        "a23",
+        "a24",  # M3
+        "a55",
+        "b5",  # M4
+        "a15",
+        "a25",
+        "a35",
+        "a45",  # M5
     ]
 
     # Run simulations for MAP and Mean estimates
@@ -2896,11 +3139,14 @@ def main():
     # 1. MAP Fit
     try:
         plot_mgr.plot_TSM_simulation(
-            t_fit, x_fit_map, active_species,
+            t_fit,
+            x_fit_map,
+            active_species,
             f"{name_tag}_MAP_Fit",
-            data, idx_sparse,
+            data,
+            idx_sparse,
             phibar=phibar_map,
-            t_days=t_days
+            t_days=t_days,
         )
     except Exception as e:
         logger.warning(f"Failed to generate MAP fit plot: {e}")
@@ -2908,11 +3154,14 @@ def main():
     # 2. Mean Fit (NEW)
     try:
         plot_mgr.plot_TSM_simulation(
-            t_fit, x_fit_mean, active_species,
+            t_fit,
+            x_fit_mean,
+            active_species,
             f"{name_tag}_Mean_Fit",
-            data, idx_sparse,
+            data,
+            idx_sparse,
             phibar=phibar_mean,
-            t_days=t_days
+            t_days=t_days,
         )
     except Exception as e:
         logger.warning(f"Failed to generate Mean fit plot: {e}")
@@ -2920,28 +3169,26 @@ def main():
     # 3. Residuals
     try:
         plot_mgr.plot_residuals(
-            t_fit, phibar_map, data, idx_sparse, active_species,
+            t_fit,
+            phibar_map,
+            data,
+            idx_sparse,
+            active_species,
             f"{name_tag}_Residuals",
-            t_days=t_days
+            t_days=t_days,
         )
     except Exception as e:
         logger.warning(f"Failed to generate residuals plot: {e}")
 
     # 4. Parameter Distributions (Trace/Hist)
     try:
-        plot_mgr.plot_trace(
-            results["samples"], results["logL"], param_names,
-            f"{name_tag}_Params"
-        )
+        plot_mgr.plot_trace(results["samples"], results["logL"], param_names, f"{name_tag}_Params")
     except Exception as e:
         logger.warning(f"Failed to generate parameter distribution plot: {e}")
 
     # 5. Corner Plot
     try:
-        plot_mgr.plot_corner(
-            results["samples"], param_names,
-            f"{name_tag}_Corner"
-        )
+        plot_mgr.plot_corner(results["samples"], param_names, f"{name_tag}_Corner")
     except Exception as e:
         logger.warning(f"Failed to generate corner plot: {e}")
 
@@ -2951,7 +3198,9 @@ def main():
     n_total_samples = results["samples"].shape[0]
 
     if n_total_samples < n_plot_samples:
-        logger.warning(f"Number of samples ({n_total_samples}) is less than requested for plotting ({n_plot_samples}). Using all samples.")
+        logger.warning(
+            f"Number of samples ({n_total_samples}) is less than requested for plotting ({n_plot_samples}). Using all samples."
+        )
         indices = np.arange(n_total_samples)
     else:
         indices = np.random.choice(n_total_samples, n_plot_samples, replace=False)
@@ -2972,10 +3221,13 @@ def main():
         # Posterior Band
         try:
             plot_mgr.plot_posterior_predictive_band(
-                t_fit, phibar_samples, active_species,
+                t_fit,
+                phibar_samples,
+                active_species,
                 f"{name_tag}_PosteriorBand",
-                data, idx_sparse,
-                t_days=t_days
+                data,
+                idx_sparse,
+                t_days=t_days,
             )
         except Exception as e:
             logger.warning(f"Failed to generate posterior band plot: {e}")
@@ -2983,11 +3235,14 @@ def main():
         # Spaghetti Plot
         try:
             plot_mgr.plot_posterior_predictive_spaghetti(
-                t_fit, phibar_samples, active_species,
+                t_fit,
+                phibar_samples,
+                active_species,
                 f"{name_tag}_PosteriorSpaghetti",
-                data, idx_sparse,
+                data,
+                idx_sparse,
                 num_trajectories=50,
-                t_days=t_days
+                t_days=t_days,
             )
         except Exception as e:
             logger.warning(f"Failed to generate spaghetti plot: {e}")
@@ -3023,10 +3278,16 @@ def main():
         fit_metrics = {
             "MAP": to_serializable(metrics_map),
             "Mean": to_serializable(metrics_mean),
-            "species_names": ["S. oralis", "A. naeslundii", "V. dispar", "F. nucleatum", "P. gingivalis"],
+            "species_names": [
+                "S. oralis",
+                "A. naeslundii",
+                "V. dispar",
+                "F. nucleatum",
+                "P. gingivalis",
+            ],
         }
 
-        with open(output_dir / "fit_metrics.json", 'w') as f:
+        with open(output_dir / "fit_metrics.json", "w") as f:
             json.dump(fit_metrics, f, indent=2)
         logger.info("Saved fit metrics to fit_metrics.json")
 
@@ -3042,35 +3303,43 @@ def main():
     logger.info(f"Estimation complete. Results saved to {output_dir}")
 
     # Print summary
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("ESTIMATION SUMMARY (Nishioka v2)")
-    print("="*80)
+    print("=" * 80)
     print(f"Condition: {args.condition} {args.cultivation}")
     print(f"Elapsed Time: {results['elapsed_time']:.2f}s")
-    print("-"*80)
+    print("-" * 80)
 
     # Convergence diagnostics
     mcmc_diag = results["mcmc_diagnostics"]
     print("CONVERGENCE DIAGNOSTICS:")
-    print(f"  R-hat max:     {mcmc_diag['rhat_max']:.4f} {'✓' if mcmc_diag['converged_rhat'] else '✗'} (target < 1.1)")
-    print(f"  ESS min:       {mcmc_diag['ess_min']:.1f} {'✓' if mcmc_diag['converged_ess'] else '✗'} (target > 100)")
+    print(
+        f"  R-hat max:     {mcmc_diag['rhat_max']:.4f} {'✓' if mcmc_diag['converged_rhat'] else '✗'} (target < 1.1)"
+    )
+    print(
+        f"  ESS min:       {mcmc_diag['ess_min']:.1f} {'✓' if mcmc_diag['converged_ess'] else '✗'} (target > 100)"
+    )
     print(f"  Overall:       {'CONVERGED' if mcmc_diag['converged'] else 'NOT CONVERGED'}")
-    print("-"*80)
+    print("-" * 80)
 
     # Model evidence (if computed)
     if results["evidence"] is not None:
         ev = results["evidence"]
         print("MODEL EVIDENCE:")
-        print(f"  log(p(D)):     {ev['log_evidence']:.2f} ± {ev['log_evidence_se']:.2f} ({ev['method']})")
+        print(
+            f"  log(p(D)):     {ev['log_evidence']:.2f} ± {ev['log_evidence_se']:.2f} ({ev['method']})"
+        )
         print(f"  BIC:           {ev['BIC']:.2f}")
-        print("-"*80)
+        print("-" * 80)
 
     # Parameter estimates with HDI
     ci = results["credible_intervals"]
     print("PARAMETER ESTIMATES (with 95% HDI):")
-    print("-"*80)
-    print(f"{'Name':<8} {'MAP':>10} {'Mean':>10} {'HDI_low':>10} {'HDI_high':>10} {'R-hat':>8} {'ESS':>8}")
-    print("-"*80)
+    print("-" * 80)
+    print(
+        f"{'Name':<8} {'MAP':>10} {'Mean':>10} {'HDI_low':>10} {'HDI_high':>10} {'R-hat':>8} {'ESS':>8}"
+    )
+    print("-" * 80)
 
     for i, name in enumerate(results["param_names"]):
         # Use MAP_active/mean_active which are correctly extracted for active indices
@@ -3082,11 +3351,13 @@ def main():
         ess_val = mcmc_diag["ess"][i]
 
         rhat_str = f"{rhat_val:.3f}" if not np.isnan(rhat_val) else "N/A"
-        print(f"{name:<8} {map_val:>10.4f} {mean_val:>10.4f} {hdi_l:>10.4f} {hdi_h:>10.4f} {rhat_str:>8} {ess_val:>8.1f}")
+        print(
+            f"{name:<8} {map_val:>10.4f} {mean_val:>10.4f} {hdi_l:>10.4f} {hdi_h:>10.4f} {rhat_str:>8} {ess_val:>8.1f}"
+        )
 
-    print("="*80)
+    print("=" * 80)
     print(f"\nResults saved to: {output_dir}")
-    print("="*80)
+    print("=" * 80)
 
     # =========================================================================
     # Send Slack notification on completion (single condition mode)
@@ -3098,7 +3369,7 @@ def main():
             results["elapsed_time"],
             mcmc_diag["converged"],
             float(np.max(results["logL"])),
-            str(output_dir)
+            str(output_dir),
         )
 
 

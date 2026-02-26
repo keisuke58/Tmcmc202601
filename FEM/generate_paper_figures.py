@@ -30,16 +30,13 @@ Usage
 """
 import argparse
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib import gridspec, cm
-from matplotlib.patches import FancyBboxPatch
-import matplotlib.colors as mcolors
 
 _HERE = Path(__file__).resolve().parent
 _TMCMC_ROOT = _HERE.parent
@@ -48,17 +45,19 @@ _FIG_DIR = _HERE / "figures" / "paper_final"
 _FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Style
-plt.rcParams.update({
-    "font.size": 10,
-    "axes.titlesize": 12,
-    "axes.labelsize": 11,
-    "xtick.labelsize": 9,
-    "ytick.labelsize": 9,
-    "legend.fontsize": 9,
-    "figure.dpi": 150,
-    "savefig.dpi": 200,
-    "savefig.bbox": "tight",
-})
+plt.rcParams.update(
+    {
+        "font.size": 10,
+        "axes.titlesize": 12,
+        "axes.labelsize": 11,
+        "xtick.labelsize": 9,
+        "ytick.labelsize": 9,
+        "legend.fontsize": 9,
+        "figure.dpi": 150,
+        "savefig.dpi": 200,
+        "savefig.bbox": "tight",
+    }
+)
 
 SPECIES = ["S. oralis", "A. naeslundii", "V. dispar", "F. nucleatum", "P. gingivalis"]
 SP_COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
@@ -72,29 +71,64 @@ COND_META = {
 }
 
 PARAM_NAMES = [
-    "a11", "a12", "a22", "b1", "b2",
-    "a33", "a34", "a44", "b3", "b4",
-    "a13", "a14", "a23", "a24",
-    "a55", "b5", "a15", "a25", "a35", "a45",
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45",
 ]
 PARAM_TEX = [
-    r"$a_{11}$", r"$a_{12}$", r"$a_{22}$", r"$b_1$", r"$b_2$",
-    r"$a_{33}$", r"$a_{34}$", r"$a_{44}$", r"$b_3$", r"$b_4$",
-    r"$a_{13}$", r"$a_{14}$", r"$a_{23}$", r"$a_{24}$",
-    r"$a_{55}$", r"$b_5$", r"$a_{15}$", r"$a_{25}$", r"$a_{35}$", r"$a_{45}$",
+    r"$a_{11}$",
+    r"$a_{12}$",
+    r"$a_{22}$",
+    r"$b_1$",
+    r"$b_2$",
+    r"$a_{33}$",
+    r"$a_{34}$",
+    r"$a_{44}$",
+    r"$b_3$",
+    r"$b_4$",
+    r"$a_{13}$",
+    r"$a_{14}$",
+    r"$a_{23}$",
+    r"$a_{24}$",
+    r"$a_{55}$",
+    r"$b_5$",
+    r"$a_{15}$",
+    r"$a_{25}$",
+    r"$a_{35}$",
+    r"$a_{45}$",
 ]
 
 CONDITION_RUNS = {
-    "dh_baseline":      _RUNS_ROOT / "sweep_pg_20260217_081459" / "dh_baseline",
+    "dh_baseline": _RUNS_ROOT / "sweep_pg_20260217_081459" / "dh_baseline",
     "commensal_static": _RUNS_ROOT / "Commensal_Static_20260208_002100",
 }
 
-E_MAX = 10.0e9; E_MIN = 0.5e9; DI_SCALE = 0.025778; DI_EXP = 2.0
+E_MAX = 10.0e9
+E_MIN = 0.5e9
+DI_SCALE = 0.025778
+DI_EXP = 2.0
 
 
 def di_to_eeff(di):
     r = np.clip(di / DI_SCALE, 0, 1)
-    return E_MAX * (1-r)**DI_EXP + E_MIN * r
+    return E_MAX * (1 - r) ** DI_EXP + E_MIN * r
 
 
 def _load_samples(run_dir):
@@ -140,8 +174,14 @@ def fig08_posterior(dpi=200):
         n_params = min(samples.shape[1], 20)
         for i in range(n_params):
             ax = axes[i]
-            ax.hist(samples[:, i], bins=30, alpha=0.4,
-                    color=meta["color"], density=True, label=meta["label"])
+            ax.hist(
+                samples[:, i],
+                bins=30,
+                alpha=0.4,
+                color=meta["color"],
+                density=True,
+                label=meta["label"],
+            )
             if theta_map is not None and i < len(theta_map):
                 ax.axvline(theta_map[i], color=meta["color"], ls="--", lw=1.5)
 
@@ -181,32 +221,45 @@ def fig09_species_nutrient(dpi=200):
             # No data, skip this condition
             for j in range(4):
                 ax = fig.add_subplot(gs[ci, j])
-                ax.text(0.5, 0.5, f"No data\n({cond})", ha="center", va="center",
-                        transform=ax.transAxes, fontsize=12)
+                ax.text(
+                    0.5,
+                    0.5,
+                    f"No data\n({cond})",
+                    ha="center",
+                    va="center",
+                    transform=ax.transAxes,
+                    fontsize=12,
+                )
             continue
 
         phi_final = phi_snaps[-1]  # (5, Nx, Ny)
-        c_final = c_snaps[-1]     # (Nx, Ny)
+        c_final = c_snaps[-1]  # (Nx, Ny)
         Nx, Ny = c_final.shape
 
         # Panel: 3 species + nutrient
         show_species = [0, 3, 4]  # S.oralis, F.nucleatum, P.gingivalis
         for j, sp in enumerate(show_species):
             ax = fig.add_subplot(gs[ci, j])
-            im = ax.imshow(phi_final[sp].T, origin="lower", aspect="equal",
-                          cmap="hot", vmin=0, vmax=max(0.3, phi_final[sp].max()))
+            im = ax.imshow(
+                phi_final[sp].T,
+                origin="lower",
+                aspect="equal",
+                cmap="hot",
+                vmin=0,
+                vmax=max(0.3, phi_final[sp].max()),
+            )
             plt.colorbar(im, ax=ax, shrink=0.7)
             ax.set_title(f"{meta['label']}: {SP_SHORT[sp]}", fontsize=10)
 
         # Nutrient field
         ax = fig.add_subplot(gs[ci, 3])
-        im = ax.imshow(c_final.T, origin="lower", aspect="equal",
-                       cmap="viridis", vmin=0, vmax=1)
+        im = ax.imshow(c_final.T, origin="lower", aspect="equal", cmap="viridis", vmin=0, vmax=1)
         plt.colorbar(im, ax=ax, shrink=0.7, label="c")
         ax.set_title(f"{meta['label']}: Nutrient", fontsize=10)
 
-    fig.suptitle("Fig 9: 2D Hamilton+Nutrient Species and Nutrient Fields",
-                 fontsize=14, weight="bold")
+    fig.suptitle(
+        "Fig 9: 2D Hamilton+Nutrient Species and Nutrient Fields", fontsize=14, weight="bold"
+    )
     out = _FIG_DIR / "Fig09_species_nutrient.png"
     fig.savefig(out, dpi=dpi)
     plt.close(fig)
@@ -232,26 +285,45 @@ def fig10_di_field(dpi=200):
 
         ax = axes[ci]
         if cond in di_data:
-            im = ax.imshow(di_data[cond].T, origin="lower", aspect="equal",
-                          cmap="RdYlGn_r", vmin=0, vmax=max(0.03, di_data[cond].max()))
+            im = ax.imshow(
+                di_data[cond].T,
+                origin="lower",
+                aspect="equal",
+                cmap="RdYlGn_r",
+                vmin=0,
+                vmax=max(0.03, di_data[cond].max()),
+            )
             plt.colorbar(im, ax=ax, shrink=0.8, label="DI")
         else:
-            ax.text(0.5, 0.5, f"No data\n({cond})", ha="center", va="center",
-                    transform=ax.transAxes, fontsize=12)
+            ax.text(
+                0.5,
+                0.5,
+                f"No data\n({cond})",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=12,
+            )
         ax.set_title(f"{meta['label']}", fontsize=12)
 
     # Panel 3: DI histogram comparison
     ax = axes[2]
     for cond, meta in COND_META.items():
         if cond in di_data:
-            ax.hist(di_data[cond].flatten(), bins=50, alpha=0.5,
-                    color=meta["color"], density=True, label=meta["label"])
-    ax.set_xlabel("DI"); ax.set_ylabel("Density")
+            ax.hist(
+                di_data[cond].flatten(),
+                bins=50,
+                alpha=0.5,
+                color=meta["color"],
+                density=True,
+                label=meta["label"],
+            )
+    ax.set_xlabel("DI")
+    ax.set_ylabel("Density")
     ax.set_title("DI Distribution", fontsize=12)
     ax.legend(fontsize=9)
 
-    fig.suptitle("Fig 10: Dysbiotic Index (DI) Spatial Distribution",
-                 fontsize=14, weight="bold")
+    fig.suptitle("Fig 10: Dysbiotic Index (DI) Spatial Distribution", fontsize=14, weight="bold")
     fig.tight_layout(rect=[0, 0, 1, 0.93])
     out = _FIG_DIR / "Fig10_di_field.png"
     fig.savefig(out, dpi=dpi)
@@ -283,8 +355,14 @@ def fig11_material_model(dpi=200):
             if di_path.exists():
                 di_field = np.load(di_path).flatten()
                 e_field = di_to_eeff(di_field) * 1e-9
-                ax.scatter(di_field[::10], e_field[::10], s=5, alpha=0.3,
-                          color=meta["color"], label=meta["label"])
+                ax.scatter(
+                    di_field[::10],
+                    e_field[::10],
+                    s=5,
+                    alpha=0.3,
+                    color=meta["color"],
+                    label=meta["label"],
+                )
                 break
 
     ax.set_xlabel("DI", fontsize=12)
@@ -300,12 +378,12 @@ def fig11_material_model(dpi=200):
     ax.axis("off")
     params_text = [
         "Material Model Parameters",
-        "="*30,
+        "=" * 30,
         f"E_max = {E_MAX*1e-9:.1f} GPa (healthy)",
         f"E_min = {E_MIN*1e-9:.1f} GPa (dysbiotic)",
         f"DI_scale = {DI_SCALE:.6f}",
         f"n (exponent) = {DI_EXP:.1f}",
-        f"nu = 0.30",
+        "nu = 0.30",
         "",
         "E_eff = E_max*(1-r)^n + E_min*r",
         "r = clamp(DI / DI_scale, 0, 1)",
@@ -314,8 +392,15 @@ def fig11_material_model(dpi=200):
         "  Billings et al. 2015",
         "  Klempt et al. 2024",
     ]
-    ax.text(0.1, 0.95, "\n".join(params_text), transform=ax.transAxes,
-            fontsize=10, family="monospace", va="top")
+    ax.text(
+        0.1,
+        0.95,
+        "\n".join(params_text),
+        transform=ax.transAxes,
+        fontsize=10,
+        family="monospace",
+        va="top",
+    )
 
     fig.suptitle("Fig 11: DI-Dependent Material Model", fontsize=14, weight="bold")
     fig.tight_layout(rect=[0, 0, 1, 0.93])
@@ -334,7 +419,7 @@ def fig12_mesh_assembly(dpi=200):
     ax.axis("off")
     schematic = [
         "Mesh Generation Pipeline",
-        "="*30,
+        "=" * 30,
         "",
         "1. Read STL (tooth surface)",
         "   -> Deduplicate vertices",
@@ -355,14 +440,21 @@ def fig12_mesh_assembly(dpi=200):
         "   -> Tooth S3 + Biofilm C3D4",
         "   -> *Tie constraint",
     ]
-    ax.text(0.05, 0.95, "\n".join(schematic), transform=ax.transAxes,
-            fontsize=9, family="monospace", va="top")
+    ax.text(
+        0.05,
+        0.95,
+        "\n".join(schematic),
+        transform=ax.transAxes,
+        fontsize=9,
+        family="monospace",
+        va="top",
+    )
     ax.set_title("(a) Mesh Pipeline", fontsize=12)
 
     # Panel 2: Cross-section schematic
     ax = axes[1]
     # Draw simplified cross-section
-    theta = np.linspace(0, 2*np.pi, 100)
+    theta = np.linspace(0, 2 * np.pi, 100)
     # Tooth surface
     r_tooth = 1.0
     x_tooth = r_tooth * np.cos(theta) + 2
@@ -382,7 +474,8 @@ def fig12_mesh_assembly(dpi=200):
         y_k = r_k * np.sin(theta) + 2
         ax.plot(x_k, y_k, "r:", lw=0.5, alpha=0.5)
     ax.fill_between(x_tooth, y_tooth, 0, alpha=0.15, color="blue")
-    ax.set_xlim(0.3, 3.7); ax.set_ylim(0.3, 3.7)
+    ax.set_xlim(0.3, 3.7)
+    ax.set_ylim(0.3, 3.7)
     ax.set_aspect("equal")
     ax.legend(fontsize=9)
     ax.set_title("(b) Cross-Section Schematic", fontsize=12)
@@ -391,7 +484,7 @@ def fig12_mesh_assembly(dpi=200):
     ax = axes[2]
     ax.axis("off")
     # Check for auto results
-    stats_text = ["Assembly Statistics", "="*25, ""]
+    stats_text = ["Assembly Statistics", "=" * 25, ""]
     for cond in ["dh_baseline", "commensal_static"]:
         meta_path = _HERE / "_3d_conformal_auto" / cond / "auto_meta.json"
         if meta_path.exists():
@@ -406,8 +499,15 @@ def fig12_mesh_assembly(dpi=200):
     if len(stats_text) <= 3:
         stats_text.append("(Run generate_3d_conformal_auto.py first)")
 
-    ax.text(0.05, 0.95, "\n".join(stats_text), transform=ax.transAxes,
-            fontsize=9, family="monospace", va="top")
+    ax.text(
+        0.05,
+        0.95,
+        "\n".join(stats_text),
+        transform=ax.transAxes,
+        fontsize=9,
+        family="monospace",
+        va="top",
+    )
     ax.set_title("(c) Mesh Statistics", fontsize=12)
 
     fig.suptitle("Fig 12: 3D Conformal Mesh Assembly", fontsize=14, weight="bold")
@@ -449,8 +549,9 @@ def fig13_stress_comparison(dpi=200):
 
         if stress_data is not None:
             ax.hist(stress_data, bins=50, color=meta["color"], alpha=0.7)
-            ax.axvline(np.mean(stress_data), color="k", ls="--",
-                      label=f"mean={np.mean(stress_data):.3f}")
+            ax.axvline(
+                np.mean(stress_data), color="k", ls="--", label=f"mean={np.mean(stress_data):.3f}"
+            )
             ax.legend(fontsize=8)
         elif post_dir.exists():
             subs = []
@@ -464,38 +565,40 @@ def fig13_stress_comparison(dpi=200):
                         subs.append(s["substrate_mises_mean"])
             if subs:
                 ax.hist(subs, bins=15, color=meta["color"], alpha=0.7)
-                ax.axvline(np.mean(subs), color="k", ls="--",
-                          label=f"mean={np.mean(subs):.3f}")
+                ax.axvline(np.mean(subs), color="k", ls="--", label=f"mean={np.mean(subs):.3f}")
                 ax.legend(fontsize=8)
         else:
             # Synthetic from DI
-            for sd in [_HERE / "_3d_conformal_auto" / cond,
-                       _HERE / "_results_2d_nutrient" / cond]:
+            for sd in [_HERE / "_3d_conformal_auto" / cond, _HERE / "_results_2d_nutrient" / cond]:
                 dp = sd / "di_field.npy"
                 if dp.exists():
                     di = np.load(dp)
                     e = di_to_eeff(di) * 1e-6  # MPa
                     ax.hist(e.flatten(), bins=50, color=meta["color"], alpha=0.7)
-                    ax.axvline(np.mean(e), color="k", ls="--",
-                              label=f"E_mean={np.mean(e):.1f}")
+                    ax.axvline(np.mean(e), color="k", ls="--", label=f"E_mean={np.mean(e):.1f}")
                     ax.set_xlabel("$E_{eff}$ [MPa]")
                     ax.legend(fontsize=8)
                     break
             else:
-                ax.text(0.5, 0.5, f"No data", ha="center", va="center",
-                        transform=ax.transAxes)
+                ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
 
         ax.set_title(f"{meta['label']}", fontsize=12)
 
     # Panel 3: ratio
     ax = axes[2]
     ax.axis("off")
-    ax.text(0.5, 0.5, "Stress ratio plot\n(requires Abaqus results)",
-            ha="center", va="center", transform=ax.transAxes, fontsize=11)
+    ax.text(
+        0.5,
+        0.5,
+        "Stress ratio plot\n(requires Abaqus results)",
+        ha="center",
+        va="center",
+        transform=ax.transAxes,
+        fontsize=11,
+    )
     ax.set_title("(c) Stress Ratio", fontsize=12)
 
-    fig.suptitle("Fig 13: von Mises Stress Distribution",
-                 fontsize=14, weight="bold")
+    fig.suptitle("Fig 13: von Mises Stress Distribution", fontsize=14, weight="bold")
     fig.tight_layout(rect=[0, 0, 1, 0.93])
     out = _FIG_DIR / "Fig13_stress.png"
     fig.savefig(out, dpi=dpi)
@@ -509,14 +612,22 @@ def fig14_klempt(dpi=200):
     if bench_fig.exists():
         # Just copy/link
         import shutil
+
         out = _FIG_DIR / "Fig14_klempt_benchmark.png"
         shutil.copy2(str(bench_fig), str(out))
         print(f"  Fig 14: {out} (from klempt_benchmark.py)")
     else:
         # Generate inline
         fig, ax = plt.subplots(figsize=(8, 6))
-        ax.text(0.5, 0.5, "Run klempt_benchmark.py first\nto generate this figure",
-                ha="center", va="center", transform=ax.transAxes, fontsize=14)
+        ax.text(
+            0.5,
+            0.5,
+            "Run klempt_benchmark.py first\nto generate this figure",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontsize=14,
+        )
         fig.suptitle("Fig 14: Klempt 2024 Benchmark", fontsize=14, weight="bold")
         out = _FIG_DIR / "Fig14_klempt_benchmark.png"
         fig.savefig(out, dpi=dpi)
@@ -551,8 +662,14 @@ def fig15_uncertainty(dpi=200):
 
                 x = np.arange(len(di_mean))
                 ax.plot(x, np.sort(di_mean), color=meta["color"], lw=2, label="Median")
-                ax.fill_between(x, np.sort(di_p05), np.sort(di_p95),
-                               alpha=0.3, color=meta["color"], label="90% CI")
+                ax.fill_between(
+                    x,
+                    np.sort(di_p05),
+                    np.sort(di_p95),
+                    alpha=0.3,
+                    color=meta["color"],
+                    label="90% CI",
+                )
                 ax.legend(fontsize=8)
         elif post_dir.exists():
             subs = []
@@ -565,14 +682,20 @@ def fig15_uncertainty(dpi=200):
                     if "substrate_mises_mean" in s:
                         subs.append(s["substrate_mises_mean"])
             if subs:
-                ax.hist(subs, bins=15, color=meta["color"], alpha=0.7,
-                       density=True)
+                ax.hist(subs, bins=15, color=meta["color"], alpha=0.7, density=True)
                 ax.axvline(np.mean(subs), color="k", ls="--")
                 ax.axvline(np.percentile(subs, 5), color="k", ls=":")
                 ax.axvline(np.percentile(subs, 95), color="k", ls=":")
         else:
-            ax.text(0.5, 0.5, f"No data\n({cond})", ha="center", va="center",
-                    transform=ax.transAxes, fontsize=12)
+            ax.text(
+                0.5,
+                0.5,
+                f"No data\n({cond})",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=12,
+            )
 
         ax.set_title(f"{meta['label']}", fontsize=12)
         ax.set_xlabel("DI / Stress")
@@ -582,7 +705,7 @@ def fig15_uncertainty(dpi=200):
     ax.axis("off")
     summary = [
         "Uncertainty Propagation Summary",
-        "="*35,
+        "=" * 35,
         "",
         "Pipeline: posterior theta",
         "  -> Hamilton 2D ODE",
@@ -596,12 +719,18 @@ def fig15_uncertainty(dpi=200):
         "Run posterior_uncertainty_propagation.py",
         "for full results",
     ]
-    ax.text(0.05, 0.95, "\n".join(summary), transform=ax.transAxes,
-            fontsize=9, family="monospace", va="top")
+    ax.text(
+        0.05,
+        0.95,
+        "\n".join(summary),
+        transform=ax.transAxes,
+        fontsize=9,
+        family="monospace",
+        va="top",
+    )
     ax.set_title("(c) Pipeline", fontsize=12)
 
-    fig.suptitle("Fig 15: Posterior Uncertainty Propagation",
-                 fontsize=14, weight="bold")
+    fig.suptitle("Fig 15: Posterior Uncertainty Propagation", fontsize=14, weight="bold")
     fig.tight_layout(rect=[0, 0, 1, 0.93])
     out = _FIG_DIR / "Fig15_uncertainty.png"
     fig.savefig(out, dpi=dpi)
@@ -612,8 +741,8 @@ def fig15_uncertainty(dpi=200):
 # ── Main dispatch ────────────────────────────────────────────────────────────
 
 FIG_DISPATCH = {
-    8:  fig08_posterior,
-    9:  fig09_species_nutrient,
+    8: fig08_posterior,
+    9: fig09_species_nutrient,
     10: fig10_di_field,
     11: fig11_material_model,
     12: fig12_mesh_assembly,
@@ -625,16 +754,21 @@ FIG_DISPATCH = {
 
 def main():
     ap = argparse.ArgumentParser(description="Generate paper figures (Fig 8-15)")
-    ap.add_argument("--figs", nargs="+", type=int, default=list(range(8, 16)),
-                    help="Figure numbers to generate (default: 8-15)")
+    ap.add_argument(
+        "--figs",
+        nargs="+",
+        type=int,
+        default=list(range(8, 16)),
+        help="Figure numbers to generate (default: 8-15)",
+    )
     ap.add_argument("--dpi", type=int, default=200)
     args = ap.parse_args()
 
-    print("="*60)
+    print("=" * 60)
     print("Paper Figure Generation (Fig 8-15)")
     print(f"  Output: {_FIG_DIR}")
     print(f"  DPI: {args.dpi}")
-    print("="*60)
+    print("=" * 60)
 
     for fig_num in sorted(args.figs):
         if fig_num in FIG_DISPATCH:

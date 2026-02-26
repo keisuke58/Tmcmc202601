@@ -25,22 +25,27 @@ import json
 import sys
 import numpy as np
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import logging
 
 # Add project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent  # /home/.../Tmcmc202601
-DATA_5SPECIES_ROOT = Path(__file__).parent.parent    # /home/.../Tmcmc202601/data_5species
+DATA_5SPECIES_ROOT = Path(__file__).parent.parent  # /home/.../Tmcmc202601/data_5species
 
 sys.path.insert(0, str(DATA_5SPECIES_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "tmcmc" / "program2602"))
 sys.path.insert(0, str(PROJECT_ROOT / "tmcmc"))
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from visualization import PlotManager, compute_fit_metrics, compute_phibar, export_tmcmc_diagnostics_tables
+from visualization import (
+    PlotManager,
+    compute_fit_metrics,
+    compute_phibar,
+    export_tmcmc_diagnostics_tables,
+)
 from improved_5species_jit import BiofilmNewtonSolver5S
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -61,7 +66,7 @@ def load_run_results(run_dir: Path) -> Dict[str, Any]:
     for json_file in ["config.json", "theta_MAP.json", "theta_mean.json", "results_summary.json"]:
         path = run_dir / json_file
         if path.exists():
-            with open(path, 'r') as f:
+            with open(path, "r") as f:
                 results[json_file.replace(".json", "")] = json.load(f)
             logger.info(f"Loaded {json_file}")
         else:
@@ -70,7 +75,7 @@ def load_run_results(run_dir: Path) -> Dict[str, Any]:
     # Load diagnostics if available
     diag_file = run_dir / "diagnostics.json"
     if diag_file.exists():
-        with open(diag_file, 'r') as f:
+        with open(diag_file, "r") as f:
             results["diagnostics"] = json.load(f)
         logger.info("Loaded diagnostics.json")
 
@@ -140,11 +145,26 @@ def generate_all_figures(
 
     # Parameter names
     param_names = [
-        "a11", "a12", "a22", "b1", "b2",      # M1
-        "a33", "a34", "a44", "b3", "b4",      # M2
-        "a13", "a14", "a23", "a24",           # M3
-        "a55", "b5",                          # M4
-        "a15", "a25", "a35", "a45",           # M5
+        "a11",
+        "a12",
+        "a22",
+        "b1",
+        "b2",  # M1
+        "a33",
+        "a34",
+        "a44",
+        "b3",
+        "b4",  # M2
+        "a13",
+        "a14",
+        "a23",
+        "a24",  # M3
+        "a55",
+        "b5",  # M4
+        "a15",
+        "a25",
+        "a35",
+        "a45",  # M5
     ]
 
     # Initialize solver
@@ -175,10 +195,13 @@ def generate_all_figures(
     logger.info("Generating MAP fit plot...")
     try:
         plot_mgr.plot_TSM_simulation(
-            t_fit, x_fit_map, active_species,
+            t_fit,
+            x_fit_map,
+            active_species,
             f"{name_tag}_MAP_Fit",
-            data, idx_sparse,
-            phibar=phibar_map
+            data,
+            idx_sparse,
+            phibar=phibar_map,
         )
     except Exception as e:
         logger.error(f"Failed to generate MAP fit plot: {e}")
@@ -187,10 +210,13 @@ def generate_all_figures(
     logger.info("Generating Mean fit plot...")
     try:
         plot_mgr.plot_TSM_simulation(
-            t_fit, x_fit_mean, active_species,
+            t_fit,
+            x_fit_mean,
+            active_species,
             f"{name_tag}_Mean_Fit",
-            data, idx_sparse,
-            phibar=phibar_mean
+            data,
+            idx_sparse,
+            phibar=phibar_mean,
         )
     except Exception as e:
         logger.error(f"Failed to generate Mean fit plot: {e}")
@@ -199,8 +225,7 @@ def generate_all_figures(
     logger.info("Generating residuals plot...")
     try:
         plot_mgr.plot_residuals(
-            t_fit, phibar_map, data, idx_sparse, active_species,
-            f"{name_tag}_Residuals"
+            t_fit, phibar_map, data, idx_sparse, active_species, f"{name_tag}_Residuals"
         )
     except Exception as e:
         logger.error(f"Failed to generate residuals plot: {e}")
@@ -208,20 +233,14 @@ def generate_all_figures(
     # 4. Parameter Distributions (Trace/Hist)
     logger.info("Generating parameter distribution plots...")
     try:
-        plot_mgr.plot_trace(
-            samples, logL, param_names,
-            f"{name_tag}_Params"
-        )
+        plot_mgr.plot_trace(samples, logL, param_names, f"{name_tag}_Params")
     except Exception as e:
         logger.error(f"Failed to generate parameter distribution plot: {e}")
 
     # 5. Corner Plot
     logger.info("Generating corner plot (this may take a while for 20 params)...")
     try:
-        plot_mgr.plot_corner(
-            samples, param_names,
-            f"{name_tag}_Corner"
-        )
+        plot_mgr.plot_corner(samples, param_names, f"{name_tag}_Corner")
     except Exception as e:
         logger.error(f"Failed to generate corner plot: {e}")
 
@@ -252,9 +271,7 @@ def generate_all_figures(
         logger.info("Generating posterior band plot...")
         try:
             plot_mgr.plot_posterior_predictive_band(
-                t_fit, phibar_samples, active_species,
-                f"{name_tag}_PosteriorBand",
-                data, idx_sparse
+                t_fit, phibar_samples, active_species, f"{name_tag}_PosteriorBand", data, idx_sparse
             )
         except Exception as e:
             logger.error(f"Failed to generate posterior band plot: {e}")
@@ -263,10 +280,13 @@ def generate_all_figures(
         logger.info("Generating spaghetti plot...")
         try:
             plot_mgr.plot_posterior_predictive_spaghetti(
-                t_fit, phibar_samples, active_species,
+                t_fit,
+                phibar_samples,
+                active_species,
                 f"{name_tag}_PosteriorSpaghetti",
-                data, idx_sparse,
-                num_trajectories=n_posterior_samples
+                data,
+                idx_sparse,
+                num_trajectories=n_posterior_samples,
             )
         except Exception as e:
             logger.error(f"Failed to generate spaghetti plot: {e}")
@@ -315,28 +335,34 @@ def generate_all_figures(
         metrics = {
             "MAP": convert_to_serializable(metrics_map),
             "Mean": convert_to_serializable(metrics_mean),
-            "species_names": ["S. oralis", "A. naeslundii", "V. dispar", "F. nucleatum", "P. gingivalis"],
+            "species_names": [
+                "S. oralis",
+                "A. naeslundii",
+                "V. dispar",
+                "F. nucleatum",
+                "P. gingivalis",
+            ],
         }
 
         metrics_path = run_dir / "fit_metrics.json"
-        with open(metrics_path, 'w') as f:
+        with open(metrics_path, "w") as f:
             json.dump(metrics, f, indent=2)
         logger.info(f"Saved fit metrics to {metrics_path}")
 
         # Print summary
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("FIT METRICS SUMMARY")
-        print("="*60)
+        print("=" * 60)
         print("\nMAP Estimate:")
         print(f"  Total RMSE: {metrics_map['rmse_total']:.6f}")
         print(f"  Total MAE:  {metrics_map['mae_total']:.6f}")
-        print("  Per-species RMSE:", [f"{v:.4f}" for v in metrics_map['rmse_per_species']])
+        print("  Per-species RMSE:", [f"{v:.4f}" for v in metrics_map["rmse_per_species"]])
 
         print("\nMean Estimate:")
         print(f"  Total RMSE: {metrics_mean['rmse_total']:.6f}")
         print(f"  Total MAE:  {metrics_mean['mae_total']:.6f}")
-        print("  Per-species RMSE:", [f"{v:.4f}" for v in metrics_mean['rmse_per_species']])
-        print("="*60)
+        print("  Per-species RMSE:", [f"{v:.4f}" for v in metrics_mean["rmse_per_species"]])
+        print("=" * 60)
 
     except Exception as e:
         logger.error(f"Failed to compute/save fit metrics: {e}")
@@ -357,17 +383,18 @@ def generate_all_figures(
 def main():
     parser = argparse.ArgumentParser(description="Regenerate all figures from completed TMCMC run")
     parser.add_argument(
-        "--run-dir", type=str, required=True,
-        help="Path to the run directory (e.g., _runs/Commensal_Static_20260204_062733)"
+        "--run-dir",
+        type=str,
+        required=True,
+        help="Path to the run directory (e.g., _runs/Commensal_Static_20260204_062733)",
     )
     parser.add_argument(
-        "--n-samples", type=int, default=50,
-        help="Number of posterior samples for predictive plots (default: 50)"
+        "--n-samples",
+        type=int,
+        default=50,
+        help="Number of posterior samples for predictive plots (default: 50)",
     )
-    parser.add_argument(
-        "--force", action="store_true",
-        help="Force regeneration of all figures"
-    )
+    parser.add_argument("--force", action="store_true", help="Force regeneration of all figures")
 
     args = parser.parse_args()
 

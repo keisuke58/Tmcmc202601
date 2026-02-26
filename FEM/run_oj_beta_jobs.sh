@@ -21,4 +21,3 @@ abaqus job=OJ_Slit_T3031_b070 inp=OJ_Slit_T3031_b070.inp cpus=1 interactive
 
 echo '=== OJ_Slit_T3031_b100 ==='
 abaqus job=OJ_Slit_T3031_b100 inp=OJ_Slit_T3031_b100.inp cpus=1 interactive
-

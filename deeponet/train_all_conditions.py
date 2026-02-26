@@ -24,6 +24,7 @@ CONDITIONS = [
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--epochs", type=int, default=500)
     parser.add_argument("--batch-size", type=int, default=256)
@@ -53,12 +54,19 @@ def main():
 
         t0 = time.time()
         cmd = [
-            sys.executable, "deeponet_hamilton.py", "train",
-            "--data", str(data_file),
-            "--epochs", str(args.epochs),
-            "--batch-size", str(args.batch_size),
-            "--lr", str(args.lr),
-            "--checkpoint-dir", str(ckpt_dir),
+            sys.executable,
+            "deeponet_hamilton.py",
+            "train",
+            "--data",
+            str(data_file),
+            "--epochs",
+            str(args.epochs),
+            "--batch-size",
+            str(args.batch_size),
+            "--lr",
+            str(args.lr),
+            "--checkpoint-dir",
+            str(ckpt_dir),
         ]
         ret = subprocess.run(cmd, cwd=str(Path(__file__).parent))
         elapsed = time.time() - t0
@@ -71,26 +79,48 @@ def main():
         # Run eval + benchmark
         if ret.returncode == 0:
             print(f"\n--- Eval: {cond} ---")
-            subprocess.run([
-                sys.executable, "deeponet_hamilton.py", "eval",
-                "--checkpoint", str(ckpt_dir / "best.eqx"),
-                "--data", str(data_file),
-            ], cwd=str(Path(__file__).parent))
+            subprocess.run(
+                [
+                    sys.executable,
+                    "deeponet_hamilton.py",
+                    "eval",
+                    "--checkpoint",
+                    str(ckpt_dir / "best.eqx"),
+                    "--data",
+                    str(data_file),
+                ],
+                cwd=str(Path(__file__).parent),
+            )
 
             print(f"\n--- Benchmark: {cond} ---")
-            subprocess.run([
-                sys.executable, "deeponet_hamilton.py", "benchmark",
-                "--checkpoint", str(ckpt_dir / "best.eqx"),
-                "--data", str(data_file),
-                "--n-bench", "1000",
-            ], cwd=str(Path(__file__).parent))
+            subprocess.run(
+                [
+                    sys.executable,
+                    "deeponet_hamilton.py",
+                    "benchmark",
+                    "--checkpoint",
+                    str(ckpt_dir / "best.eqx"),
+                    "--data",
+                    str(data_file),
+                    "--n-bench",
+                    "1000",
+                ],
+                cwd=str(Path(__file__).parent),
+            )
 
             print(f"\n--- Plot: {cond} ---")
-            subprocess.run([
-                sys.executable, "deeponet_hamilton.py", "plot",
-                "--checkpoint", str(ckpt_dir / "best.eqx"),
-                "--data", str(data_file),
-            ], cwd=str(Path(__file__).parent))
+            subprocess.run(
+                [
+                    sys.executable,
+                    "deeponet_hamilton.py",
+                    "plot",
+                    "--checkpoint",
+                    str(ckpt_dir / "best.eqx"),
+                    "--data",
+                    str(data_file),
+                ],
+                cwd=str(Path(__file__).parent),
+            )
 
     # Summary
     print(f"\n{'='*60}")

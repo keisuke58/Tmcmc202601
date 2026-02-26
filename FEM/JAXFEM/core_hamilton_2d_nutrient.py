@@ -34,6 +34,7 @@ jax.config.update("jax_enable_x64", True)
 # Configuration
 # ---------------------------------------------------------------------------
 
+
 class Config2D:
     """Simulation parameters for 2D Hamilton + nutrient coupling."""
 
@@ -74,14 +75,14 @@ class Config2D:
         self.save_every = save_every
 
         self.D_eff = (
-            np.array([1e-3, 1e-3, 8e-4, 5e-4, 2e-4])
-            if D_eff is None else np.asarray(D_eff)
+            np.array([1e-3, 1e-3, 8e-4, 5e-4, 2e-4]) if D_eff is None else np.asarray(D_eff)
         )
         self.D_c = D_c
         self.k_monod = k_monod
         self.g_consumption = (
             np.array([1.0, 1.0, 0.8, 0.5, 0.3])
-            if g_consumption is None else np.asarray(g_consumption)
+            if g_consumption is None
+            else np.asarray(g_consumption)
         )
         self.c_boundary = c_boundary
 
@@ -100,39 +101,53 @@ class Config2D:
 # theta -> A, b
 # ---------------------------------------------------------------------------
 
+
 def theta_to_matrices(theta):
     """Convert 20-vector theta to interaction matrix A (5x5) and b_diag (5,)."""
     A = jnp.zeros((5, 5))
     b = jnp.zeros(5)
     # M1: S.oralis, A.naeslundii
     A = A.at[0, 0].set(theta[0])
-    A = A.at[0, 1].set(theta[1]);  A = A.at[1, 0].set(theta[1])
+    A = A.at[0, 1].set(theta[1])
+    A = A.at[1, 0].set(theta[1])
     A = A.at[1, 1].set(theta[2])
-    b = b.at[0].set(theta[3]);     b = b.at[1].set(theta[4])
+    b = b.at[0].set(theta[3])
+    b = b.at[1].set(theta[4])
     # M2: Veillonella, F.nucleatum
     A = A.at[2, 2].set(theta[5])
-    A = A.at[2, 3].set(theta[6]);  A = A.at[3, 2].set(theta[6])
+    A = A.at[2, 3].set(theta[6])
+    A = A.at[3, 2].set(theta[6])
     A = A.at[3, 3].set(theta[7])
-    b = b.at[2].set(theta[8]);     b = b.at[3].set(theta[9])
+    b = b.at[2].set(theta[8])
+    b = b.at[3].set(theta[9])
     # M3: cross-species
-    A = A.at[0, 2].set(theta[10]); A = A.at[2, 0].set(theta[10])
-    A = A.at[0, 3].set(theta[11]); A = A.at[3, 0].set(theta[11])
-    A = A.at[1, 2].set(theta[12]); A = A.at[2, 1].set(theta[12])
-    A = A.at[1, 3].set(theta[13]); A = A.at[3, 1].set(theta[13])
+    A = A.at[0, 2].set(theta[10])
+    A = A.at[2, 0].set(theta[10])
+    A = A.at[0, 3].set(theta[11])
+    A = A.at[3, 0].set(theta[11])
+    A = A.at[1, 2].set(theta[12])
+    A = A.at[2, 1].set(theta[12])
+    A = A.at[1, 3].set(theta[13])
+    A = A.at[3, 1].set(theta[13])
     # P.gingivalis self
     A = A.at[4, 4].set(theta[14])
     b = b.at[4].set(theta[15])
     # P.gingivalis cross
-    A = A.at[0, 4].set(theta[16]); A = A.at[4, 0].set(theta[16])
-    A = A.at[1, 4].set(theta[17]); A = A.at[4, 1].set(theta[17])
-    A = A.at[2, 4].set(theta[18]); A = A.at[4, 2].set(theta[18])
-    A = A.at[3, 4].set(theta[19]); A = A.at[4, 3].set(theta[19])
+    A = A.at[0, 4].set(theta[16])
+    A = A.at[4, 0].set(theta[16])
+    A = A.at[1, 4].set(theta[17])
+    A = A.at[4, 1].set(theta[17])
+    A = A.at[2, 4].set(theta[18])
+    A = A.at[4, 2].set(theta[18])
+    A = A.at[3, 4].set(theta[19])
+    A = A.at[4, 3].set(theta[19])
     return A, b
 
 
 # ---------------------------------------------------------------------------
 # 0D Hamilton residual & Newton step (reused from jax_hamilton_0d_5species_demo)
 # ---------------------------------------------------------------------------
+
 
 def clip_state(g, active_mask):
     eps = 1e-10
@@ -182,9 +197,7 @@ def residual(g_new, g_prev, params):
     Ia = A @ (phi_new * psi_new)
 
     # Hill gate for P.gingivalis (species 4), gated by F.nucleatum (species 3)
-    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (active_mask[4] == 1).astype(
-        jnp.float64
-    )
+    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (active_mask[4] == 1).astype(jnp.float64)
     fn = jnp.maximum(phi_new[3] * psi_new[3], 0.0)
     num = fn**n_hill
     den = K_hill**n_hill + num
@@ -196,10 +209,9 @@ def residual(g_new, g_prev, params):
     def body_i_phi(carry, i):
         Q_local = carry
         active = active_mask[i] == 1
+
         def active_branch():
-            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / (
-                (phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3
-            )
+            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / ((phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3)
             t2 = (1.0 / Eta[i]) * (
                 gamma_new
                 + (EtaPhi[i] + Eta[i] * psi_new[i] ** 2) * phidot[i]
@@ -207,32 +219,33 @@ def residual(g_new, g_prev, params):
             )
             t3 = (c / Eta[i]) * psi_new[i] * Ia[i]
             return Q_local.at[i].set(t1 + t2 - t3)
+
         def inactive_branch():
             return Q_local.at[i].set(phi_new[i])
+
         return jax.lax.cond(active, active_branch, inactive_branch), None
 
     Q, _ = jax.lax.scan(body_i_phi, Q, jnp.arange(5))
     Q = Q.at[5].set(
-        gamma_new
-        + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new ** 3)
-        + phi0dot
+        gamma_new + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new**3) + phi0dot
     )
 
     def body_i_psi(carry, i):
         Q_local = carry
         active = active_mask[i] == 1
+
         def active_branch():
-            t1 = (-2.0 * Kp1) / (
-                (psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3
-            ) - (2.0 * Kp1) / (
+            t1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3) - (2.0 * Kp1) / (
                 (psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2
             )
             t2 = (b_diag[i] * alpha / Eta[i]) * psi_new[i]
             t3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i] ** 2 * psidot[i]
             t4 = (c / Eta[i]) * phi_new[i] * Ia[i]
             return Q_local.at[6 + i].set(t1 + t2 + t3 - t4)
+
         def inactive_branch():
             return Q_local.at[6 + i].set(psi_new[i])
+
         return jax.lax.cond(active, active_branch, inactive_branch), None
 
     Q, _ = jax.lax.scan(body_i_psi, Q, jnp.arange(5))
@@ -246,14 +259,17 @@ def _make_newton_step_vmap(n_iters):
     n_iters must be a compile-time constant (Python int), not a traced value.
     Different n_iters values produce separate compiled functions.
     """
+
     def newton_step(g_prev, params):
         active_mask = params["active_mask"]
 
         def body(carry, _):
             g = carry
             g = clip_state(g, active_mask)
+
             def F(gg):
                 return residual(gg, g_prev, params)
+
             Q = F(g)
             J = jax.jacfwd(F)(g)
             delta = jnp.linalg.solve(J, -Q)
@@ -275,6 +291,7 @@ def _make_reaction_step(n_sub, n_iters):
     def reaction_step(G, params):
         def body(carry, _):
             return _newton_vmap(carry, params), None
+
         G_final, _ = jax.lax.scan(body, G, jnp.arange(n_sub))
         return G_final
 
@@ -284,6 +301,7 @@ def _make_reaction_step(n_sub, n_iters):
 # ---------------------------------------------------------------------------
 # 2D Laplacian (Neumann BCs)
 # ---------------------------------------------------------------------------
+
 
 def laplacian_2d_neumann(u, dx, dy):
     """
@@ -296,9 +314,7 @@ def laplacian_2d_neumann(u, dx, dy):
     # x-direction: d^2u/dx^2
     lap_x = jnp.zeros_like(u)
     # Interior
-    lap_x = lap_x.at[1:-1, :].set(
-        (u[:-2, :] + u[2:, :] - 2.0 * u[1:-1, :]) / (dx * dx)
-    )
+    lap_x = lap_x.at[1:-1, :].set((u[:-2, :] + u[2:, :] - 2.0 * u[1:-1, :]) / (dx * dx))
     # Neumann at x=0: ghost u[-1] = u[0], so d2u/dx2 = (u[1] - u[0]) / dx^2
     lap_x = lap_x.at[0, :].set((u[1, :] - u[0, :]) / (dx * dx))
     # Neumann at x=Lx:
@@ -306,9 +322,7 @@ def laplacian_2d_neumann(u, dx, dy):
 
     # y-direction: d^2u/dy^2
     lap_y = jnp.zeros_like(u)
-    lap_y = lap_y.at[:, 1:-1].set(
-        (u[:, :-2] + u[:, 2:] - 2.0 * u[:, 1:-1]) / (dy * dy)
-    )
+    lap_y = lap_y.at[:, 1:-1].set((u[:, :-2] + u[:, 2:] - 2.0 * u[:, 1:-1]) / (dy * dy))
     lap_y = lap_y.at[:, 0].set((u[:, 1] - u[:, 0]) / (dy * dy))
     lap_y = lap_y.at[:, -1].set((u[:, -2] - u[:, -1]) / (dy * dy))
 
@@ -323,9 +337,7 @@ def laplacian_2d_dirichlet(u, dx, dy, c_bc):
     Nx, Ny = u.shape
     # Pad with boundary values
     u_pad = jnp.pad(u, 1, mode="constant", constant_values=c_bc)
-    lap = (
-        u_pad[:-2, 1:-1] + u_pad[2:, 1:-1] - 2.0 * u_pad[1:-1, 1:-1]
-    ) / (dx * dx) + (
+    lap = (u_pad[:-2, 1:-1] + u_pad[2:, 1:-1] - 2.0 * u_pad[1:-1, 1:-1]) / (dx * dx) + (
         u_pad[1:-1, :-2] + u_pad[1:-1, 2:] - 2.0 * u_pad[1:-1, 1:-1]
     ) / (dy * dy)
     return lap
@@ -334,6 +346,7 @@ def laplacian_2d_dirichlet(u, dx, dy, c_bc):
 # ---------------------------------------------------------------------------
 # Species diffusion step (explicit Euler, Neumann BCs)
 # ---------------------------------------------------------------------------
+
 
 def diffusion_step_species(G, D_eff, dt_diff, dx, dy):
     """
@@ -352,6 +365,7 @@ def diffusion_step_species_2d(phi_2d, D_eff, dt_diff, dx, dy):
     phi_2d : (Nx, Ny, 5) volume fractions
     Returns updated phi_2d.
     """
+
     def diffuse_one(phi_i, D_i):
         lap = laplacian_2d_neumann(phi_i, dx, dy)
         return phi_i + dt_diff * D_i * lap
@@ -371,6 +385,7 @@ def diffusion_step_species_2d(phi_2d, D_eff, dt_diff, dx, dy):
 # ---------------------------------------------------------------------------
 # Nutrient PDE step (semi-implicit: backward-Euler diffusion, explicit consumption)
 # ---------------------------------------------------------------------------
+
 
 def nutrient_step(c, phi_2d, cfg, dt_nutrient):
     """
@@ -403,6 +418,7 @@ def nutrient_step(c, phi_2d, cfg, dt_nutrient):
 # Initial conditions
 # ---------------------------------------------------------------------------
 
+
 def make_initial_state_2d(cfg):
     """Build initial Hamilton state G (Nx*Ny, 12) and nutrient c (Nx, Ny)."""
     Nx, Ny = cfg.Nx, cfg.Ny
@@ -430,8 +446,8 @@ def make_initial_state_2d(cfg):
     G_2d = G_2d.at[:, :, 0].set(phi_base[0])  # S.oralis
     G_2d = G_2d.at[:, :, 1].set(phi_base[1])  # A.naeslundii
     G_2d = G_2d.at[:, :, 2].set(phi_base[2])  # Veillonella
-    G_2d = G_2d.at[:, :, 3].set(fn_2d)        # F.nucleatum
-    G_2d = G_2d.at[:, :, 4].set(pg_2d)        # P.gingivalis
+    G_2d = G_2d.at[:, :, 3].set(fn_2d)  # F.nucleatum
+    G_2d = G_2d.at[:, :, 4].set(pg_2d)  # P.gingivalis
 
     # Normalise: sum(phi) < 1
     phi_sum = jnp.sum(G_2d[:, :, :5], axis=-1)
@@ -442,9 +458,7 @@ def make_initial_state_2d(cfg):
     G_2d = G_2d.at[:, :, 5].set(1.0 - jnp.sum(G_2d[:, :, :5], axis=-1))
 
     # psi = phi initial (nutrient order parameter)
-    G_2d = G_2d.at[:, :, 6:11].set(
-        jnp.where(active_mask[None, None, :] == 1, 0.999, 0.0)
-    )
+    G_2d = G_2d.at[:, :, 6:11].set(jnp.where(active_mask[None, None, :] == 1, 0.999, 0.0))
 
     # gamma (Lagrange multiplier)
     G_2d = G_2d.at[:, :, 11].set(0.0)
@@ -461,6 +475,7 @@ def make_initial_state_2d(cfg):
 # ---------------------------------------------------------------------------
 # Full simulation
 # ---------------------------------------------------------------------------
+
 
 def run_simulation(theta, cfg):
     """
@@ -550,9 +565,9 @@ def run_simulation(theta, cfg):
             )
 
     result = {
-        "phi_snaps": np.array(phi_snaps),      # (n_snap, 5, Nx, Ny)
-        "c_snaps": np.array(c_snaps),           # (n_snap, Nx, Ny)
-        "t_snaps": np.array(t_snaps),           # (n_snap,)
+        "phi_snaps": np.array(phi_snaps),  # (n_snap, 5, Nx, Ny)
+        "c_snaps": np.array(c_snaps),  # (n_snap, Nx, Ny)
+        "t_snaps": np.array(t_snaps),  # (n_snap,)
     }
     return result
 
@@ -560,6 +575,7 @@ def run_simulation(theta, cfg):
 # ---------------------------------------------------------------------------
 # Derived fields
 # ---------------------------------------------------------------------------
+
 
 def compute_di_field(phi_snaps):
     """
@@ -592,7 +608,7 @@ def compute_alpha_monod(phi_snaps, c_snaps, t_snaps, k_alpha=0.05, k_monod=1.0):
     """
     phi_total = np.sum(phi_snaps, axis=1)  # (n_snap, Nx, Ny)
     monod = c_snaps / (k_monod + c_snaps)  # (n_snap, Nx, Ny)
-    integrand = phi_total * monod           # (n_snap, Nx, Ny)
+    integrand = phi_total * monod  # (n_snap, Nx, Ny)
     alpha = k_alpha * np.trapezoid(integrand, t_snaps, axis=0)
     return alpha
 
@@ -600,6 +616,7 @@ def compute_alpha_monod(phi_snaps, c_snaps, t_snaps, k_alpha=0.05, k_monod=1.0):
 # ---------------------------------------------------------------------------
 # Nutrient-coupled Hamilton reaction (two-way coupling: c <-> phi)
 # ---------------------------------------------------------------------------
+
 
 def residual_c(g_new, g_prev, c_node, params):
     """
@@ -639,9 +656,7 @@ def residual_c(g_new, g_prev, c_node, params):
     Ia = A @ (phi_new * psi_new)
 
     # Hill gate for P.gingivalis (species 4)
-    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (
-        active_mask[4] == 1
-    ).astype(jnp.float64)
+    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (active_mask[4] == 1).astype(jnp.float64)
     fn = jnp.maximum(phi_new[3] * psi_new[3], 0.0)
     num = fn**n_hill
     den = K_hill**n_hill + num
@@ -653,10 +668,9 @@ def residual_c(g_new, g_prev, c_node, params):
     def body_i_phi(carry, i):
         Q_local = carry
         active = active_mask[i] == 1
+
         def active_branch():
-            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / (
-                (phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3
-            )
+            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / ((phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3)
             t2 = (1.0 / Eta[i]) * (
                 gamma_new
                 + (EtaPhi[i] + Eta[i] * psi_new[i] ** 2) * phidot[i]
@@ -664,32 +678,33 @@ def residual_c(g_new, g_prev, c_node, params):
             )
             t3 = (c_node / Eta[i]) * psi_new[i] * Ia[i]
             return Q_local.at[i].set(t1 + t2 - t3)
+
         def inactive_branch():
             return Q_local.at[i].set(phi_new[i])
+
         return jax.lax.cond(active, active_branch, inactive_branch), None
 
     Q, _ = jax.lax.scan(body_i_phi, Q, jnp.arange(5))
     Q = Q.at[5].set(
-        gamma_new
-        + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new ** 3)
-        + phi0dot
+        gamma_new + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new**3) + phi0dot
     )
 
     def body_i_psi(carry, i):
         Q_local = carry
         active = active_mask[i] == 1
+
         def active_branch():
-            t1 = (-2.0 * Kp1) / (
-                (psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3
-            ) - (2.0 * Kp1) / (
+            t1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3) - (2.0 * Kp1) / (
                 (psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2
             )
             t2 = (b_diag[i] * alpha / Eta[i]) * psi_new[i]
             t3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i] ** 2 * psidot[i]
             t4 = (c_node / Eta[i]) * phi_new[i] * Ia[i]
             return Q_local.at[6 + i].set(t1 + t2 + t3 - t4)
+
         def inactive_branch():
             return Q_local.at[6 + i].set(psi_new[i])
+
         return jax.lax.cond(active, active_branch, inactive_branch), None
 
     Q, _ = jax.lax.scan(body_i_psi, Q, jnp.arange(5))
@@ -702,14 +717,17 @@ def _make_newton_step_c_vmap(n_iters):
 
     Vmaps over (g_prev, c_node) with shared params.
     """
+
     def newton_step_c(g_prev, c_node, params):
         active_mask = params["active_mask"]
 
         def body(carry, _):
             g = carry
             g = clip_state(g, active_mask)
+
             def F(gg):
                 return residual_c(gg, g_prev, c_node, params)
+
             Q = F(g)
             J = jax.jacfwd(F)(g)
             delta = jnp.linalg.solve(J, -Q)
@@ -747,6 +765,7 @@ def _make_reaction_step_c(n_sub, n_iters):
 # CFL-stable nutrient PDE step (with sub-stepping)
 # ---------------------------------------------------------------------------
 
+
 def _nutrient_sub_step(c, phi_2d, D_c, k_M, g_cons, c_bc, dx, dy, dt_sub):
     """Single explicit Euler step for nutrient c(x,y)."""
     lap_c = laplacian_2d_dirichlet(c, dx, dy, c_bc)
@@ -764,11 +783,12 @@ def _make_nutrient_step_stable(n_sub_c):
     The nutrient PDE is a simple 2D diffusion-reaction that doesn't
     benefit from JIT — and avoids LLVM memory issues during long runs.
     """
+
     def step(c, phi_2d, D_c, k_M, g_cons, c_bc, dx, dy, dt_macro):
         dt_sub = float(dt_macro / n_sub_c)
         c_np = np.asarray(c, dtype=np.float64)
         phi_np = np.asarray(phi_2d, dtype=np.float64)  # (Nx, Ny, 5)
-        g_np = np.asarray(g_cons, dtype=np.float64)     # (5,)
+        g_np = np.asarray(g_cons, dtype=np.float64)  # (5,)
         D = float(D_c)
         kM = float(k_M)
         cb = float(c_bc)
@@ -781,10 +801,9 @@ def _make_nutrient_step_stable(n_sub_c):
         for _ in range(n_sub_c):
             # Laplacian with Dirichlet BC (c_bc on all walls)
             c_pad = np.pad(c_np, 1, mode="constant", constant_values=cb)
-            lap = (
-                (c_pad[:-2, 1:-1] + c_pad[2:, 1:-1] - 2.0 * c_pad[1:-1, 1:-1]) / dx2
-                + (c_pad[1:-1, :-2] + c_pad[1:-1, 2:] - 2.0 * c_pad[1:-1, 1:-1]) / dy2
-            )
+            lap = (c_pad[:-2, 1:-1] + c_pad[2:, 1:-1] - 2.0 * c_pad[1:-1, 1:-1]) / dx2 + (
+                c_pad[1:-1, :-2] + c_pad[1:-1, 2:] - 2.0 * c_pad[1:-1, 1:-1]
+            ) / dy2
             # Monod consumption
             monod = c_np / (kM + c_np)
             consumption = phi_total_w * monod
@@ -793,6 +812,7 @@ def _make_nutrient_step_stable(n_sub_c):
             c_np = np.clip(c_np, 0.0, cb)
 
         return jnp.array(c_np)
+
     return step
 
 
@@ -800,16 +820,15 @@ def _make_nutrient_step_stable(n_sub_c):
 # Biofilm geometry
 # ---------------------------------------------------------------------------
 
-def egg_shape_mask(Nx, Ny, Lx=1.0, Ly=1.0,
-                   ax=0.35, ay=0.25, cx=0.5, cy=0.5,
-                   skew=0.3, eps=0.1):
+
+def egg_shape_mask(Nx, Ny, Lx=1.0, Ly=1.0, ax=0.35, ay=0.25, cx=0.5, cy=0.5, skew=0.3, eps=0.1):
     """Klempt 2024 egg-shaped biofilm indicator phi_biofilm(x,y) in [0,1]."""
     x = np.linspace(0, Lx, Nx)
     y = np.linspace(0, Ly, Ny)
     X, Y = np.meshgrid(x, y, indexing="ij")
     xn = (X - cx * Lx) / (ax * Lx)
     yn = (Y - cy * Ly + skew * (X - cx * Lx) ** 2) / (ay * Ly)
-    r2 = xn ** 2 + yn ** 2
+    r2 = xn**2 + yn**2
     return 0.5 * (1.0 - np.tanh((r2 - 1.0) / eps))
 
 
@@ -856,9 +875,16 @@ def make_initial_state_2d_biofilm(cfg, biofilm_mask):
 # Full coupled simulation
 # ---------------------------------------------------------------------------
 
-def run_simulation_coupled(theta, cfg, biofilm_mask=None, n_sub_c=30,
-                           reaction_fn=None, nutrient_fn=None,
-                           c_hamilton_scale=1.0):
+
+def run_simulation_coupled(
+    theta,
+    cfg,
+    biofilm_mask=None,
+    n_sub_c=30,
+    reaction_fn=None,
+    nutrient_fn=None,
+    c_hamilton_scale=1.0,
+):
     """
     Run 2D Hamilton + nutrient with two-way coupling.
 
@@ -983,17 +1009,36 @@ def run_simulation_coupled(theta, cfg, biofilm_mask=None, n_sub_c=30,
 # Standalone demo
 # ---------------------------------------------------------------------------
 
-THETA_DEMO = np.array([
-    1.34, -0.18, 1.79, 1.17, 2.58,
-    3.51, 2.73, 0.71, 2.1, 0.37,
-    2.05, -0.15, 3.56, 0.16, 0.12,
-    0.32, 1.49, 2.1, 2.41, 2.5,
-])
+THETA_DEMO = np.array(
+    [
+        1.34,
+        -0.18,
+        1.79,
+        1.17,
+        2.58,
+        3.51,
+        2.73,
+        0.71,
+        2.1,
+        0.37,
+        2.05,
+        -0.15,
+        3.56,
+        0.16,
+        0.12,
+        0.32,
+        1.49,
+        2.1,
+        2.41,
+        2.5,
+    ]
+)
 
 
 def main():
     cfg = Config2D(
-        Nx=15, Ny=15,
+        Nx=15,
+        Ny=15,
         n_macro=30,
         n_react_sub=10,
         dt_h=1e-5,

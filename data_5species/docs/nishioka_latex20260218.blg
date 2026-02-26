@@ -1,0 +1,50 @@
+This is BibTeX, Version 0.99d (TeX Live 2020)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: nishioka_latex20260218.aux
+The style file: unsrt.bst
+Database file #1: references_ikm.bib
+Warning--empty journal in Klempt2025ContinuumBiofilm
+Warning--empty journal in Fritsch2025BayesianMicrofilms
+Warning--empty journal in Bradbury2018JAX
+You've used 39 entries,
+            1791 wiz_defined-function locations,
+            713 strings with 12407 characters,
+and the built_in function-call counts, 9276 in all, are:
+= -- 798
+> -- 488
+< -- 1
++ -- 177
+- -- 138
+* -- 705
+:= -- 1541
+add.period$ -- 124
+call.type$ -- 39
+change.case$ -- 38
+chr.to.int$ -- 0
+cite$ -- 42
+duplicate$ -- 360
+empty$ -- 860
+format.name$ -- 138
+if$ -- 1990
+int.to.chr$ -- 0
+int.to.str$ -- 39
+missing$ -- 42
+newline$ -- 205
+num.names$ -- 39
+pop$ -- 72
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 0
+skip$ -- 137
+stack$ -- 0
+substring$ -- 690
+swap$ -- 46
+text.length$ -- 1
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 0
+warning$ -- 3
+while$ -- 86
+width$ -- 41
+write$ -- 435
+(There were 3 warnings)

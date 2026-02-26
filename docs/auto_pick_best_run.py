@@ -270,7 +270,9 @@ def _render_tex_report(best: RunCandidate, fig_paths: List[str]) -> str:
     fig_lines = []
     for rel in fig_paths[:20]:
         fig_lines.append(f"\\item \\texttt{{{_escape_latex(rel)}}}")
-    figs_tex = "\\begin{itemize}\\itemsep0.2em\\relax\n" + "\n".join(fig_lines) + "\n\\end{itemize}\n"
+    figs_tex = (
+        "\\begin{itemize}\\itemsep0.2em\\relax\n" + "\n".join(fig_lines) + "\n\\end{itemize}\n"
+    )
 
     model_rows = []
     for mm in best.models:
@@ -279,9 +281,21 @@ def _render_tex_report(best: RunCandidate, fig_paths: List[str]) -> str:
                 [
                     _escape_latex(mm.model),
                     f"{mm.rmse_total_map:.4g}" if mm.rmse_total_map is not None else "missing",
-                    f"{mm.beta_final_min_across_chains:.4g}" if mm.beta_final_min_across_chains is not None else "missing",
-                    f"{mm.rom_error_final_max_across_chains:.4g}" if mm.rom_error_final_max_across_chains is not None else "missing",
-                    f"{mm.accept_rate_mean_min_across_chains:.4g}" if mm.accept_rate_mean_min_across_chains is not None else "missing",
+                    (
+                        f"{mm.beta_final_min_across_chains:.4g}"
+                        if mm.beta_final_min_across_chains is not None
+                        else "missing"
+                    ),
+                    (
+                        f"{mm.rom_error_final_max_across_chains:.4g}"
+                        if mm.rom_error_final_max_across_chains is not None
+                        else "missing"
+                    ),
+                    (
+                        f"{mm.accept_rate_mean_min_across_chains:.4g}"
+                        if mm.accept_rate_mean_min_across_chains is not None
+                        else "missing"
+                    ),
                 ]
             )
             + " \\\\"
@@ -333,13 +347,15 @@ def _render_tex_slides(best: RunCandidate, fig_paths: List[str]) -> str:
     items = []
     for rel in fig_paths[:12]:
         items.append("\\item \\texttt{" + _escape_latex(rel) + "}")
-    frames = [
-        "\\begin{frame}{Figures (paths)}\n"
-        "\\begin{itemize}\\itemsep0.2em\\relax\n"
-        + "\n".join(items)
-        + "\n\\end{itemize}\n"
-        "\\end{frame}\n"
-    ] if fig_paths else []
+    frames = (
+        [
+            "\\begin{frame}{Figures (paths)}\n"
+            "\\begin{itemize}\\itemsep0.2em\\relax\n" + "\n".join(items) + "\n\\end{itemize}\n"
+            "\\end{frame}\n"
+        ]
+        if fig_paths
+        else []
+    )
 
     return f"""\\documentclass[aspectratio=169]{{beamer}}
 \\usetheme{{Madrid}}
@@ -424,8 +440,12 @@ def main() -> int:
     ap.add_argument("--require-beta-one", action="store_true", default=True)
     ap.add_argument("--no-require-beta-one", dest="require_beta_one", action="store_false")
     ap.add_argument("--out-dir", type=str, default=str(Path("docs") / "auto_best_run"))
-    ap.add_argument("--build-pdf", action="store_true", default=True, help="Build PDFs via docs/build_pdfs.py")
-    ap.add_argument("--no-build-pdf", dest="build_pdf", action="store_false", help="Skip PDF build step")
+    ap.add_argument(
+        "--build-pdf", action="store_true", default=True, help="Build PDFs via docs/build_pdfs.py"
+    )
+    ap.add_argument(
+        "--no-build-pdf", dest="build_pdf", action="store_false", help="Skip PDF build step"
+    )
     args = ap.parse_args()
 
     runs_root = Path(args.runs_root).resolve()
@@ -463,9 +483,21 @@ def main() -> int:
                 seed=_safe_float(cfg_sum.get("seed")) if cfg_sum.get("seed") is not None else None,
                 sigma_obs=_safe_float(cfg_sum.get("sigma_obs")),
                 cov_rel=_safe_float(cfg_sum.get("cov_rel")),
-                n_particles=int(cfg_sum["n_particles"]) if _safe_float(cfg_sum.get("n_particles")) is not None else None,
-                n_stages=int(cfg_sum["n_stages"]) if _safe_float(cfg_sum.get("n_stages")) is not None else None,
-                n_mutation_steps=int(cfg_sum["n_mutation_steps"]) if _safe_float(cfg_sum.get("n_mutation_steps")) is not None else None,
+                n_particles=(
+                    int(cfg_sum["n_particles"])
+                    if _safe_float(cfg_sum.get("n_particles")) is not None
+                    else None
+                ),
+                n_stages=(
+                    int(cfg_sum["n_stages"])
+                    if _safe_float(cfg_sum.get("n_stages")) is not None
+                    else None
+                ),
+                n_mutation_steps=(
+                    int(cfg_sum["n_mutation_steps"])
+                    if _safe_float(cfg_sum.get("n_mutation_steps")) is not None
+                    else None
+                ),
             )
         )
 
@@ -493,19 +525,21 @@ def main() -> int:
 
     # Markdown summary
     lines = []
-    lines.append(f"# Best run (auto-picked)")
+    lines.append("# Best run (auto-picked)")
     lines.append("")
     lines.append(f"- **run_id**: `{best.run_id}`")
     lines.append(f"- **run_dir**: `{best.run_dir}`")
     lines.append(f"- **score**: `{best.score:.6g}`")
     if best.reasons:
-        lines.append(f"- **notes**:")
+        lines.append("- **notes**:")
         for r in best.reasons:
             lines.append(f"  - {r}")
     lines.append("")
     lines.append("## Per-model key metrics")
     lines.append("")
-    lines.append("| Model | RMSE_MAP | beta_final(min over chains) | rom_error_final(max over chains) | acc_mean(min over chains) |")
+    lines.append(
+        "| Model | RMSE_MAP | beta_final(min over chains) | rom_error_final(max over chains) | acc_mean(min over chains) |"
+    )
     lines.append("|---|---:|---:|---:|---:|")
     for mm in best.models:
         lines.append(
@@ -514,9 +548,21 @@ def main() -> int:
                 [
                     mm.model,
                     f"{mm.rmse_total_map:.4g}" if mm.rmse_total_map is not None else "missing",
-                    f"{mm.beta_final_min_across_chains:.4g}" if mm.beta_final_min_across_chains is not None else "missing",
-                    f"{mm.rom_error_final_max_across_chains:.4g}" if mm.rom_error_final_max_across_chains is not None else "missing",
-                    f"{mm.accept_rate_mean_min_across_chains:.4g}" if mm.accept_rate_mean_min_across_chains is not None else "missing",
+                    (
+                        f"{mm.beta_final_min_across_chains:.4g}"
+                        if mm.beta_final_min_across_chains is not None
+                        else "missing"
+                    ),
+                    (
+                        f"{mm.rom_error_final_max_across_chains:.4g}"
+                        if mm.rom_error_final_max_across_chains is not None
+                        else "missing"
+                    ),
+                    (
+                        f"{mm.accept_rate_mean_min_across_chains:.4g}"
+                        if mm.accept_rate_mean_min_across_chains is not None
+                        else "missing"
+                    ),
                 ]
             )
             + " |"
@@ -531,8 +577,12 @@ def main() -> int:
     (out_dir / "best_run_summary.md").write_text("\n".join(lines), encoding="utf-8")
 
     # TeX report/slides (paths are relative to docs/)
-    (out_dir / "auto_best_run_report.tex").write_text(_render_tex_report(best, fig_rel), encoding="utf-8")
-    (out_dir / "auto_best_run_slides.tex").write_text(_render_tex_slides(best, fig_rel), encoding="utf-8")
+    (out_dir / "auto_best_run_report.tex").write_text(
+        _render_tex_report(best, fig_rel), encoding="utf-8"
+    )
+    (out_dir / "auto_best_run_slides.tex").write_text(
+        _render_tex_slides(best, fig_rel), encoding="utf-8"
+    )
 
     # Also write a tiny pointer file at docs/ level for convenience
     pointer = Path("docs") / "BEST_RUN.txt"
@@ -559,4 +609,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

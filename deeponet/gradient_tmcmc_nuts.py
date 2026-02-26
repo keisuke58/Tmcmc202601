@@ -21,12 +21,11 @@ Usage:
 
 import argparse
 import json
-import sys
 import time
 from pathlib import Path
-from functools import partial
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -35,7 +34,6 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import jax.random as jr
-import equinox as eqx
 
 jax.config.update("jax_enable_x64", False)
 
@@ -43,14 +41,11 @@ SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 RUNS_DIR = PROJECT_ROOT / "data_5species" / "_runs"
 
-from deeponet_hamilton import DeepONet
-from dem_elasticity_3d import ElasticityNetwork
 from e2e_differentiable_pipeline import (
-    load_deeponet, load_dem, load_theta_map,
-    deeponet_predict_final, compute_di, di_to_E,
-    dem_predict_max_uy,
-    E_MAX, E_MIN, N_SPECIES, SPECIES,
-    CONDITION_CHECKPOINTS, CONDITION_RUNS,
+    load_deeponet,
+    load_dem,
+    deeponet_predict_final,
+    CONDITION_CHECKPOINTS,
 )
 
 # Experimental time points (days) → normalized to [0,1]
@@ -93,8 +88,7 @@ def load_real_sigma(condition: str):
 # ============================================================
 # Multi-Timepoint Differentiable Log-Likelihood (Real Data)
 # ============================================================
-def make_real_log_likelihood(don_model, theta_lo, theta_width,
-                              observed_data, sigma_obs=0.1):
+def make_real_log_likelihood(don_model, theta_lo, theta_width, observed_data, sigma_obs=0.1):
     """
     Log-likelihood over 6 timepoints × 5 species.
 
@@ -140,11 +134,10 @@ def _leapfrog(q, p, grad_fn, step_size, bounds_lo, bounds_hi):
 
 def _compute_hamiltonian(logp, p):
     """H = -logp + 0.5 * p^T p"""
-    return -logp + 0.5 * jnp.sum(p ** 2)
+    return -logp + 0.5 * jnp.sum(p**2)
 
 
-def nuts_step(key, theta, log_prob_and_grad, step_size,
-              bounds_lo, bounds_hi, max_depth=6):
+def nuts_step(key, theta, log_prob_and_grad, step_size, bounds_lo, bounds_hi, max_depth=6):
     """
     NUTS (No-U-Turn Sampler) — one transition.
 
@@ -172,7 +165,7 @@ def nuts_step(key, theta, log_prob_and_grad, step_size,
 
     # Slice variable for multinomial sampling
     key, k_slice = jr.split(key)
-    log_u = jnp.log(jr.uniform(k_slice)) + logp0 - 0.5 * jnp.sum(p0 ** 2)
+    log_u = jnp.log(jr.uniform(k_slice)) + logp0 - 0.5 * jnp.sum(p0**2)
 
     # Initialize tree
     q_minus = theta
@@ -198,7 +191,7 @@ def nuts_step(key, theta, log_prob_and_grad, step_size,
             q_inner, p_inner = q_plus, p_plus
 
         # Take 2^depth leapfrog steps
-        n_steps = 2 ** depth
+        n_steps = 2**depth
         q_new = q_inner
         p_new = p_inner
         q_candidate = q_inner
@@ -208,8 +201,7 @@ def nuts_step(key, theta, log_prob_and_grad, step_size,
 
         for _ in range(n_steps):
             q_new, p_new, logp_new, _ = _leapfrog(
-                q_new, float(direction) * p_new, log_prob_and_grad,
-                step_size, bounds_lo, bounds_hi
+                q_new, float(direction) * p_new, log_prob_and_grad, step_size, bounds_lo, bounds_hi
             )
             p_new = float(direction) * p_new
             n_leapfrog_total += 1
@@ -252,8 +244,7 @@ def nuts_step(key, theta, log_prob_and_grad, step_size,
 
         # U-turn check
         dq = q_plus - q_minus
-        uturn = (float(jnp.sum(dq * p_minus)) < 0) or \
-                (float(jnp.sum(dq * p_plus)) < 0)
+        uturn = (float(jnp.sum(dq * p_minus)) < 0) or (float(jnp.sum(dq * p_plus)) < 0)
         keep_going = not uturn and not diverged
 
         depth += 1
@@ -262,9 +253,9 @@ def nuts_step(key, theta, log_prob_and_grad, step_size,
     return q_propose, accepted, float(logp_propose), n_leapfrog_total
 
 
-def dual_averaging_init(step_size_init=1.0, target_accept=0.65,
-                         gamma=0.05, t0=10, kappa=0.75,
-                         eps_max_factor=5.0):
+def dual_averaging_init(
+    step_size_init=1.0, target_accept=0.65, gamma=0.05, t0=10, kappa=0.75, eps_max_factor=5.0
+):
     """Initialize dual averaging state for step size adaptation."""
     return {
         "log_eps": np.log(step_size_init),
@@ -306,13 +297,12 @@ def dual_averaging_update(state, accept_prob):
 # ============================================================
 # HMC Step (imported from gradient_tmcmc but streamlined)
 # ============================================================
-def hmc_step(key, theta, log_prob_and_grad, step_size, n_leapfrog,
-             bounds_lo, bounds_hi):
+def hmc_step(key, theta, log_prob_and_grad, step_size, n_leapfrog, bounds_lo, bounds_hi):
     """Single HMC step with leapfrog integration."""
     d = theta.shape[0]
     momentum = jr.normal(key, (d,))
     logp_current, grad_current = log_prob_and_grad(theta)
-    H_current = -logp_current + 0.5 * jnp.sum(momentum ** 2)
+    H_current = -logp_current + 0.5 * jnp.sum(momentum**2)
 
     q, p = theta, momentum
     p = p + 0.5 * step_size * grad_current
@@ -329,7 +319,7 @@ def hmc_step(key, theta, log_prob_and_grad, step_size, n_leapfrog,
     p = p + 0.5 * step_size * grad_proposed
     p = -p
 
-    H_proposed = -logp_proposed + 0.5 * jnp.sum(p ** 2)
+    H_proposed = -logp_proposed + 0.5 * jnp.sum(p**2)
     log_alpha = H_current - H_proposed
 
     k_accept = jr.split(key)[1]
@@ -346,18 +336,18 @@ def hmc_step(key, theta, log_prob_and_grad, step_size, n_leapfrog,
 def tmcmc_engine(
     log_likelihood,
     prior_bounds,
-    mutation="nuts",     # "rw", "hmc", "nuts"
+    mutation="nuts",  # "rw", "hmc", "nuts"
     n_particles=200,
     max_stages=30,
     target_ess_ratio=0.5,
     hmc_step_size=0.01,
     hmc_n_leapfrog=10,
     nuts_max_depth=6,
-    warmup_stages=3,     # stages for dual averaging warmup
+    warmup_stages=3,  # stages for dual averaging warmup
     seed=42,
     label=None,
     verbose=True,
-    log_prior_fn=None,   # GNN prior: theta → scalar (JAX)
+    log_prior_fn=None,  # GNN prior: theta → scalar (JAX)
 ):
     """
     Unified TMCMC with selectable mutation kernel.
@@ -415,18 +405,22 @@ def tmcmc_engine(
 
     if verbose:
         prior_label = " + GNN prior" if has_gnn_prior else ""
-        print(f"\n{label}: {n_particles} particles, {d_free} free dims, "
-              f"mutation={mutation}{prior_label}")
+        print(
+            f"\n{label}: {n_particles} particles, {d_free} free dims, "
+            f"mutation={mutation}{prior_label}"
+        )
     t0 = time.time()
 
     logL_jit = jax.jit(log_likelihood)
     # For gradient-based methods, target = log_prior + beta * log_L
     if has_gnn_prior:
+
         def _composite_logL_and_grad(theta, beta_val):
             lp = log_prior_fn(theta)
             ll, gl = jax.value_and_grad(log_likelihood)(theta)
             _, gp = jax.value_and_grad(log_prior_fn)(theta)
             return lp + beta_val * ll, gp + beta_val * gl
+
         # Pre-JIT the prior gradient
         _prior_vg_jit = jax.jit(jax.value_and_grad(log_prior_fn))
     grad_jit = jax.jit(jax.value_and_grad(log_likelihood))
@@ -460,7 +454,7 @@ def tmcmc_engine(
             w = db * logL
             w = w - w.max()
             w = np.exp(w)
-            return (np.sum(w) ** 2) / np.sum(w ** 2)
+            return (np.sum(w) ** 2) / np.sum(w**2)
 
         db_lo_b, db_hi_b = 0.0, 1.0 - beta
         for _ in range(50):
@@ -479,7 +473,7 @@ def tmcmc_engine(
         w = (beta_new - beta) * logL
         w = w - w.max()
         w = np.exp(w)
-        ess_val = (np.sum(w) ** 2) / np.sum(w ** 2)
+        ess_val = (np.sum(w) ** 2) / np.sum(w**2)
         w = w / w.sum()
 
         idx = rng.choice(n_particles, size=n_particles, p=w)
@@ -491,12 +485,15 @@ def tmcmc_engine(
         # For gradient methods, we need value_and_grad of the full target.
         if has_gnn_prior:
             _beta_new = jnp.float32(beta_new)
+
             @jax.jit
             def tempered_vg(theta):
                 lp, gp = _prior_vg_jit(theta)
                 ll, gl = grad_jit(theta)
                 return lp + _beta_new * ll, gp + _beta_new * gl
+
         else:
+
             def tempered_vg(theta):
                 val, grad = grad_jit(theta)
                 return beta_new * val, beta_new * grad
@@ -505,8 +502,11 @@ def tmcmc_engine(
         n_leapfrog_stage = 0
         key = jr.PRNGKey(seed + stage * 1000)
 
-        current_eps = np.exp(da_state["log_eps"]) if mutation == "nuts" else \
-                      hmc_step_size * np.mean(param_scales[free_mask])
+        current_eps = (
+            np.exp(da_state["log_eps"])
+            if mutation == "nuts"
+            else hmc_step_size * np.mean(param_scales[free_mask])
+        )
 
         if mutation == "rw":
             # Random-Walk Metropolis
@@ -540,9 +540,13 @@ def tmcmc_engine(
                 k_i = jr.fold_in(key, i)
                 theta_i = jnp.array(particles[i])
                 new_theta, accepted, new_logp = hmc_step(
-                    k_i, theta_i, tempered_vg,
-                    current_eps, hmc_n_leapfrog,
-                    bounds_lo, bounds_hi,
+                    k_i,
+                    theta_i,
+                    tempered_vg,
+                    current_eps,
+                    hmc_n_leapfrog,
+                    bounds_lo,
+                    bounds_hi,
                 )
                 n_leapfrog_stage += hmc_n_leapfrog
                 if bool(accepted):
@@ -561,8 +565,12 @@ def tmcmc_engine(
                 k_i = jr.fold_in(key, i)
                 theta_i = jnp.array(particles[i])
                 new_theta, accepted, new_logp, n_lf = nuts_step(
-                    k_i, theta_i, tempered_vg,
-                    current_eps, bounds_lo, bounds_hi,
+                    k_i,
+                    theta_i,
+                    tempered_vg,
+                    current_eps,
+                    bounds_lo,
+                    bounds_hi,
                     max_depth=nuts_max_depth,
                 )
                 n_leapfrog_stage += n_lf
@@ -597,10 +605,12 @@ def tmcmc_engine(
             if mutation == "nuts":
                 avg_lf = n_leapfrog_stage / n_particles
                 extra = f", eps={current_eps:.4f}, avg_lf={avg_lf:.1f}"
-            print(f"  Stage {stage:2d}: beta={beta:.4f}, "
-                  f"accept={ar:.2f}, ESS={ess_val:.0f}, "
-                  f"logL=[{logL.min():.1f}, {logL.max():.1f}], "
-                  f"{dt:.1f}s{extra}")
+            print(
+                f"  Stage {stage:2d}: beta={beta:.4f}, "
+                f"accept={ar:.2f}, ESS={ess_val:.0f}, "
+                f"logL=[{logL.min():.1f}, {logL.max():.1f}], "
+                f"{dt:.1f}s{extra}"
+            )
 
     total_time = time.time() - t0
     best_idx = np.argmax(logL)
@@ -640,11 +650,11 @@ def plot_3method_comparison(results, condition, free_dims, save_dir=None):
         save_dir = SCRIPT_DIR
 
     fig = plt.figure(figsize=(18, 12))
-    fig.suptitle(f"TMCMC Mutation Kernel Comparison — {condition}",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle(f"TMCMC Mutation Kernel Comparison — {condition}", fontsize=14, fontweight="bold")
 
-    gs = gridspec.GridSpec(3, 3, hspace=0.4, wspace=0.35,
-                           left=0.07, right=0.96, top=0.92, bottom=0.06)
+    gs = gridspec.GridSpec(
+        3, 3, hspace=0.4, wspace=0.35, left=0.07, right=0.96, top=0.92, bottom=0.06
+    )
 
     colors = {"RW-TMCMC": "#F44336", "HMC-TMCMC": "#2196F3", "NUTS-TMCMC": "#4CAF50"}
 
@@ -662,8 +672,13 @@ def plot_3method_comparison(results, condition, free_dims, save_dir=None):
     ax = fig.add_subplot(gs[0, 1])
     for r in results:
         avg_ar = np.mean(r["accept_rates"])
-        ax.plot(r["accept_rates"], "o-", color=colors[r["label"]],
-                label=f"{r['label']} ({avg_ar:.2f})", ms=3)
+        ax.plot(
+            r["accept_rates"],
+            "o-",
+            color=colors[r["label"]],
+            label=f"{r['label']} ({avg_ar:.2f})",
+            ms=3,
+        )
     ax.set_xlabel("Stage")
     ax.set_ylabel("Acceptance Rate")
     ax.set_title("Mutation Acceptance")
@@ -678,12 +693,17 @@ def plot_3method_comparison(results, condition, free_dims, save_dir=None):
     w = 0.25
     for i, r in enumerate(results):
         vals = [r["n_stages"], r["total_time"], np.mean(r["accept_rates"])]
-        offset = (i - len(results)/2 + 0.5) * w
-        bars = ax.bar(x + offset, vals, w, color=colors[r["label"]],
-                       alpha=0.8, label=r["label"])
+        offset = (i - len(results) / 2 + 0.5) * w
+        bars = ax.bar(x + offset, vals, w, color=colors[r["label"]], alpha=0.8, label=r["label"])
         for j, v in enumerate(vals):
-            ax.text(x[j] + offset, v + 0.01 * max(vals), f"{v:.2f}",
-                    ha='center', va='bottom', fontsize=7)
+            ax.text(
+                x[j] + offset,
+                v + 0.01 * max(vals),
+                f"{v:.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=7,
+            )
     ax.set_xticks(x)
     ax.set_xticklabels(metrics)
     ax.legend(fontsize=8)
@@ -692,8 +712,14 @@ def plot_3method_comparison(results, condition, free_dims, save_dir=None):
     # (1,0) ESS history
     ax = fig.add_subplot(gs[1, 0])
     for r in results:
-        ax.plot(range(1, r["n_stages"]+1), r["ess_history"],
-                "o-", color=colors[r["label"]], label=r["label"], ms=3)
+        ax.plot(
+            range(1, r["n_stages"] + 1),
+            r["ess_history"],
+            "o-",
+            color=colors[r["label"]],
+            label=r["label"],
+            ms=3,
+        )
     ax.set_xlabel("Stage")
     ax.set_ylabel("ESS")
     ax.set_title("Effective Sample Size")
@@ -705,8 +731,14 @@ def plot_3method_comparison(results, condition, free_dims, save_dir=None):
     for r in results:
         if r["mutation"] in ("hmc", "nuts") and r["n_leapfrog_history"]:
             avg_lf = [nl / 200 for nl in r["n_leapfrog_history"]]  # approx per-particle
-            ax.plot(range(1, len(avg_lf)+1), avg_lf,
-                    "o-", color=colors[r["label"]], label=r["label"], ms=3)
+            ax.plot(
+                range(1, len(avg_lf) + 1),
+                avg_lf,
+                "o-",
+                color=colors[r["label"]],
+                label=r["label"],
+                ms=3,
+            )
     ax.set_xlabel("Stage")
     ax.set_ylabel("Avg Leapfrog / Particle")
     ax.set_title("Trajectory Length")
@@ -717,8 +749,14 @@ def plot_3method_comparison(results, condition, free_dims, save_dir=None):
     ax = fig.add_subplot(gs[1, 2])
     for r in results:
         if r["eps_history"]:
-            ax.plot(range(1, len(r["eps_history"])+1), r["eps_history"],
-                    "o-", color=colors[r["label"]], label=r["label"], ms=3)
+            ax.plot(
+                range(1, len(r["eps_history"]) + 1),
+                r["eps_history"],
+                "o-",
+                color=colors[r["label"]],
+                label=r["label"],
+                ms=3,
+            )
     ax.set_xlabel("Stage")
     ax.set_ylabel(r"$\epsilon$ (step size)")
     ax.set_title("Step Size Adaptation")
@@ -729,14 +767,19 @@ def plot_3method_comparison(results, condition, free_dims, save_dir=None):
     ax = fig.add_subplot(gs[2, :])
     show_dims = free_dims[:6]
     n_show = len(show_dims)
-    sub_gs = gridspec.GridSpecFromSubplotSpec(1, n_show, subplot_spec=gs[2, :],
-                                              wspace=0.3)
+    sub_gs = gridspec.GridSpecFromSubplotSpec(1, n_show, subplot_spec=gs[2, :], wspace=0.3)
     for j, dim in enumerate(show_dims):
         ax_sub = fig.add_subplot(sub_gs[0, j])
         for r in results:
             samples = r["samples"][:, dim]
-            ax_sub.hist(samples, bins=25, alpha=0.4, color=colors[r["label"]],
-                        density=True, label=r["label"] if j == 0 else None)
+            ax_sub.hist(
+                samples,
+                bins=25,
+                alpha=0.4,
+                color=colors[r["label"]],
+                density=True,
+                label=r["label"] if j == 0 else None,
+            )
         ax_sub.set_title(f"θ[{dim}]", fontsize=9)
         ax_sub.tick_params(labelsize=7)
         if j == 0:
@@ -762,9 +805,10 @@ def plot_4condition_summary(all_results, save_dir=None):
     conditions = list(all_results.keys())
     n_cond = len(conditions)
 
-    fig, axes = plt.subplots(2, n_cond, figsize=(5*n_cond, 10))
-    fig.suptitle("NUTS-TMCMC on Real Experimental Data (4 Conditions)",
-                 fontsize=14, fontweight="bold")
+    fig, axes = plt.subplots(2, n_cond, figsize=(5 * n_cond, 10))
+    fig.suptitle(
+        "NUTS-TMCMC on Real Experimental Data (4 Conditions)", fontsize=14, fontweight="bold"
+    )
 
     cond_colors = {
         "Commensal_Static": "#4CAF50",
@@ -782,8 +826,7 @@ def plot_4condition_summary(all_results, save_dir=None):
         ax.plot(r["accept_rates"], "o-", color=color, ms=4)
         ax.set_ylim(0, 1.05)
         avg_ar = np.mean(r["accept_rates"])
-        ax.set_title(f"{cond}\naccept={avg_ar:.2f}, stages={r['n_stages']}",
-                     fontsize=10)
+        ax.set_title(f"{cond}\naccept={avg_ar:.2f}, stages={r['n_stages']}", fontsize=10)
         ax.set_xlabel("Stage")
         ax.set_ylabel("Acceptance Rate" if col == 0 else "")
         ax.grid(True, alpha=0.3)
@@ -791,8 +834,13 @@ def plot_4condition_summary(all_results, save_dir=None):
         # Row 1: Posterior logL distribution
         ax = axes[1, col] if n_cond > 1 else axes[1]
         ax.hist(r["log_likelihoods"], bins=30, color=color, alpha=0.7)
-        ax.axvline(r["log_likelihoods"].max(), color="k", ls="--", lw=1,
-                   label=f"max={r['log_likelihoods'].max():.1f}")
+        ax.axvline(
+            r["log_likelihoods"].max(),
+            color="k",
+            ls="--",
+            lw=1,
+            label=f"max={r['log_likelihoods'].max():.1f}",
+        )
         ax.set_xlabel("log L")
         ax.set_ylabel("Count" if col == 0 else "")
         ax.set_title(f"Posterior logL\nε={r['final_eps']:.4f}", fontsize=10)
@@ -853,8 +901,8 @@ def load_gnn_predictions(path=None):
     fpath = Path(path) if path else GNN_PREDICTIONS_FILE
     if not fpath.exists():
         raise FileNotFoundError(
-            f"GNN predictions not found at {fpath}\n"
-            f"Run: cd gnn && python predict_for_tmcmc.py")
+            f"GNN predictions not found at {fpath}\n" f"Run: cd gnn && python predict_for_tmcmc.py"
+        )
     with open(fpath) as f:
         return json.load(f)
 
@@ -897,30 +945,40 @@ def make_gnn_log_prior(gnn_predictions, sigma_prior=1.0, prior_bounds=None):
 # ============================================================
 def main():
     parser = argparse.ArgumentParser(
-        description="NUTS-TMCMC: gradient-based TMCMC with NUTS/HMC/RW")
+        description="NUTS-TMCMC: gradient-based TMCMC with NUTS/HMC/RW"
+    )
     parser.add_argument("--condition", default="Dysbiotic_HOBIC")
     parser.add_argument("--n-particles", type=int, default=200)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--real", action="store_true",
-                        help="Use real experimental data (not synthetic)")
-    parser.add_argument("--all-conditions", action="store_true",
-                        help="Run all 4 conditions")
-    parser.add_argument("--compare-all", action="store_true",
-                        help="Compare RW vs HMC vs NUTS")
-    parser.add_argument("--mutation", default="nuts",
-                        choices=["rw", "hmc", "nuts"],
-                        help="Mutation kernel (default: nuts)")
+    parser.add_argument(
+        "--real", action="store_true", help="Use real experimental data (not synthetic)"
+    )
+    parser.add_argument("--all-conditions", action="store_true", help="Run all 4 conditions")
+    parser.add_argument("--compare-all", action="store_true", help="Compare RW vs HMC vs NUTS")
+    parser.add_argument(
+        "--mutation",
+        default="nuts",
+        choices=["rw", "hmc", "nuts"],
+        help="Mutation kernel (default: nuts)",
+    )
     parser.add_argument("--hmc-step-size", type=float, default=0.005)
     parser.add_argument("--hmc-n-leapfrog", type=int, default=5)
     parser.add_argument("--nuts-max-depth", type=int, default=6)
-    parser.add_argument("--paper-fig", action="store_true",
-                        help="Generate paper-quality figures")
-    parser.add_argument("--gnn-prior", action="store_true",
-                        help="Use GNN-predicted a_ij as informative Gaussian prior")
-    parser.add_argument("--gnn-sigma", type=float, default=1.0,
-                        help="Width of GNN Gaussian prior (default: 1.0)")
-    parser.add_argument("--gnn-predictions", type=str, default=None,
-                        help="Path to GNN predictions JSON (default: gnn/data/gnn_prior_predictions.json)")
+    parser.add_argument("--paper-fig", action="store_true", help="Generate paper-quality figures")
+    parser.add_argument(
+        "--gnn-prior",
+        action="store_true",
+        help="Use GNN-predicted a_ij as informative Gaussian prior",
+    )
+    parser.add_argument(
+        "--gnn-sigma", type=float, default=1.0, help="Width of GNN Gaussian prior (default: 1.0)"
+    )
+    parser.add_argument(
+        "--gnn-predictions",
+        type=str,
+        default=None,
+        help="Path to GNN predictions JSON (default: gnn/data/gnn_prior_predictions.json)",
+    )
     args = parser.parse_args()
 
     print("=" * 70)
@@ -938,8 +996,7 @@ def main():
         gnn_preds = load_gnn_predictions(args.gnn_predictions)
         print(f"  Loaded predictions for {list(gnn_preds.keys())}")
 
-    conditions = (list(CONDITION_CHECKPOINTS.keys()) if args.all_conditions
-                  else [args.condition])
+    conditions = list(CONDITION_CHECKPOINTS.keys()) if args.all_conditions else [args.condition]
 
     all_results = {}
     paper_fig_dir = PROJECT_ROOT / "FEM" / "figures" / "paper_final"
@@ -952,8 +1009,7 @@ def main():
 
         don_model, theta_lo, theta_width = load_deeponet(cond)
         prior_bounds = load_prior_bounds(cond)
-        free_dims = np.where(
-            np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12)[0]
+        free_dims = np.where(np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12)[0]
 
         # Build GNN prior if requested
         log_prior_fn = None
@@ -962,7 +1018,8 @@ def main():
                 gnn_pred = get_gnn_prior_for_condition(gnn_preds, cond)
                 print(f"  GNN prior: a_ij = {gnn_pred.round(3)} (sigma={args.gnn_sigma})")
                 log_prior_fn = make_gnn_log_prior(
-                    gnn_pred, sigma_prior=args.gnn_sigma, prior_bounds=prior_bounds)
+                    gnn_pred, sigma_prior=args.gnn_sigma, prior_bounds=prior_bounds
+                )
             except Exception as e:
                 print(f"  WARNING: GNN prior failed ({e}), falling back to uniform")
                 log_prior_fn = None
@@ -975,7 +1032,8 @@ def main():
             print(f"  Observed data: {obs_data.shape}, sigma={sigma_obs:.4f}")
 
             log_likelihood = make_real_log_likelihood(
-                don_model, theta_lo, theta_width, obs_data, sigma_obs)
+                don_model, theta_lo, theta_width, obs_data, sigma_obs
+            )
         else:
             print("  [Synthetic data mode]")
             # Generate synthetic data from random true theta
@@ -988,11 +1046,10 @@ def main():
 
             theta_jax = jnp.array(theta_true)
             from e2e_differentiable_pipeline import deeponet_predict_final as dpf
+
             phi_true = dpf(don_model, theta_jax, theta_lo, theta_width)
             sigma_phi = 0.03
-            obs_phi = jnp.array(
-                np.array(phi_true) + rng.normal(0, sigma_phi, 5),
-                dtype=jnp.float32)
+            obs_phi = jnp.array(np.array(phi_true) + rng.normal(0, sigma_phi, 5), dtype=jnp.float32)
             obs_phi = jnp.clip(obs_phi, 0.0, 1.0)
 
             def log_likelihood(theta):
@@ -1003,8 +1060,7 @@ def main():
         # JIT warmup
         print("  JIT warmup...")
         _ = jax.jit(log_likelihood)(jnp.zeros(20, dtype=jnp.float32))
-        _ = jax.jit(jax.value_and_grad(log_likelihood))(
-            jnp.zeros(20, dtype=jnp.float32))
+        _ = jax.jit(jax.value_and_grad(log_likelihood))(jnp.zeros(20, dtype=jnp.float32))
         print("  [OK]")
 
         if args.compare_all:
@@ -1012,7 +1068,8 @@ def main():
             results = []
             for mut in ["rw", "hmc", "nuts"]:
                 r = tmcmc_engine(
-                    log_likelihood, prior_bounds,
+                    log_likelihood,
+                    prior_bounds,
                     mutation=mut,
                     n_particles=args.n_particles,
                     seed=args.seed,
@@ -1032,14 +1089,18 @@ def main():
             print("-" * 60)
             for r in results:
                 pass
-            print(f"{'Total time [s]':<25} " +
-                  " ".join(f"{r['total_time']:>10.1f}" for r in results))
-            print(f"{'Stages':<25} " +
-                  " ".join(f"{r['n_stages']:>10d}" for r in results))
-            print(f"{'Avg acceptance':<25} " +
-                  " ".join(f"{np.mean(r['accept_rates']):>10.3f}" for r in results))
-            print(f"{'Final max logL':<25} " +
-                  " ".join(f"{r['log_likelihoods'].max():>10.1f}" for r in results))
+            print(
+                f"{'Total time [s]':<25} " + " ".join(f"{r['total_time']:>10.1f}" for r in results)
+            )
+            print(f"{'Stages':<25} " + " ".join(f"{r['n_stages']:>10d}" for r in results))
+            print(
+                f"{'Avg acceptance':<25} "
+                + " ".join(f"{np.mean(r['accept_rates']):>10.3f}" for r in results)
+            )
+            print(
+                f"{'Final max logL':<25} "
+                + " ".join(f"{r['log_likelihoods'].max():>10.1f}" for r in results)
+            )
 
             # Plot
             save_dir = paper_fig_dir if args.paper_fig else SCRIPT_DIR
@@ -1050,7 +1111,8 @@ def main():
         else:
             # Single method
             r = tmcmc_engine(
-                log_likelihood, prior_bounds,
+                log_likelihood,
+                prior_bounds,
                 mutation=args.mutation,
                 n_particles=args.n_particles,
                 seed=args.seed,
@@ -1060,10 +1122,12 @@ def main():
                 log_prior_fn=log_prior_fn,
             )
 
-            print(f"\n  Result: {r['n_stages']} stages, "
-                  f"accept={np.mean(r['accept_rates']):.2f}, "
-                  f"max logL={r['log_likelihoods'].max():.1f}, "
-                  f"time={r['total_time']:.1f}s")
+            print(
+                f"\n  Result: {r['n_stages']} stages, "
+                f"accept={np.mean(r['accept_rates']):.2f}, "
+                f"max logL={r['log_likelihoods'].max():.1f}, "
+                f"time={r['total_time']:.1f}s"
+            )
 
             all_results[cond] = r
 

@@ -39,17 +39,17 @@ from pathlib import Path
 
 import numpy as np
 
-_HERE       = Path(__file__).resolve().parent
+_HERE = Path(__file__).resolve().parent
 _TMCMC_ROOT = _HERE.parent
-_RUNS_ROOT  = _TMCMC_ROOT / "data_5species" / "_runs"
+_RUNS_ROOT = _TMCMC_ROOT / "data_5species" / "_runs"
 sys.path.insert(0, str(_HERE))
 
 # ── condition -> TMCMC run directory mapping ──────────────────────────────────
 
 CONDITION_RUNS = {
-    "dh_baseline":      _RUNS_ROOT / "sweep_pg_20260217_081459" / "dh_baseline",
+    "dh_baseline": _RUNS_ROOT / "sweep_pg_20260217_081459" / "dh_baseline",
     "commensal_static": _RUNS_ROOT / "Commensal_Static_20260208_002100",
-    "commensal_hobic":  _RUNS_ROOT / "Commensal_HOBIC_20260208_002100",
+    "commensal_hobic": _RUNS_ROOT / "Commensal_HOBIC_20260208_002100",
     "dysbiotic_static": _RUNS_ROOT / "Dysbiotic_Static_20260207_203752",
 }
 
@@ -57,11 +57,26 @@ CONDITION_RUNS = {
 def load_theta(path):
     """Load 20-element theta vector from theta_MAP.json."""
     _PARAM_KEYS = [
-        "a11", "a12", "a22", "b1", "b2",
-        "a33", "a34", "a44", "b3", "b4",
-        "a13", "a14", "a23", "a24",
-        "a55", "b5",
-        "a15", "a25", "a35", "a45",
+        "a11",
+        "a12",
+        "a22",
+        "b1",
+        "b2",
+        "a33",
+        "a34",
+        "a44",
+        "b3",
+        "b4",
+        "a13",
+        "a14",
+        "a23",
+        "a24",
+        "a55",
+        "b5",
+        "a15",
+        "a25",
+        "a35",
+        "a45",
     ]
     with open(path) as f:
         d = json.load(f)
@@ -75,25 +90,31 @@ def load_theta(path):
 
 # ── Step 1: 2D Hamilton + Nutrient ────────────────────────────────────────────
 
+
 def step_hamilton_nutrient(theta, condition, cfg, out_dir):
     """Run 2D Hamilton+nutrient solver, export CSVs."""
     from run_hamilton_2d_nutrient import run_condition
+
     return run_condition(theta, condition, cfg, out_dir)
 
 
 # ── Step 2: Visualization ────────────────────────────────────────────────────
 
+
 def step_visualize(results_dir, condition):
     """Generate 2D visualization figures."""
-    from fem_2d_visualize import load_results, main as viz_main
+    from fem_2d_visualize import main as viz_main
     import matplotlib
+
     matplotlib.use("Agg")
 
     # Simulate CLI args for the viz script
     sys.argv = [
         "fem_2d_visualize.py",
-        "--results-dir", str(results_dir),
-        "--condition", condition,
+        "--results-dir",
+        str(results_dir),
+        "--condition",
+        condition,
     ]
     try:
         viz_main()
@@ -104,6 +125,7 @@ def step_visualize(results_dir, condition):
 
 # ── Step 3: Abaqus INP ──────────────────────────────────────────────────────
 
+
 def step_abaqus_inp(results_dir, tooth="T23"):
     """Generate two-layer Tie model INP from DI CSV."""
     di_csv = Path(results_dir) / "abaqus_field_2d.csv"
@@ -113,12 +135,16 @@ def step_abaqus_inp(results_dir, tooth="T23"):
 
     try:
         from biofilm_tooth_tie_assembly import main as tie_main
+
         out_inp = Path(results_dir) / f"two_layer_{tooth}.inp"
         sys.argv = [
             "biofilm_tooth_tie_assembly.py",
-            "--tooth", tooth,
-            "--di-csv", str(di_csv),
-            "--out", str(out_inp),
+            "--tooth",
+            tooth,
+            "--di-csv",
+            str(di_csv),
+            "--out",
+            str(out_inp),
         ]
         tie_main()
         print(f"[INP] Generated: {out_inp}")
@@ -129,6 +155,7 @@ def step_abaqus_inp(results_dir, tooth="T23"):
 
 
 # ── Pipeline orchestrator ────────────────────────────────────────────────────
+
 
 def run_pipeline(args):
     """Run the complete end-to-end pipeline."""
@@ -160,15 +187,23 @@ def run_pipeline(args):
     # ── Build simulation config ───────────────────────────────────
     if args.quick:
         cfg = Config2D(
-            Nx=10, Ny=10, n_macro=10, n_react_sub=5,
-            dt_h=1e-5, save_every=5,
-            D_c=args.D_c, k_monod=args.k_monod,
-            K_hill=args.K_hill, n_hill=args.n_hill,
+            Nx=10,
+            Ny=10,
+            n_macro=10,
+            n_react_sub=5,
+            dt_h=1e-5,
+            save_every=5,
+            D_c=args.D_c,
+            k_monod=args.k_monod,
+            K_hill=args.K_hill,
+            n_hill=args.n_hill,
         )
     else:
         cfg = Config2D(
-            Nx=args.nx, Ny=args.ny,
-            Lx=args.lx, Ly=args.ly,
+            Nx=args.nx,
+            Ny=args.ny,
+            Lx=args.lx,
+            Ly=args.ly,
             dt_h=args.dt_h,
             n_react_sub=args.n_react_sub,
             n_macro=args.n_macro,
@@ -210,7 +245,7 @@ def run_pipeline(args):
         dt2 = 0.0
 
     # ── STEP 3: Visualization ─────────────────────────────────────
-    print(f"\n[STEP 3/3] Visualization...")
+    print("\n[STEP 3/3] Visualization...")
     t3 = time.perf_counter()
     step_visualize(out_dir, args.condition)
     dt3 = time.perf_counter() - t3
@@ -219,7 +254,7 @@ def run_pipeline(args):
     # ── Summary ───────────────────────────────────────────────────
     total = time.perf_counter() - t_start
     print(f"\n{'=' * 60}")
-    print(f"Pipeline complete!")
+    print("Pipeline complete!")
     print(f"  Hamilton+Nutrient : {dt1:6.1f}s")
     if not args.no_inp:
         print(f"  Abaqus INP        : {dt2:6.1f}s")
@@ -255,19 +290,21 @@ def run_pipeline(args):
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
+
 def main():
     ap = argparse.ArgumentParser(
         description="End-to-end biofilm FEM pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     # Input
-    ap.add_argument("--condition", default="dh_baseline",
-                    choices=list(CONDITION_RUNS.keys()),
-                    help="TMCMC condition name")
-    ap.add_argument("--theta-json", default=None,
-                    help="Override: path to theta_MAP.json")
-    ap.add_argument("--tag", default=None,
-                    help="Output subdirectory tag (default: condition name)")
+    ap.add_argument(
+        "--condition",
+        default="dh_baseline",
+        choices=list(CONDITION_RUNS.keys()),
+        help="TMCMC condition name",
+    )
+    ap.add_argument("--theta-json", default=None, help="Override: path to theta_MAP.json")
+    ap.add_argument("--tag", default=None, help="Output subdirectory tag (default: condition name)")
 
     # Simulation
     ap.add_argument("--nx", type=int, default=20)
@@ -284,12 +321,9 @@ def main():
     ap.add_argument("--n-hill", type=float, default=4.0)
 
     # Pipeline control
-    ap.add_argument("--no-inp", action="store_true",
-                    help="Skip Abaqus INP generation")
-    ap.add_argument("--tooth", default="T23",
-                    help="Tooth ID for INP generation")
-    ap.add_argument("--quick", action="store_true",
-                    help="Quick test (10x10, 10 macro steps)")
+    ap.add_argument("--no-inp", action="store_true", help="Skip Abaqus INP generation")
+    ap.add_argument("--tooth", default="T23", help="Tooth ID for INP generation")
+    ap.add_argument("--quick", action="store_true", help="Quick test (10x10, 10 macro steps)")
 
     args = ap.parse_args()
     run_pipeline(args)

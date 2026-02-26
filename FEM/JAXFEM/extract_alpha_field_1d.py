@@ -71,6 +71,7 @@ SPECIES_COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple"
 # シミュレーション実行 & α(x) 抽出
 # ---------------------------------------------------------------------------
 
+
 def run_and_extract(
     theta,
     D_eff,
@@ -108,7 +109,9 @@ def run_and_extract(
     thiele = (g_eff / (D_c * k_monod)) ** 0.5 * L
     t_end_est = dt_h * n_react_sub * n_macro
     print(f"  dt_h={dt_h:.1e}  T*_end≈{t_end_est:.4f}")
-    print(f"  Thiele number Φ ≈ {thiele:.2f}  ({'diffusion-limited' if thiele > 3 else 'reaction-limited'})")
+    print(
+        f"  Thiele number Φ ≈ {thiele:.2f}  ({'diffusion-limited' if thiele > 3 else 'reaction-limited'})"
+    )
     print("=" * 58)
 
     G_all, c_all = simulate_hamilton_1d_nutrient(
@@ -134,14 +137,14 @@ def run_and_extract(
     dt_macro = dt_h * n_react_sub
     t_arr = np.arange(n_macro + 1) * dt_macro
 
-    phi_all = G_np[:, :, 0:5]       # (T+1, N, 5)
+    phi_all = G_np[:, :, 0:5]  # (T+1, N, 5)
     phi_total = phi_all.sum(axis=2)  # (T+1, N)
 
     # Monod 重み: 栄養制限を成長膨張に反映
     #   monod(x,t) = c(x,t) / (k_monod + c(x,t))
     # → 歯面側 (c≈0) は成長せず α≈0、外側 (c=1) は最大成長
-    monod = c_np / (k_monod + c_np + 1e-12)           # (T+1, N) ∈ [0, 0.5]
-    phi_weighted = phi_total * monod                   # Monod 重み付き積分対象
+    monod = c_np / (k_monod + c_np + 1e-12)  # (T+1, N) ∈ [0, 0.5]
+    phi_weighted = phi_total * monod  # Monod 重み付き積分対象
 
     _trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz")
     # α_unweighted: 従来定義（参考値）
@@ -154,14 +157,21 @@ def run_and_extract(
     c_f = c_np[-1]
     phi_f = phi_total[-1]
     print(f"\n  t_end = {t_arr[-1]:.5f} [Hamilton T*]")
-    print(f"  c(x) at t_final  : mean={c_f.mean():.4f}  "
-          f"x=0端: {c_f[0]:.4f}  x=L端: {c_f[-1]:.4f}")
-    print(f"  φ_total at t_final: mean={phi_f.mean():.4f}  "
-          f"max={phi_f.max():.4f}  min={phi_f.min():.4f}")
-    print(f"  α(x)              : mean={alpha_x.mean():.5f}  "
-          f"max={alpha_x.max():.5f}  min={alpha_x.min():.5f}")
-    print(f"  ε_growth(x)=α/3   : mean={eps_x.mean():.5f}  "
-          f"max={eps_x.max():.5f}  min={eps_x.min():.5f}")
+    print(
+        f"  c(x) at t_final  : mean={c_f.mean():.4f}  " f"x=0端: {c_f[0]:.4f}  x=L端: {c_f[-1]:.4f}"
+    )
+    print(
+        f"  φ_total at t_final: mean={phi_f.mean():.4f}  "
+        f"max={phi_f.max():.4f}  min={phi_f.min():.4f}"
+    )
+    print(
+        f"  α(x)              : mean={alpha_x.mean():.5f}  "
+        f"max={alpha_x.max():.5f}  min={alpha_x.min():.5f}"
+    )
+    print(
+        f"  ε_growth(x)=α/3   : mean={eps_x.mean():.5f}  "
+        f"max={eps_x.max():.5f}  min={eps_x.min():.5f}"
+    )
     ratio = alpha_x.max() / (alpha_x.mean() + 1e-12)
     ratio_raw = alpha_x_raw.max() / (alpha_x_raw.mean() + 1e-12)
     print(f"  α_raw(x) 空間変動  : max/mean = {ratio_raw:.4f}  (Monod なし)")
@@ -193,15 +203,18 @@ def run_and_extract(
 # 出力: CSV
 # ---------------------------------------------------------------------------
 
+
 def save_csv(out_path, res):
-    data = np.column_stack([
-        res["x_norm"],
-        res["x_mm"],
-        res["c_all"][-1],
-        res["phi_total"][-1],
-        res["alpha_x"],
-        res["eps_x"],
-    ])
+    data = np.column_stack(
+        [
+            res["x_norm"],
+            res["x_mm"],
+            res["c_all"][-1],
+            res["phi_total"][-1],
+            res["alpha_x"],
+            res["eps_x"],
+        ]
+    )
     header = "x_norm,x_mm,c_final,phi_total_final,alpha_x_monod,eps_growth_x_monod"
     np.savetxt(out_path, data, delimiter=",", header=header, comments="")
     print(f"\n  CSV saved: {out_path}")
@@ -211,9 +224,11 @@ def save_csv(out_path, res):
 # 出力: 4 パネル診断プロット
 # ---------------------------------------------------------------------------
 
+
 def make_plot(out_path, res):
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:
@@ -249,8 +264,7 @@ def make_plot(out_path, res):
     ax = axes[1]
     for k, idx in enumerate(snap_idx):
         col = cmap(k / max(len(snap_idx) - 1, 1))
-        ax.plot(x, c_all[idx], color=col, lw=1.4,
-                label=f"t={t_arr[idx]:.4f}")
+        ax.plot(x, c_all[idx], color=col, lw=1.4, label=f"t={t_arr[idx]:.4f}")
     ax.set_xlabel("x (0=tooth, 1=fluid)")
     ax.set_ylabel("c (nutrient)")
     ax.set_title("Nutrient c(x,t)\n(BC: c(1)=1, dc/dx|₀=0)")
@@ -263,8 +277,7 @@ def make_plot(out_path, res):
     ax = axes[2]
     for k, idx in enumerate(snap_idx):
         col = cmap(k / max(len(snap_idx) - 1, 1))
-        ax.plot(x, phi_total[idx], color=col, lw=1.4,
-                label=f"t={t_arr[idx]:.4f}")
+        ax.plot(x, phi_total[idx], color=col, lw=1.4, label=f"t={t_arr[idx]:.4f}")
     ax.set_xlabel("x (0=tooth, 1=fluid)")
     ax.set_ylabel(r"$\varphi_{total}$")
     ax.set_title("Total biofilm φ_total(x,t)")
@@ -275,17 +288,21 @@ def make_plot(out_path, res):
     # --- Panel 4: α(x) と ε(x) ---
     ax = axes[3]
     ax.fill_between(x, alpha_x, alpha=0.15, color="tab:red")
-    ax.plot(x, alpha_x, color="tab:red", lw=2.2,
-            label=rf"$\alpha(x)$ [mean={alpha_x.mean():.4f}]")
+    ax.plot(x, alpha_x, color="tab:red", lw=2.2, label=rf"$\alpha(x)$ [mean={alpha_x.mean():.4f}]")
     ax2 = ax.twinx()
-    ax2.plot(x, eps_x * 100, color="tab:orange", lw=1.6, ls="--",
-             label=f"eps_growth [%] [mean={eps_x.mean()*100:.3f}%]")
+    ax2.plot(
+        x,
+        eps_x * 100,
+        color="tab:orange",
+        lw=1.6,
+        ls="--",
+        label=f"eps_growth [%] [mean={eps_x.mean()*100:.3f}%]",
+    )
     ax.set_xlabel("x (0=tooth, 1=fluid)")
     ax.set_ylabel(r"$\alpha(x)$", color="tab:red")
     ax2.set_ylabel(r"$\varepsilon_{growth}$ [%]", color="tab:orange")
     ax.set_title(
-        r"Growth eigenstrain $\alpha(x)$"
-        + f"\nk_alpha={res['k_alpha']}, g_eff={res['g_eff']}"
+        r"Growth eigenstrain $\alpha(x)$" + f"\nk_alpha={res['k_alpha']}, g_eff={res['g_eff']}"
     )
     ax.set_xlim(0, 1)
     ax.grid(alpha=0.3)
@@ -295,7 +312,8 @@ def make_plot(out_path, res):
 
     fig.suptitle(
         "Hamilton 1D + Nutrient c(x,t) → Growth eigenstrain α(x)  [Option D Step 1]",
-        fontsize=11, y=1.01,
+        fontsize=11,
+        y=1.01,
     )
     fig.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
@@ -307,34 +325,38 @@ def make_plot(out_path, res):
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def parse_args():
     p = argparse.ArgumentParser(
         description="Hamilton 1D + nutrient → α(x) eigenstrain field (Option D Step 1)"
     )
-    p.add_argument("--theta-json", type=str, default=None,
-                   help="TMCMC theta_MAP.json (省略時は THETA_DEMO)")
-    p.add_argument("--D-c",    type=float, default=1.0,
-                   help="栄養拡散係数 D_c (default: 1.0)")
-    p.add_argument("--g-eff",  type=float, default=50.0,
-                   help="栄養消費係数 g_eff (default: 50.0, Thiele~7)")
-    p.add_argument("--k-monod", type=float, default=1.0,
-                   help="Monod 半飽和定数 (default: 1.0)")
-    p.add_argument("--k-alpha", type=float, default=0.05,
-                   help="成長-固有ひずみ結合 k_α (default: 0.05)")
-    p.add_argument("--N",        type=int,   default=30,
-                   help="空間ノード数 (default: 30)")
-    p.add_argument("--n-macro",  type=int,   default=60,
-                   help="マクロタイムステップ数 (default: 60)")
-    p.add_argument("--n-react-sub", type=int, default=20,
-                   help="Hamilton 反応サブステップ数 (default: 20)")
-    p.add_argument("--n-sub-c",  type=int,   default=10,
-                   help="栄養 PDE サブステップ数 (default: 10)")
-    p.add_argument("--dt-h",     type=float, default=1e-5,
-                   help="Hamilton タイムステップ (default: 1e-5)")
-    p.add_argument("--biofilm-thickness-mm", type=float, default=0.2,
-                   help="バイオフィルム厚み [mm] (default: 0.2)")
-    p.add_argument("--out-dir",  type=str,   default=".",
-                   help="出力ディレクトリ (default: .)")
+    p.add_argument(
+        "--theta-json", type=str, default=None, help="TMCMC theta_MAP.json (省略時は THETA_DEMO)"
+    )
+    p.add_argument("--D-c", type=float, default=1.0, help="栄養拡散係数 D_c (default: 1.0)")
+    p.add_argument(
+        "--g-eff", type=float, default=50.0, help="栄養消費係数 g_eff (default: 50.0, Thiele~7)"
+    )
+    p.add_argument("--k-monod", type=float, default=1.0, help="Monod 半飽和定数 (default: 1.0)")
+    p.add_argument(
+        "--k-alpha", type=float, default=0.05, help="成長-固有ひずみ結合 k_α (default: 0.05)"
+    )
+    p.add_argument("--N", type=int, default=30, help="空間ノード数 (default: 30)")
+    p.add_argument("--n-macro", type=int, default=60, help="マクロタイムステップ数 (default: 60)")
+    p.add_argument(
+        "--n-react-sub", type=int, default=20, help="Hamilton 反応サブステップ数 (default: 20)"
+    )
+    p.add_argument("--n-sub-c", type=int, default=10, help="栄養 PDE サブステップ数 (default: 10)")
+    p.add_argument(
+        "--dt-h", type=float, default=1e-5, help="Hamilton タイムステップ (default: 1e-5)"
+    )
+    p.add_argument(
+        "--biofilm-thickness-mm",
+        type=float,
+        default=0.2,
+        help="バイオフィルム厚み [mm] (default: 0.2)",
+    )
+    p.add_argument("--out-dir", type=str, default=".", help="出力ディレクトリ (default: .)")
     return p.parse_args()
 
 
@@ -347,9 +369,7 @@ def main():
         if isinstance(raw, list):
             theta_list = raw
         elif isinstance(raw, dict):
-            theta_list = raw.get(
-                "theta_full", raw.get("theta_sub", raw.get("theta"))
-            )
+            theta_list = raw.get("theta_full", raw.get("theta_sub", raw.get("theta")))
             if theta_list is None:
                 raise ValueError("theta_MAP.json に theta キーが見つかりません")
         theta = jnp.array(theta_list, dtype=jnp.float64)

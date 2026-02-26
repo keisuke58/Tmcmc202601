@@ -15,11 +15,11 @@ Usage
 """
 import argparse
 import json
-import re
 from pathlib import Path
 
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -27,8 +27,7 @@ _HERE = Path(__file__).resolve().parent
 _FIG_DIR = _HERE / "figures"
 _FIG_DIR.mkdir(exist_ok=True)
 
-CONDITIONS = ["commensal_static", "commensal_hobic",
-              "dh_baseline", "dysbiotic_static"]
+CONDITIONS = ["commensal_static", "commensal_hobic", "dh_baseline", "dysbiotic_static"]
 
 COND_INFO = {
     "commensal_static": {
@@ -105,9 +104,11 @@ def main():
         stress["E_biofilm_MPa"] = e_bio
         stress["E_biofilm_Pa"] = e_bio * 1e6 if e_bio else None
         results[cond] = stress
-        print(f"  {cond}: E_bio={e_bio:.6e} MPa ({e_bio*1e6:.1f} Pa), "
-              f"mises_max={stress['mises']['max']:.2f}, "
-              f"disp_max={stress['displacement']['max_mag']:.1f}")
+        print(
+            f"  {cond}: E_bio={e_bio:.6e} MPa ({e_bio*1e6:.1f} Pa), "
+            f"mises_max={stress['mises']['max']:.2f}, "
+            f"disp_max={stress['displacement']['max_mag']:.1f}"
+        )
 
     if len(results) < 2:
         print("Not enough data for comparison")
@@ -128,9 +129,15 @@ def main():
 
     bars = ax.bar(x, e_vals, color=colors, edgecolor="k", linewidth=0.5)
     for i, (bar, val) in enumerate(zip(bars, e_vals)):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 15,
-                f"{val:.0f} Pa", ha="center", va="bottom", fontsize=10,
-                fontweight="bold")
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 15,
+            f"{val:.0f} Pa",
+            ha="center",
+            va="bottom",
+            fontsize=10,
+            fontweight="bold",
+        )
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=10)
     ax.set_ylabel("$E_{biofilm}$ [Pa]", fontsize=12)
@@ -143,13 +150,21 @@ def main():
     disp_mean = [results[c]["displacement"]["mean_mag"] for c in conds]
 
     w = 0.35
-    ax.bar(x - w/2, disp_max, w, color=colors, edgecolor="k",
-           linewidth=0.5, alpha=0.9, label="Max")
-    ax.bar(x + w/2, disp_mean, w, color=colors, edgecolor="k",
-           linewidth=0.5, alpha=0.5, label="Mean")
+    ax.bar(
+        x - w / 2, disp_max, w, color=colors, edgecolor="k", linewidth=0.5, alpha=0.9, label="Max"
+    )
+    ax.bar(
+        x + w / 2, disp_mean, w, color=colors, edgecolor="k", linewidth=0.5, alpha=0.5, label="Mean"
+    )
     for i, val in enumerate(disp_max):
-        ax.text(x[i] - w/2, val + max(disp_max)*0.02,
-                f"{val:.0f}", ha="center", va="bottom", fontsize=9)
+        ax.text(
+            x[i] - w / 2,
+            val + max(disp_max) * 0.02,
+            f"{val:.0f}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=10)
     ax.set_ylabel("Displacement [mm]", fontsize=12)
@@ -163,38 +178,48 @@ def main():
     mises_p95 = [results[c]["mises"]["p95"] for c in conds]
 
     w3 = 0.25
-    ax.bar(x - w3, mises_mean, w3, color=colors, alpha=0.5,
-           edgecolor="k", linewidth=0.5, label="Mean")
-    ax.bar(x, mises_p95, w3, color=colors, alpha=0.75,
-           edgecolor="k", linewidth=0.5, label="P95")
-    ax.bar(x + w3, mises_max, w3, color=colors, alpha=1.0,
-           edgecolor="k", linewidth=0.5, label="Max")
+    ax.bar(
+        x - w3, mises_mean, w3, color=colors, alpha=0.5, edgecolor="k", linewidth=0.5, label="Mean"
+    )
+    ax.bar(x, mises_p95, w3, color=colors, alpha=0.75, edgecolor="k", linewidth=0.5, label="P95")
+    ax.bar(
+        x + w3, mises_max, w3, color=colors, alpha=1.0, edgecolor="k", linewidth=0.5, label="Max"
+    )
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=10)
     ax.set_ylabel("von Mises Stress [MPa]", fontsize=12)
-    ax.set_title("(c) von Mises Stress (tooth+biofilm)", fontsize=13,
-                 fontweight="bold")
+    ax.set_title("(c) von Mises Stress (tooth+biofilm)", fontsize=13, fontweight="bold")
     ax.legend(fontsize=9)
-    ax.text(0.02, 0.95, "Dominated by dentin\n(tooth structure)",
-            transform=ax.transAxes, fontsize=9, va="top",
-            style="italic", color="gray")
+    ax.text(
+        0.02,
+        0.95,
+        "Dominated by dentin\n(tooth structure)",
+        transform=ax.transAxes,
+        fontsize=9,
+        va="top",
+        style="italic",
+        color="gray",
+    )
 
     # ============ Panel (d): E vs Displacement scatter ============
     ax = fig.add_subplot(gs[1, 1])
     for i, cond in enumerate(conds):
         e_pa = results[cond]["E_biofilm_Pa"]
         d_max = results[cond]["displacement"]["max_mag"]
-        ax.scatter(e_pa, d_max, s=200, c=colors[i], edgecolors="k",
-                   linewidth=1.5, zorder=5)
-        ax.annotate(COND_INFO[cond]["short"],
-                    (e_pa, d_max), textcoords="offset points",
-                    xytext=(10, 10), fontsize=10, fontweight="bold",
-                    color=colors[i])
+        ax.scatter(e_pa, d_max, s=200, c=colors[i], edgecolors="k", linewidth=1.5, zorder=5)
+        ax.annotate(
+            COND_INFO[cond]["short"],
+            (e_pa, d_max),
+            textcoords="offset points",
+            xytext=(10, 10),
+            fontsize=10,
+            fontweight="bold",
+            color=colors[i],
+        )
 
     ax.set_xlabel("$E_{biofilm}$ [Pa]", fontsize=12)
     ax.set_ylabel("Max Displacement [mm]", fontsize=12)
-    ax.set_title("(d) Stiffness vs Deformation", fontsize=13,
-                 fontweight="bold")
+    ax.set_title("(d) Stiffness vs Deformation", fontsize=13, fontweight="bold")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.grid(True, alpha=0.3, which="both")
@@ -206,15 +231,18 @@ def main():
         log_e = np.log10(e_arr)
         log_d = np.log10(d_arr)
         coeffs = np.polyfit(log_e, log_d, 1)
-        e_fit = np.logspace(np.log10(min(e_arr)*0.5), np.log10(max(e_arr)*2), 50)
-        d_fit = 10**(coeffs[0] * np.log10(e_fit) + coeffs[1])
-        ax.plot(e_fit, d_fit, "k--", alpha=0.4, linewidth=1,
-                label=f"slope={coeffs[0]:.2f}")
+        e_fit = np.logspace(np.log10(min(e_arr) * 0.5), np.log10(max(e_arr) * 2), 50)
+        d_fit = 10 ** (coeffs[0] * np.log10(e_fit) + coeffs[1])
+        ax.plot(e_fit, d_fit, "k--", alpha=0.4, linewidth=1, label=f"slope={coeffs[0]:.2f}")
         ax.legend(fontsize=10)
 
-    fig.suptitle("3D Abaqus Stress Analysis: Hybrid DI Approach\n"
-                 "0D Hamilton ODE (condition scale) + 2D PDE (spatial pattern)",
-                 fontsize=14, fontweight="bold", y=0.98)
+    fig.suptitle(
+        "3D Abaqus Stress Analysis: Hybrid DI Approach\n"
+        "0D Hamilton ODE (condition scale) + 2D PDE (spatial pattern)",
+        fontsize=14,
+        fontweight="bold",
+        y=0.98,
+    )
 
     out = _FIG_DIR / "stress_comparison_hybrid_3d.png"
     fig.savefig(out, dpi=200, bbox_inches="tight")
@@ -222,16 +250,20 @@ def main():
     print(f"\nSaved: {out}")
 
     # --- Summary table to stdout ---
-    print("\n" + "="*80)
-    print(f"{'Condition':<20} {'E_bio [Pa]':>12} {'Mises max':>12} "
-          f"{'Mises mean':>12} {'Disp max [mm]':>15}")
-    print("-"*80)
+    print("\n" + "=" * 80)
+    print(
+        f"{'Condition':<20} {'E_bio [Pa]':>12} {'Mises max':>12} "
+        f"{'Mises mean':>12} {'Disp max [mm]':>15}"
+    )
+    print("-" * 80)
     for cond in conds:
         r = results[cond]
-        print(f"{COND_INFO[cond]['short']:<20} {r['E_biofilm_Pa']:>12.1f} "
-              f"{r['mises']['max']:>12.2f} {r['mises']['mean']:>12.4f} "
-              f"{r['displacement']['max_mag']:>15.1f}")
-    print("="*80)
+        print(
+            f"{COND_INFO[cond]['short']:<20} {r['E_biofilm_Pa']:>12.1f} "
+            f"{r['mises']['max']:>12.2f} {r['mises']['mean']:>12.4f} "
+            f"{r['displacement']['max_mag']:>15.1f}"
+        )
+    print("=" * 80)
 
 
 if __name__ == "__main__":

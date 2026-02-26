@@ -12,6 +12,7 @@ import json
 import numpy as np
 from pathlib import Path
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -35,10 +36,26 @@ CONDITION_DIRS = {
 }
 
 PARAM_NAMES = [
-    "μ_So", "μ_An", "μ_Vd", "μ_Fn", "μ_Pg",
-    "a₁₂", "a₁₃", "a₁₄", "a₂₁", "a₂₃",
-    "a₂₄", "a₃₁", "a₃₂", "a₃₄", "a₄₁",
-    "a₁₅", "a₂₅", "a₃₅_inv", "a₃₅", "a₄₅",
+    "μ_So",
+    "μ_An",
+    "μ_Vd",
+    "μ_Fn",
+    "μ_Pg",
+    "a₁₂",
+    "a₁₃",
+    "a₁₄",
+    "a₂₁",
+    "a₂₃",
+    "a₂₄",
+    "a₃₁",
+    "a₃₂",
+    "a₃₄",
+    "a₄₁",
+    "a₁₅",
+    "a₂₅",
+    "a₃₅_inv",
+    "a₃₅",
+    "a₄₅",
 ]
 
 
@@ -91,14 +108,26 @@ def plot_marginal_comparison(condition, ode_samples, don_samples, active_indices
         ax = axes[row, col]
 
         if ode_samples.shape[0] > 1:
-            ax.hist(ode_samples[:, idx], bins=30, alpha=0.5, density=True,
-                    color="#E53935", label="ODE-TMCMC")
+            ax.hist(
+                ode_samples[:, idx],
+                bins=30,
+                alpha=0.5,
+                density=True,
+                color="#E53935",
+                label="ODE-TMCMC",
+            )
         else:
             ax.axvline(ode_samples[0, idx], color="#E53935", lw=2, label="ODE MAP")
 
         if don_samples.shape[0] > 1:
-            ax.hist(don_samples[:, idx], bins=30, alpha=0.5, density=True,
-                    color="#1E88E5", label="DeepONet-TMCMC")
+            ax.hist(
+                don_samples[:, idx],
+                bins=30,
+                alpha=0.5,
+                density=True,
+                color="#1E88E5",
+                label="DeepONet-TMCMC",
+            )
         else:
             ax.axvline(don_samples[0, idx], color="#1E88E5", lw=2, ls="--", label="DeepONet MAP")
 
@@ -146,10 +175,10 @@ def main():
         don_samples, don_logL = load_samples(don_dir)
 
         if ode_samples is None:
-            print(f"  [SKIP] No ODE samples found")
+            print("  [SKIP] No ODE samples found")
             continue
         if don_samples is None:
-            print(f"  [SKIP] No DeepONet samples found")
+            print("  [SKIP] No DeepONet samples found")
             continue
 
         print(f"  ODE samples: {ode_samples.shape}")

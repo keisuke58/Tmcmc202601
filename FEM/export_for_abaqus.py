@@ -69,7 +69,9 @@ def export_fields(results_dir: Path, snapshot_index: int, out_csv: Path) -> None
         else:
             idx = snapshot_index
         if idx < 0 or idx >= snaps_phi.shape[0]:
-            raise IndexError(f"snapshot_index {snapshot_index} out of range for n_snap={snaps_phi.shape[0]}")
+            raise IndexError(
+                f"snapshot_index {snapshot_index} out of range for n_snap={snaps_phi.shape[0]}"
+            )
         phi_all = snaps_phi[idx]
         t = snaps_t[idx]
         ndim = phi_all.ndim
@@ -102,7 +104,7 @@ def export_fields(results_dir: Path, snapshot_index: int, out_csv: Path) -> None
             with out_csv.open("w", encoding="utf-8") as f:
                 f.write(f"# snapshot_index={idx}, t={t:.6e}\n")
                 f.write(header + "\n")
-                for (xv, yv, pv, dv, fv, rv) in rows:
+                for xv, yv, pv, dv, fv, rv in rows:
                     f.write(f"{xv:.8e},{yv:.8e},{pv:.8e},{dv:.8e},{fv:.8e},{rv:.8e},{t:.8e}\n")
         elif ndim == 4:
             y = np.load(results_dir / "mesh_y.npy")
@@ -132,7 +134,9 @@ def export_fields(results_dir: Path, snapshot_index: int, out_csv: Path) -> None
                             dv = float(di[ix, iy, iz])
                             fv = float(phi_tot[ix, iy, iz])
                             rv = float(r_pg[ix, iy, iz])
-                            f.write(f"{xv:.8e},{yv:.8e},{zv:.8e},{pv:.8e},{dv:.8e},{fv:.8e},{rv:.8e},{t:.8e}\n")
+                            f.write(
+                                f"{xv:.8e},{yv:.8e},{zv:.8e},{pv:.8e},{dv:.8e},{fv:.8e},{rv:.8e},{t:.8e}\n"
+                            )
         else:
             raise ValueError(f"Unexpected snapshots_phi dimensionality: {snaps_phi.shape}")
     else:
@@ -144,7 +148,9 @@ def export_fields(results_dir: Path, snapshot_index: int, out_csv: Path) -> None
         else:
             idx = snapshot_index
         if idx < 0 or idx >= snaps_G.shape[0]:
-            raise IndexError(f"snapshot_index {snapshot_index} out of range for n_snap={snaps_G.shape[0]}")
+            raise IndexError(
+                f"snapshot_index {snapshot_index} out of range for n_snap={snaps_G.shape[0]}"
+            )
         G = snaps_G[idx]
         t = snaps_t[idx]
         phi_nodes = G[:, 0:5]
@@ -172,9 +178,17 @@ def export_fields(results_dir: Path, snapshot_index: int, out_csv: Path) -> None
 
 def main():
     ap = argparse.ArgumentParser(description="Export FEM fields (phi_pg, DI) for Abaqus coupling")
-    ap.add_argument("--results-dir", required=True, help="FEM results directory (_results_2d/... or _results_3d/...)")
-    ap.add_argument("--snapshot-index", type=int, default=-1, help="Snapshot index (default: -1, last)")
-    ap.add_argument("--out-csv", required=True, help="Output CSV path relative to current directory")
+    ap.add_argument(
+        "--results-dir",
+        required=True,
+        help="FEM results directory (_results_2d/... or _results_3d/...)",
+    )
+    ap.add_argument(
+        "--snapshot-index", type=int, default=-1, help="Snapshot index (default: -1, last)"
+    )
+    ap.add_argument(
+        "--out-csv", required=True, help="Output CSV path relative to current directory"
+    )
     args = ap.parse_args()
 
     results_dir = Path(args.results_dir)

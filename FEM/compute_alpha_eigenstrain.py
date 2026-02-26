@@ -65,9 +65,11 @@ import numpy as np
 # ── Path setup ────────────────────────────────────────────────────────────────
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.dirname(_HERE)
-for _p in [_PROJECT_ROOT,
-           os.path.join(_PROJECT_ROOT, "tmcmc", "program2602"),
-           os.path.join(_PROJECT_ROOT, "data_5species")]:
+for _p in [
+    _PROJECT_ROOT,
+    os.path.join(_PROJECT_ROOT, "tmcmc", "program2602"),
+    os.path.join(_PROJECT_ROOT, "data_5species"),
+]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -81,10 +83,10 @@ except ImportError:
 
 # ── Known completed run directories per condition ─────────────────────────────
 _CONDITION_MAP = {
-    "commensal_static" : "Commensal_Static_20260204_062733",
-    "commensal_hobic"  : "Commensal_HOBIC_20260205_003113",
-    "dysbiotic_static" : "Dysbiotic_Static",          # fill in if present
-    "dh_baseline"      : "Dysbiotic_HOBIC_20260205_013530",
+    "commensal_static": "Commensal_Static_20260204_062733",
+    "commensal_hobic": "Commensal_HOBIC_20260205_003113",
+    "dysbiotic_static": "Dysbiotic_Static",  # fill in if present
+    "dh_baseline": "Dysbiotic_HOBIC_20260205_013530",
 }
 
 
@@ -149,10 +151,7 @@ def compute_alpha_final(run_dir, k_alpha=0.05, dt=0.01, maxtimestep=2500, verbos
     if verbose:
         print("  theta (20 params): %s ..." % str(theta[:5].round(4)))
 
-    solver = BiofilmNewtonSolver5S(
-        dt=dt, maxtimestep=maxtimestep,
-        phi_init=0.01, use_numba=True
-    )
+    solver = BiofilmNewtonSolver5S(dt=dt, maxtimestep=maxtimestep, phi_init=0.01, use_numba=True)
     # Check if run_deterministic exists, otherwise try solve
     if hasattr(solver, "run_deterministic"):
         t_arr, g_arr = solver.run_deterministic(theta)
@@ -164,13 +163,15 @@ def compute_alpha_final(run_dir, k_alpha=0.05, dt=0.01, maxtimestep=2500, verbos
 
     # 0D integral: ∫ phi_total dt  using trapezoidal rule
     integral_phi = np.trapz(phi_total, t_arr)
-    alpha_final  = k_alpha * integral_phi
-    eps_growth   = alpha_final / 3.0
+    alpha_final = k_alpha * integral_phi
+    eps_growth = alpha_final / 3.0
 
     if verbose:
         print("  ODE: %d steps  t_end=%.2f T*" % (len(t_arr), t_arr[-1]))
-        print("  phi_total: mean=%.4f  max=%.4f  sum*dt=%.4f T*" % (
-            phi_total.mean(), phi_total.max(), integral_phi))
+        print(
+            "  phi_total: mean=%.4f  max=%.4f  sum*dt=%.4f T*"
+            % (phi_total.mean(), phi_total.max(), integral_phi)
+        )
         print("  k_alpha   : %.4f" % k_alpha)
         print("  alpha_final: %.4f" % alpha_final)
         print("  eps_growth : %.4f  (= alpha/3, isotropic expansion strain)" % eps_growth)
@@ -186,30 +187,40 @@ def print_eigenstrain_summary(label, alpha_final, eps_growth):
     print("      --growth-eigenstrain %.4f" % alpha_final)
     print("  --> Expected initial compressive stress: sigma_0 = -E * %.4g" % eps_growth)
     print("      For E_max=1000 Pa: sigma_0 = %.4g Pa" % (-1000 * eps_growth))
-    print("      For E_min= 10 Pa: sigma_0 = %.4g Pa" % (-10   * eps_growth))
+    print("      For E_min= 10 Pa: sigma_0 = %.4g Pa" % (-10 * eps_growth))
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
+
 
 def parse_args():
     p = argparse.ArgumentParser(
         description="Compute alpha_final eigenstrain from TMCMC ODE trajectory (0D approximation)"
     )
     grp = p.add_mutually_exclusive_group(required=True)
-    grp.add_argument("--run-dir",    type=str,
-                     help="Single TMCMC run directory (contains theta_MAP.json)")
-    grp.add_argument("--runs-base",  type=str,
-                     help="Base directory of all TMCMC runs; processes all completed runs")
-    p.add_argument("--condition",    type=str, default=None,
-                   help="Filter runs-base by condition name substring (e.g. commensal)")
-    p.add_argument("--k-alpha",      type=float, default=0.05,
-                   help="Growth-eigenstrain coupling k_alpha [T*^-1] (default 0.05)")
-    p.add_argument("--dt",           type=float, default=0.01,
-                   help="ODE timestep (default 0.01)")
-    p.add_argument("--maxtimestep",  type=int,   default=2500,
-                   help="Max ODE timesteps (default 2500)")
-    p.add_argument("--plot",         action="store_true",
-                   help="Save phi_total(t) plot alongside results")
+    grp.add_argument(
+        "--run-dir", type=str, help="Single TMCMC run directory (contains theta_MAP.json)"
+    )
+    grp.add_argument(
+        "--runs-base",
+        type=str,
+        help="Base directory of all TMCMC runs; processes all completed runs",
+    )
+    p.add_argument(
+        "--condition",
+        type=str,
+        default=None,
+        help="Filter runs-base by condition name substring (e.g. commensal)",
+    )
+    p.add_argument(
+        "--k-alpha",
+        type=float,
+        default=0.05,
+        help="Growth-eigenstrain coupling k_alpha [T*^-1] (default 0.05)",
+    )
+    p.add_argument("--dt", type=float, default=0.01, help="ODE timestep (default 0.01)")
+    p.add_argument("--maxtimestep", type=int, default=2500, help="Max ODE timesteps (default 2500)")
+    p.add_argument("--plot", action="store_true", help="Save phi_total(t) plot alongside results")
     return p.parse_args()
 
 
@@ -226,8 +237,7 @@ def main():
 
     print("=" * 60)
     print("  compute_alpha_eigenstrain.py")
-    print("  k_alpha = %.4f  dt=%.3f  max_steps=%d" % (
-        args.k_alpha, args.dt, args.maxtimestep))
+    print("  k_alpha = %.4f  dt=%.3f  max_steps=%d" % (args.k_alpha, args.dt, args.maxtimestep))
     print("=" * 60)
 
     summaries = []
@@ -235,27 +245,37 @@ def main():
         print("\n[Run] %s" % label)
         try:
             alpha_f, eps_g, t_arr, phi_tot = compute_alpha_final(
-                run_dir, k_alpha=args.k_alpha,
-                dt=args.dt, maxtimestep=args.maxtimestep,
-                verbose=True
+                run_dir,
+                k_alpha=args.k_alpha,
+                dt=args.dt,
+                maxtimestep=args.maxtimestep,
+                verbose=True,
             )
             print_eigenstrain_summary(label, alpha_f, eps_g)
-            summaries.append({
-                "label": label,
-                "alpha_final": float(alpha_f),
-                "eps_growth":  float(eps_g),
-                "phi_total_mean": float(phi_tot.mean()),
-            })
+            summaries.append(
+                {
+                    "label": label,
+                    "alpha_final": float(alpha_f),
+                    "eps_growth": float(eps_g),
+                    "phi_total_mean": float(phi_tot.mean()),
+                }
+            )
 
             if args.plot:
                 try:
                     import matplotlib
+
                     matplotlib.use("Agg")
                     import matplotlib.pyplot as plt
+
                     fig, ax = plt.subplots(figsize=(7, 4))
                     ax.plot(t_arr, phi_tot, lw=1.5, color="steelblue", label=r"$\phi_{total}(t)$")
-                    ax.axhline(phi_tot.mean(), ls="--", color="gray",
-                               label=r"$\bar\phi$ = %.3f" % phi_tot.mean())
+                    ax.axhline(
+                        phi_tot.mean(),
+                        ls="--",
+                        color="gray",
+                        label=r"$\bar\phi$ = %.3f" % phi_tot.mean(),
+                    )
                     ax.set_xlabel("T* (non-dimensional time)")
                     ax.set_ylabel(r"$\phi_{total}$ (biofilm volume fraction)")
                     ax.set_title(label + "\nalpha_final=%.4f, eps=%.4f" % (alpha_f, eps_g))

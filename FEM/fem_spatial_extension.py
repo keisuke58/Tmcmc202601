@@ -47,18 +47,15 @@ import numpy as np
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from matplotlib.colors import Normalize
-from matplotlib.cm import ScalarMappable
 from scipy.sparse import diags
-from scipy.sparse.linalg import spsolve
 
 # ── Path setup ────────────────────────────────────────────────────────────────
-_HERE = Path(__file__).resolve().parent          # Tmcmc202601/FEM/
-_TMCMC_ROOT = _HERE.parent                       # Tmcmc202601/
-_MODEL_PATH  = _TMCMC_ROOT / "tmcmc" / "program2602"
+_HERE = Path(__file__).resolve().parent  # Tmcmc202601/FEM/
+_TMCMC_ROOT = _HERE.parent  # Tmcmc202601/
+_MODEL_PATH = _TMCMC_ROOT / "tmcmc" / "program2602"
 sys.path.insert(0, str(_MODEL_PATH))
 
 try:
@@ -67,6 +64,7 @@ try:
         theta_to_matrices_numpy,
         HAS_NUMBA,
     )
+
     if HAS_NUMBA:
         from improved_5species_jit import _newton_step_jit  # Numba compiled
     HAVE_MODEL = True
@@ -80,39 +78,89 @@ except ImportError:
     )
 
 # ── Species metadata ──────────────────────────────────────────────────────────
-SPECIES_NAMES  = ["S. oralis", "A. naeslundii", "Veillonella", "F. nucleatum", "P. gingivalis"]
-SPECIES_SHORT  = ["S.o", "A.n", "Vei", "F.n", "P.g"]
+SPECIES_NAMES = ["S. oralis", "A. naeslundii", "Veillonella", "F. nucleatum", "P. gingivalis"]
+SPECIES_SHORT = ["S.o", "A.n", "Vei", "F.n", "P.g"]
 SPECIES_COLORS = ["royalblue", "forestgreen", "goldenrod", "mediumpurple", "crimson"]
 
 THETA_NAMES = [
-    "a11","a12","a22","b1","b2",
-    "a33","a34","a44","b3","b4",
-    "a13","a14","a23","a24",
-    "a55","b5",
-    "a15","a25","a35","a45",
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45",
 ]
 
 # ── Default θ (mild-weight best MAP, 2026-02-18) ─────────────────────────────
 # Use as fallback when no JSON is provided (--demo mode).
-_THETA_DEMO = np.array([
-    1.34, -0.18,  1.79,  1.17,  2.58,   # M1: S.o, A.n
-    3.51,  2.73,  0.71,  2.10,  0.37,   # M2: Vei, F.n
-    2.05, -0.15,  3.56,  0.16,   # M3: cross (a23 clamped to 3.56)
-    0.12,  0.32,                  # M4: P.g self
-    1.49,  2.10,  2.41,  2.50,   # M5: P.g cross (a35, a45 clamped)
-], dtype=np.float64)
+_THETA_DEMO = np.array(
+    [
+        1.34,
+        -0.18,
+        1.79,
+        1.17,
+        2.58,  # M1: S.o, A.n
+        3.51,
+        2.73,
+        0.71,
+        2.10,
+        0.37,  # M2: Vei, F.n
+        2.05,
+        -0.15,
+        3.56,
+        0.16,  # M3: cross (a23 clamped to 3.56)
+        0.12,
+        0.32,  # M4: P.g self
+        1.49,
+        2.10,
+        2.41,
+        2.50,  # M5: P.g cross (a35, a45 clamped)
+    ],
+    dtype=np.float64,
+)
+
 
 # ── Standalone Q-vector (in case import fails) ────────────────────────────────
-def _Q_standalone(phi_new, phi0_new, psi_new, gamma_new,
-                  phi_old, phi0_old, psi_old,
-                  dt, Kp1, Eta, EtaPhi, c, alpha,
-                  K_hill, n_hill, A, b_diag, active_mask):
+def _Q_standalone(
+    phi_new,
+    phi0_new,
+    psi_new,
+    gamma_new,
+    phi_old,
+    phi0_old,
+    psi_old,
+    dt,
+    Kp1,
+    Eta,
+    EtaPhi,
+    c,
+    alpha,
+    K_hill,
+    n_hill,
+    A,
+    b_diag,
+    active_mask,
+):
     """Pure-numpy residual (identical to _compute_Q_vector_numpy)."""
     eps = 1e-12
     Q = np.zeros(12)
-    phidot  = (phi_new  - phi_old)  / dt
+    phidot = (phi_new - phi_old) / dt
     phi0dot = (phi0_new - phi0_old) / dt
-    psidot  = (psi_new  - psi_old)  / dt
+    psidot = (psi_new - psi_old) / dt
     Ia = A @ (phi_new * psi_new)
     if K_hill > 1e-9 and active_mask[4] == 1:
         fn = max(phi_new[3] * psi_new[3], 0.0)
@@ -121,66 +169,108 @@ def _Q_standalone(phi_new, phi0_new, psi_new, gamma_new,
         Ia[4] *= (num / den) if den > eps else 0.0
     for i in range(5):
         if active_mask[i]:
-            t1 = Kp1*(2-4*phi_new[i]) / ((phi_new[i]-1)**3 * phi_new[i]**3)
-            t2 = (1/Eta[i])*(gamma_new + (EtaPhi[i]+Eta[i]*psi_new[i]**2)*phidot[i]
-                              + Eta[i]*phi_new[i]*psi_new[i]*psidot[i])
-            t3 = (c/Eta[i])*psi_new[i]*Ia[i]
+            t1 = Kp1 * (2 - 4 * phi_new[i]) / ((phi_new[i] - 1) ** 3 * phi_new[i] ** 3)
+            t2 = (1 / Eta[i]) * (
+                gamma_new
+                + (EtaPhi[i] + Eta[i] * psi_new[i] ** 2) * phidot[i]
+                + Eta[i] * phi_new[i] * psi_new[i] * psidot[i]
+            )
+            t3 = (c / Eta[i]) * psi_new[i] * Ia[i]
             Q[i] = t1 + t2 - t3
         else:
             Q[i] = phi_new[i]
-    Q[5] = gamma_new + Kp1*(2-4*phi0_new)/((phi0_new-1)**3*phi0_new**3) + phi0dot
+    Q[5] = gamma_new + Kp1 * (2 - 4 * phi0_new) / ((phi0_new - 1) ** 3 * phi0_new**3) + phi0dot
     for i in range(5):
         if active_mask[i]:
-            t1 = (-2*Kp1)/((psi_new[i]-1)**2*psi_new[i]**3) \
-                 - (2*Kp1)/((psi_new[i]-1)**3*psi_new[i]**2)
-            t2 = (b_diag[i]*alpha/Eta[i])*psi_new[i]
-            t3 = phi_new[i]*psi_new[i]*phidot[i] + phi_new[i]**2*psidot[i]
-            t4 = (c/Eta[i])*phi_new[i]*Ia[i]
-            Q[6+i] = t1 + t2 + t3 - t4
+            t1 = (-2 * Kp1) / ((psi_new[i] - 1) ** 2 * psi_new[i] ** 3) - (2 * Kp1) / (
+                (psi_new[i] - 1) ** 3 * psi_new[i] ** 2
+            )
+            t2 = (b_diag[i] * alpha / Eta[i]) * psi_new[i]
+            t3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i] ** 2 * psidot[i]
+            t4 = (c / Eta[i]) * phi_new[i] * Ia[i]
+            Q[6 + i] = t1 + t2 + t3 - t4
         else:
-            Q[6+i] = psi_new[i]
+            Q[6 + i] = psi_new[i]
     Q[11] = np.sum(phi_new) + phi0_new - 1.0
     return Q
 
 
 def _theta_to_matrices_standalone(theta):
     """Pure-numpy theta→(A, b_diag)."""
-    A = np.zeros((5,5)); b = np.zeros(5)
-    A[0,0]=theta[0]; A[0,1]=A[1,0]=theta[1]; A[1,1]=theta[2]
-    b[0]=theta[3];   b[1]=theta[4]
-    A[2,2]=theta[5]; A[2,3]=A[3,2]=theta[6]; A[3,3]=theta[7]
-    b[2]=theta[8];   b[3]=theta[9]
-    A[0,2]=A[2,0]=theta[10]; A[0,3]=A[3,0]=theta[11]
-    A[1,2]=A[2,1]=theta[12]; A[1,3]=A[3,1]=theta[13]
-    A[4,4]=theta[14]; b[4]=theta[15]
-    A[0,4]=A[4,0]=theta[16]; A[1,4]=A[4,1]=theta[17]
-    A[2,4]=A[4,2]=theta[18]; A[3,4]=A[4,3]=theta[19]
+    A = np.zeros((5, 5))
+    b = np.zeros(5)
+    A[0, 0] = theta[0]
+    A[0, 1] = A[1, 0] = theta[1]
+    A[1, 1] = theta[2]
+    b[0] = theta[3]
+    b[1] = theta[4]
+    A[2, 2] = theta[5]
+    A[2, 3] = A[3, 2] = theta[6]
+    A[3, 3] = theta[7]
+    b[2] = theta[8]
+    b[3] = theta[9]
+    A[0, 2] = A[2, 0] = theta[10]
+    A[0, 3] = A[3, 0] = theta[11]
+    A[1, 2] = A[2, 1] = theta[12]
+    A[1, 3] = A[3, 1] = theta[13]
+    A[4, 4] = theta[14]
+    b[4] = theta[15]
+    A[0, 4] = A[4, 0] = theta[16]
+    A[1, 4] = A[4, 1] = theta[17]
+    A[2, 4] = A[4, 2] = theta[18]
+    A[3, 4] = A[4, 3] = theta[19]
     return A, b
 
 
 # ── Newton step (Python fallback) ─────────────────────────────────────────────
-def _newton_step_python(g_prev, dt, A, b_diag,
-                         Kp1, Eta, EtaPhi, c, alpha,
-                         K_hill, n_hill, active_mask,
-                         eps_tol=1e-6, max_iter=30):
+def _newton_step_python(
+    g_prev,
+    dt,
+    A,
+    b_diag,
+    Kp1,
+    Eta,
+    EtaPhi,
+    c,
+    alpha,
+    K_hill,
+    n_hill,
+    active_mask,
+    eps_tol=1e-6,
+    max_iter=30,
+):
     """One backward-Euler Hamilton step via Newton-Raphson (Python/numpy)."""
     Q_fn = _compute_Q_vector_numpy if HAVE_MODEL else _Q_standalone
     eps = 1e-10
-    g  = g_prev.copy()
+    g = g_prev.copy()
     for i in range(5):
         if active_mask[i]:
-            g[i]   = np.clip(g[i],   eps, 1-eps)
-            g[6+i] = np.clip(g[6+i], eps, 1-eps)
+            g[i] = np.clip(g[i], eps, 1 - eps)
+            g[6 + i] = np.clip(g[6 + i], eps, 1 - eps)
         else:
-            g[i] = g[6+i] = 0.0
-    g[5] = np.clip(g[5], eps, 1-eps)
+            g[i] = g[6 + i] = 0.0
+    g[5] = np.clip(g[5], eps, 1 - eps)
 
     for _ in range(max_iter):
         Q = Q_fn(
-            g[0:5].copy(), g[5], g[6:11].copy(), g[11],
-            g_prev[0:5], g_prev[5], g_prev[6:11],
-            dt, Kp1, Eta, EtaPhi, c, alpha,
-            K_hill, n_hill, A, b_diag, active_mask,
+            g[0:5].copy(),
+            g[5],
+            g[6:11].copy(),
+            g[11],
+            g_prev[0:5],
+            g_prev[5],
+            g_prev[6:11],
+            dt,
+            Kp1,
+            Eta,
+            EtaPhi,
+            c,
+            alpha,
+            K_hill,
+            n_hill,
+            A,
+            b_diag,
+            active_mask,
         )
         res = np.linalg.norm(Q)
         if res < eps_tol:
@@ -189,12 +279,27 @@ def _newton_step_python(g_prev, dt, A, b_diag,
         h_fd = max(1e-7, res * 1e-4)
         J = np.zeros((12, 12))
         for j in range(12):
-            gp = g.copy(); gp[j] += h_fd
+            gp = g.copy()
+            gp[j] += h_fd
             Qp = Q_fn(
-                gp[0:5].copy(), gp[5], gp[6:11].copy(), gp[11],
-                g_prev[0:5], g_prev[5], g_prev[6:11],
-                dt, Kp1, Eta, EtaPhi, c, alpha,
-                K_hill, n_hill, A, b_diag, active_mask,
+                gp[0:5].copy(),
+                gp[5],
+                gp[6:11].copy(),
+                gp[11],
+                g_prev[0:5],
+                g_prev[5],
+                g_prev[6:11],
+                dt,
+                Kp1,
+                Eta,
+                EtaPhi,
+                c,
+                alpha,
+                K_hill,
+                n_hill,
+                A,
+                b_diag,
+                active_mask,
             )
             J[:, j] = (Qp - Q) / h_fd
         try:
@@ -204,11 +309,11 @@ def _newton_step_python(g_prev, dt, A, b_diag,
         g += delta
         for i in range(5):
             if active_mask[i]:
-                g[i]   = np.clip(g[i],   eps, 1-eps)
-                g[6+i] = np.clip(g[6+i], eps, 1-eps)
+                g[i] = np.clip(g[i], eps, 1 - eps)
+                g[6 + i] = np.clip(g[6 + i], eps, 1 - eps)
             else:
-                g[i] = g[6+i] = 0.0
-        g[5] = np.clip(g[5], eps, 1-eps)
+                g[i] = g[6 + i] = 0.0
+        g[5] = np.clip(g[5], eps, 1 - eps)
     return g
 
 
@@ -223,22 +328,38 @@ def hamilton_node_step(g_prev, dt, A, b_diag, solver_params):
         K_buf = np.zeros((12, 12))
         Q_buf = np.zeros(12)
         _newton_step_jit(
-            g_prev, dt,
-            sp["Kp1"], sp["Eta"], sp["EtaPhi"],
-            sp["c"], sp["alpha"],
-            sp["K_hill"], sp["n_hill"],
-            A, b_diag,
-            sp["eps_tol"], sp["max_newton_iter"],
+            g_prev,
+            dt,
+            sp["Kp1"],
+            sp["Eta"],
+            sp["EtaPhi"],
+            sp["c"],
+            sp["alpha"],
+            sp["K_hill"],
+            sp["n_hill"],
+            A,
+            b_diag,
+            sp["eps_tol"],
+            sp["max_newton_iter"],
             sp["active_mask"],
-            g_new, K_buf, Q_buf,
+            g_new,
+            K_buf,
+            Q_buf,
         )
         return g_new
     else:
         return _newton_step_python(
-            g_prev, dt, A, b_diag,
-            sp["Kp1"], sp["Eta"], sp["EtaPhi"],
-            sp["c"], sp["alpha"],
-            sp["K_hill"], sp["n_hill"],
+            g_prev,
+            dt,
+            A,
+            b_diag,
+            sp["Kp1"],
+            sp["Eta"],
+            sp["EtaPhi"],
+            sp["c"],
+            sp["alpha"],
+            sp["K_hill"],
+            sp["n_hill"],
             sp["active_mask"],
             eps_tol=sp["eps_tol"],
             max_iter=sp["max_newton_iter"],
@@ -259,28 +380,29 @@ def assemble_1d_fem(n_nodes: int, L: float):
     K : scipy sparse CSR  (n_nodes × n_nodes)  stiffness
     """
     n_el = n_nodes - 1
-    h    = L / n_el
+    h = L / n_el
 
     # Consistent mass matrix
-    main_M = np.full(n_nodes, 2*h/3)
-    main_M[0]  = h/3
-    main_M[-1] = h/3
-    off_M = np.full(n_nodes - 1, h/6)
+    main_M = np.full(n_nodes, 2 * h / 3)
+    main_M[0] = h / 3
+    main_M[-1] = h / 3
+    off_M = np.full(n_nodes - 1, h / 6)
     M = diags([off_M, main_M, off_M], [-1, 0, 1], format="csr")
 
     # Stiffness matrix
-    main_K = np.full(n_nodes, 2/h)
-    main_K[0]  = 1/h
-    main_K[-1] = 1/h
-    off_K = np.full(n_nodes - 1, -1/h)
+    main_K = np.full(n_nodes, 2 / h)
+    main_K[0] = 1 / h
+    main_K[-1] = 1 / h
+    off_K = np.full(n_nodes - 1, -1 / h)
     K = diags([off_K, main_K, off_K], [-1, 0, 1], format="csr")
 
     return M, K
 
 
 # ── Spatial initial conditions ────────────────────────────────────────────────
-def make_initial_state(n_nodes: int, L: float, active_mask: np.ndarray,
-                        phi_init_mode: str = "gradient") -> np.ndarray:
+def make_initial_state(
+    n_nodes: int, L: float, active_mask: np.ndarray, phi_init_mode: str = "gradient"
+) -> np.ndarray:
     """
     Build initial state G[n_nodes, 12]:
       columns 0-4  : φᵢ  (volume fractions, 5 species)
@@ -333,10 +455,10 @@ def make_initial_state(n_nodes: int, L: float, active_mask: np.ndarray,
             phi_sum = np.sum(phi)
         phi0 = 1.0 - phi_sum
 
-        G[k, 0:5]  = phi
-        G[k, 5]    = phi0
+        G[k, 0:5] = phi
+        G[k, 5] = phi0
         G[k, 6:11] = np.where(active_mask == 1, 0.999, 0.0)  # ψᵢ initialised high
-        G[k, 11]   = 0.0  # γ
+        G[k, 11] = 0.0  # γ
 
     return G
 
@@ -373,13 +495,13 @@ class FEMBiofilmSimulation:
         save_every: int = 5,
         phi_init_mode: str = "gradient",
     ):
-        self.theta       = np.asarray(theta, dtype=np.float64)
-        self.n_nodes     = n_nodes
-        self.L           = L
-        self.dt_h        = dt_h
+        self.theta = np.asarray(theta, dtype=np.float64)
+        self.n_nodes = n_nodes
+        self.L = L
+        self.dt_h = dt_h
         self.n_react_sub = n_react_sub
-        self.n_macro     = n_macro
-        self.save_every  = save_every
+        self.n_macro = n_macro
+        self.save_every = save_every
         self.phi_init_mode = phi_init_mode
 
         if D_eff is None:
@@ -391,15 +513,15 @@ class FEMBiofilmSimulation:
         if solver_params is None:
             solver_params = {}
         self.sp = {
-            "Kp1":            solver_params.get("Kp1",            1e-4),
-            "Eta":            solver_params.get("Eta",            np.ones(5)),
-            "EtaPhi":         solver_params.get("EtaPhi",         np.ones(5)),
-            "c":              solver_params.get("c",              100.0),
-            "alpha":          solver_params.get("alpha",          100.0),
-            "K_hill":         solver_params.get("K_hill",         0.05),
-            "n_hill":         solver_params.get("n_hill",         4.0),
-            "active_mask":    solver_params.get("active_mask",    np.ones(5, dtype=np.int64)),
-            "eps_tol":        solver_params.get("eps_tol",        1e-6),
+            "Kp1": solver_params.get("Kp1", 1e-4),
+            "Eta": solver_params.get("Eta", np.ones(5)),
+            "EtaPhi": solver_params.get("EtaPhi", np.ones(5)),
+            "c": solver_params.get("c", 100.0),
+            "alpha": solver_params.get("alpha", 100.0),
+            "K_hill": solver_params.get("K_hill", 0.05),
+            "n_hill": solver_params.get("n_hill", 4.0),
+            "active_mask": solver_params.get("active_mask", np.ones(5, dtype=np.int64)),
+            "eps_tol": solver_params.get("eps_tol", 1e-6),
             "max_newton_iter": solver_params.get("max_newton_iter", 50),
         }
 
@@ -412,10 +534,7 @@ class FEMBiofilmSimulation:
 
         # Pre-build diffusion system matrices: (M + dt_diff * Dᵢ * K) per species
         dt_diff = dt_h * n_react_sub
-        self.lhs = [
-            (self.M + dt_diff * self.D_eff[i] * self.K_fem).toarray()
-            for i in range(5)
-        ]
+        self.lhs = [(self.M + dt_diff * self.D_eff[i] * self.K_fem).toarray() for i in range(5)]
 
         # Spatial coordinate
         self.x = np.linspace(0, L, n_nodes)
@@ -424,8 +543,8 @@ class FEMBiofilmSimulation:
         self.G = make_initial_state(n_nodes, L, self.sp["active_mask"], phi_init_mode)
 
         # Storage
-        self.snapshots   = []   # list of (t, G_copy)
-        self.t_current   = 0.0
+        self.snapshots = []  # list of (t, G_copy)
+        self.t_current = 0.0
 
     def _reaction_step(self):
         """Advance every node n_react_sub Hamilton micro-steps (reaction only)."""
@@ -461,7 +580,7 @@ class FEMBiofilmSimulation:
         dt_macro = self.dt_h * self.n_react_sub
         total_time = dt_macro * self.n_macro
 
-        print(f"FEM Biofilm Simulation")
+        print("FEM Biofilm Simulation")
         print(f"  Nodes     : {self.n_nodes}  |  Domain L = {self.L}")
         print(f"  dt_h      : {self.dt_h:.1e}  |  n_react_sub = {self.n_react_sub}")
         print(f"  Macro steps: {self.n_macro}  |  dt_macro = {dt_macro:.1e}")
@@ -485,39 +604,44 @@ class FEMBiofilmSimulation:
             if verbose and (step + 1) % max(1, self.n_macro // 10) == 0:
                 phi_mean = np.mean(self.G[:, 0:5], axis=0)
                 elapsed = time.time() - t0
-                pct = (step+1) / self.n_macro * 100
-                print(f"  [{pct:5.1f}%] t={self.t_current:.4f}  "
-                      f"φ̄=[{', '.join(f'{p:.3f}' for p in phi_mean)}]  "
-                      f"elapsed={elapsed:.1f}s")
+                pct = (step + 1) / self.n_macro * 100
+                print(
+                    f"  [{pct:5.1f}%] t={self.t_current:.4f}  "
+                    f"φ̄=[{', '.join(f'{p:.3f}' for p in phi_mean)}]  "
+                    f"elapsed={elapsed:.1f}s"
+                )
 
         elapsed = time.time() - t0
         print(f"\nSimulation complete in {elapsed:.1f}s  |  {len(self.snapshots)} snapshots saved.")
 
     def plot_results(self, out_dir: Path | None = None, condition_label: str = ""):
         """Produce 3 figures:
-         Fig 1 – Space-time heatmap per species (φᵢ(x, t))
-         Fig 2 – Time series at x=0, L/2, L
-         Fig 3 – Spatial profile at t=0, T/4, T/2, T
+        Fig 1 – Space-time heatmap per species (φᵢ(x, t))
+        Fig 2 – Time series at x=0, L/2, L
+        Fig 3 – Spatial profile at t=0, T/4, T/2, T
         """
         if out_dir is None:
             out_dir = _HERE / "_fem_results"
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        times   = [s[0] for s in self.snapshots]
+        times = [s[0] for s in self.snapshots]
         G_stack = np.stack([s[1] for s in self.snapshots], axis=0)  # (n_snap, n_nodes, 12)
-        phi_t   = G_stack[:, :, 0:5]  # (n_snap, n_nodes, 5)
-        x       = self.x
-        t_arr   = np.array(times)
+        phi_t = G_stack[:, :, 0:5]  # (n_snap, n_nodes, 5)
+        x = self.x
+        t_arr = np.array(times)
 
         # ── Fig 1: Heatmaps ──────────────────────────────────────────────────
         fig, axes = plt.subplots(1, 5, figsize=(18, 4.5), sharey=True)
-        fig.suptitle(f"Space-Time Evolution of φᵢ(x, t){' — ' + condition_label if condition_label else ''}",
-                     fontsize=13, fontweight="bold")
+        fig.suptitle(
+            f"Space-Time Evolution of φᵢ(x, t){' — ' + condition_label if condition_label else ''}",
+            fontsize=13,
+            fontweight="bold",
+        )
 
         for i, ax in enumerate(axes):
             z = phi_t[:, :, i].T  # (n_nodes, n_snap)
-            im = ax.pcolormesh(t_arr, x, z, cmap="viridis", vmin=0.0, vmax=min(0.5, z.max()+0.05))
+            im = ax.pcolormesh(t_arr, x, z, cmap="viridis", vmin=0.0, vmax=min(0.5, z.max() + 0.05))
             ax.set_title(SPECIES_NAMES[i], color=SPECIES_COLORS[i], fontweight="bold")
             ax.set_xlabel("Hamilton time t")
             if i == 0:
@@ -533,16 +657,20 @@ class FEMBiofilmSimulation:
         # ── Fig 2: Time series at 3 positions ────────────────────────────────
         nodes_of_interest = {
             "x=0 (surface)": 0,
-            "x=L/2 (mid)":   self.n_nodes // 2,
-            "x=L (bulk)":    self.n_nodes - 1,
+            "x=L/2 (mid)": self.n_nodes // 2,
+            "x=L (bulk)": self.n_nodes - 1,
         }
         fig, axes = plt.subplots(1, 3, figsize=(15, 4), sharey=True)
-        fig.suptitle(f"Time Series at Key Spatial Locations{' — ' + condition_label if condition_label else ''}",
-                     fontsize=13, fontweight="bold")
+        fig.suptitle(
+            f"Time Series at Key Spatial Locations{' — ' + condition_label if condition_label else ''}",
+            fontsize=13,
+            fontweight="bold",
+        )
         for ax, (label, k) in zip(axes, nodes_of_interest.items()):
             for i in range(5):
-                ax.plot(t_arr, phi_t[:, k, i], color=SPECIES_COLORS[i],
-                        label=SPECIES_SHORT[i], lw=1.8)
+                ax.plot(
+                    t_arr, phi_t[:, k, i], color=SPECIES_COLORS[i], label=SPECIES_SHORT[i], lw=1.8
+                )
             ax.set_title(label)
             ax.set_xlabel("Hamilton time t")
             ax.set_ylim(bottom=0)
@@ -563,15 +691,17 @@ class FEMBiofilmSimulation:
         # Pad to 4 if fewer unique indices
         while len(snap_indices) < 4:
             snap_indices.append(snap_indices[-1])
-        snap_labels  = [f"t={times[s]:.4f}" for s in snap_indices]
+        snap_labels = [f"t={times[s]:.4f}" for s in snap_indices]
 
         fig, axes = plt.subplots(2, 2, figsize=(12, 8))
-        fig.suptitle(f"Spatial Profiles at Key Times{' — ' + condition_label if condition_label else ''}",
-                     fontsize=13, fontweight="bold")
+        fig.suptitle(
+            f"Spatial Profiles at Key Times{' — ' + condition_label if condition_label else ''}",
+            fontsize=13,
+            fontweight="bold",
+        )
         for ax, si, lbl in zip(axes.flat, snap_indices, snap_labels):
             for i in range(5):
-                ax.plot(x, phi_t[si, :, i], color=SPECIES_COLORS[i],
-                        label=SPECIES_SHORT[i], lw=1.8)
+                ax.plot(x, phi_t[si, :, i], color=SPECIES_COLORS[i], label=SPECIES_SHORT[i], lw=1.8)
             ax.set_title(lbl)
             ax.set_xlabel("Position x")
             ax.set_ylabel("φᵢ (volume fraction)")
@@ -588,13 +718,20 @@ class FEMBiofilmSimulation:
         # ── Fig 4: Stacked area – spatial composition at final time ───────────
         fig, ax = plt.subplots(figsize=(9, 4))
         final_phi = phi_t[-1, :, :]  # (n_nodes, 5)
-        ax.stackplot(x, [final_phi[:, i] for i in range(5)],
-                     labels=SPECIES_NAMES, colors=SPECIES_COLORS, alpha=0.75)
+        ax.stackplot(
+            x,
+            [final_phi[:, i] for i in range(5)],
+            labels=SPECIES_NAMES,
+            colors=SPECIES_COLORS,
+            alpha=0.75,
+        )
         ax.set_xlabel("Position x", fontsize=11)
         ax.set_ylabel("Volume fraction φᵢ", fontsize=11)
-        ax.set_title(f"Final Spatial Composition (t={times[-1]:.4f})"
-                     + (f" — {condition_label}" if condition_label else ""),
-                     fontsize=12)
+        ax.set_title(
+            f"Final Spatial Composition (t={times[-1]:.4f})"
+            + (f" — {condition_label}" if condition_label else ""),
+            fontsize=12,
+        )
         ax.legend(loc="upper right", fontsize=8)
         ax.set_xlim(0, self.L)
         ax.set_ylim(0)
@@ -609,12 +746,12 @@ class FEMBiofilmSimulation:
         """Save G snapshots as numpy arrays for post-processing."""
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        times   = np.array([s[0] for s in self.snapshots])
+        times = np.array([s[0] for s in self.snapshots])
         G_stack = np.stack([s[1] for s in self.snapshots], axis=0)
-        np.save(out_dir / "snapshots_G.npy",   G_stack)
-        np.save(out_dir / "snapshots_t.npy",   times)
-        np.save(out_dir / "mesh_x.npy",        self.x)
-        np.save(out_dir / "theta_MAP.npy",      self.theta)
+        np.save(out_dir / "snapshots_G.npy", G_stack)
+        np.save(out_dir / "snapshots_t.npy", times)
+        np.save(out_dir / "mesh_x.npy", self.x)
+        np.save(out_dir / "theta_MAP.npy", self.theta)
         print(f"  Snapshots saved to {out_dir}")
 
 
@@ -625,7 +762,7 @@ def _default_theta_map_path() -> Path | None:
     if not base.exists():
         return None
     # sweep_pg baseline is the best available run (Feb 2026)
-    candidate = (base / "sweep_pg_20260217_081459" / "dh_baseline" / "theta_MAP.json")
+    candidate = base / "sweep_pg_20260217_081459" / "dh_baseline" / "theta_MAP.json"
     if candidate.exists():
         return candidate
     # Fall back: latest JSON by modification time
@@ -634,31 +771,43 @@ def _default_theta_map_path() -> Path | None:
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--theta-json", type=Path, default=None,
-                   help="Path to theta_MAP.json from estimate_reduced_nishioka.py")
-    p.add_argument("--demo", action="store_true",
-                   help="Use built-in demo parameters (no JSON needed)")
-    p.add_argument("--condition", default="",
-                   help="Condition label for plot titles (e.g. Dysbiotic_HOBIC)")
-    p.add_argument("--n-nodes",     type=int,   default=30)
-    p.add_argument("--L",           type=float, default=1.0)
-    p.add_argument("--dt-h",        type=float, default=1e-5,
-                   help="Hamilton micro time step")
-    p.add_argument("--n-react-sub", type=int,   default=50,
-                   help="Hamilton sub-steps per macro step")
-    p.add_argument("--n-macro",     type=int,   default=100,
-                   help="Total macro (splitting) steps")
-    p.add_argument("--D",           type=float, nargs=5,
-                   default=[0.001, 0.001, 0.0008, 0.0005, 0.0002],
-                   help="Diffusion coefficient per species (5 values)")
-    p.add_argument("--K-hill",      type=float, default=0.05)
-    p.add_argument("--n-hill",      type=float, default=4.0)
-    p.add_argument("--init-mode",   default="gradient",
-                   choices=["gradient", "uniform", "dysbiotic"],
-                   help="Spatial initial condition type")
-    p.add_argument("--save-every",  type=int,   default=5)
-    p.add_argument("--out-dir",     type=Path,  default=None)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--theta-json",
+        type=Path,
+        default=None,
+        help="Path to theta_MAP.json from estimate_reduced_nishioka.py",
+    )
+    p.add_argument(
+        "--demo", action="store_true", help="Use built-in demo parameters (no JSON needed)"
+    )
+    p.add_argument(
+        "--condition", default="", help="Condition label for plot titles (e.g. Dysbiotic_HOBIC)"
+    )
+    p.add_argument("--n-nodes", type=int, default=30)
+    p.add_argument("--L", type=float, default=1.0)
+    p.add_argument("--dt-h", type=float, default=1e-5, help="Hamilton micro time step")
+    p.add_argument("--n-react-sub", type=int, default=50, help="Hamilton sub-steps per macro step")
+    p.add_argument("--n-macro", type=int, default=100, help="Total macro (splitting) steps")
+    p.add_argument(
+        "--D",
+        type=float,
+        nargs=5,
+        default=[0.001, 0.001, 0.0008, 0.0005, 0.0002],
+        help="Diffusion coefficient per species (5 values)",
+    )
+    p.add_argument("--K-hill", type=float, default=0.05)
+    p.add_argument("--n-hill", type=float, default=4.0)
+    p.add_argument(
+        "--init-mode",
+        default="gradient",
+        choices=["gradient", "uniform", "dysbiotic"],
+        help="Spatial initial condition type",
+    )
+    p.add_argument("--save-every", type=int, default=5)
+    p.add_argument("--out-dir", type=Path, default=None)
     return p.parse_args()
 
 
@@ -687,31 +836,31 @@ def main():
 
     # ── Build solver params ───────────────────────────────────────────────────
     solver_params = {
-        "Kp1":             1e-4,
-        "Eta":             np.ones(5),
-        "EtaPhi":          np.ones(5),
-        "c":               100.0,
-        "alpha":           100.0,
-        "K_hill":          args.K_hill,
-        "n_hill":          args.n_hill,
-        "active_mask":     np.ones(5, dtype=np.int64),
-        "eps_tol":         1e-6,
+        "Kp1": 1e-4,
+        "Eta": np.ones(5),
+        "EtaPhi": np.ones(5),
+        "c": 100.0,
+        "alpha": 100.0,
+        "K_hill": args.K_hill,
+        "n_hill": args.n_hill,
+        "active_mask": np.ones(5, dtype=np.int64),
+        "eps_tol": 1e-6,
         "max_newton_iter": 50,
     }
 
     # ── Run simulation ────────────────────────────────────────────────────────
     out_dir = args.out_dir or (_HERE / "_fem_results")
     sim = FEMBiofilmSimulation(
-        theta        = theta,
-        n_nodes      = args.n_nodes,
-        L            = args.L,
-        D_eff        = np.array(args.D),
-        dt_h         = args.dt_h,
-        n_react_sub  = args.n_react_sub,
-        n_macro      = args.n_macro,
-        solver_params= solver_params,
-        save_every   = args.save_every,
-        phi_init_mode= args.init_mode,
+        theta=theta,
+        n_nodes=args.n_nodes,
+        L=args.L,
+        D_eff=np.array(args.D),
+        dt_h=args.dt_h,
+        n_react_sub=args.n_react_sub,
+        n_macro=args.n_macro,
+        solver_params=solver_params,
+        save_every=args.save_every,
+        phi_init_mode=args.init_mode,
     )
 
     sim.run(verbose=True)

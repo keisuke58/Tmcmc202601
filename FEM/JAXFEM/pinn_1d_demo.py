@@ -94,9 +94,7 @@ def main():
         )
     )
     loss_fn = jax.jit(
-        lambda p: loss_pinn(
-            p, xs, ts, xs_bc, ts_bc, xs_ic, D, k, s0, x_data, t_data, u_data
-        )
+        lambda p: loss_pinn(p, xs, ts, xs_bc, ts_bc, xs_ic, D, k, s0, x_data, t_data, u_data)
     )
     for i in range(20):
         loss_val = loss_fn(params_current)
@@ -114,4 +112,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
