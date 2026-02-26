@@ -155,11 +155,17 @@
 
 ### 4. Discussion
 
-#### 4.1 DI as Mechanical Indicator
+#### 4.1 DI as Mechanical Indicator — Partially Supported Constitutive Law
 - Shannon entropy captures ecosystem-level dysbiosis
 - φ_Pg fails: Pg fraction too low in Hamilton model (Hill gate + locked edges)
 - Dysbiotic ≠ Pg-dominated; Dysbiotic = diversity loss (So-dominated)
 - Clinical: DI links to biofilm detachability
+- **E(DI) は仮説ではなく partially supported constitutive law**:
+  1. 同時測定: Pattem 2018 が同一 oral biofilm で 16S (組成) + AFM (E) を測定 → 30× E 差
+  2. 遺伝子 KO: curli (50% E↓), B.sub Δeps (70-80% E↓), gtfB/gtfC (50-70% EPS↓)
+  3. 酵素分解: DNase I (粘弾性消失), dextranase+mutanase (G' 3×↓)
+  4. Review consensus: EPS composition が stiffness の primary determinant (Peterson 2015, Flemming 2010)
+- **Missing**: 5菌種 oral biofilm での直接 DI-E 同時定量 → future work
 
 #### 4.2 Multi-Attractor Sensitivity
 - ODE has multiple stable equilibria
@@ -171,6 +177,10 @@
 - E_bio values consistent with Pattem 2018/2021 AFM data
 - Thiele modulus consistent with Klempt 2024
 - No prior work linking DI → mechanical properties quantitatively
+- **EPS synergy model**: Alternative constitutive law with species-specific EPS rates (εᵢ)
+  - 4-model posterior comparison: DI statistically strongest (BF = 3.3×10⁶ vs EPS synergy)
+  - EPS synergy provides better CS-DH separation but lower overall discrimination
+  - Recommended: DI as primary, EPS synergy in Discussion as mechanistically-motivated alternative
 
 #### 4.4 Differentiable Surrogate & Gradient Sampling
 - DeepONet+DEM surrogate enables gradient-based sampling impossible with Abaqus
@@ -179,7 +189,7 @@
 - Limitation: surrogate accuracy bounded by training data coverage
 
 #### 4.5 Limitations
-- E(DI) mapping assumed (not experimentally calibrated for this system)
+- E(DI) mapping: partially supported but not experimentally calibrated for this 5-species system
 - ODE TMCMC: 150 particles × 2 chains → 300 samples (1000p runs pending)
 - Linear elastic FEM (nonlinear needed for ε > 5%)
 - 2D PDE homogenizes species (mitigated by Hybrid approach)
@@ -210,10 +220,16 @@
 
 ## Literature for E(DI) Justification
 
-1. **Pattem et al. (2018)** Sci Rep. PMC5890245. Oral biofilm AFM: low-sucrose 14 kPa vs high-sucrose 0.55 kPa (10-80× ratio)
+1. **Pattem et al. (2018)** Sci Rep. PMC5890245. Oral biofilm AFM + **16S rRNA**: low-sucrose 14 kPa vs high-sucrose 0.55 kPa (10-80× ratio). **Closest "holy grail" — simultaneous composition + mechanics on same sample**
 2. **Pattem et al. (2021)** Sci Rep. PMC8355335. Hydrated: LC 10.4 kPa vs HC 2.8 kPa (3.7×)
-3. **Gloag et al. (2019)** J Bacteriol. PMC6707914. Dual-species G'=160 Pa
+3. **Gloag et al. (2019)** J Bacteriol. PMC6707914. Dual-species G'=160 Pa; emergent properties
 4. **Gloag et al. (2020)** PMC7798440. Biofilm mechanics review: Pa–kPa consensus
 5. **npj Biofilms (2018)** doi:10.1038/s41522-018-0062-5. Standardization review
 6. **Southampton thesis** eprints.soton.ac.uk/359755/. S. mutans 380 Pa
 7. **Aravas & Picu (2008)** Biotech Bioeng. PubMed 18383138. FEM constitutive model
+8. **Zero et al. (2022)** SnF₂ dentifrice study: 16S + AFM on oral biofilm → composition shift → stiffness↓
+9. **E. coli curli+cellulose mutants (2025)** ACS Biomater Sci Eng. Genetic KO → 50% stiffness↓
+10. **B. subtilis Δeps (2020)** IJMS 21:6755. EPS deletion → 70-80% stiffness loss
+11. **P. aeruginosa Psl/Pel (2013-2018)** Brillouin imaging; Psl→Pel = elastic→viscous transition
+12. **Peterson & Stoodley (2015)** FEMS Microbiol Rev 39:234. Viscoelasticity review
+13. **Flemming & Wingender (2010)** Nat Rev Microbiol 8:623. EPS matrix is species-specific
