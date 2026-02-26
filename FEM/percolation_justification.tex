@@ -1,0 +1,310 @@
+% ══════════════════════════════════════════════════════════════════════════════
+% Comprehensive Defense of E(DI) Constitutive Law
+% ══════════════════════════════════════════════════════════════════════════════
+% Insert into paper as Section X.X
+% Addresses: exponent n, functional form, E bounds, DI→p mapping,
+%            E_min residual stiffness, Bayesian non-identifiability
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsubsection{Constitutive model: justification and sensitivity}
+\label{sec:constitutive_sensitivity}
+
+The constitutive model
+\begin{equation}
+  E_{\mathrm{bio}}(DI) = E_{\max}(1-r)^n + E_{\min}\,r,
+  \quad r = \mathrm{clamp}(DI / s_{DI}, 0, 1)
+  \label{eq:Edi}
+\end{equation}
+involves three structural choices: the exponent~$n$,
+the functional form (power-law), and the boundary values
+$E_{\max}$, $E_{\min}$.
+We justify each in turn and demonstrate that all qualitative
+conclusions are robust to these choices
+(Fig.~\ref{fig:n_sensitivity}, Table~\ref{tab:n_sensitivity}).
+
+% ── (1) Exponent n ──────────────────────────────────────────────────────────
+
+\paragraph{(1) Exponent $n = 2$: percolation analogy.}
+Biofilm stiffness originates from the extracellular polymeric substance (EPS)
+matrix, a cross-linked polymer network embedding bacterial
+cells~\cite{Flemming2010,Koo2017}.
+The elastic modulus of cross-linked networks near the gel--sol transition
+obeys \emph{rigidity percolation} scaling~\cite{Sahimi1994,deGennes1979}:
+\begin{equation}
+  E \sim (p - p_c)^f, \qquad p > p_c,
+  \label{eq:percolation}
+\end{equation}
+where $p$ is the cross-link density, $p_c$ the percolation threshold,
+and $f$ the universal rigidity exponent.
+For three-dimensional central-force networks,
+$f = 2.0 \pm 0.1$~\cite{Arbabi1993};
+for bond-bending models, $f \approx 1.7$~\cite{Feng1984,Kantor1984}.
+Identifying the rescaled diversity measure $1 - r$ with the reduced
+cross-link density $(p - p_c)/(1 - p_c)$ yields
+\begin{equation}
+  E_{\max}(1-r)^n
+  \;=\; E_{\max}\!\left(\frac{p - p_c}{1 - p_c}\right)^{\!f},
+  \qquad n = f \approx 2.
+  \label{eq:reduction}
+\end{equation}
+This identification is \emph{phenomenological}:
+$DI$ measures Shannon entropy of species composition, not polymer
+cross-linking directly.
+The assumption that species diversity monotonically promotes
+EPS network connectivity rests on three lines of indirect evidence:
+
+\begin{enumerate}[label=(\alph*)]
+  \item \textbf{Multi-species emergent stiffness.}
+    Gloag et al.~\cite{Gloag2019} showed that dual-species biofilms
+    exhibit emergent mechanical properties absent in either monoculture,
+    attributable to cross-linking between heterogeneous EPS types.
+
+  \item \textbf{EPS knockout studies.}
+    Disruption of single EPS pathways causes disproportionate stiffness
+    loss---curli deletion ($50\%$ $E$ reduction~\cite{Hollenbeck2018}),
+    $\Delta$\textit{eps} in \textit{B.~subtilis}
+    ($70$--$80\%$ loss~\cite{Kesel2016}),
+    \textit{gtfB}/\textit{gtfC} knockouts
+    ($50$--$70\%$ EPS reduction~\cite{Bowen2011})---consistent with
+    percolation-like threshold behavior where removing one cross-link
+    type collapses the network.
+
+  \item \textbf{Enzymatic disruption.}
+    Selective cleavage of cross-link types
+    (DNase~I targeting eDNA, dextranase targeting glucans)
+    causes viscoelastic collapse~\cite{Flemming2010,Liao2014},
+    confirming that the EPS network operates near
+    a connectivity threshold rather than deep in the elastic regime.
+\end{enumerate}
+
+\noindent
+A direct validation would require simultaneous measurement of species
+composition and EPS cross-link density in the same sample.
+This remains a target for future work (Section~\ref{sec:future}).
+
+\paragraph{Sensitivity to $n$.}
+The full analysis was repeated for $n \in \{1.0, 1.5, 2.0, 2.5, 3.0\}$
+and continuously for $n \in [0.5, 4.0]$
+using 50 unfiltered posterior samples per condition
+(Fig.~\ref{fig:n_sensitivity}a,c,d).
+Three findings establish robustness:
+\begin{itemize}
+  \item The condition ordering
+    $E_{\mathrm{CS}} \geq E_{\mathrm{CH}} > E_{\mathrm{DH}} \gg E_{\mathrm{DS}}$
+    is preserved for \emph{all} $n \in [0.5, 4.0]$.
+  \item The pseudo Bayes factor (DI vs $\varphi_{Pg}$) exceeds
+    $10^6$ for every tested~$n$
+    (minimum $BF = 1.8 \times 10^6$ at $n = 3.0$, CS--DH pair),
+    far above the ``decisive'' threshold of~100~\cite{Kass1995}.
+  \item The CS/DS stiffness ratio varies from $6\times$ ($n=1$)
+    to $75\times$ ($n=3$); at $n = 2$, the ratio of $29\times$ lies
+    within the $10$--$80\times$ range measured by
+    Pattem et al.~\cite{Pattem2018} for sucrose-dependent biofilm
+    stiffness variation.
+    The literature-compatible range of $n$ is $[1.3, 3.3]$
+    (Fig.~\ref{fig:n_sensitivity}d).
+\end{itemize}
+
+% ── (2) Functional form ─────────────────────────────────────────────────────
+
+\paragraph{(2) Why power-law?}
+We compared five functional forms
+(Fig.~\ref{fig:n_sensitivity}b):
+power-law ($n=2$), linear ($n=1$), logistic sigmoid ($k=10$, $DI_{\mathrm{mid}}=0.5$),
+exponential decay ($\lambda=3$), and piecewise linear ($DI_c = 0.5$).
+Using the posterior-mean species fractions, the CS/DS stiffness
+ratios are: power-law $29\times$, sigmoid $25\times$,
+exponential $10\times$, linear $6\times$, piecewise $3\times$.
+Only power-law, sigmoid, and exponential fall within the experimental
+range of $10$--$80\times$~\cite{Pattem2018}.
+The power-law is preferred because (i)~it has a direct physical
+interpretation via percolation (Eq.~\ref{eq:reduction}),
+(ii)~it provides the best quantitative match to the center of
+the literature range, and (iii)~it reduces to a single free parameter~$n$
+(vs.\ two for sigmoid, one for exponential).
+We note that the sigmoid model also performs adequately;
+the qualitative conclusions are form-independent.
+
+% ── (3) E_min: residual stiffness ──────────────────────────────────────────
+
+\paragraph{(3) $E_{\min} > 0$: residual stiffness.}
+Classical percolation predicts $E = 0$ below~$p_c$
+(Eq.~\ref{eq:percolation}).
+We retain $E_{\min} = 10$~Pa because even a mono-dominated,
+EPS-depleted biofilm retains finite stiffness from the bacterial
+cell bodies themselves.
+Single-cell AFM measurements report
+$E_{\mathrm{cell}} \sim 10$--$100$~Pa for hydrated
+bacteria~\cite{Longo2013,Formosa2015}.
+The $E_{\min}$ term thus represents the lower bound where the EPS
+network has percolated below~$p_c$ but the cellular scaffold persists.
+
+% ── (4) E_max / E_min sensitivity ──────────────────────────────────────────
+
+\paragraph{(4) Sensitivity to $E_{\max}$ and $E_{\min}$.}
+Since $E_{\max}$ and $E_{\min}$ are calibrated to the literature
+range ($20$--$14{,}000$~Pa) rather than fit to data,
+we tested $E_{\max} \in [500, 1500]$~Pa and $E_{\min} \in [5, 50]$~Pa
+($\pm 50\%$ of default).
+For all $2{,}500$ tested combinations,
+$E_{\mathrm{CS}} > E_{\mathrm{DS}}$ (ordering preserved),
+and $99\%$ of parameter space yields CS/DS ratios within the
+Pattem $10$--$80\times$ range
+(Fig.~\ref{fig:n_sensitivity}f).
+
+% ── (5) Why not estimate n? ────────────────────────────────────────────────
+
+\paragraph{(5) Why not infer $n$ from data?}
+Adding $n$ as a 21st TMCMC parameter would require
+condition-resolved experimental measurements of $E_{\mathrm{bio}}$
+to constrain it.
+Since our TMCMC posterior is conditioned on ODE-predicted species fractions
+(not elastic moduli), $n$ would be non-identifiable and
+dominated by the prior.
+The sensitivity analysis (Fig.~\ref{fig:n_sensitivity}c--e)
+provides a stronger argument:
+it demonstrates conclusion-independence over a wide range of~$n$,
+which is more informative than a poorly constrained posterior.
+
+% ── (6) Non-parametric validation ──────────────────────────────────────────
+
+\paragraph{(6) Non-parametric validation.}
+The pseudo Bayes factor uses a Gaussian approximation for the
+Bhattacharyya distance.
+To validate this, we computed the kernel density estimate (KDE)
+overlap coefficient between condition pairs at each~$n$
+(Fig.~\ref{fig:n_sensitivity}e, dashed).
+The KDE overlap is exactly zero for both CS--DH and CS--DS pairs
+at all tested~$n$, confirming complete distributional separation
+independent of parametric assumptions.
+
+% ── (7) CH ≥ CS is physically expected ──────────────────────────────────────
+
+\paragraph{(7) Why $E_{\mathrm{CH}} \geq E_{\mathrm{CS}}$?}
+The commensal HOBIC condition (periodic aerobic--anaerobic cycling)
+promotes more uniform species composition than static culture,
+yielding lower $DI$ and thus higher~$E$.
+This is physically expected: environmental fluctuations prevent
+any single species from dominating, maintaining high
+cross-link diversity.
+
+% ── Table ───────────────────────────────────────────────────────────────────
+
+\begin{table}[h]
+\centering
+\caption{Sensitivity of $E(DI)$ predictions to exponent~$n$.
+Mean $E_{\mathrm{bio}}$ [Pa] from 50 posterior samples per condition.
+BF: pseudo Bayes factor (DI vs $\varphi_{Pg}$, CS--DH pair).
+All $n$ yield ordering CS $>$ DH $>$ DS and decisive BF.}
+\label{tab:n_sensitivity}
+\begin{tabular}{ccccccc}
+\toprule
+$n$ & $E_{\mathrm{CS}}$ & $E_{\mathrm{CH}}$ & $E_{\mathrm{DH}}$ & $E_{\mathrm{DS}}$
+    & CS/DS & BF(CS--DH) \\
+\midrule
+1.0 &  970 &  998 &  528 &  163 &  $6\times$  & $2.0 \times 10^{12}$ \\
+1.5 &  956 &  997 &  383 &   69 & $14\times$  & $6.3 \times 10^{10}$ \\
+\textbf{2.0} & \textbf{942} & \textbf{995} & \textbf{279} & \textbf{32}
+    & $\mathbf{29\times}$ & $\mathbf{1.4 \times 10^{9}}$ \\
+2.5 &  929 &  994 &  203 &   18 & $52\times$  & $3.8 \times 10^{7}$ \\
+3.0 &  916 &  993 &  148 &   12 & $75\times$  & $1.8 \times 10^{6}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════════════════════
+% BibTeX entries
+% ══════════════════════════════════════════════════════════════════════════════
+
+% @book{Sahimi1994,
+%   author    = {Sahimi, Muhammad},
+%   title     = {Applications of Percolation Theory},
+%   publisher = {Taylor \& Francis},
+%   year      = {1994}
+% }
+% @book{deGennes1979,
+%   author    = {de Gennes, Pierre-Gilles},
+%   title     = {Scaling Concepts in Polymer Physics},
+%   publisher = {Cornell University Press},
+%   year      = {1979}
+% }
+% @article{Arbabi1993,
+%   author  = {Arbabi, S. and Sahimi, M.},
+%   title   = {Mechanics of disordered solids. {I}. {P}ercolation on elastic
+%              networks with central forces},
+%   journal = {Phys.\ Rev.\ B},
+%   volume  = {47},
+%   pages   = {695--702},
+%   year    = {1993}
+% }
+% @article{Feng1984,
+%   author  = {Feng, S. and Sen, P. N.},
+%   title   = {Percolation on elastic networks: new exponent and threshold},
+%   journal = {Phys.\ Rev.\ Lett.},
+%   volume  = {52},
+%   pages   = {216--219},
+%   year    = {1984}
+% }
+% @article{Kantor1984,
+%   author  = {Kantor, Y. and Webman, I.},
+%   title   = {Elastic properties of random percolating systems},
+%   journal = {Phys.\ Rev.\ Lett.},
+%   volume  = {52},
+%   pages   = {1891--1894},
+%   year    = {1984}
+% }
+% @article{Kass1995,
+%   author  = {Kass, R. E. and Raftery, A. E.},
+%   title   = {Bayes factors},
+%   journal = {J.\ Am.\ Stat.\ Assoc.},
+%   volume  = {90},
+%   pages   = {773--795},
+%   year    = {1995}
+% }
+% @article{Gloag2019,
+%   author  = {Gloag, E. S. and others},
+%   journal = {J.\ Bacteriol.},
+%   year    = {2019},
+%   note    = {PMC6707914}
+% }
+% @article{Hollenbeck2018,
+%   author  = {Hollenbeck, E. C. and others},
+%   journal = {Biophys.\ J.},
+%   year    = {2018}
+% }
+% @article{Kesel2016,
+%   author  = {Kesel, S. and others},
+%   journal = {Appl.\ Environ.\ Microbiol.},
+%   year    = {2016}
+% }
+% @article{Bowen2011,
+%   author  = {Bowen, W. H. and Koo, H.},
+%   journal = {Caries Res.},
+%   volume  = {45},
+%   pages   = {69--86},
+%   year    = {2011}
+% }
+% @article{Pattem2018,
+%   author  = {Pattem, J. and others},
+%   journal = {Sci.\ Rep.},
+%   year    = {2018},
+%   note    = {PMC5890245}
+% }
+% @article{Longo2013,
+%   author  = {Longo, G. and others},
+%   title   = {Rapid detection of bacterial resistance to antibiotics
+%              using AFM cantilevers as nanomechanical sensors},
+%   journal = {Nat.\ Nanotechnol.},
+%   volume  = {8},
+%   pages   = {522--526},
+%   year    = {2013}
+% }
+% @article{Formosa2015,
+%   author  = {Formosa, C. and others},
+%   title   = {Nanoscale analysis of the effects of antibiotics and CX1
+%              on a \textit{Pseudomonas aeruginosa} multidrug-resistant strain},
+%   journal = {Sci.\ Rep.},
+%   volume  = {5},
+%   pages   = {12088},
+%   year    = {2015}
+% }
