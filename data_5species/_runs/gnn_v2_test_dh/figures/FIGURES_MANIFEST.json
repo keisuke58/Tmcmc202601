@@ -1,0 +1,15 @@
+{
+  "output_dir": "../_runs/gnn_v2_test_dh/figures",
+  "n_figures": 8,
+  "figures": [
+    "TSM_simulation_Dysbiotic_HOBIC_MAP_Fit_with_data.png",
+    "TSM_simulation_Dysbiotic_HOBIC_Mean_Fit_with_data.png",
+    "residuals_Dysbiotic_HOBIC_Residuals.png",
+    "parameter_distributions_Dysbiotic_HOBIC_Params.png",
+    "corner_plot_Dysbiotic_HOBIC_Corner.png",
+    "posterior_predictive_Dysbiotic_HOBIC_PosteriorBand.png",
+    "posterior_predictive_spaghetti_Dysbiotic_HOBIC_PosteriorSpaghetti.png",
+    "Fig01_TMCMC_beta_schedule_Dysbiotic_HOBIC.png"
+  ],
+  "generated_at": "2026-02-27 02:31:19"
+}
