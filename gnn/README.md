@@ -95,3 +95,7 @@ python train.py --data data/train_gnn_N10000.npz --epochs 1000 \
 - interaction_graph.json: 5 菌種の相互作用構造
 - DeepONet: 同様の合成データ生成フロー
 - HMP16SData: https://github.com/waldronlab/HMP16SData
+
+## 口頭試問対策
+
+- **[WIKI.md](WIKI.md)** — 査読・口頭試問対策（村松先生視点の想定質問含む）
