@@ -1,0 +1,7 @@
+model,chain,stage,beta
+Dysbiotic_HOBIC,1,0,0.0
+Dysbiotic_HOBIC,1,1,0.14874756336212158
+Dysbiotic_HOBIC,1,2,0.4481512672228263
+Dysbiotic_HOBIC,1,3,0.9481512672228263
+Dysbiotic_HOBIC,1,4,0.9999999984547874
+Dysbiotic_HOBIC,1,5,1.0

@@ -6,8 +6,8 @@
   "n_species": 5,
   "n_params": 168069,
   "n_train": 9000,
-  "n_epochs": 500,
+  "n_epochs": 800,
   "batch_size": 256,
   "lr": 0.001,
-  "best_val_loss": 1.635108977401008e-05
+  "best_val_loss": 9.050903675718777e-06
 }

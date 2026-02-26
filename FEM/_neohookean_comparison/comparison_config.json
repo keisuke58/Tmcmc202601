@@ -1,0 +1,22 @@
+{
+  "conditions": [
+    "commensal_static",
+    "commensal_hobic",
+    "dysbiotic_static",
+    "dh_baseline"
+  ],
+  "files": {
+    "commensal_static_linear": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_neohookean_comparison/commensal_static_linear/p23_commensal_static_linear.inp",
+    "commensal_static_nh": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_neohookean_comparison/commensal_static_nh/p23_commensal_static_nh.inp",
+    "commensal_hobic_linear": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_neohookean_comparison/commensal_hobic_linear/p23_commensal_hobic_linear.inp",
+    "commensal_hobic_nh": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_neohookean_comparison/commensal_hobic_nh/p23_commensal_hobic_nh.inp",
+    "dysbiotic_static_linear": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_neohookean_comparison/dysbiotic_static_linear/p23_dysbiotic_static_linear.inp",
+    "dysbiotic_static_nh": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_neohookean_comparison/dysbiotic_static_nh/p23_dysbiotic_static_nh.inp",
+    "dh_baseline_linear": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_neohookean_comparison/dh_baseline_linear/p23_dh_baseline_linear.inp",
+    "dh_baseline_nh": "/home/nishioka/IKM_Hiwi/Tmcmc202601/FEM/_neohookean_comparison/dh_baseline_nh/p23_dh_baseline_nh.inp"
+  },
+  "notes": [
+    "Submit INP files to Abaqus (abaqus job=p23_xxx_linear/nh cpus=4)",
+    "After completion, run: python run_neohookean_comparison.py --plot"
+  ]
+}
