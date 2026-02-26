@@ -2,7 +2,9 @@
 
 **5種口腔バイオフィルム Hamilton ODE モデルにおける種間相互作用パラメータの TMCMC ベイズ同定と、事後分布の 3D FEM 応力解析への伝播**
 
-[![CI](https://github.com/keisuke58/Tmcmc202601/actions/workflows/ci.yml/badge.svg)](https://github.com/keisuke58/Tmcmc202601/actions/workflows/ci.yml)
+[![Lint](https://github.com/keisuke58/Tmcmc202601/actions/workflows/lint.yml/badge.svg)](https://github.com/keisuke58/Tmcmc202601/actions/workflows/lint.yml)
+[![Test](https://github.com/keisuke58/Tmcmc202601/actions/workflows/test.yml/badge.svg)](https://github.com/keisuke58/Tmcmc202601/actions/workflows/test.yml)
+[![CodeQL](https://github.com/keisuke58/Tmcmc202601/actions/workflows/codeql.yml/badge.svg)](https://github.com/keisuke58/Tmcmc202601/actions/workflows/codeql.yml)
 [![LaTeX](https://github.com/keisuke58/Tmcmc202601/actions/workflows/latex-build.yml/badge.svg)](https://github.com/keisuke58/Tmcmc202601/actions/workflows/latex-build.yml)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
 [![JAX 0.9](https://img.shields.io/badge/JAX-0.9-orange.svg)](https://github.com/google/jax)

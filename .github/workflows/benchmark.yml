@@ -1,0 +1,61 @@
+# Benchmark: 実行時間を記録し、リグレッションを検知
+# ベンチマーク結果をアーティファクトとして保存
+
+name: Benchmark
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'FEM/**'
+      - 'data_5species/core/**'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'FEM/**'
+      - 'data_5species/core/**'
+  schedule:
+    - cron: '0 6 * * 1'  # 毎週月曜 06:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install numpy scipy pytest
+
+      - name: Run FEM tests (timed)
+        working-directory: FEM
+        run: |
+          echo "## Benchmark: FEM tests" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          { time python -m pytest tests/ -v --tb=no -q 2>&1; } 2>&1 | tee benchmark_fem.log
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Record benchmark
+        run: |
+          mkdir -p benchmark_results
+          echo "sha: ${{ github.sha }}" > benchmark_results/run_info.yaml
+          echo "ref: ${{ github.ref }}" >> benchmark_results/run_info.yaml
+          echo "run_at: $(date -Iseconds)" >> benchmark_results/run_info.yaml
+          if [ -f FEM/benchmark_fem.log ]; then
+            cp FEM/benchmark_fem.log benchmark_results/
+          fi
+
+      - name: Upload benchmark
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ github.sha }}
+          path: benchmark_results/
+          retention-days: 30

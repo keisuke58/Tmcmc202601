@@ -31,9 +31,22 @@ jobs:
           working_directory: data_5species/docs
           args: "-pdf -file-line-error -interaction=nonstopmode"
 
+      - name: Collect reproducibility info
+        run: |
+          pip install numpy scipy 2>/dev/null || true
+          {
+            echo "=== Python ==="
+            python --version
+            echo "=== Commit ==="
+            echo "${{ github.sha }}"
+            echo "=== pip freeze ==="
+            pip freeze
+          } > reproducibility_artifacts.txt
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             data_5species/docs/nishioka_latex20260218.pdf
+            reproducibility_artifacts.txt
           generate_release_notes: true

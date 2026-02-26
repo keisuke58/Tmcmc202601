@@ -1,0 +1,37 @@
+# Stale bot: 放置された Issue/PR にラベル・コメント・クローズ
+# https://github.com/actions/stale
+
+name: Stale
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # 毎週月曜 00:00 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          stale-issue-message: |
+            この Issue は 60 日以上更新がありません。まだ対応が必要な場合はコメントしてください。
+            7 日以内に反応がない場合、自動でクローズされます。
+          stale-pr-message: |
+            この PR は 60 日以上更新がありません。まだ対応が必要な場合はコメントしてください。
+            7 日以内に反応がない場合、自動でクローズされます。
+          close-issue-message: 反応がなかったためクローズしました。必要であれば再オープンしてください。
+          close-pr-message: 反応がなかったためクローズしました。必要であれば再オープンしてください。
+          days-before-issue-stale: 60
+          days-before-pr-stale: 60
+          days-before-issue-close: 7
+          days-before-pr-close: 7
+          stale-issue-label: stale
+          stale-pr-label: stale
+          exempt-issue-labels: pinned,security
+          exempt-pr-labels: WIP,draft
+          operations-per-run: 100
