@@ -3,7 +3,7 @@
 > **最終更新:** 2026-02-26  
 > **Wiki 版（推奨）:** [口頭試問対策](https://github.com/keisuke58/Tmcmc202601/wiki/Oral-Exam-Preparation) — 本内容は Wiki にマージ済み  
 > **参照:** [IKM 研究者・論文一覧 §8](https://github.com/keisuke58/Tmcmc202601/wiki/IKM-Researchers-and-Publications#8-教授が本研究を見たときの予想される指摘補強方向)  
-> **Issues:** [#77](https://github.com/keisuke58/Tmcmc202601/issues/77)–[#90](https://github.com/keisuke58/Tmcmc202601/issues/90)
+> **Issues:** [#77](https://github.com/keisuke58/Tmcmc202601/issues/77)–[#92](https://github.com/keisuke58/Tmcmc202601/issues/92)
 
 ---
 
@@ -19,6 +19,8 @@
 8. [E(DI) の変分導出](#8-edi-の変分導出)
 9. [臨床検証](#9-臨床検証--データソース)
 10. [GNN × 口腔菌叢](#10-gnn--口腔菌叢)
+11. [業界研究・2年後までの展望](#11-業界研究2年後までの展望) — **Issue #91**
+12. [学術的貢献・新規性と投稿先（IF 一覧含む）](#12-学術的貢献新規性と投稿先if-一覧含む) — **Issue #92**
 
 ※ 詳細は [Wiki: 口頭試問対策](https://github.com/keisuke58/Tmcmc202601/wiki/Oral-Exam-Preparation) を参照
 
@@ -311,3 +313,23 @@ $$D = D(\dot{\varphi}, \dot{\psi}, \mathrm{DI})$$
 2. 検証の 3 段階: Phase 1 合成→Phase 2 HMP 転移→Phase 3 TMCMC 統合
 3. 限界: ground truth 欠如、domain gap、不確実性定量化は未実装
 4. 村松先生への説明: 構成則のパラメータ同定との類比、検証の階層、過学習対策
+
+---
+
+## 11. 業界研究・2年後までの展望
+
+**Issue:** [#91](https://github.com/keisuke58/Tmcmc202601/issues/91)  
+**詳細:** [ISSUE_91_industry_research_2year_outlook.md](ISSUE_91_industry_research_2year_outlook.md)
+
+---
+
+## 12. 学術的貢献・新規性と投稿先（IF 一覧含む）
+
+**Issue:** [#92](https://github.com/keisuke58/Tmcmc202601/issues/92)
+
+学術的貢献（DI→E 構成則、Dysbiotic≠Pg 支配、Full pipeline、Parametric basin stability、E2E 微分可能）、論文投稿先候補、および各ジャーナルのインパクトファクター（2024）を整理。
+
+| 項目 | 内容 |
+|------|------|
+| **NVIDIA 等** | 口腔バイオフィルムは直接なし。ベイズ+サロゲート+FEM は心血管等で活発。SIMBA-GNN は腸内細菌叢。 |
+| **2年後** | 論文 1本、臨床検証着手、HMP 統合。口腔×力学×ベイズのニッチで独自ポジション確立の可能性。 |
