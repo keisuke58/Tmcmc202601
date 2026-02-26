@@ -1,0 +1,64 @@
+# Lint: Ruff + Black + pre-commit (per .cursorrules)
+# Runs on Python file changes
+
+name: Lint
+
+on:
+  push:
+    paths:
+      - '**.py'
+      - '.pre-commit-config.yaml'
+  pull_request:
+    paths:
+      - '**.py'
+      - '.pre-commit-config.yaml'
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-lint-${{ hashFiles('**/requirements*.txt', '.pre-commit-config.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-lint-
+
+      - name: Install lint tools
+        run: |
+          pip install ruff black pre-commit mypy
+
+      - name: Ruff check
+        run: |
+          ruff check . --line-length 100 \
+            --exclude 'FEM/JAXFEM/' \
+            --exclude 'FEM/external_tooth_models/' \
+            --exclude 'data_5species/_runs/' \
+            --output-format github
+
+      - name: Black check
+        run: |
+          black --check --line-length 100 \
+            --extend-exclude 'FEM/JAXFEM|FEM/external_tooth_models|data_5species/_runs' .
+
+      - name: Pre-commit (all hooks)
+        run: pre-commit run --all-files
+
+      - name: Mypy (type check)
+        run: |
+          mypy --install-types --non-interactive \
+            --ignore-missing-imports \
+            --no-error-summary \
+            FEM/tests/ 2>/dev/null || true
+        continue-on-error: true

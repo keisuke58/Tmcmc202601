@@ -1,0 +1,23 @@
+# CODEOWNERS: レビュアー自動指定
+# https://docs.github.com/ja/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# デフォルト: 全ファイル
+* @keisuke58
+
+# コア TMCMC / 推定
+/data_5species/core/ @keisuke58
+/data_5species/main/ @keisuke58
+/tmcmc/ @keisuke58
+
+# FEM
+/FEM/ @keisuke58
+
+# GNN
+/gnn/ @keisuke58
+
+# 論文・ドキュメント
+/data_5species/docs/ @keisuke58
+/docs/ @keisuke58
+
+# CI / インフラ
+/.github/ @keisuke58

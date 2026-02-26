@@ -1,0 +1,58 @@
+# Test: pytest + coverage
+# Runs on push/PR when Python or test files change
+
+name: Test
+
+on:
+  push:
+    paths:
+      - '**.py'
+  pull_request:
+    paths:
+      - '**.py'
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-test-${{ matrix.python-version }}-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-test-${{ matrix.python-version }}-
+
+      - name: Install dependencies
+        run: pip install numpy scipy pytest pytest-cov
+
+      - name: Run FEM tests with coverage
+        working-directory: FEM
+        run: |
+          python -m pytest tests/ -v --tb=short \
+            --cov=. --cov-report=xml --cov-report=term-missing \
+            --cov-fail-under=0
+        timeout-minutes: 10
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.python-version }}
+          path: FEM/coverage.xml
+          retention-days: 7
+          if-no-files-found: ignore
