@@ -147,7 +147,12 @@ def _compute_eps_synergy_map_values():
         if not theta_path.exists():
             continue
         with open(theta_path) as f:
-            theta = np.array(json.load(f))
+            data = json.load(f)
+        # Handle dict format (theta_full key) or plain list
+        if isinstance(data, dict):
+            theta = np.array(data.get("theta_full", data.get("theta_sub", [])))
+        else:
+            theta = np.array(data)
         solver = BiofilmNewtonSolver5S(
             dt=1e-4,
             maxtimestep=750,
