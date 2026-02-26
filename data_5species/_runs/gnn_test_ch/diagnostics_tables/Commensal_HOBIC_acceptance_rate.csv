@@ -1,0 +1,4 @@
+model,chain,stage,accept_rate
+Commensal_HOBIC,1,0,0.612
+Commensal_HOBIC,1,1,0.724
+Commensal_HOBIC,1,2,0.68

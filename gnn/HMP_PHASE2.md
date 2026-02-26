@@ -14,7 +14,7 @@
 library(HMP16SData)
 d <- V35()
 # colData(d)$HMP_BODY_SUBSITE で oral 関連を抽出
-oral_idx <- grep("oral|tongue|throat|saliva", 
+oral_idx <- grep("oral|tongue|throat|saliva",
                  colData(d)$HMP_BODY_SUBSITE, ignore.case=TRUE)
 d_oral <- d[, oral_idx]
 # 5 菌種への OTU マッピング: rowData(d)$CONSENSUS_LINEAGE で Genus/Species を照合

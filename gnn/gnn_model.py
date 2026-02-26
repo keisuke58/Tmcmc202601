@@ -4,13 +4,13 @@ GNN model for a_ij edge regression (Project B, Issue #39).
 Architecture: GCN layers + edge MLP to predict a_ij for active edges.
 """
 
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 try:
     from torch_geometric.nn import GCNConv, global_mean_pool
     from torch_geometric.data import Batch
+
     PYG_AVAILABLE = True
 except ImportError:
     PYG_AVAILABLE = False

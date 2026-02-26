@@ -14,9 +14,7 @@ Usage:
 """
 
 import argparse
-import gzip
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -34,9 +32,15 @@ TARGET_GENERA = ["Streptococcus", "Actinomyces", "Veillonella", "Fusobacterium",
 SPECIES_NAMES = ["So", "Act", "Vei", "Fn", "Pg"]
 
 ORAL_SITES = [
-    "Subgingival_Plaque", "Supragingival_Plaque",
-    "Tongue_Dorsum", "Buccal_Mucosa", "Hard_Palate",
-    "Keratinized_Gingiva", "Saliva", "Palatine_Tonsils", "Throat",
+    "Subgingival_Plaque",
+    "Supragingival_Plaque",
+    "Tongue_Dorsum",
+    "Buccal_Mucosa",
+    "Hard_Palate",
+    "Keratinized_Gingiva",
+    "Saliva",
+    "Palatine_Tonsils",
+    "Throat",
 ]
 
 
@@ -115,7 +119,11 @@ def parse_otu_table(data_dir: Path = HMP_DATA_DIR):
         for line in f:
             if line.startswith("# Constructed"):
                 continue
-            if line.startswith("#OTU ID") or line.startswith("#OTU_ID") or line.startswith("OTU ID"):
+            if (
+                line.startswith("#OTU ID")
+                or line.startswith("#OTU_ID")
+                or line.startswith("OTU ID")
+            ):
                 parts = line.strip().split("\t")
                 # First col = OTU ID, last col might be "Consensus Lineage" or "taxonomy"
                 if parts[-1].lower() in ("consensus lineage", "taxonomy"):
@@ -213,6 +221,7 @@ def preprocess_oral(data_dir: Path = HMP_DATA_DIR):
 
     # Site distribution
     from collections import Counter
+
     site_counts = Counter(oral_sites)
     for site, cnt in sorted(site_counts.items(), key=lambda x: -x[1]):
         print(f"    {site}: {cnt} samples")
@@ -270,7 +279,9 @@ def build_gnn_training_from_hmp(data_dir: Path = HMP_DATA_DIR, n_augment: int = 
     site_list = []
     n_time_out = 100
 
-    print(f"  Building training data from {len(phi_hmp)} HMP compositions × {n_augment} augmentations...")
+    print(
+        f"  Building training data from {len(phi_hmp)} HMP compositions × {n_augment} augmentations..."
+    )
 
     for idx in range(len(phi_hmp)):
         target_phi = phi_hmp[idx]
@@ -373,7 +384,7 @@ def build_offline_multi_condition(n_augment: int = 20, seed: int = 42):
                 d = json.load(f)
             theta_map = np.array(d.get("theta_full", d))
             anchors = [theta_map]
-            print(f"    Loaded MAP estimate")
+            print("    Loaded MAP estimate")
 
         if not anchors:
             print(f"    WARNING: No data for {dirname}, skipping")
@@ -432,12 +443,15 @@ def build_offline_multi_condition(n_augment: int = 20, seed: int = 42):
 
 def main():
     parser = argparse.ArgumentParser(description="HMP oral microbiome pipeline for GNN")
-    parser.add_argument("step", choices=["download", "preprocess", "build-training",
-                                         "offline", "all"],
-                        help="Pipeline step to run")
+    parser.add_argument(
+        "step",
+        choices=["download", "preprocess", "build-training", "offline", "all"],
+        help="Pipeline step to run",
+    )
     parser.add_argument("--data-dir", type=str, default=str(HMP_DATA_DIR))
-    parser.add_argument("--n-augment", type=int, default=5,
-                        help="Number of theta augmentations per HMP composition")
+    parser.add_argument(
+        "--n-augment", type=int, default=5, help="Number of theta augmentations per HMP composition"
+    )
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir)

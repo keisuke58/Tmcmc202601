@@ -12,14 +12,14 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from torch.utils.data import random_split
 
-from graph_builder import build_pyg_data, dataset_to_pyg_list, ACTIVE_EDGES
+from graph_builder import dataset_to_pyg_list
 from gnn_model import InteractionGNN
 
 try:
     from torch_geometric.data import Batch
     from torch_geometric.loader import DataLoader as PyGDataLoader
+
     PYG_AVAILABLE = True
 except ImportError:
     PYG_AVAILABLE = False
@@ -76,7 +76,8 @@ def main_train(args):
     n_val = int(n * 0.15)
     n_train = n - n_val
     train_list, val_list = torch.utils.data.random_split(
-        pyg_list, [n_train, n_val],
+        pyg_list,
+        [n_train, n_val],
         generator=torch.Generator().manual_seed(args.seed),
     )
     train_list = [pyg_list[i] for i in train_list.indices]
@@ -89,15 +90,36 @@ def main_train(args):
     model = InteractionGNN(
         in_dim=3, hidden=args.hidden, out_dim=5, n_layers=args.layers, dropout=args.dropout
     ).to(device)
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=args.lr, weight_decay=args.weight_decay
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=args.epochs, eta_min=1e-6
     )
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
 
     out_dir = Path(args.checkpoint).parent
     out_dir.mkdir(parents=True, exist_ok=True)
     best_val = float("inf")
     patience_counter = 0
+
+    mlflow_ctx = None
+    if args.mlflow:
+        try:
+            import mlflow
+
+            mlflow.set_experiment("gnn_aij")
+            mlflow_ctx = mlflow.start_run()
+            mlflow.log_params(
+                {
+                    "hidden": args.hidden,
+                    "layers": args.layers,
+                    "lr": args.lr,
+                    "dropout": args.dropout,
+                    "weight_decay": args.weight_decay,
+                    "batch_size": args.batch_size,
+                    "patience": args.patience,
+                }
+            )
+        except ImportError:
+            pass
 
     for epoch in range(args.epochs):
         train_loss = train_epoch(model, train_loader, optimizer, device)
@@ -113,7 +135,10 @@ def main_train(args):
 
         if (epoch + 1) % 20 == 0:
             lr_now = scheduler.get_last_lr()[0]
-            print(f"Epoch {epoch+1:4d}  train={train_loss:.6f}  val={val_loss:.6f}  best={best_val:.6f}  lr={lr_now:.2e}", flush=True)
+            print(
+                f"Epoch {epoch+1:4d}  train={train_loss:.6f}  val={val_loss:.6f}  best={best_val:.6f}  lr={lr_now:.2e}",
+                flush=True,
+            )
 
         if patience_counter >= args.patience:
             print(f"Early stopping at epoch {epoch+1} (patience={args.patience})")
@@ -121,6 +146,18 @@ def main_train(args):
 
     print(f"\nBest val MSE: {best_val:.6f}")
     print(f"Saved to {args.checkpoint}")
+    if mlflow_ctx is not None:
+        try:
+            import mlflow
+
+            mlflow.log_metric("best_val_mse", best_val)
+            mlflow.log_artifact(str(args.checkpoint), "checkpoint")
+        except ImportError:
+            pass
+        try:
+            mlflow_ctx.__exit__(None, None, None)
+        except Exception:
+            pass
 
 
 def main_eval(args):
@@ -152,14 +189,20 @@ def main_eval(args):
         ss_res = ((t - p) ** 2).sum().item()
         ss_tot = ((t - t.mean()) ** 2).sum().item()
         r2 = 1.0 - ss_res / max(ss_tot, 1e-12)
-        print(f"{EDGE_NAMES[j]:<16s} {mse_j:8.4f} {mae_j:8.4f} {r2:8.4f} {p.std().item():9.4f} {t.std().item():9.4f}")
+        print(
+            f"{EDGE_NAMES[j]:<16s} {mse_j:8.4f} {mae_j:8.4f} {r2:8.4f} {p.std().item():9.4f} {t.std().item():9.4f}"
+        )
 
     # Show worst / best predictions
     errs = ((pred - target) ** 2).sum(dim=1)
     best_idx = errs.argmin().item()
     worst_idx = errs.argmax().item()
-    print(f"\nBest sample  #{best_idx}: pred={pred[best_idx].numpy().round(3)}, tgt={target[best_idx].numpy().round(3)}")
-    print(f"Worst sample #{worst_idx}: pred={pred[worst_idx].numpy().round(3)}, tgt={target[worst_idx].numpy().round(3)}")
+    print(
+        f"\nBest sample  #{best_idx}: pred={pred[best_idx].numpy().round(3)}, tgt={target[best_idx].numpy().round(3)}"
+    )
+    print(
+        f"Worst sample #{worst_idx}: pred={pred[worst_idx].numpy().round(3)}, tgt={target[worst_idx].numpy().round(3)}"
+    )
 
 
 def main():
@@ -175,12 +218,15 @@ def main():
     parser.add_argument("--weight-decay", type=float, default=1e-2)
     parser.add_argument("--patience", type=int, default=100)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--mlflow", action="store_true", help="Log to MLflow")
     parser.add_argument("mode", nargs="?", default="train", choices=["train", "eval"])
     args = parser.parse_args()
 
     base = Path(__file__).parent
     args.data = str(base / args.data) if not Path(args.data).is_absolute() else args.data
-    args.checkpoint = str(base / args.checkpoint) if not Path(args.checkpoint).is_absolute() else args.checkpoint
+    args.checkpoint = (
+        str(base / args.checkpoint) if not Path(args.checkpoint).is_absolute() else args.checkpoint
+    )
 
     if args.mode == "eval":
         main_eval(args)

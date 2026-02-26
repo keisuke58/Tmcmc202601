@@ -1,7 +1,7 @@
 # GNN × 口腔菌叢相互作用ネットワーク — WIKI
 
-> **Project B, Issue #39**  
-> **上司:** 村松眞由（慶應義塾大学 理工学部 機械工学科 准教授）  
+> **Project B, Issue #39**
+> **上司:** 村松眞由（慶應義塾大学 理工学部 機械工学科 准教授）
 > **参照:** [README.md](README.md)
 
 ---
@@ -28,7 +28,7 @@ HMP 16S (菌叢組成) → co-occurrence network → GNN → a_ij 予測
                                               → informed TMCMC (faster convergence)
 ```
 
-**5 菌種:** So (S. oralis), An (A. naeslundii), Vd (V. dispar), Fn (F. nucleatum), Pg (P. gingivalis)  
+**5 菌種:** So (S. oralis), An (A. naeslundii), Vd (V. dispar), Fn (F. nucleatum), Pg (P. gingivalis)
 **Active edges (5本):** a01(So→An), a02(So→Vd), a03(So→Fn), a24(Vd→Pg), a34(Fn→Pg)
 
 ---
@@ -41,7 +41,7 @@ HMP 16S (菌叢組成) → co-occurrence network → GNN → a_ij 予測
 
 ## 3. 村松先生（上司）視点からの想定質問
 
-> 村松先生の専門: 材料力学、機械材料、強弾性材料、SOFC、形状記憶合金、破壊力学、結晶塑性シミュレーション、位相場モデル  
+> 村松先生の専門: 材料力学、機械材料、強弾性材料、SOFC、形状記憶合金、破壊力学、結晶塑性シミュレーション、位相場モデル
 > → **検証手法・統計的 rigor・不確実性の定量化・モデル仮定・数値安定性**に強い関心を持つと想定
 
 ### 検証・妥当性

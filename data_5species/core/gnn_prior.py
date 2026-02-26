@@ -26,6 +26,7 @@ ACTIVE_THETA_IDX = [1, 10, 11, 18, 19]
 # Try importing torch (optional dependency)
 try:
     import torch
+
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
@@ -84,6 +85,7 @@ class GNNPrior:
     def _load_model(self, model_path: str, hidden: int, n_layers: int):
         """Load trained InteractionGNN from checkpoint."""
         import sys
+
         gnn_dir = Path(__file__).resolve().parent.parent.parent / "gnn"
         sys.path.insert(0, str(gnn_dir))
         from gnn_model import InteractionGNN
@@ -108,6 +110,7 @@ class GNNPrior:
             raise RuntimeError("GNN model not loaded")
 
         import sys
+
         gnn_dir = Path(__file__).resolve().parent.parent.parent / "gnn"
         sys.path.insert(0, str(gnn_dir))
         from graph_builder import build_pyg_data
