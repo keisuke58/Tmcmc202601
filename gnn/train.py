@@ -305,10 +305,10 @@ def main_eval(args):
         state_dict = ckpt["model_state_dict"]
         saved_version = ckpt.get("model_version", "v1")
         saved_type = ckpt.get("model_type", "gnn")
-        if args.model_version == "auto":
-            args.model_version = saved_version
-            is_v2 = saved_version == "v2"
-        if args.model_type == "auto":
+        # Always use checkpoint metadata for version/type (override CLI defaults)
+        args.model_version = saved_version
+        is_v2 = saved_version == "v2"
+        if args.model_type == "auto" or args.model_type != saved_type:
             args.model_type = saved_type
         args.n_params = ckpt.get("n_params", args.n_params)
         args.hidden = ckpt.get("hidden", args.hidden)
