@@ -2,15 +2,16 @@
 """
 compute_3model_bayes_factor.py
 ==============================
-3-Model Material Model Discrimination Analysis (Fig 18 candidate)
+4-Model Material Model Discrimination Analysis (Fig 18)
 
-Posterior samples (θ) → Hamilton ODE → φ_species → E under 3 models
+Posterior samples (θ) → Hamilton ODE → φ_species → E under 4 models
 → Pairwise Bhattacharyya distance & discrimination Bayes factor
 
 Models:
-  M1: E(DI)       — Shannon entropy
-  M2: E(φ_Pg)     — P. gingivalis fraction
-  M3: E(V)        — Virulence index (weighted Pg+Fn)
+  M1: E(DI)           — Shannon entropy
+  M2: E_eps_synergy    — EPS production × cross-linking synergy
+  M3: E(φ_Pg)         — P. gingivalis fraction
+  M4: E(V)            — Virulence index (weighted Pg+Fn)
 
 Usage:
   python compute_3model_bayes_factor.py [--n-samples 50] [--workers 4]
@@ -30,11 +31,17 @@ sys.path.insert(0, str(_ROOT / "tmcmc" / "program2602"))
 sys.path.insert(0, str(_ROOT / "FEM"))
 
 from improved_5species_jit import BiofilmNewtonSolver5S
-from material_models import compute_di, compute_E_di, compute_E_phi_pg, compute_E_virulence
+from material_models import (
+    compute_di,
+    compute_E_di,
+    compute_E_phi_pg,
+    compute_E_virulence,
+    compute_E_eps_synergy,
+)
 
 # ── Config ───────────────────────────────────────────────────────────────────
 RUNS_DIR = _ROOT / "data_5species" / "_runs"
-OUT_DIR = _HERE / "_3model_bayes_factor"
+OUT_DIR = _HERE / "_4model_bayes_factor"
 
 CONDITIONS = {
     "commensal_static": {
@@ -111,11 +118,12 @@ def run_condition(cond_name, n_samples, workers):
     valid = ~np.isnan(phi_arr[:, 0])
     phi_arr = phi_arr[valid]
 
-    # Compute DI and E under 3 models
+    # Compute DI and E under 4 models
     di = compute_di(phi_arr)  # (n,)
     E_di = compute_E_di(di, di_scale=1.0)  # 0D scale
     E_phipg = compute_E_phi_pg(phi_arr)  # (n,)
     E_vir = compute_E_virulence(phi_arr)  # (n,)
+    E_eps = compute_E_eps_synergy(phi_arr)  # (n,)
 
     return {
         "condition": cond_name,
@@ -125,6 +133,7 @@ def run_condition(cond_name, n_samples, workers):
         "E_di": E_di,
         "E_phipg": E_phipg,
         "E_vir": E_vir,
+        "E_eps": E_eps,
         "elapsed_s": elapsed,
     }
 
@@ -158,7 +167,7 @@ def kruskal_h(*groups):
 def compute_discrimination_metrics(results):
     """Compute pairwise and overall discrimination for each model."""
     conds = list(results.keys())
-    models = {"DI": "E_di", "φ_Pg": "E_phipg", "Virulence": "E_vir"}
+    models = {"DI": "E_di", "EPS synergy": "E_eps", "φ_Pg": "E_phipg", "Virulence": "E_vir"}
 
     metrics = {}
     for model_name, key in models.items():
@@ -217,9 +226,9 @@ def plot_3model_comparison(results, metrics, outdir):
     import matplotlib.pyplot as plt
 
     conds = list(results.keys())
-    models = [("DI", "E_di"), ("φ_Pg", "E_phipg"), ("Virulence", "E_vir")]
+    models = [("DI", "E_di"), ("EPS synergy", "E_eps"), ("φ_Pg", "E_phipg"), ("Virulence", "E_vir")]
 
-    fig, axes = plt.subplots(2, 3, figsize=(16, 10), gridspec_kw={"height_ratios": [2, 1]})
+    fig, axes = plt.subplots(2, 4, figsize=(20, 10), gridspec_kw={"height_ratios": [2, 1]})
 
     # ── Row 1: E distribution violin/swarm for each model ────────────────
     for j, (model_name, key) in enumerate(models):
@@ -297,8 +306,8 @@ def plot_3model_comparison(results, metrics, outdir):
         ax.legend(lines1 + lines2, labels1 + labels2, fontsize=8, loc="upper left")
 
     fig.suptitle(
-        "Three Material Model Discrimination:\n"
-        "DI (entropy) vs φ_Pg (pathogen fraction) vs Virulence (Pg+Fn weighted)",
+        "Four Material Model Discrimination:\n"
+        "DI (entropy) vs EPS synergy vs φ_Pg (pathogen) vs Virulence (Pg+Fn)",
         fontsize=14,
         fontweight="bold",
         y=1.02,
@@ -322,7 +331,7 @@ def plot_summary_table(metrics, outdir):
     fig, ax = plt.subplots(figsize=(12, 4))
     ax.axis("off")
 
-    models = ["DI", "φ_Pg", "Virulence"]
+    models = ["DI", "EPS synergy", "φ_Pg", "Virulence"]
     conds_short = ["CS", "CH", "DH"]
 
     # Table data
@@ -353,11 +362,12 @@ def plot_summary_table(metrics, outdir):
     table.set_fontsize(10)
     table.scale(1.0, 1.8)
 
-    # Color best model row (DI = row 1)
+    # Color rows
     for j in range(len(header)):
         table[1, j].set_facecolor("#d4edda")  # green for DI
-        table[2, j].set_facecolor("#f8d7da")  # red for φ_Pg
-        table[3, j].set_facecolor("#f8d7da")  # red for Virulence
+        table[2, j].set_facecolor("#d4edda")  # green for EPS synergy
+        table[3, j].set_facecolor("#f8d7da")  # red for φ_Pg
+        table[4, j].set_facecolor("#f8d7da")  # red for Virulence
         table[0, j].set_facecolor("#e2e3e5")  # header gray
 
     ax.set_title("Material Model Discrimination Summary", fontsize=13, fontweight="bold", pad=20)
@@ -409,7 +419,7 @@ def main():
     print("\n" + "=" * 60)
     print("RESULTS SUMMARY")
     print("=" * 60)
-    for model_name in ["DI", "φ_Pg", "Virulence"]:
+    for model_name in ["DI", "EPS synergy", "φ_Pg", "Virulence"]:
         m = metrics[model_name]
         print(f"\n--- {model_name} Model ---")
         print(f"  KW H={m['kruskal_wallis_H']:.1f}, p={m['kruskal_wallis_p']:.2e}")
@@ -434,7 +444,7 @@ def main():
     print("=" * 60)
     # Use CS-DH pair (extreme case)
     target_pair = "CS-DH"
-    for alt in ["φ_Pg", "Virulence"]:
+    for alt in ["EPS synergy", "φ_Pg", "Virulence"]:
         d_di = metrics["DI"]["pairwise"][target_pair]["bhattacharyya"]
         d_alt = metrics[alt]["pairwise"][target_pair]["bhattacharyya"]
         pseudo_bf = np.exp(d_di - d_alt)
@@ -466,10 +476,11 @@ def main():
     # 7. Save numpy arrays for reproducibility
     for c in results:
         np.savez(
-            OUT_DIR / f"{c}_3model.npz",
+            OUT_DIR / f"{c}_4model.npz",
             phi_final=results[c]["phi_final"],
             di=results[c]["di"],
             E_di=results[c]["E_di"],
+            E_eps=results[c]["E_eps"],
             E_phipg=results[c]["E_phipg"],
             E_vir=results[c]["E_vir"],
         )

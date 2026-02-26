@@ -2,10 +2,10 @@
 """
 plot_material_model_literature.py
 =================================
-Fig 11 (updated): E(DI) material model with AFM literature data overlay.
+Fig 11 (updated): Material models (DI + EPS synergy) with AFM literature overlay.
 
-Shows our DI → E_bio mapping alongside experimental biofilm stiffness
-measurements from Pattem et al. 2018/2021 and Gloag et al. 2019.
+Shows DI → E_bio mapping and EPS synergy model alongside experimental biofilm
+stiffness measurements from Pattem et al. 2018/2021 and Gloag et al. 2019.
 
 Usage:
   python plot_material_model_literature.py
@@ -124,6 +124,48 @@ LITERATURE = [
 ]
 
 
+def _compute_eps_synergy_map_values():
+    """Compute EPS synergy E values for 4 conditions using MAP theta."""
+    import sys as _sys
+
+    _sys.path.insert(0, str(_HERE.parent / "tmcmc" / "program2602"))
+    _sys.path.insert(0, str(_HERE))
+    from improved_5species_jit import BiofilmNewtonSolver5S
+    from material_models import compute_E_eps_synergy
+
+    # MAP theta paths
+    _RUNS = _HERE.parent / "data_5species" / "_runs"
+    COND_RUNS = {
+        "commensal_static": _RUNS / "commensal_static" / "theta_MAP.json",
+        "commensal_hobic": _RUNS / "commensal_hobic" / "theta_MAP.json",
+        "dh_baseline": _RUNS / "dh_baseline" / "theta_MAP.json",
+        "dysbiotic_static": _RUNS / "dysbiotic_static" / "theta_MAP.json",
+    }
+
+    results = {}
+    for cond, theta_path in COND_RUNS.items():
+        if not theta_path.exists():
+            continue
+        with open(theta_path) as f:
+            theta = np.array(json.load(f))
+        solver = BiofilmNewtonSolver5S(
+            dt=1e-4,
+            maxtimestep=750,
+            active_species=[0, 1, 2, 3, 4],
+            c_const=25.0,
+            alpha_const=0.0,
+            phi_init=0.02,
+            K_hill=0.05,
+            n_hill=4.0,
+            use_numba=True,
+        )
+        _, g_arr = solver.solve(theta)
+        phi = g_arr[-1, 0:5]
+        E_eps = float(compute_E_eps_synergy(phi.reshape(1, -1))[0])
+        results[cond] = {"phi": phi, "E_eps": E_eps}
+    return results
+
+
 def main():
     # Load our model's condition-specific results
     master_path = _CI_DIR / "master_summary_0d.json"
@@ -132,6 +174,9 @@ def main():
         with open(master_path) as f:
             master = json.load(f)
 
+    # Compute EPS synergy MAP values
+    eps_results = _compute_eps_synergy_map_values()
+
     COND_META = {
         "commensal_static": {"label": "CS", "color": "#2ca02c"},
         "commensal_hobic": {"label": "CH", "color": "#17becf"},
@@ -139,8 +184,8 @@ def main():
         "dysbiotic_static": {"label": "DS", "color": "#ff7f0e"},
     }
 
-    # ── Figure ──
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    # ── Figure (3-panel) ──
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
 
     # ================================================================
     # Panel (a): E(DI) curve + literature + our conditions
@@ -153,9 +198,7 @@ def main():
     ax.plot(di_arr, E_arr, "k-", linewidth=2.5, label="$E(DI)$ model", zorder=2)
 
     # Literature data
-    refs_plotted = set()
     for lit in LITERATURE:
-        ref_label = lit["ref"]
         label = f'{lit["ref"]}: {lit["label"]}'
         ax.errorbar(
             lit["DI_approx"],
@@ -173,7 +216,7 @@ def main():
             zorder=4,
         )
 
-    # Our conditions (MAP values)
+    # Our conditions (DI model MAP values)
     for c in ["commensal_static", "commensal_hobic", "dh_baseline", "dysbiotic_static"]:
         if c not in master:
             continue
@@ -188,9 +231,8 @@ def main():
             edgecolor="navy",
             linewidth=1.5,
             zorder=6,
-            label=f"Our model: {meta['label']}",
+            label=f"DI model: {meta['label']}",
         )
-        # CI band (if available)
         ci_di = m.get("di_0d_ci90", [])
         ci_e = m.get("E_di_ci90", [])
         if ci_di and ci_e:
@@ -208,11 +250,10 @@ def main():
     ax.set_yscale("log")
     ax.set_ylim(5, 50000)
     ax.set_xlim(-0.02, 1.02)
-    ax.set_title("(a) E(DI) model vs. experimental biofilm stiffness", fontsize=12, weight="bold")
-    ax.legend(fontsize=6.5, loc="upper right", ncol=1)
+    ax.set_title("(a) E(DI) model + literature", fontsize=11, weight="bold")
+    ax.legend(fontsize=5.5, loc="upper right", ncol=1)
     ax.grid(True, alpha=0.2, which="both")
 
-    # Annotation: model regime
     ax.annotate(
         "Diverse\n(commensal)",
         xy=(0.1, E_model(0.1)),
@@ -233,34 +274,127 @@ def main():
     )
 
     # ================================================================
-    # Panel (b): Summary table + model parameters
+    # Panel (b): EPS synergy model — condition bar chart
     # ================================================================
     ax = axes[1]
+
+    cond_order = ["commensal_static", "commensal_hobic", "dh_baseline", "dysbiotic_static"]
+    labels_short = [COND_META[c]["label"] for c in cond_order]
+    colors = [COND_META[c]["color"] for c in cond_order]
+
+    # DI model values
+    E_di_vals = []
+    E_eps_vals = []
+    for c in cond_order:
+        E_di_vals.append(master.get(c, {}).get("E_di_map", 0))
+        E_eps_vals.append(eps_results.get(c, {}).get("E_eps", 0))
+
+    x = np.arange(len(cond_order))
+    w = 0.35
+    bars1 = ax.bar(
+        x - w / 2,
+        E_di_vals,
+        w,
+        color=colors,
+        alpha=0.5,
+        edgecolor="k",
+        linewidth=0.8,
+        label="DI model",
+    )
+    bars2 = ax.bar(
+        x + w / 2,
+        E_eps_vals,
+        w,
+        color=colors,
+        alpha=0.9,
+        edgecolor="navy",
+        linewidth=1.2,
+        label="EPS synergy",
+        hatch="//",
+    )
+
+    # Value labels
+    for bar, val in zip(bars1, E_di_vals):
+        if val > 0:
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                val + 15,
+                f"{val:.0f}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                color="gray",
+            )
+    for bar, val in zip(bars2, E_eps_vals):
+        if val > 0:
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                val + 15,
+                f"{val:.0f}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                fontweight="bold",
+            )
+
+    # Literature reference bands
+    ax.axhspan(160, 560, alpha=0.06, color="purple", label="Literature range (Gloag–Pattem)")
+    ax.axhspan(550, 14350, alpha=0.04, color="green", label="Full lit. range (20–14k Pa)")
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels_short, fontsize=11)
+    ax.set_ylabel("$E_{bio}$ [Pa]", fontsize=12)
+    ax.set_title("(b) DI vs EPS synergy model", fontsize=11, weight="bold")
+    ax.legend(fontsize=7, loc="upper right")
+    ax.grid(True, alpha=0.2, axis="y")
+    ax.set_ylim(0, max(max(E_di_vals), max(E_eps_vals)) * 1.3)
+
+    # Annotate ratio
+    if E_eps_vals[0] > 0 and E_eps_vals[3] > 0:
+        ratio_di = E_di_vals[0] / max(E_di_vals[3], 1)
+        ratio_eps = E_eps_vals[0] / max(E_eps_vals[3], 1)
+        ax.annotate(
+            f"CS/DS ratio:\n  DI: {ratio_di:.0f}x\n  EPS: {ratio_eps:.0f}x",
+            xy=(0.03, 0.97),
+            xycoords="axes fraction",
+            fontsize=8,
+            va="top",
+            bbox=dict(boxstyle="round,pad=0.3", fc="lightyellow", alpha=0.9),
+        )
+
+    # ================================================================
+    # Panel (c): Summary table
+    # ================================================================
+    ax = axes[2]
     ax.axis("off")
 
-    # Table: our model vs literature
     table_data = [
-        ["Source", "Condition", "E [Pa]", "DI (est.)", "Method"],
-        ["─" * 12, "─" * 15, "─" * 10, "─" * 8, "─" * 15],
-        ["Our model", "Commensal (CS)", "339 (MAP)", "0.42", "0D Hamilton"],
-        ["Our model", "Dysbiotic (DH)", "705 (MAP)", "0.16", "0D Hamilton"],
-        ["Our model", "Dysbiotic (DS)", "32 (MAP)", "0.85", "0D Hamilton"],
-        ["", "", "", "", ""],
-        ["Pattem 2018", "Low-sucrose D3", "14,350", "~0.15", "AFM (PBS)"],
-        ["Pattem 2018", "High-sucrose D3", "550", "~0.70", "AFM (PBS)"],
-        ["Pattem 2021", "Low-carb (hydr.)", "10,400", "~0.15", "AFM (rehydr.)"],
-        ["Pattem 2021", "High-carb (hydr.)", "2,800", "~0.65", "AFM (rehydr.)"],
-        ["Gloag 2019", "Dual-species", "160 (G')", "~0.40", "Rheology"],
-        ["S'ton thesis", "S. mutans mono", "380", "~0.90", "Compression"],
-        ["", "", "", "", ""],
-        ["", "MODEL PARAMS", "", "", ""],
-        ["", "E_max = 1000 Pa", "", "", "(diverse biofilm)"],
-        ["", "E_min = 10 Pa", "", "", "(mono-dominated)"],
-        ["", "DI_scale = 1.0", "", "", "(0D ODE range)"],
-        ["", "exponent n = 2", "", "", "(power law)"],
+        ["Condition", "E_DI [Pa]", "E_EPS [Pa]", "DI (0D)"],
+        ["─" * 10, "─" * 10, "─" * 10, "─" * 8],
+    ]
+    for c in cond_order:
+        lbl = COND_META[c]["label"]
+        e_di = master.get(c, {}).get("E_di_map", 0)
+        e_eps = eps_results.get(c, {}).get("E_eps", 0)
+        di_val = master.get(c, {}).get("di_0d_map", 0)
+        table_data.append([lbl, f"{e_di:.0f}", f"{e_eps:.0f}", f"{di_val:.3f}"])
+    table_data += [
+        ["", "", "", ""],
+        ["Literature", "E [Pa]", "DI (est.)", "Method"],
+        ["─" * 10, "─" * 10, "─" * 10, "─" * 8],
+        ["Pattem '18 LS", "14,350", "~0.15", "AFM"],
+        ["Pattem '18 HS", "550", "~0.70", "AFM"],
+        ["Pattem '21 LC", "10,400", "~0.15", "AFM"],
+        ["Pattem '21 HC", "2,800", "~0.65", "AFM"],
+        ["Gloag '19", "160 (G')", "~0.40", "Rheology"],
+        ["S'ton thesis", "380", "~0.90", "Compress."],
+        ["", "", "", ""],
+        ["EPS SYNERGY", "PARAMS", "", ""],
+        ["ε_So=0.3", "ε_An=0.6", "ε_Vei=0.1", ""],
+        ["ε_Fn=0.4", "ε_Pg=-0.3", "γ=4.0", ""],
     ]
 
-    text = "\n".join("  ".join(f"{cell:<15}" for cell in row) for row in table_data)
+    text = "\n".join("  ".join(f"{cell:<12}" for cell in row) for row in table_data)
     ax.text(
         0.02,
         0.98,
@@ -272,35 +406,36 @@ def main():
         bbox=dict(boxstyle="round,pad=0.4", facecolor="#f8f8f8", alpha=0.9),
     )
 
-    # Note about DI approximation
     ax.text(
         0.02,
         0.02,
-        "Note: Literature DI values are estimated from condition type\n"
-        "(low-sucrose ≈ diverse ≈ low DI; high-sucrose ≈ cariogenic ≈ high DI).\n"
-        "Direct DI–E correlation has not been measured experimentally.\n"
-        "Our E range (30–900 Pa) is within the 20–14,000 Pa literature range.\n"
-        "The 30× ratio matches Pattem 2018's 10–80× (sucrose-dependent).",
+        "Note: Literature DI values are estimated from condition type.\n"
+        "EPS synergy: M = EPS_total × exp(γ × CrossLink)\n"
+        "  EPS_total = Σ φᵢεᵢ (species-specific production)\n"
+        "  CrossLink = H(φ_active)/H_max (producer evenness)\n"
+        "Our E range (30–900 Pa) within literature 20–14,000 Pa.",
         transform=ax.transAxes,
-        fontsize=8,
+        fontsize=7,
         va="bottom",
         bbox=dict(boxstyle="round,pad=0.3", facecolor="lightyellow", alpha=0.9),
     )
 
-    ax.set_title("(b) Literature comparison & model parameters", fontsize=12, weight="bold")
+    ax.set_title("(c) Model comparison table", fontsize=11, weight="bold")
 
     fig.suptitle(
-        "Fig 11: DI-Based Material Model with Experimental Validation\n"
-        "$E(DI) = E_{max}(1-r)^2 + E_{min} \\cdot r$, $r = DI/DI_{scale}$",
-        fontsize=13,
+        "Fig 11: Material Models with Experimental Validation\n"
+        "DI model: $E = E_{max}(1-r)^2 + E_{min} r$  |  "
+        "EPS synergy: $E = E_{min} + (E_{max}-E_{min}) M/M_{ref}$",
+        fontsize=12,
         weight="bold",
     )
     fig.tight_layout(rect=[0, 0, 1, 0.90])
 
-    out = _OUT / "Fig11_material_model.png"
+    out = _OUT / "Fig11_material_model_eps_synergy.png"
     fig.savefig(out, dpi=200, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved: {out}")
+    print("  (original Fig11_material_model.png preserved)")
 
 
 if __name__ == "__main__":

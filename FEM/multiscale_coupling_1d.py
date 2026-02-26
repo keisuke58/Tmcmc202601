@@ -202,6 +202,13 @@ def compute_E_DI(di: np.ndarray) -> np.ndarray:
     return E_MAX_PA * (1.0 - r) ** N_POWER + E_MIN_PA * r
 
 
+def compute_E_EPS_synergy(phi_species: np.ndarray) -> np.ndarray:
+    """EPS synergy model: φ → E (delegated to material_models)."""
+    from material_models import compute_E_eps_synergy
+
+    return compute_E_eps_synergy(np.atleast_2d(phi_species)).ravel()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 0D Hamilton JAX ソルバー (条件別 DI・組成推定)
 # ─────────────────────────────────────────────────────────────────────────────

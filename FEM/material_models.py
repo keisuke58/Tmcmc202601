@@ -81,6 +81,14 @@ IDX_FN = 3  # F. nucleatum  = species[3]
 # Pg weakest (gingipain), So/An stronger (EPS producers)
 E_SPECIES_PA = np.array([1000.0, 800.0, 600.0, 200.0, 10.0])  # So, An, Vei, Fn, Pg
 
+# EPS synergy model: species-specific EPS production rates
+# Ref: Fujiwara 2000 (So gtfR, soluble glucan), Koo 2013 (insoluble glucan scaffold),
+#      Gloag 2019 (dual-species emergent properties), Simoes 2009 (multi-species synergy)
+# εᵢ > 0: EPS production (contributes to matrix)
+# εᵢ < 0: matrix degradation (net negative, e.g. gingipain protease)
+EPS_RATES = np.array([0.3, 0.6, 0.1, 0.4, -0.3])  # So, An, Vei, Fn, Pg
+EPS_GAMMA = 4.0  # Cross-linking synergy strength (calibrated to Pattem 10-80× range)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # NumPy implementations
@@ -231,6 +239,65 @@ def compute_di_pielou(phi_species: np.ndarray) -> np.ndarray:
     return 1.0 - np.clip(J, 0.0, 1.0)
 
 
+def compute_E_eps_synergy(
+    phi_species: np.ndarray,
+    eps_rates: np.ndarray | None = None,
+    gamma: float = EPS_GAMMA,
+    e_max: float = E_MAX_PA,
+    e_min: float = E_MIN_PA,
+) -> np.ndarray:
+    """
+    EPS synergy model: E from species-specific EPS production + cross-linking.
+
+    Two factors determine biofilm stiffness:
+      1. Total EPS production (species-specific rates εᵢ)
+      2. Cross-linking synergy (multiple EPS types form stronger network)
+
+    E(φ) = E_min + (E_max - E_min) × M(φ) / M_ref
+
+    where M(φ) = EPS_total × exp(γ × CrossLink)
+          EPS_total = max(Σ φᵢ εᵢ, 0)
+          CrossLink = H(φ_active) / H_max  (Shannon evenness of EPS producers)
+
+    Ref: Pattem 2018 (EPS:cell ratio → E), Gloag 2019 (emergent dual-species),
+         Simoes 2009 (multi-species synergy), Fujiwara 2000 (So gtfR)
+    """
+    phi = np.asarray(phi_species)
+    eps = eps_rates if eps_rates is not None else EPS_RATES
+
+    # Normalize fractions
+    phi_sum = phi.sum(axis=-1, keepdims=True)
+    phi_sum = np.where(phi_sum > 0, phi_sum, 1.0)
+    p = phi / phi_sum
+
+    # 1. Total EPS production index
+    eps_total = np.clip((p * eps).sum(axis=-1), 0.0, None)
+
+    # 2. Cross-linking: Shannon evenness of EPS-producing species only
+    active_mask = eps > 0  # boolean mask for producers
+    p_active = p[..., active_mask]
+    p_active_sum = p_active.sum(axis=-1, keepdims=True)
+    p_active_sum = np.where(p_active_sum > 0, p_active_sum, 1.0)
+    p_norm = p_active / p_active_sum
+    with np.errstate(divide="ignore", invalid="ignore"):
+        log_p = np.where(p_norm > 1e-12, np.log(p_norm), 0.0)
+    H = -(p_norm * log_p).sum(axis=-1)
+    H_max = np.log(float(active_mask.sum()))
+    cross_link = H / H_max if H_max > 0 else np.zeros_like(H)
+
+    # 3. Matrix quality
+    M = eps_total * np.exp(gamma * cross_link)
+
+    # Reference M for normalization (theoretical max: uniform EPS producers)
+    n_active = int(active_mask.sum())
+    eps_active = eps[active_mask]
+    eps_total_ref = float(np.mean(eps_active))  # uniform active species
+    M_ref = eps_total_ref * np.exp(gamma * 1.0) * 1.1  # H/H_max=1, +10% headroom
+
+    # 4. Map to E range
+    return e_min + (e_max - e_min) * np.clip(M / M_ref, 0.0, 1.0)
+
+
 def compute_E_voigt(
     phi_species: np.ndarray,
     e_species: np.ndarray | None = None,
@@ -359,6 +426,38 @@ try:
         H = -jnp.sum(p * log_p, axis=-1)
         return 1.0 - H / jnp.log(5.0)
 
+    def compute_E_eps_synergy_jax(
+        phi_species,
+        eps_rates=None,
+        gamma=EPS_GAMMA,
+        e_max=E_MAX_PA,
+        e_min=E_MIN_PA,
+    ):
+        """EPS synergy model — JAX differentiable."""
+        eps = jnp.array(EPS_RATES) if eps_rates is None else jnp.array(eps_rates)
+
+        phi_sum = jnp.sum(phi_species, axis=-1, keepdims=True)
+        phi_sum_safe = jnp.where(phi_sum > 1e-12, phi_sum, 1.0)
+        p = phi_species / phi_sum_safe
+
+        eps_total = jnp.clip(jnp.sum(p * eps, axis=-1), 0.0)
+
+        active_mask = eps > 0
+        p_active = p[..., active_mask]
+        p_active_sum = jnp.sum(p_active, axis=-1, keepdims=True)
+        p_active_sum_safe = jnp.where(p_active_sum > 1e-12, p_active_sum, 1.0)
+        p_norm = p_active / p_active_sum_safe
+        log_p = jnp.where(p_norm > 1e-12, jnp.log(p_norm), 0.0)
+        H = -jnp.sum(p_norm * log_p, axis=-1)
+        H_max = jnp.log(float(jnp.sum(active_mask)))
+        cross_link = H / H_max
+
+        M = eps_total * jnp.exp(gamma * cross_link)
+        eps_active = eps[active_mask]
+        eps_total_ref = float(jnp.mean(eps_active))
+        M_ref = eps_total_ref * jnp.exp(gamma) * 1.1
+        return e_min + (e_max - e_min) * jnp.clip(M / M_ref, 0.0, 1.0)
+
     HAS_JAX = True
 
 except ImportError:
@@ -415,6 +514,8 @@ def compute_all_E(
         result["E_voigt"] = compute_E_voigt(phi)
     if mode in ("reuss", "all"):
         result["E_reuss"] = compute_E_reuss(phi)
+    if mode in ("eps_synergy", "all"):
+        result["E_eps_synergy"] = compute_E_eps_synergy(phi)
 
     return result
 
@@ -526,8 +627,18 @@ if __name__ == "__main__":
     )
     res = compute_all_E(phi_test, di_scale=1.0)
     print("\nSanity check (commensal vs dysbiotic):")
-    headers = ["E_di", "E_simpson", "E_gini", "E_pielou", "E_voigt", "E_reuss", "E_phi_pg", "E_vir"]
-    key_map = {"E_vir": "E_virulence"}  # display name -> result key
+    headers = [
+        "E_di",
+        "E_eps_syn",
+        "E_simpson",
+        "E_gini",
+        "E_pielou",
+        "E_voigt",
+        "E_reuss",
+        "E_phi_pg",
+        "E_vir",
+    ]
+    key_map = {"E_vir": "E_virulence", "E_eps_syn": "E_eps_synergy"}  # display name -> result key
     print(f"  {'cond':>12}  " + "  ".join(f"{h:>10}" for h in headers))
     labels = ["commensal", "dysb(So)", "dysb(Pg)"]
     for i in range(3):

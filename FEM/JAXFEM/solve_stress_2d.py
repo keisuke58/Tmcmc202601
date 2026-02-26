@@ -36,6 +36,7 @@ sys.path.insert(0, str(_HERE.parent))
 from material_models import (
     compute_E_phi_pg,
     compute_E_virulence,
+    compute_E_eps_synergy,
     compute_di,
 )
 

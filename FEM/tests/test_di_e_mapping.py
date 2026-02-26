@@ -24,6 +24,9 @@ from material_models import (
     compute_di_simpson,
     compute_E_reuss,
     compute_E_voigt,
+    compute_E_eps_synergy,
+    EPS_RATES,
+    EPS_GAMMA,
 )
 
 
@@ -181,3 +184,70 @@ def test_compute_E_reuss_bounds():
     E = compute_E_reuss(phi)
     assert np.all(E >= 10.0 - 1e-6)
     assert np.all(E <= 1000.0 + 1e-6)
+
+
+# ── EPS synergy model tests ────────────────────────────────────────────────
+
+
+def test_eps_synergy_bounds():
+    """EPS synergy E stays within [E_min, E_max]."""
+    phi_batch = np.array(
+        [
+            [0.2, 0.2, 0.2, 0.2, 0.2],
+            [1.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 1.0],
+            [0.95, 0.01, 0.01, 0.01, 0.01],
+        ]
+    )
+    E = compute_E_eps_synergy(phi_batch)
+    assert np.all(E >= 10.0 - 1e-6), f"E below E_min: {E}"
+    assert np.all(E <= 1000.0 + 1e-6), f"E above E_max: {E}"
+
+
+def test_eps_synergy_diverse_stiffer_than_mono():
+    """Diverse (5 equal) gives higher E than monoculture (So only)."""
+    phi_diverse = np.array([[0.2, 0.2, 0.2, 0.2, 0.2]])
+    phi_mono_so = np.array([[1.0, 0.0, 0.0, 0.0, 0.0]])
+    E_diverse = compute_E_eps_synergy(phi_diverse)[0]
+    E_mono = compute_E_eps_synergy(phi_mono_so)[0]
+    assert (
+        E_diverse > E_mono
+    ), f"Diverse ({E_diverse:.1f}) should be stiffer than mono ({E_mono:.1f})"
+
+
+def test_eps_synergy_pg_mono_softest():
+    """Pg monoculture (ε_Pg=-0.3) gives minimal E (near E_min)."""
+    phi_pg = np.array([[0.0, 0.0, 0.0, 0.0, 1.0]])
+    E = compute_E_eps_synergy(phi_pg)[0]
+    assert E < 15.0, f"Pg mono should be near E_min (10), got {E:.1f}"
+
+
+def test_eps_synergy_4conditions_map():
+    """4 conditions MAP compositions give expected E ordering: CS > CH > DH > DS."""
+    phi_cs = np.array([[0.21, 0.17, 0.16, 0.35, 0.11]])  # commensal static
+    phi_ch = np.array([[0.25, 0.17, 0.34, 0.13, 0.10]])  # commensal hobic
+    phi_dh = np.array([[0.11, 0.13, 0.52, 0.14, 0.10]])  # dysbiotic hobic
+    phi_ds = np.array([[0.95, 0.01, 0.01, 0.01, 0.01]])  # dysbiotic static
+    E_cs = compute_E_eps_synergy(phi_cs)[0]
+    E_ch = compute_E_eps_synergy(phi_ch)[0]
+    E_dh = compute_E_eps_synergy(phi_dh)[0]
+    E_ds = compute_E_eps_synergy(phi_ds)[0]
+    assert E_cs > E_ch, f"CS ({E_cs:.0f}) should > CH ({E_ch:.0f})"
+    assert E_ch > E_dh, f"CH ({E_ch:.0f}) should > DH ({E_dh:.0f})"
+    assert E_dh > E_ds, f"DH ({E_dh:.0f}) should > DS ({E_ds:.0f})"
+    # CS/DS ratio should be > 10×
+    ratio = E_cs / E_ds
+    assert ratio > 10, f"CS/DS ratio ({ratio:.1f}) should be > 10×"
+
+
+def test_eps_synergy_batch():
+    """EPS synergy works with batched input."""
+    phi = np.array(
+        [
+            [0.2, 0.2, 0.2, 0.2, 0.2],
+            [1.0, 0.0, 0.0, 0.0, 0.0],
+        ]
+    )
+    E = compute_E_eps_synergy(phi)
+    assert E.shape == (2,)
+    assert np.all(np.isfinite(E))

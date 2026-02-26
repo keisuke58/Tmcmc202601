@@ -34,6 +34,7 @@ from material_models import (
     compute_E_phi_pg,
     compute_E_virulence,
     compute_E_di,
+    compute_E_eps_synergy,
     compute_di,
 )
 
@@ -74,12 +75,14 @@ def load_phi_and_compute_E(cond):
     # Compute E per model (spatial profiles)
     E_phi_pg_depth = compute_E_phi_pg(phi_depth_5)  # (Nx,) Pa
     E_vir_depth = compute_E_virulence(phi_depth_5)  # (Nx,) Pa
+    E_eps_depth = compute_E_eps_synergy(phi_depth_5)  # (Nx,) Pa
     di_depth = compute_di(phi_depth_5)  # (Nx,)
     E_di_depth = compute_E_di(di_depth)  # (Nx,) Pa
 
     # Scalar averages (condition-level)
     E_phi_pg_avg = float(compute_E_phi_pg(phi_avg_5).item())
     E_vir_avg = float(compute_E_virulence(phi_avg_5).item())
+    E_eps_avg = float(compute_E_eps_synergy(phi_avg_5).item())
 
     # Load Hybrid DI for DI model
     with open(meta_path) as f:
@@ -93,8 +96,10 @@ def load_phi_and_compute_E(cond):
         "E_di_avg": E_di_avg,
         "E_phi_pg_avg": E_phi_pg_avg,
         "E_vir_avg": E_vir_avg,
+        "E_eps_avg": E_eps_avg,
         "E_phi_pg_depth": E_phi_pg_depth,
         "E_vir_depth": E_vir_depth,
+        "E_eps_depth": E_eps_depth,
         "E_di_depth": E_di_depth,
         "Nx": phi_final.shape[1],
     }

@@ -210,6 +210,11 @@ def solve_0d_composition(theta_np: np.ndarray, n_steps: int = 2500, dt: float = 
     E_pg_val = float(compute_E_phi_pg_scalar(phi_final, 1)[0])
     E_vir_val = float(compute_E_virulence_scalar(phi_final, 1)[0])
 
+    # EPS synergy model
+    from material_models import compute_E_eps_synergy
+
+    E_eps_val = float(compute_E_eps_synergy(phi_final.reshape(1, -1))[0])
+
     return {
         "di_0d": di_0d,
         "phi_final": phi_final,
@@ -218,6 +223,7 @@ def solve_0d_composition(theta_np: np.ndarray, n_steps: int = 2500, dt: float = 
         "E_di": E_di_val,
         "E_phi_pg": E_pg_val,
         "E_vir": E_vir_val,
+        "E_eps_synergy": E_eps_val,
         "phi_traj": phi_traj,
     }
 
