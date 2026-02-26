@@ -92,6 +92,7 @@ python train.py --data data/train_gnn_N10000.npz --epochs 1000 \
 ## 参考
 
 - Issue #39: 公開データ × ML プロジェクトアイデア
+- **[SPECIES_MAPPING.md](SPECIES_MAPPING.md)**: 5 菌種マッピング表（HMP 16S → So, An, Vd, Fn, Pg）
 - interaction_graph.json: 5 菌種の相互作用構造
 - DeepONet: 同様の合成データ生成フロー
 - HMP16SData: https://github.com/waldronlab/HMP16SData
