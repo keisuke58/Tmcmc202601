@@ -188,7 +188,13 @@ def _build_and_run(cfg):
         OFF,
         FROM_SECTION,
         MIDDLE_SURFACE,
+        SMALL,
     )
+
+    # Abaqus symbolic constants for contact/CZM
+    import abaqusConstants as _AC
+
+    NONE_AC = getattr(_AC, "NONE", None)
 
     try:
         from abaqusConstants import (
@@ -200,6 +206,14 @@ def _build_and_run(cfg):
         has_czm_consts = True
     except ImportError:
         has_czm_consts = False
+
+    try:
+        from abaqusConstants import MAX_STRESS, ENERGY
+    except ImportError:
+        from symbolicConstants import SymbolicConstant
+
+        MAX_STRESS = SymbolicConstant("MAX_STRESS")
+        ENERGY = SymbolicConstant("ENERGY")
 
     from regionToolset import Region
 
@@ -281,7 +295,8 @@ def _build_and_run(cfg):
 
     # Assign bin sections to biofilm cells by nearest-DI
     all_cells = p_bio.cells
-    for cell in all_cells:
+    for ci in range(len(all_cells)):
+        cell = all_cells[ci]
         cx, cy, cz = cell.pointOn[0]
         best_di = min(
             di_vals,
@@ -292,7 +307,7 @@ def _build_and_run(cfg):
         b_idx = int(best_di / bin_w)
         b_idx = max(0, min(n_bins - 1, b_idx))
         p_bio.SectionAssignment(
-            region=Region(cells=[cell]),
+            region=Region(cells=all_cells[ci : ci + 1]),
             sectionName="SEC_BIO_%02d" % b_idx,
             offset=0.0,
             offsetType=MIDDLE_SURFACE,
@@ -336,39 +351,32 @@ def _build_and_run(cfg):
         surf_bio = asm.Surface(side1Faces=bio_bot, name="SURF_BIO_BOT")
 
         # Cohesive contact property
-        prop = model.ContactProperty("CZM_PROP")
+        model.ContactProperty("CZM_PROP")
+        prop = model.interactionProperties["CZM_PROP"]
 
-        # Normal cohesive behaviour
-        # Knn = penalty stiffness (Pa/m = N/m^3)
-        # Use traction-separation law
+        # Cohesive behaviour (traction-separation stiffness)
         prop.CohesiveBehavior(
             defaultPenalties=OFF,
             table=((knn, knn * 0.4, knn * 0.4),),  # Knn, Kss, Ktt
         )
-        # Damage initiation (max stress)
+        # Damage: initiation (MAX_STRESS) + evolution (energy-based)
         prop.Damage(
-            criterion="MAX_STRESS",
-            table=((t_max_eff, t_max_eff * 0.6, t_max_eff * 0.6),),
-            # normal, shear-1, shear-2
-        )
-        # Damage evolution (energy-based, BK law)
-        prop.DamageEvolution(
-            type="ENERGY",
-            softening="LINEAR",
-            mixedModeBehavior="BK",
-            table=((gc_eff,),),
-            power=1.45,
+            initTable=((t_max_eff, t_max_eff * 0.6, t_max_eff * 0.6),),
+            criterion=MAX_STRESS,
+            useEvolution=ON,
+            evolutionType=ENERGY,
+            evolTable=((gc_eff,),),
         )
 
         model.SurfaceToSurfaceContactStd(
             name="CZM_CONTACT",
             createStepName="Initial",
-            master=surf_sub,
-            slave=surf_bio,
-            sliding="SMALL",
+            main=surf_sub,
+            secondary=surf_bio,
+            sliding=SMALL,
             thickness=ON,
             interactionProperty="CZM_PROP",
-            adjustMethod="NONE",
+            adjustMethod=NONE_AC,
         )
         print("  [CZM] surface-based cohesive contact defined.")
     else:
@@ -414,9 +422,7 @@ def _build_and_run(cfg):
         minInc=1.0e-6,
         maxInc=0.1,
     )
-    model.fieldOutputRequests["F-Output-1"].setValues(
-        variables=("S", "U", "RF", "CSDMG", "CSMAXSCRT"),
-    )
+    # Field output: use default (S, U, RF are included automatically)
 
     if bio_top_faces:
         region_top = Region(faces=bio_top_faces)
