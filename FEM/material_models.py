@@ -465,6 +465,109 @@ except ImportError:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Mooney-Rivlin 超弾性パラメータ
+# ─────────────────────────────────────────────────────────────────────────────
+
+C01_RATIO_DEFAULT = 0.15  # C01/C10 比 (Treloar 1975: ゴム系 0.1-0.25)
+
+
+def compute_mooney_rivlin_params(
+    E: np.ndarray,
+    nu: float = 0.30,
+    c01_ratio: float = C01_RATIO_DEFAULT,
+) -> dict[str, np.ndarray]:
+    """
+    E, nu → Mooney-Rivlin パラメータ (C10, C01, D1).
+
+    Mooney-Rivlin ひずみエネルギー密度:
+      W = C10 (I1_bar - 3) + C01 (I2_bar - 3) + (1/D1)(J - 1)^2
+
+    小ひずみ極限で線形弾性と一致:
+      mu = 2(C10 + C01),  K = 2/D1
+      → C10 = mu / (2(1 + c01_ratio))
+      → C01 = C10 * c01_ratio
+
+    c01_ratio = 0 のとき Neo-Hookean に退化。
+    """
+    E = np.asarray(E, dtype=np.float64)
+    mu = E / (2.0 * (1.0 + nu))
+    K = E / (3.0 * (1.0 - 2.0 * nu))
+    K = np.where(K > 1e-20, K, 1e-20)
+    C10 = 0.5 * mu / (1.0 + c01_ratio)
+    C01 = C10 * c01_ratio
+    D1 = 2.0 / K
+    return {"C10": C10, "C01": C01, "D1": D1, "mu": mu, "K": K}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 粘弾性 (Prony series) パラメータ
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 1-term Prony defaults for biofilm
+# Ref: Peterson 2023 (Biophysical Reports 3:100130, P. aeruginosa biofilm)
+# Ref: Stoodley 2002 (oral multi-species biofilm rheology)
+PRONY_G1_HEALTHY = 0.3  # commensal: 低緩和 (堅い EPS crosslinks)
+PRONY_G1_DEGRADED = 0.7  # dysbiotic: 高緩和 (分解 EPS)
+PRONY_TAU_HEALTHY = 5.0  # s (健全: 短い緩和時間)
+PRONY_TAU_DEGRADED = 50.0  # s (病的: 長い粘性流動時間)
+
+# 粘性係数 (UMAT 用)
+ETA_HEALTHY = 50.0  # Pa·s (堅いバイオフィルム)
+ETA_DEGRADED = 500.0  # Pa·s (軟らかいバイオフィルム)
+
+
+def compute_prony_params_di(
+    di: np.ndarray,
+    di_scale: float = DI_SCALE,
+    g1_healthy: float = PRONY_G1_HEALTHY,
+    g1_degraded: float = PRONY_G1_DEGRADED,
+    tau_healthy: float = PRONY_TAU_HEALTHY,
+    tau_degraded: float = PRONY_TAU_DEGRADED,
+) -> dict[str, np.ndarray]:
+    """
+    DI → 1-term Prony series パラメータ.
+
+    G(t) = G_inf + G_1 exp(-t/tau_1)
+    g_1 = G_1/G_0 (shear relaxation ratio)
+    G_inf = G_0 (1 - g_1)
+
+    DI が高い (dysbiotic) ほど g_1 が大きく tau_1 が長い。
+    """
+    di = np.asarray(di, dtype=np.float64)
+    r = np.clip(di / di_scale, 0.0, 1.0)
+    g1 = g1_healthy + (g1_degraded - g1_healthy) * r
+    tau1 = tau_healthy + (tau_degraded - tau_healthy) * r
+    return {"g1": g1, "k1": np.zeros_like(g1), "tau1": tau1}
+
+
+def compute_viscosity_di(
+    di: np.ndarray,
+    di_scale: float = DI_SCALE,
+    eta_healthy: float = ETA_HEALTHY,
+    eta_degraded: float = ETA_DEGRADED,
+) -> np.ndarray:
+    """DI → 粘性係数 eta [Pa·s] (UMAT 用)."""
+    di = np.asarray(di, dtype=np.float64)
+    r = np.clip(di / di_scale, 0.0, 1.0)
+    return eta_healthy + (eta_degraded - eta_healthy) * r
+
+
+def compute_relaxation_modulus(
+    t: np.ndarray,
+    G0: float,
+    g1: float = 0.5,
+    tau1: float = 10.0,
+) -> np.ndarray:
+    """
+    1-term Prony series の緩和弾性率 G(t).
+
+    G(t) = G0 * [(1 - g1) + g1 * exp(-t/tau1)]
+    """
+    t = np.asarray(t, dtype=np.float64)
+    return G0 * ((1.0 - g1) + g1 * np.exp(-t / tau1))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 比較ユーティリティ
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -607,6 +710,105 @@ def plot_model_comparison(outdir: str = None) -> str:
     plt.close(fig)
     print(f"  Material model comparison: {path}")
     return path
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Viscoelastic (SLS/Zener) material model
+# ─────────────────────────────────────────────────────────────────────────────
+# Standard Linear Solid: spring E_inf in parallel with (spring E_1 + dashpot η)
+#
+#   E_0 = E_inf + E_1   (instantaneous modulus)
+#   τ = η / E_1          (relaxation time)
+#
+# DI dependence:
+#   - Commensal (DI≈0): dense EPS → high E_inf, slow relaxation (large τ)
+#   - Dysbiotic (DI≈1): sparse/degraded EPS → low E_inf, fast relaxation (small τ)
+#
+# Ref: Shaw 2004 (τ=1-100s), Towler 2003 (E_0/E_inf=2-5),
+#      Peterson & Stoodley 2015, Gloag 2019 (G'=160 Pa)
+
+TAU_MAX_S = 60.0  # commensal max relaxation time [s]
+TAU_MIN_S = 2.0  # dysbiotic min relaxation time [s]
+E0_EINF_RATIO_MIN = 2.0  # commensal E_0/E_inf ratio
+E0_EINF_RATIO_MAX = 5.0  # dysbiotic E_0/E_inf ratio
+TAU_EXPONENT = 1.5  # power-law exponent for τ(DI)
+
+
+def compute_viscoelastic_params_di(
+    di: np.ndarray,
+    e_max: float = E_MAX_PA,
+    e_min: float = E_MIN_PA,
+    di_scale: float = DI_SCALE,
+    exponent: float = DI_EXPONENT,
+    tau_max: float = TAU_MAX_S,
+    tau_min: float = TAU_MIN_S,
+    ratio_min: float = E0_EINF_RATIO_MIN,
+    ratio_max: float = E0_EINF_RATIO_MAX,
+    tau_exp: float = TAU_EXPONENT,
+) -> dict:
+    """
+    DI → full SLS viscoelastic parameter set.
+
+    Returns dict with E_inf, E_0, E_1, tau, eta arrays.
+    """
+    di = np.asarray(di, dtype=np.float64)
+    r = np.clip(di / di_scale, 0.0, 1.0)
+
+    E_inf = e_max * (1.0 - r) ** exponent + e_min * r
+    ratio = ratio_min + (ratio_max - ratio_min) * r
+    E_0 = E_inf * ratio
+    E_1 = E_0 - E_inf
+    tau = tau_max * (1.0 - r) ** tau_exp + tau_min * r
+    eta = E_1 * tau
+
+    return {"E_inf": E_inf, "E_0": E_0, "E_1": E_1, "tau": tau, "eta": eta}
+
+
+if HAS_JAX:
+
+    def compute_viscoelastic_params_di_jax(
+        di,
+        e_max=E_MAX_PA,
+        e_min=E_MIN_PA,
+        di_scale=DI_SCALE,
+        exponent=DI_EXPONENT,
+        tau_max=TAU_MAX_S,
+        tau_min=TAU_MIN_S,
+        ratio_min=E0_EINF_RATIO_MIN,
+        ratio_max=E0_EINF_RATIO_MAX,
+        tau_exp=TAU_EXPONENT,
+    ):
+        """DI → SLS viscoelastic params — JAX differentiable."""
+        r = jnp.clip(di / di_scale, 0.0, 1.0)
+        E_inf = e_max * (1.0 - r) ** exponent + e_min * r
+        ratio = ratio_min + (ratio_max - ratio_min) * r
+        E_0 = E_inf * ratio
+        E_1 = E_0 - E_inf
+        tau = tau_max * (1.0 - r) ** tau_exp + tau_min * r
+        eta = E_1 * tau
+        return {"E_inf": E_inf, "E_0": E_0, "E_1": E_1, "tau": tau, "eta": eta}
+
+
+def sls_stress_relaxation(E_inf, E_1, tau, eps_0, t):
+    """
+    Analytical stress relaxation for SLS under step strain ε₀.
+
+    σ(t) = [E_inf + E_1·exp(-t/τ)] · ε₀
+    """
+    return (np.asarray(E_inf) + np.asarray(E_1) * np.exp(-np.asarray(t) / np.asarray(tau))) * eps_0
+
+
+def sls_creep_compliance(E_inf, E_1, tau, t):
+    """
+    Creep compliance J(t) for SLS under step stress σ₀.
+
+    u(t) = σ₀ · J(t)
+    """
+    E_inf, E_1, tau, t = (np.asarray(x, dtype=np.float64) for x in (E_inf, E_1, tau, t))
+    E_0 = E_inf + E_1
+    eta = E_1 * tau
+    tau_retard = eta / E_inf
+    return 1.0 / E_inf - E_1 / (E_inf * E_0) * np.exp(-t / tau_retard)
 
 
 if __name__ == "__main__":

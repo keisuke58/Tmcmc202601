@@ -145,11 +145,21 @@ def get_nishioka_bounds():
     return get_condition_bounds("Commensal", "Static")
 
 
-def get_condition_bounds(condition, cultivation):
+def get_condition_bounds(condition, cultivation, viscoelastic=False):
     """
     Returns bounds and locked indices based on Experiment Condition.
     Reflects the 'Heine + Nishioka' strategy (2025/2026).
     Configuration is loaded from data_5species/config/prior_bounds.json.
+
+    Parameters
+    ----------
+    condition : str
+        "Commensal" or "Dysbiotic"
+    cultivation : str
+        "Static" or "HOBIC"
+    viscoelastic : bool
+        If True, append VE params (theta[20:22]) to bounds.
+        theta[20] = log_tau_relax (log10(tau/1s)), theta[21] = E0_Einf_ratio.
 
     Strategies:
     1. Commensal Static:
@@ -167,6 +177,7 @@ def get_condition_bounds(condition, cultivation):
     M3 (Cross):  a13(10), a14(11), a23(12), a24(13)
     M4 (S4 Self): a55(14), b5(15)
     M5 (S4 Cross): a15(16), a25(17), a35(18), a45(19)
+    VE (optional): log_tau_relax(20), E0_Einf_ratio(21)
 
     S0: Blue, S1: Green, S2: Yellow/Orange, S3: Purple, S4: Red
     """
@@ -182,7 +193,8 @@ def get_condition_bounds(condition, cultivation):
         # Minimal fallback if file is missing (though it shouldn't be)
         config = {"default_bounds": [-1.0, 1.0], "strategies": {}}
 
-    bounds = [tuple(config.get("default_bounds", [-1.0, 1.0]))] * 20
+    n_base = 20
+    bounds = [tuple(config.get("default_bounds", [-1.0, 1.0]))] * n_base
     locked_indices = []
 
     key = f"{condition}_{cultivation}"
@@ -216,6 +228,22 @@ def get_condition_bounds(condition, cultivation):
     # Final Safety: Ensure locked indices are (0.0, 0.0)
     for idx in locked_indices:
         bounds[idx] = (0.0, 0.0)
+
+    # Append VE params if viscoelastic mode enabled
+    if viscoelastic:
+        ve_defaults = config.get("viscoelastic_params", {})
+        ve_strategy = strategy.get("ve_bounds", {})
+        for ve_idx_str in ["20", "21"]:
+            if ve_idx_str in ve_strategy:
+                bounds.append(tuple(ve_strategy[ve_idx_str]))
+            elif ve_idx_str in ve_defaults:
+                bounds.append(tuple(ve_defaults[ve_idx_str]["bounds"]))
+            else:
+                # Fallback defaults
+                if ve_idx_str == "20":
+                    bounds.append((0.0, 2.0))
+                else:
+                    bounds.append((1.5, 6.0))
 
     return bounds, locked_indices
 

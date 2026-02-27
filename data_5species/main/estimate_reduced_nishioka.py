@@ -1884,10 +1884,29 @@ def run_estimation(
 
     # --- NISHIOKA ALGORITHM: Parameter Reduction ---
     # Use centralized bounds/locking logic from nishioka_model based on condition
+    ve_enabled = getattr(args, "viscoelastic", False)
     logger.info(
-        f"Nishioka Algorithm: Retrieving bounds and locked indices for {args.condition} {args.cultivation}..."
+        f"Nishioka Algorithm: Retrieving bounds and locked indices for {args.condition} {args.cultivation}"
+        f"{' (viscoelastic ON)' if ve_enabled else ''}..."
     )
-    nishioka_bounds, LOCKED_INDICES = get_condition_bounds(args.condition, args.cultivation)
+    nishioka_bounds, LOCKED_INDICES = get_condition_bounds(
+        args.condition,
+        args.cultivation,
+        viscoelastic=ve_enabled,
+    )
+
+    # Total param count: 20 (base) + 2 (VE) if enabled
+    n_total_params = len(nishioka_bounds)
+
+    # Resize theta_base if VE params added
+    if n_total_params > len(theta_base):
+        theta_base_ext = np.full(n_total_params, prior_mean)
+        theta_base_ext[: len(theta_base)] = theta_base
+        # Set VE defaults: theta[20]=log10(tau)=1.0 (~10s), theta[21]=E0/Einf=3.0
+        if n_total_params >= 22:
+            theta_base_ext[20] = 1.0
+            theta_base_ext[21] = 3.0
+        theta_base = theta_base_ext
 
     # Use the exact bounds from the model (including 0.0, 0.0 for locked and 0.0, 1.0 for Vei->Pg)
     prior_bounds = list(nishioka_bounds)
@@ -1897,8 +1916,10 @@ def run_estimation(
         theta_base[idx] = 0.0
 
     # Update active_indices to exclude locked parameters
-    active_indices = [i for i in range(20) if i not in LOCKED_INDICES]
+    active_indices = [i for i in range(n_total_params) if i not in LOCKED_INDICES]
     logger.info(f"Reduced parameter space to {len(active_indices)} parameters: {active_indices}")
+    if ve_enabled:
+        logger.info("VE params active: theta[20]=log_tau_relax, theta[21]=E0_Einf_ratio")
 
     # Override specific bounds if requested (e.g. --override-bounds "18:0:3,19:0:3")
     if args.override_bounds:
@@ -2061,22 +2082,41 @@ def run_estimation(
                 weights=likelihood_weights,
             )
 
-        return LogLikelihoodEvaluator(
+        # ODE solver/TSM only uses theta[0:19] — filter active_indices for TSM
+        ode_active_indices = [i for i in active_indices if i < 20]
+        ode_theta_base = theta_base[:20] if len(theta_base) > 20 else theta_base
+        ode_theta_lin = (
+            theta_linearization[:20] if len(theta_linearization) > 20 else theta_linearization
+        )
+
+        evaluator = LogLikelihoodEvaluator(
             solver_kwargs=solver_kwargs,
             active_species=active_species,
-            active_indices=active_indices,
-            theta_base=theta_base,
+            active_indices=ode_active_indices,
+            theta_base=ode_theta_base,
             data=data,
             idx_sparse=idx_sparse,
             sigma_obs=sigma_obs,
             cov_rel=args.cov_rel,
             rho=0.0,
-            theta_linearization=theta_linearization,
+            theta_linearization=ode_theta_lin,
             paper_mode=False,
             debug_logger=debug_logger,
             use_absolute_volume=args.use_absolute_volume,
             weights=likelihood_weights,
         )
+
+        # Attach VE prior if enabled
+        if ve_enabled:
+            from core.evaluator import ViscoelasticPrior
+
+            evaluator.ve_prior = ViscoelasticPrior(active_indices=active_indices)
+
+        # Override active_indices/theta_base for TMCMC sampling (includes VE params)
+        evaluator.active_indices = list(active_indices)
+        evaluator.theta_base = theta_base.copy()
+
+        return evaluator
 
     # GNN prior (Issue #39)
     gnn_prior_obj = None
@@ -2178,8 +2218,10 @@ def run_estimation(
         "a25",
         "a35",
         "a45",  # M5
+        "log_tau_relax",
+        "E0_Einf_ratio",  # VE (optional)
     ]
-    active_param_names = [param_names[i] for i in active_indices]
+    active_param_names = [param_names[i] for i in active_indices if i < len(param_names)]
 
     logger.info("Computing enhanced convergence diagnostics...")
     mcmc_diagnostics = compute_mcmc_diagnostics(chains, logL, active_param_names)
@@ -2545,6 +2587,14 @@ Examples:
         "--use-threads",
         action="store_true",
         help="Use threads instead of processes (required for JAX/DeepONet to avoid fork issues)",
+    )
+
+    # Viscoelastic extension (SLS/Zener model)
+    parser.add_argument(
+        "--viscoelastic",
+        action="store_true",
+        help="Enable viscoelastic (SLS) parameter estimation: theta[20]=log_tau_relax, theta[21]=E0_Einf_ratio. "
+        "Currently adds informative prior penalty (no mechanical measurement data available).",
     )
 
     return parser.parse_args()

@@ -293,6 +293,517 @@ def solve_2d_fem(E_field, nu, eps_growth_field, Nx, Ny, Lx=1.0, Ly=1.0, bc_type=
 
 
 # ============================================================================
+# 2D Viscoelastic QUAD4 FEM (Generalized Maxwell / SLS)
+# ============================================================================
+
+
+def solve_2d_fem_viscoelastic(
+    E_field,
+    nu,
+    eps_growth_field,
+    Nx,
+    Ny,
+    Lx=1.0,
+    Ly=1.0,
+    bc_type="bottom_fixed",
+    g1=0.5,
+    tau1=10.0,
+    t_total=100.0,
+    dt=1.0,
+    load_ramp_time=None,
+):
+    """Solve 2D plane-strain viscoelastic problem (1-term Prony / SLS).
+
+    Generalized Maxwell model (1-term):
+        G(t) = G_inf + G_1 * exp(-t/tau_1)
+        G_inf = G_0 * (1 - g_1)
+        G_1 = G_0 * g_1
+
+    Time integration: exponential map (exact for piecewise-constant stress).
+    State variable per Gauss point: eps_v (3,) viscous strain in Voigt notation.
+
+    Parameters
+    ----------
+    E_field : (Nx, Ny) — instantaneous Young's modulus E_0 [Pa]
+    nu : float — Poisson's ratio (assumed constant)
+    eps_growth_field : (Nx, Ny) — isotropic eigenstrain
+    g1 : float — Prony ratio G_1/G_0 (0 < g1 < 1)
+    tau1 : float — relaxation time [s]
+    t_total : float — total simulation time [s]
+    dt : float — time step size [s]
+    load_ramp_time : float — linear ramp duration (None = step load)
+
+    Returns
+    -------
+    dict with time history of stress and displacement snapshots
+    """
+    n_nodes = Nx * Ny
+    n_dof = 2 * n_nodes
+    n_elem_x = Nx - 1
+    n_elem_y = Ny - 1
+    n_elem = n_elem_x * n_elem_y
+
+    dx = Lx / n_elem_x
+    dy = Ly / n_elem_y
+
+    # Node coordinates
+    x = np.linspace(0, Lx, Nx)
+    y = np.linspace(0, Ly, Ny)
+    X, Y = np.meshgrid(x, y, indexing="ij")
+    coords = np.column_stack([X.ravel(), Y.ravel()])
+
+    def node_idx(ix, iy):
+        return ix * Ny + iy
+
+    elems = np.zeros((n_elem, 4), dtype=int)
+    for i in range(n_elem_x):
+        for j in range(n_elem_y):
+            e = i * n_elem_y + j
+            elems[e] = [
+                node_idx(i, j),
+                node_idx(i + 1, j),
+                node_idx(i + 1, j + 1),
+                node_idx(i, j + 1),
+            ]
+
+    # Gauss quadrature
+    gpts, gwts = _gauss_2x2()
+
+    # Jacobian for regular rectangular elements
+    Jinv = np.array([[2 / dx, 0], [0, 2 / dy]])
+    detJ = dx * dy / 4
+
+    # Precompute B matrices at Gauss points
+    B_gps = []
+    for gp in range(4):
+        xi, eta = gpts[gp]
+        dN_dxi, dN_deta = _shape_grad(xi, eta)
+        dN_dx = Jinv[0, 0] * dN_dxi + Jinv[0, 1] * dN_deta
+        dN_dy = Jinv[1, 0] * dN_dxi + Jinv[1, 1] * dN_deta
+        B_gps.append(_B_matrix(dN_dx, dN_dy))
+
+    # BCs
+    fixed_dofs = set()
+    if bc_type == "bottom_fixed":
+        for i in range(Nx):
+            n = node_idx(i, 0)
+            fixed_dofs.add(2 * n)
+            fixed_dofs.add(2 * n + 1)
+    elif bc_type == "left_fixed":
+        for j in range(Ny):
+            n = node_idx(0, j)
+            fixed_dofs.add(2 * n)
+            fixed_dofs.add(2 * n + 1)
+    fixed_dofs = sorted(fixed_dofs)
+    free_dofs = sorted(set(range(n_dof)) - set(fixed_dofs))
+
+    # Precompute element-level data
+    E_elem = np.zeros(n_elem)
+    eps_g_elem = np.zeros(n_elem)
+    C_elem = []
+    for e in range(n_elem):
+        enodes = elems[e]
+        E_elem[e] = np.mean(E_field.ravel()[enodes])
+        eps_g_elem[e] = np.mean(eps_growth_field.ravel()[enodes])
+        C_elem.append(_C_plane_strain(E_elem[e], nu))
+
+    # Deviatoric projection matrix: P_dev such that eps_dev = P_dev @ eps
+    # In Voigt: eps_dev = eps - (1/3)*tr(eps)*[1,1,0]^T
+    P_dev = np.array(
+        [
+            [2 / 3, -1 / 3, 0],
+            [-1 / 3, 2 / 3, 0],
+            [0, 0, 1],
+        ]
+    )
+
+    # State variable: viscous deviatoric strain at each Gauss point
+    eps_v = np.zeros((n_elem, 4, 3))  # (n_elem, 4 GPs, 3 Voigt)
+
+    # Time stepping
+    n_steps = max(1, int(np.ceil(t_total / dt)))
+    dt_actual = t_total / n_steps
+
+    # Exponential map factor
+    exp_f = np.exp(-dt_actual / tau1)
+
+    # Store snapshots
+    snap_times = []
+    snap_sigma_vm = []
+    snap_u_max = []
+    sigma_vm_all = None
+
+    for step in range(n_steps + 1):
+        t = step * dt_actual
+
+        # Load factor (ramp or step)
+        if load_ramp_time is not None and load_ramp_time > 0:
+            lf = min(t / load_ramp_time, 1.0)
+        else:
+            lf = 1.0
+
+        # Assembly with viscoelastic correction
+        rows_k = []
+        cols_k = []
+        vals_k = []
+        F_global = np.zeros(n_dof)
+
+        for e in range(n_elem):
+            enodes = elems[e]
+            edof = np.zeros(8, dtype=int)
+            for i in range(4):
+                edof[2 * i] = 2 * enodes[i]
+                edof[2 * i + 1] = 2 * enodes[i] + 1
+
+            C = C_elem[e]
+            eps_g_voigt = lf * np.array([eps_g_elem[e], eps_g_elem[e], 0.0])
+
+            Ke = np.zeros((8, 8))
+            Fe = np.zeros(8)
+
+            for gp in range(4):
+                B = B_gps[gp]
+                w = gwts[gp]
+
+                # Stiffness: use long-term modulus G_inf = G_0*(1-g1)
+                # C_inf = C * (1-g1) for deviatoric, full C for volumetric
+                # Simplified: K_eff assembled with E_inf = E_0*(1-g1) for shear
+                # but this is approximate. Better: use full E and subtract viscous stress.
+                Ke += (B.T @ C @ B) * detJ * w
+
+                # Eigenstrain load + viscous stress correction
+                # sigma = C @ (eps_total - eps_growth) - C_1 @ eps_v
+                # F += B^T @ C @ eps_growth - B^T @ C_1 @ eps_v
+                Fe += (B.T @ C @ eps_g_voigt) * detJ * w
+
+                # Subtract viscous stress: C_dev * g1 * eps_v
+                # C_dev = C @ P_dev (deviatoric part of C)
+                C_dev_g1 = g1 * (C @ P_dev)
+                Fe -= (B.T @ C_dev_g1 @ eps_v[e, gp]) * detJ * w
+
+            for i in range(8):
+                for j in range(8):
+                    rows_k.append(edof[i])
+                    cols_k.append(edof[j])
+                    vals_k.append(Ke[i, j])
+            F_global[edof] += Fe
+
+        K = sparse.coo_matrix((vals_k, (rows_k, cols_k)), shape=(n_dof, n_dof)).tocsr()
+        K_ff = K[np.ix_(free_dofs, free_dofs)]
+        F_f = F_global[free_dofs]
+
+        u = np.zeros(n_dof)
+        u[free_dofs] = spsolve(K_ff, F_f)
+
+        # Post-process: compute stress and update viscous strain
+        sigma_xx = np.zeros(n_elem)
+        sigma_yy = np.zeros(n_elem)
+        sigma_xy = np.zeros(n_elem)
+
+        for e in range(n_elem):
+            enodes = elems[e]
+            edof = np.zeros(8, dtype=int)
+            for i in range(4):
+                edof[2 * i] = 2 * enodes[i]
+                edof[2 * i + 1] = 2 * enodes[i] + 1
+
+            C = C_elem[e]
+            eps_g_voigt = lf * np.array([eps_g_elem[e], eps_g_elem[e], 0.0])
+            u_e = u[edof]
+
+            # Stress at element center (average over GPs for simplicity)
+            sig_sum = np.zeros(3)
+            for gp in range(4):
+                B = B_gps[gp]
+                eps_total = B @ u_e
+                eps_elastic = eps_total - eps_g_voigt
+
+                # Deviatoric elastic strain
+                eps_dev_elastic = P_dev @ eps_elastic
+
+                # Viscous strain update: exponential map
+                if step > 0:
+                    eps_v[e, gp] = exp_f * eps_v[e, gp] + g1 * (1.0 - exp_f) * eps_dev_elastic
+
+                # Stress: sigma = C @ eps_elastic - g1 * C @ P_dev @ eps_v
+                sigma_gp = C @ eps_elastic - g1 * (C @ P_dev @ eps_v[e, gp])
+                sig_sum += sigma_gp
+
+            sig_avg = sig_sum / 4.0
+            sigma_xx[e] = sig_avg[0]
+            sigma_yy[e] = sig_avg[1]
+            sigma_xy[e] = sig_avg[2]
+
+        sigma_vm = np.sqrt(sigma_xx**2 + sigma_yy**2 - sigma_xx * sigma_yy + 3 * sigma_xy**2)
+        sigma_vm_all = sigma_vm.copy()
+
+        # Record snapshot
+        u_mag = np.sqrt(u.reshape(-1, 2)[:, 0] ** 2 + u.reshape(-1, 2)[:, 1] ** 2)
+        snap_times.append(t)
+        snap_sigma_vm.append(sigma_vm.mean())
+        snap_u_max.append(u_mag.max())
+
+    # Final post-process using B at center for element stress
+    elem_centers = np.zeros((n_elem, 2))
+    for e in range(n_elem):
+        elem_centers[e] = np.mean(coords[elems[e]], axis=0)
+
+    return {
+        "u": u.reshape(-1, 2),
+        "sigma_xx": sigma_xx,
+        "sigma_yy": sigma_yy,
+        "sigma_xy": sigma_xy,
+        "sigma_vm": sigma_vm_all,
+        "elem_centers": elem_centers,
+        "coords": coords.reshape(Nx, Ny, 2),
+        "u_grid": u.reshape(Nx, Ny, 2),
+        # Viscoelastic time history
+        "snap_times": np.array(snap_times),
+        "snap_sigma_vm_mean": np.array(snap_sigma_vm),
+        "snap_u_max": np.array(snap_u_max),
+        "g1": g1,
+        "tau1": tau1,
+        "t_total": t_total,
+        "dt": dt_actual,
+        "n_steps": n_steps,
+    }
+
+
+# ============================================================================
+# 2D Viscoelastic QUAD4 FEM — Spatially-varying SLS (Simo 1987)
+# ============================================================================
+
+
+def solve_2d_fem_viscoelastic_sls(
+    E_inf_field,
+    E_1_field,
+    tau_field,
+    nu,
+    eps_growth_field,
+    Nx,
+    Ny,
+    t_array,
+    Lx=1.0,
+    Ly=1.0,
+    bc_type="bottom_fixed",
+):
+    """Solve 2D plane-strain viscoelastic (SLS) with spatially-varying params.
+
+    Uses Simo (1987) exponential integrator. Unconditionally stable.
+    Internal variable h per element (Voigt: [h_xx, h_yy, h_xy]).
+
+    Parameters
+    ----------
+    E_inf_field : (Nx, Ny) — equilibrium modulus [Pa]
+    E_1_field   : (Nx, Ny) — Maxwell arm spring [Pa]
+    tau_field   : (Nx, Ny) — relaxation time [s]
+    nu : float — Poisson's ratio
+    eps_growth_field : (Nx, Ny) — isotropic eigenstrain (step at t=0)
+    t_array : (n_t,) — time points [s], t_array[0] = 0
+
+    Returns
+    -------
+    dict with u_history, sigma_vm_history, snap data
+    """
+    n_nodes = Nx * Ny
+    n_dof = 2 * n_nodes
+    n_elem_x = Nx - 1
+    n_elem_y = Ny - 1
+    n_elem = n_elem_x * n_elem_y
+    n_t = len(t_array)
+
+    dx = Lx / n_elem_x
+    dy = Ly / n_elem_y
+
+    x = np.linspace(0, Lx, Nx)
+    y = np.linspace(0, Ly, Ny)
+    X, Y = np.meshgrid(x, y, indexing="ij")
+    coords = np.column_stack([X.ravel(), Y.ravel()])
+
+    def node_idx(ix, iy):
+        return ix * Ny + iy
+
+    elems = np.zeros((n_elem, 4), dtype=int)
+    for i in range(n_elem_x):
+        for j in range(n_elem_y):
+            e = i * n_elem_y + j
+            elems[e] = [
+                node_idx(i, j),
+                node_idx(i + 1, j),
+                node_idx(i + 1, j + 1),
+                node_idx(i, j + 1),
+            ]
+
+    gpts, gwts = _gauss_2x2()
+    Jinv = np.array([[2 / dx, 0], [0, 2 / dy]])
+    detJ = dx * dy / 4
+
+    # Precompute B at each GP
+    B_gps = []
+    for gp in range(4):
+        xi, eta = gpts[gp]
+        dN_dxi, dN_deta = _shape_grad(xi, eta)
+        dN_dx = Jinv[0, 0] * dN_dxi + Jinv[0, 1] * dN_deta
+        dN_dy = Jinv[1, 0] * dN_dxi + Jinv[1, 1] * dN_deta
+        B_gps.append(_B_matrix(dN_dx, dN_dy))
+
+    # B at center for post-processing
+    dN_dxi_c, dN_deta_c = _shape_grad(0, 0)
+    dN_dx_c = Jinv[0, 0] * dN_dxi_c + Jinv[0, 1] * dN_deta_c
+    dN_dy_c = Jinv[1, 0] * dN_dxi_c + Jinv[1, 1] * dN_deta_c
+    B_center = _B_matrix(dN_dx_c, dN_dy_c)
+
+    # BCs
+    fixed_dofs = set()
+    if bc_type == "bottom_fixed":
+        for i in range(Nx):
+            n = node_idx(i, 0)
+            fixed_dofs.add(2 * n)
+            fixed_dofs.add(2 * n + 1)
+    elif bc_type == "left_fixed":
+        for j in range(Ny):
+            n = node_idx(0, j)
+            fixed_dofs.add(2 * n)
+            fixed_dofs.add(2 * n + 1)
+    fixed_dofs = sorted(fixed_dofs)
+    free_dofs = sorted(set(range(n_dof)) - set(fixed_dofs))
+
+    # Element-average material properties + precompute C matrices
+    E_inf_e = np.zeros(n_elem)
+    E_1_e = np.zeros(n_elem)
+    tau_e = np.zeros(n_elem)
+    eps_g_e = np.zeros(n_elem)
+    C_inf_list = []  # C(E_inf, nu) per element
+    C_1_list = []  # C(E_1, nu) per element
+    for e in range(n_elem):
+        enodes = elems[e]
+        E_inf_e[e] = np.mean(E_inf_field.ravel()[enodes])
+        E_1_e[e] = np.mean(E_1_field.ravel()[enodes])
+        tau_e[e] = np.mean(tau_field.ravel()[enodes])
+        eps_g_e[e] = np.mean(eps_growth_field.ravel()[enodes])
+        C_inf_list.append(_C_plane_strain(E_inf_e[e], nu))
+        C_1_list.append(_C_plane_strain(E_1_e[e], nu))
+
+    # Internal variable h per element (Voigt stress: [h_xx, h_yy, h_xy])
+    h = np.zeros((n_elem, 3))
+    eps_e_prev = np.zeros((n_elem, 3))
+
+    u_history = np.zeros((n_t, n_nodes, 2))
+    sigma_vm_history = np.zeros((n_t, n_elem))
+
+    for ti in range(n_t):
+        dt = t_array[ti] - t_array[ti - 1] if ti > 0 else 0.0
+
+        if ti == 0:
+            gamma_e = np.ones(n_elem)
+            exp_dt_e = np.zeros(n_elem)
+        elif dt > 1e-15:
+            exp_dt_e = np.exp(-dt / tau_e)
+            gamma_e = tau_e / dt * (1.0 - exp_dt_e)
+        else:
+            gamma_e = np.ones(n_elem)
+            exp_dt_e = np.ones(n_elem)
+
+        # h_star per element: exp(-dt/τ)*h - γ*C_1@ε_e_prev
+        h_star = np.zeros((n_elem, 3))
+        if ti > 0:
+            for e in range(n_elem):
+                h_star[e] = exp_dt_e[e] * h[e] - gamma_e[e] * (C_1_list[e] @ eps_e_prev[e])
+
+        # Assemble: C_alg = C_inf + γ*C_1 = C(E_inf + γ*E_1, nu)
+        rows_k, cols_k, vals_k = [], [], []
+        F_global = np.zeros(n_dof)
+
+        for e in range(n_elem):
+            enodes = elems[e]
+            edof = np.zeros(8, dtype=int)
+            for i in range(4):
+                edof[2 * i] = 2 * enodes[i]
+                edof[2 * i + 1] = 2 * enodes[i] + 1
+
+            C_alg = _C_plane_strain(E_inf_e[e] + E_1_e[e] * gamma_e[e], nu)
+            eps_g_voigt = np.array([eps_g_e[e], eps_g_e[e], 0.0])
+
+            Ke = np.zeros((8, 8))
+            Fe = np.zeros(8)
+
+            for gp in range(4):
+                B = B_gps[gp]
+                w = gwts[gp]
+                Ke += (B.T @ C_alg @ B) * detJ * w
+                Fe += (B.T @ (C_alg @ eps_g_voigt + h_star[e])) * detJ * w
+
+            for i in range(8):
+                for j in range(8):
+                    rows_k.append(edof[i])
+                    cols_k.append(edof[j])
+                    vals_k.append(Ke[i, j])
+            F_global[edof] += Fe
+
+        K = sparse.coo_matrix((vals_k, (rows_k, cols_k)), shape=(n_dof, n_dof)).tocsr()
+        K_ff = K[np.ix_(free_dofs, free_dofs)]
+        F_f = F_global[free_dofs]
+
+        u_vec = np.zeros(n_dof)
+        u_vec[free_dofs] = spsolve(K_ff, F_f)
+
+        # Post-process: stress and internal variable update
+        sigma_xx = np.zeros(n_elem)
+        sigma_yy = np.zeros(n_elem)
+        sigma_xy = np.zeros(n_elem)
+
+        for e in range(n_elem):
+            enodes = elems[e]
+            edof = np.zeros(8, dtype=int)
+            for i in range(4):
+                edof[2 * i] = 2 * enodes[i]
+                edof[2 * i + 1] = 2 * enodes[i] + 1
+
+            u_e = u_vec[edof]
+            eps_total = B_center @ u_e
+            eps_elastic = eps_total - np.array([eps_g_e[e], eps_g_e[e], 0.0])
+
+            # Update h: h_{n+1} = exp*h_n + C_1*γ*(ε_e_{n+1} - ε_e_n)
+            C_1 = C_1_list[e]
+            if ti == 0:
+                h[e] = C_1 @ eps_elastic
+            else:
+                h[e] = exp_dt_e[e] * h[e] + gamma_e[e] * (C_1 @ (eps_elastic - eps_e_prev[e]))
+
+            eps_e_prev[e] = eps_elastic.copy()
+
+            # σ = C_inf @ ε_e + h
+            sigma = C_inf_list[e] @ eps_elastic + h[e]
+            sigma_xx[e] = sigma[0]
+            sigma_yy[e] = sigma[1]
+            sigma_xy[e] = sigma[2]
+
+        sigma_vm = np.sqrt(sigma_xx**2 + sigma_yy**2 - sigma_xx * sigma_yy + 3 * sigma_xy**2)
+
+        u_history[ti] = u_vec.reshape(-1, 2)
+        sigma_vm_history[ti] = sigma_vm
+
+    # Element centers
+    elem_centers = np.zeros((n_elem, 2))
+    for e in range(n_elem):
+        elem_centers[e] = np.mean(coords[elems[e]], axis=0)
+
+    return {
+        "u": u_vec.reshape(-1, 2),
+        "u_history": u_history,
+        "sigma_xx": sigma_xx,
+        "sigma_yy": sigma_yy,
+        "sigma_xy": sigma_xy,
+        "sigma_vm": sigma_vm,
+        "sigma_vm_history": sigma_vm_history,
+        "elem_centers": elem_centers,
+        "coords": coords.reshape(Nx, Ny, 2),
+        "u_grid": u_vec.reshape(Nx, Ny, 2),
+        "t_array": t_array,
+    }
+
+
+# ============================================================================
 # Pipeline: Hamilton 2D ODE → DI → E(x,y) → FEM → stress
 # ============================================================================
 
@@ -312,6 +823,7 @@ def run_2d_stress_pipeline(
     nu=0.30,
     alpha_coeff=0.05,
     e_model="phi_pg",
+    **kwargs,
 ):
     """Full pipeline: theta → 2D fields → FEM stress.
 
@@ -374,16 +886,30 @@ def run_2d_stress_pipeline(
 
     # FEM solve
     t1 = time.perf_counter()
-    fem_result = solve_2d_fem(
-        E_field,
-        nu,
-        eps_growth,
-        Nx,
-        Ny,
-        Lx,
-        Ly,
-        bc_type="bottom_fixed",
-    )
+    visco_kwargs = kwargs.get("visco", None)
+    if visco_kwargs is not None:
+        fem_result = solve_2d_fem_viscoelastic(
+            E_field,
+            nu,
+            eps_growth,
+            Nx,
+            Ny,
+            Lx,
+            Ly,
+            bc_type="bottom_fixed",
+            **visco_kwargs,
+        )
+    else:
+        fem_result = solve_2d_fem(
+            E_field,
+            nu,
+            eps_growth,
+            Nx,
+            Ny,
+            Lx,
+            Ly,
+            bc_type="bottom_fixed",
+        )
     t_fem = time.perf_counter() - t1
 
     # Merge
@@ -519,6 +1045,30 @@ def main():
     ap.add_argument("--alpha-coeff", type=float, default=0.05)
     ap.add_argument("--e-model", choices=["phi_pg", "virulence", "di"], default="phi_pg")
     ap.add_argument("--outdir", default=None)
+    ap.add_argument(
+        "--viscoelastic", action="store_true", help="Use viscoelastic (SLS) time-dependent solver"
+    )
+    ap.add_argument(
+        "--prony-g1",
+        type=float,
+        default=0.5,
+        help="Prony g1 = G_1/G_0 shear relaxation ratio (default 0.5)",
+    )
+    ap.add_argument(
+        "--prony-tau1",
+        type=float,
+        default=10.0,
+        help="Prony tau_1 relaxation time in seconds (default 10.0)",
+    )
+    ap.add_argument(
+        "--t-total",
+        type=float,
+        default=100.0,
+        help="Total viscoelastic simulation time (seconds, default 100)",
+    )
+    ap.add_argument(
+        "--dt-visco", type=float, default=1.0, help="Viscoelastic time step (seconds, default 1.0)"
+    )
     args = ap.parse_args()
 
     # Load theta
@@ -571,8 +1121,22 @@ def main():
     print(f"  Condition: {args.condition}")
     print(f"  Grid: {args.nx}×{args.ny}")
     print(f"  E model: {args.e_model}")
+    if args.viscoelastic:
+        print(
+            f"  VISCO: g1={args.prony_g1}, tau1={args.prony_tau1}s, "
+            f"t_total={args.t_total}s, dt={args.dt_visco}s"
+        )
     print(f"  Output: {outdir}")
     print("=" * 60)
+
+    extra_kwargs = {}
+    if args.viscoelastic:
+        extra_kwargs["visco"] = {
+            "g1": args.prony_g1,
+            "tau1": args.prony_tau1,
+            "t_total": args.t_total,
+            "dt": args.dt_visco,
+        }
 
     result = run_2d_stress_pipeline(
         theta,
@@ -586,6 +1150,7 @@ def main():
         nu=args.nu,
         alpha_coeff=args.alpha_coeff,
         e_model=args.e_model,
+        **extra_kwargs,
     )
 
     # Summary

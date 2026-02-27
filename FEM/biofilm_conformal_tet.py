@@ -580,6 +580,15 @@ def write_abaqus_inp(
     growth_eigenstrain=0.0,
     T_nodes=None,
     neo_hookean=False,
+    mooney_rivlin=False,
+    c01_ratio=0.15,
+    viscoelastic=False,
+    prony_g1=0.5,
+    prony_k1=0.0,
+    prony_tau1=10.0,
+    prony_di_dependent=False,
+    umat_visco=False,
+    viscosity=100.0,
 ):
     """
     Write a complete Abaqus C3D4 INP file.
@@ -700,24 +709,85 @@ def write_abaqus_inp(
             E_MPa = bin_E_stiff[b] * 1e-6  # Pa → MPa (Abaqus mm/N/MPa system)
             E_MPa = max(E_MPa, 1e-8)
             f.write("*Material, name=MAT_ANISO_%02d\n" % b)
-            if neo_hookean:
-                mu = E_MPa / (2.0 * (1.0 + nu))
-                denom = 3.0 * (1.0 - 2.0 * nu)
-                if abs(denom) < 1e-8:
-                    denom = 1e-8 if denom >= 0.0 else -1e-8
-                K = E_MPa / denom
-                mu = max(mu, 1e-8)
-                K = max(K, 1e-8)
+
+            # --- Helper: compute hyperelastic parameters from E, nu ---
+            mu = E_MPa / (2.0 * (1.0 + nu))
+            denom = 3.0 * (1.0 - 2.0 * nu)
+            if abs(denom) < 1e-8:
+                denom = 1e-8 if denom >= 0.0 else -1e-8
+            K_bulk = E_MPa / denom
+            mu = max(mu, 1e-8)
+            K_bulk = max(K_bulk, 1e-8)
+
+            if umat_visco:
+                # ── UMAT: F = Fe · Fv · Fg multiplicative decomposition ──
+                C10_u = 0.5 * mu / (1.0 + c01_ratio) if mooney_rivlin else 0.5 * mu
+                C01_u = C10_u * c01_ratio if mooney_rivlin else 0.0
+                D1_u = 2.0 / K_bulk
+                eta_MPa_s = viscosity * 1e-6  # Pa·s → MPa·s
+                mat_type = 1.0 if mooney_rivlin else 0.0
+                f.write("*User Material, constants=5, unsymm\n")
+                f.write(
+                    " %.6g, %.6g, %.6g, %.6g, %.6g\n" % (C10_u, C01_u, D1_u, eta_MPa_s, mat_type)
+                )
+                f.write("*Depvar\n")
+                f.write(" 9\n")
+                if growth_eigenstrain > 0.0:
+                    f.write("*Expansion, type=ISO, zero=0.0\n")
+                    f.write(" 1.0\n")
+            elif mooney_rivlin:
+                # ── Mooney-Rivlin hyperelastic ──
+                C10_mr = 0.5 * mu / (1.0 + c01_ratio)
+                C01_mr = C10_mr * c01_ratio
+                D1_mr = 2.0 / K_bulk
+                f.write("*Hyperelastic, Mooney-Rivlin\n")
+                f.write(" %.6g, %.6g, %.6g\n" % (C10_mr, C01_mr, D1_mr))
+                if viscoelastic:
+                    f.write("*Viscoelastic, time=PRONY\n")
+                    f.write(" %.6g, %.6g, %.6g\n" % (prony_g1, prony_k1, prony_tau1))
+                if growth_eigenstrain > 0.0:
+                    f.write("*Expansion, type=ISO, zero=0.0\n")
+                    f.write(" 1.0\n")
+            elif neo_hookean:
+                # ── Neo-Hookean hyperelastic ──
                 C10 = 0.5 * mu
-                D1 = 2.0 / K
+                D1 = 2.0 / K_bulk
                 f.write("*Hyperelastic, Neo Hooke\n")
                 f.write(" %.6g, %.6g\n" % (C10, D1))
+                if viscoelastic:
+                    f.write("*Viscoelastic, time=PRONY\n")
+                    f.write(" %.6g, %.6g, %.6g\n" % (prony_g1, prony_k1, prony_tau1))
                 if growth_eigenstrain > 0.0:
                     f.write("*Expansion, type=ISO, zero=0.0\n")
                     f.write(" 1.0\n")
             else:
+                # ── Linear elastic (default) ──
                 f.write("*Elastic\n")
                 f.write(" %.6g, %.4f\n" % (E_MPa, nu))
+                if viscoelastic:
+                    if prony_di_dependent:
+                        # DI-dependent Prony: g1 and tau vary per bin
+                        from material_models import (
+                            compute_viscoelastic_params_di,
+                            E0_EINF_RATIO_MIN,
+                            E0_EINF_RATIO_MAX,
+                            TAU_MAX_S,
+                            TAU_MIN_S,
+                            TAU_EXPONENT,
+                        )
+
+                        di_bin_center = (b + 0.5) / n_bins
+                        ve_bin = compute_viscoelastic_params_di(
+                            np.array([di_bin_center]),
+                            di_scale=1.0,
+                        )
+                        g1_bin = float(ve_bin["E_1"][0] / ve_bin["E_0"][0])
+                        tau_bin = float(ve_bin["tau"][0])
+                        f.write("*Viscoelastic, time=PRONY\n")
+                        f.write(" %.6g, %.6g, %.6g\n" % (g1_bin, g1_bin, tau_bin))
+                    else:
+                        f.write("*Viscoelastic, time=PRONY\n")
+                        f.write(" %.6g, %.6g, %.6g\n" % (prony_g1, prony_k1, prony_tau1))
                 if growth_eigenstrain > 0.0:
                     f.write("*Expansion, type=ISO, zero=0.0\n")
                     f.write(" 1.0\n")
@@ -805,11 +875,19 @@ def write_abaqus_inp(
         f.write("** =====  STEP%s: LOAD  =====\n" % (" 2" if growth_eigenstrain > 0.0 else ""))
         f.write("*Step, name=LOAD, nlgeom=%s\n" % nlgeom_str)
         f.write(" Biofilm pressure loading (%.3g Pa inward on outer face)\n" % pressure)
-        f.write("*Static\n")
-        # For NLGEOM use smaller initial increment to aid convergence
-        if nlgeom:
+        if viscoelastic or umat_visco:
+            # Time-dependent analysis for viscoelastic material
+            t_period = 5.0 * prony_tau1  # 5× relaxation time for full response
+            f.write("*Visco\n")
+            f.write(" 0.01, %.4g, 1e-6, %.4g\n" % (t_period, t_period / 10.0))
+            f.write(
+                "** Viscoelastic step: t_period=%.4g s (5*tau=%.4g s)\n" % (t_period, prony_tau1)
+            )
+        elif nlgeom:
+            f.write("*Static\n")
             f.write(" 0.01, 1.0, 1e-6, 0.1\n")
         else:
+            f.write("*Static\n")
             f.write(" 0.1, 1.0, 1e-5, 1.0\n")
         f.write("**\n")
 
@@ -1020,6 +1098,67 @@ def parse_args():
         dest="neo_hookean",
         help="Use Neo-Hookean hyperelastic material instead of linear elastic",
     )
+    p.add_argument(
+        "--mooney-rivlin",
+        action="store_true",
+        dest="mooney_rivlin",
+        help="Use Mooney-Rivlin hyperelastic material (C10, C01, D1)",
+    )
+    p.add_argument(
+        "--c01-ratio",
+        type=float,
+        default=0.15,
+        dest="c01_ratio",
+        help="C01/C10 ratio for Mooney-Rivlin (default 0.15, range 0.1-0.25 for biofilm)",
+    )
+    p.add_argument(
+        "--viscoelastic",
+        action="store_true",
+        dest="viscoelastic",
+        help="Add Prony-series viscoelastic behavior (*Viscoelastic, time=PRONY). "
+        "Requires hyperelastic base (--neo-hookean or --mooney-rivlin).",
+    )
+    p.add_argument(
+        "--prony-g1",
+        type=float,
+        default=0.5,
+        dest="prony_g1",
+        help="Prony series g_1 = G_1/G_0 shear relaxation ratio (default 0.5)",
+    )
+    p.add_argument(
+        "--prony-k1",
+        type=float,
+        default=0.0,
+        dest="prony_k1",
+        help="Prony series k_1 = K_1/K_0 bulk relaxation ratio (default 0.0)",
+    )
+    p.add_argument(
+        "--prony-tau1",
+        type=float,
+        default=10.0,
+        dest="prony_tau1",
+        help="Prony series tau_1 relaxation time in seconds (default 10.0)",
+    )
+    p.add_argument(
+        "--prony-di-dependent",
+        action="store_true",
+        dest="prony_di_dependent",
+        help="Make Prony g1 and tau DI-dependent per material bin "
+        "(uses compute_viscoelastic_params_di from material_models)",
+    )
+    p.add_argument(
+        "--umat-visco",
+        action="store_true",
+        dest="umat_visco",
+        help="Use custom UMAT for F=Fe*Fv*Fg multiplicative decomposition",
+    )
+    p.add_argument(
+        "--viscosity",
+        type=float,
+        default=100.0,
+        dest="viscosity",
+        help="Viscosity eta [Pa*s] for UMAT viscoelastic model (default 100.0)",
+    )
     return p.parse_args()
 
 
@@ -1045,8 +1184,20 @@ def main():
     print("  thick  : %.3f mm  layers=%d  n_bins=%d" % (args.thickness, args.n_layers, args.n_bins))
     print("  E_max  : %.3g Pa  E_min: %.3g Pa" % (args.e_max, args.e_min))
     print("  BC     : %s  pressure=%.3g Pa" % (args.bc_mode, args.pressure))
-    if args.neo_hookean:
+    if args.umat_visco:
+        mat_label = "Mooney-Rivlin" if args.mooney_rivlin else "Neo-Hookean"
+        print(
+            "  MAT    : UMAT visco (%s + F=Fe·Fv·Fg), eta=%.4g Pa·s" % (mat_label, args.viscosity)
+        )
+    elif args.mooney_rivlin:
+        print("  MAT    : Mooney-Rivlin hyperelastic (C01/C10=%.2f)" % args.c01_ratio)
+    elif args.neo_hookean:
         print("  MAT    : Neo-Hookean hyperelastic")
+    if args.viscoelastic:
+        print(
+            "  VISCO  : Prony g1=%.2f k1=%.2f tau1=%.1f s"
+            % (args.prony_g1, args.prony_k1, args.prony_tau1)
+        )
     if args.mode == "biofilm":
         print("  NOTE   : biofilm-scale Pa material; results qualitative for large strains")
     print("=" * 60)
@@ -1233,6 +1384,15 @@ def main():
         growth_eigenstrain=alpha_eff,
         T_nodes=T_nodes,
         neo_hookean=args.neo_hookean,
+        mooney_rivlin=args.mooney_rivlin,
+        c01_ratio=args.c01_ratio,
+        viscoelastic=args.viscoelastic,
+        prony_g1=args.prony_g1,
+        prony_k1=args.prony_k1,
+        prony_tau1=args.prony_tau1,
+        prony_di_dependent=args.prony_di_dependent,
+        umat_visco=args.umat_visco,
+        viscosity=args.viscosity,
     )
 
     # ── Step 9: Validation report ─────────────────────────────────────────────

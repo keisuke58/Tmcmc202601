@@ -912,5 +912,102 @@ def main():
     print("=" * 85)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Viscoelastic 2D analysis pipeline
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def run_2d_viscoelastic_analysis(
+    theta: np.ndarray,
+    condition_name: str,
+    t_mech: np.ndarray = None,
+    nu: float = 0.30,
+    alpha_coeff: float = 0.05,
+) -> dict:
+    """
+    Full viscoelastic pipeline: Hamilton ODE → DI(x,y) → VE params → FEM time integration.
+
+    Two-stage approach:
+      1. Growth phase (days): Hamilton ODE → steady-state φ, DI
+      2. Mechanical event (seconds): step eigenstrain → SLS relaxation
+
+    Parameters
+    ----------
+    theta : (20,) — Hamilton ODE parameters
+    condition_name : str — condition key (e.g. 'commensal_static')
+    t_mech : array — mechanical time points [s] (default: [0,1,5,10,30,60,120,300])
+    nu : float — Poisson's ratio
+
+    Returns
+    -------
+    dict with DI_final, VE params, FEM time history
+    """
+    from material_models import compute_viscoelastic_params_di
+
+    if t_mech is None:
+        t_mech = np.array([0.0, 1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0])
+
+    # Stage 1: Growth phase → steady-state fields
+    print(f"  [{condition_name}] Stage 1: growth phase (Hamilton 2D)...")
+    result_2d = run_2d(theta, condition_name)
+    di_final = result_2d["di_final"]  # (NX, NY)
+    mask = result_2d["biofilm_mask"]
+
+    # Compute VE params from DI
+    ve = compute_viscoelastic_params_di(di_final, di_scale=DI_SCALE)
+    E_inf_field = ve["E_inf"]
+    E_1_field = ve["E_1"]
+    tau_field = ve["tau"]
+
+    # Eigenstrain from growth
+    eps_growth = result_2d["eps_growth"]
+
+    # Stage 2: Mechanical event → viscoelastic FEM
+    print(f"  [{condition_name}] Stage 2: VE FEM ({len(t_mech)} time steps)...")
+    from JAXFEM.solve_stress_2d import solve_2d_fem_viscoelastic_sls
+
+    fem_result = solve_2d_fem_viscoelastic_sls(
+        E_inf_field,
+        E_1_field,
+        tau_field,
+        nu,
+        eps_growth,
+        NX,
+        NY,
+        t_mech,
+        Lx=1.0,
+        Ly=1.0,
+        bc_type="bottom_fixed",
+    )
+
+    # Summary stats inside biofilm
+    bf = mask > 0.5
+    di_bf = di_final[bf]
+
+    return {
+        "condition": condition_name,
+        "di_final": di_final,
+        "E_inf_field": E_inf_field,
+        "E_1_field": E_1_field,
+        "tau_field": tau_field,
+        "eps_growth": eps_growth,
+        "biofilm_mask": mask,
+        "t_mech": t_mech,
+        "fem_result": fem_result,
+        "di_mean": float(di_bf.mean()),
+        "di_std": float(di_bf.std()),
+        "sigma_vm_t0": fem_result["sigma_vm_history"][0],
+        "sigma_vm_final": fem_result["sigma_vm_history"][-1],
+        "u_max_history": np.array(
+            [
+                np.sqrt(
+                    fem_result["u_history"][ti, :, 0] ** 2 + fem_result["u_history"][ti, :, 1] ** 2
+                ).max()
+                for ti in range(len(t_mech))
+            ]
+        ),
+    }
+
+
 if __name__ == "__main__":
     main()

@@ -287,6 +287,14 @@ def export_hybrid_csv(orig: dict, res_0d: dict, condition_key: str) -> str:
     E_pg = res_0d["E_phi_pg"]
     E_vir = res_0d["E_vir"]
 
+    # Compute VE parameters from DI
+    from material_models import compute_viscoelastic_params_di
+
+    ve = compute_viscoelastic_params_di(np.array([di_0d]), di_scale=1.0)
+    tau_val = float(ve["tau"][0])
+    E_0_val = float(ve["E_0"][0])
+    eta_val = float(ve["eta"][0])
+
     header = (
         "# Hybrid macro CSV: 0D composition × 1D spatial alpha_monod\n"
         f"# condition: {condition_key}\n"
@@ -295,12 +303,14 @@ def export_hybrid_csv(orig: dict, res_0d: dict, condition_key: str) -> str:
         f"(phi_crit={PHI_PG_CRIT}, m={HILL_M})\n"
         f"# V_0D:     {v_0d:.6f}  → E_vir   = {E_vir:.1f} Pa  "
         f"(V_crit={V_CRIT}, w_Pg={W_PG}, w_Fn={W_FN})\n"
+        f"# VE: tau={tau_val:.2f}s, E_0={E_0_val:.1f}Pa, eta={eta_val:.1f}Pa·s\n"
         f"# alpha_monod(x): from 1D Hamilton + nutrient PDE  [spatial]\n"
         f"# eps_growth = alpha_monod / 3  [isotropic eigenstrain]\n"
         "depth_mm,depth_norm,"
         "phi_So,phi_An,phi_Vd,phi_Fn,phi_Pg,"
         "phi_total,c,DI,alpha,alpha_monod,eps_growth,"
-        "E_di,E_phi_pg,E_virulence\n"
+        "E_di,E_phi_pg,E_virulence,"
+        "tau_s,E_0_Pa,eta_Pas\n"
     )
 
     rows = []
@@ -321,7 +331,10 @@ def export_hybrid_csv(orig: dict, res_0d: dict, condition_key: str) -> str:
             f"{orig['eps_growth'][k]:.8e},"
             f"{E_di:.8e},"
             f"{E_pg:.8e},"
-            f"{E_vir:.8e}"
+            f"{E_vir:.8e},"
+            f"{tau_val:.8e},"
+            f"{E_0_val:.8e},"
+            f"{eta_val:.8e}"
         )
         rows.append(row)
 
