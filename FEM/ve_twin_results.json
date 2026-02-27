@@ -1,0 +1,61 @@
+{
+  "timestamp": "2026-02-27 20:31:12",
+  "n_particles": 1000,
+  "seed": 42,
+  "noise_frac": 0.05,
+  "elapsed_s": 1.9327888488769531,
+  "conditions": {
+    "Commensal Static": {
+      "DI": 0.029735014846902108,
+      "E_map": 942.0
+    },
+    "Commensal HOBIC": {
+      "DI": 0.0025284490525582237,
+      "E_map": 995.0
+    },
+    "DH Baseline": {
+      "DI": 0.4787350273448525,
+      "E_map": 279.0
+    },
+    "Dysbiotic Static": {
+      "DI": 0.850928801500014,
+      "E_map": 32.0
+    }
+  },
+  "phase3": {
+    "t_opt_tau": 23.519519519519523,
+    "t_opt_ratio": 0.1,
+    "protocols": {
+      "Short only (t < 10s)": {
+        "det_F": 36989511.22417059,
+        "sigma_tau": 0.015457786976354089,
+        "sigma_ratio": 0.0187083203533776,
+        "n_points": 17
+      },
+      "Long only (t > 100s)": {
+        "det_F": 72.52693206152729,
+        "sigma_tau": 0.20462041386572966,
+        "sigma_ratio": 5.484662657325663,
+        "n_points": 833
+      },
+      "Uniform (16 pts)": {
+        "det_F": 1870723.5070751873,
+        "sigma_tau": 0.020131383584077928,
+        "sigma_ratio": 0.037427880945200005,
+        "n_points": 16
+      },
+      "Log-spaced (16 pts)": {
+        "det_F": 39384123.66832665,
+        "sigma_tau": 0.010820275054199092,
+        "sigma_ratio": 0.01796991576811177,
+        "n_points": 16
+      },
+      "D-optimal (2 pts)": {
+        "det_F": 2285408.399696072,
+        "sigma_tau": 0.01913023883584479,
+        "sigma_ratio": 0.037804893270313965,
+        "n_points": 2
+      }
+    }
+  }
+}
