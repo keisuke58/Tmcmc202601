@@ -1,6 +1,10 @@
 {
-  "description": "Prior bounds configuration for 5-species model parameter estimation. Indices map to 20 model parameters.",
+  "description": "Prior bounds configuration for 5-species model parameter estimation. Indices 0-19: ODE interaction params. Indices 20-21: viscoelastic params (optional, enabled with --viscoelastic).",
   "default_bounds": [-1.0, 1.0],
+  "viscoelastic_params": {
+    "20": {"name": "log_tau_relax", "description": "log10(tau/1s) relaxation time", "bounds": [0.0, 2.0]},
+    "21": {"name": "E0_Einf_ratio", "description": "E_0/E_inf instantaneous/equilibrium modulus ratio", "bounds": [1.5, 6.0]}
+  },
   "strategies": {
     "Commensal_Static": {
       "locks": [9, 15, 6, 7, 11, 13, 14, 16, 17, 18, 19],
@@ -15,6 +19,10 @@
         "5": [-1.0, 2.0],
         "10": [-1.0, 2.0],
         "12": [-1.0, 2.0]
+      },
+      "ve_bounds": {
+        "20": [0.5, 2.0],
+        "21": [1.5, 3.0]
       }
     },
     "Dysbiotic_HOBIC": {
@@ -40,6 +48,10 @@
         "13": [-0.5, 3.0],
         "16": [-0.5, 3.0],
         "17": [-0.5, 3.0]
+      },
+      "ve_bounds": {
+        "20": [0.0, 2.0],
+        "21": [1.5, 6.0]
       }
     },
     "Dysbiotic_Static": {
@@ -52,6 +64,10 @@
         "15": [0.0, 0.2],
         "5": [1.0, 5.0],
         "18": [-3.0, 0.0]
+      },
+      "ve_bounds": {
+        "20": [0.0, 1.5],
+        "21": [2.0, 6.0]
       }
     },
     "Commensal_HOBIC": {
@@ -61,6 +77,10 @@
         "4": [0.0, 3.0],
         "8": [0.0, 3.0],
         "9": [0.0, 3.0]
+      },
+      "ve_bounds": {
+        "20": [0.5, 2.0],
+        "21": [1.5, 3.0]
       }
     }
   }

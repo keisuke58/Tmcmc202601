@@ -424,6 +424,7 @@ class LogLikelihoodEvaluator:
         self._linearization_enabled = (
             False  # Start with linearization disabled (non-linear exploration)
         )
+        self.ve_prior = None  # Optional ViscoelasticPrior, set externally
         logger.info("TSM initialized (linearization disabled initially for exploration)")
 
     def update_linearization_point(self, theta_new_full: np.ndarray):
@@ -434,10 +435,12 @@ class LogLikelihoodEvaluator:
 
         Parameters
         ----------
-        theta_new_full : ndarray (14,)
-            New linearization point (typically MAP from Phase 1)
+        theta_new_full : ndarray
+            New linearization point (typically MAP from Phase 1).
+            Truncated to first 20 elements for ODE TSM if VE params present.
         """
-        self.tsm.update_linearization_point(theta_new_full)
+        theta_ode = theta_new_full[:20] if len(theta_new_full) > 20 else theta_new_full
+        self.tsm.update_linearization_point(theta_ode)
         self._theta_linearization = theta_new_full.copy()
 
         # Reset tracking for new phase
@@ -489,15 +492,18 @@ class LogLikelihoodEvaluator:
             Relative ROM error in observable space (φ̄)
         """
         try:
+            # Truncate VE params if present — ODE solver only uses theta[0:19]
+            theta_ode = theta_full[:20] if len(theta_full) > 20 else theta_full
+
             with timed(self.timing, "rom_error.compute"):
                 # ROM solution
                 with timed(self.timing, "tsm.solve_tsm"):
-                    t_arr_rom, x0_rom, sig2_rom = self.tsm.solve_tsm(theta_full)
+                    t_arr_rom, x0_rom, sig2_rom = self.tsm.solve_tsm(theta_ode)
 
                 # FOM solution
                 self.fom_call_count += 1  # Track FOM evaluations
                 with timed(self.timing, "fom.run_deterministic"):
-                    t_arr_fom, x0_fom = self.solver.run_deterministic(theta_full)
+                    t_arr_fom, x0_fom = self.solver.run_deterministic(theta_ode)
 
             # Compute φ̄ (observable) at observation times for comparison
             # φ̄_i = φ_i * ψ_i (living bacteria volume fraction)
@@ -568,10 +574,13 @@ class LogLikelihoodEvaluator:
         for i, idx in enumerate(self.active_indices):
             full_theta[idx] = theta_sub[i]
 
+        # ODE solver only uses first 20 params — pass truncated theta
+        full_theta_ode = full_theta[:20] if len(full_theta) > 20 else full_theta
+
         # Solve TSM
         try:
             with timed(self.timing, "tsm.solve_tsm"):
-                t_arr, x0, sig2 = self.tsm.solve_tsm(full_theta)
+                t_arr, x0, sig2 = self.tsm.solve_tsm(full_theta_ode)
         except Exception as e:
             self.health.n_tsm_fail += 1
             # ERROR/OFF mode: silent
@@ -696,6 +705,10 @@ class LogLikelihoodEvaluator:
         self.health.n_var_raw_nonfinite += int(var_health.get("n_var_raw_nonfinite", 0))
         self.health.n_var_total_clipped += int(var_health.get("n_var_total_clipped", 0))
 
+        # Add viscoelastic prior penalty if configured
+        if self.ve_prior is not None:
+            logL += self.ve_prior.log_prior(theta_sub)
+
         # Track evaluation
         self.theta_history.append(theta_sub.copy())
         self.logL_history.append(logL)
@@ -716,6 +729,49 @@ class LogLikelihoodEvaluator:
         logL_MAP = self.logL_history[idx_max]
 
         return theta_MAP, logL_MAP
+
+
+class ViscoelasticPrior:
+    """
+    Informative Gaussian prior for SLS viscoelastic parameters.
+
+    theta[20] = log10(tau/1s): Literature range τ ∈ [1, 100] s → log10 ∈ [0, 2]
+    theta[21] = E_0/E_inf:   Literature range ∈ [2, 5] (Towler 2003)
+
+    The prior adds a penalty term:
+        log_prior = -0.5 * Σ ((θ_i - μ_i) / σ_i)^2
+
+    Used when --viscoelastic is enabled but no mechanical measurement data
+    is available. This ensures VE params stay within physically plausible ranges.
+    """
+
+    def __init__(
+        self,
+        active_indices: List[int],
+        mu: Optional[Dict[int, float]] = None,
+        sigma: Optional[Dict[int, float]] = None,
+    ):
+        # VE param indices in the full theta vector
+        self.ve_indices = [20, 21]
+        self.active_indices = list(active_indices)
+
+        # Default literature-informed priors
+        self.mu = mu or {20: 1.0, 21: 3.0}  # log10(10s)=1.0, ratio=3.0
+        self.sigma = sigma or {20: 0.5, 21: 1.0}  # fairly broad
+
+        # Map: which positions in theta_sub correspond to VE params?
+        self._sub_positions = {}
+        for ve_idx in self.ve_indices:
+            if ve_idx in self.active_indices:
+                self._sub_positions[ve_idx] = self.active_indices.index(ve_idx)
+
+    def log_prior(self, theta_sub: np.ndarray) -> float:
+        """Compute log-prior penalty for VE params in theta_sub."""
+        lp = 0.0
+        for ve_idx, sub_pos in self._sub_positions.items():
+            val = theta_sub[sub_pos]
+            lp -= 0.5 * ((val - self.mu[ve_idx]) / self.sigma[ve_idx]) ** 2
+        return lp
 
 
 class DeepONetEvaluator:
