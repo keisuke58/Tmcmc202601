@@ -26,7 +26,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional
 
-
 RUN_ID_RE = re.compile(r"^sig(?P<sig>\d{4})_cov(?P<cov>\d{4})_np(?P<np>\d{4})_ns(?P<ns>\d{2})$")
 END_RE = re.compile(r"^END\s+(?P<ts>.+?)\s+rc=(?P<rc>-?\d+)\s*$")
 START_RE = re.compile(r"^START\s+(?P<ts>.+?)\s*$")

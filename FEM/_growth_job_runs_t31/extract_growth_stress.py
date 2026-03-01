@@ -15,6 +15,7 @@ Outputs in same directory:
   stress_CONDITION.csv   -- per-element data (LOAD step)
   growth_summary.csv     -- one row per condition
 """
+
 from __future__ import print_function
 import sys
 import os

@@ -28,6 +28,7 @@ Usage
       --nx 20 --ny 20 --n-macro 100 --n-react-sub 50 \\
       --out-dir _results_2d/dh_baseline
 """
+
 import argparse
 import json
 import time

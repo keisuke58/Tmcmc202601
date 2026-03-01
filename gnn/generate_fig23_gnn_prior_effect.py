@@ -11,6 +11,7 @@ Compares:
   - GNN-informed prior TMCMC (gnn_test_dh or gnn_v2_dh)
   - GNN/MLP predicted values (vertical lines / bars)
 """
+
 import json
 from pathlib import Path
 

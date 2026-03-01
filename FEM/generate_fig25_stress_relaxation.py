@@ -8,6 +8,7 @@ Shows how commensal (high E, slow τ) retains stress while dysbiotic relaxes qui
 
 Output: FEM/figures/paper_final/Fig25_stress_relaxation.{png,pdf}
 """
+
 import sys
 from pathlib import Path
 

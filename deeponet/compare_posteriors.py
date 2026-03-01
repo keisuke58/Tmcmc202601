@@ -7,6 +7,7 @@ Loads samples from both runs and generates comparison plots:
   - DI / E summary statistics comparison
   - Trajectory comparison (MAP from each)
 """
+
 import sys
 import json
 import numpy as np

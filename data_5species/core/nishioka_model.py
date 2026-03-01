@@ -1,6 +1,10 @@
-import numpy as np
 import json
+import logging
 import os
+
+import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # 1. JSON Definition
 INTERACTION_GRAPH_JSON = {
@@ -260,7 +264,7 @@ def get_model_constants():
         with open(config_path, "r") as f:
             constants = json.load(f)
     except FileNotFoundError:
-        print(f"Warning: Constants file not found at {config_path}. Using hardcoded defaults.")
+        logger.warning("Constants file not found at %s. Using hardcoded defaults.", config_path)
         # Minimal fallback
         constants = {
             "active_species": [0, 1, 2, 3, 4],

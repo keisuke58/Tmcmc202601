@@ -49,6 +49,15 @@ jobs:
             --cov-fail-under=0
         timeout-minutes: 10
 
+      - name: Run data_5species tests
+        run: |
+          python -m pytest data_5species/ -v --tb=short -x \
+            --ignore=data_5species/_runs/ \
+            -k "not slow and not integration" \
+            --no-cov
+        timeout-minutes: 5
+        continue-on-error: true
+
       - name: Upload coverage
         uses: actions/upload-artifact@v6
         with:

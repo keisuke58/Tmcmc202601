@@ -35,6 +35,7 @@ Usage
 -----
     python hamilton_pde_jaxfem.py [--setup-only] [--nx 20] [--ny 20]
 """
+
 import argparse
 import sys
 from pathlib import Path

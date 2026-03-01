@@ -10,6 +10,7 @@ Usage
   python plot_stress_3d.py
   python plot_stress_3d.py --conditions commensal_static dh_baseline
 """
+
 import argparse
 import json
 from pathlib import Path

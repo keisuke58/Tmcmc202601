@@ -75,7 +75,7 @@ def check_running():
                     if lines:
                         last_line = lines[-1].strip()
                         print(f"  最新ログ: {last_line[:100]}...")
-            except:
+            except OSError:
                 pass
         return
 

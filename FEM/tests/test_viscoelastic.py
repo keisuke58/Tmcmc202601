@@ -5,6 +5,7 @@ Unit tests for viscoelastic and Mooney-Rivlin material models.
 Run from Tmcmc202601/FEM/:
     python -m pytest tests/test_viscoelastic.py -v
 """
+
 import sys
 from pathlib import Path
 
@@ -29,7 +30,6 @@ from material_models import (
     PRONY_TAU_HEALTHY,
     PRONY_TAU_DEGRADED,
 )
-
 
 # ── Mooney-Rivlin tests ──────────────────────────────────────────────
 

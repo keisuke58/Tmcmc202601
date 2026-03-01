@@ -19,6 +19,7 @@ Usage
 -----
   python3 compare_conditions_late.py
 """
+
 import os
 import numpy as np
 import matplotlib

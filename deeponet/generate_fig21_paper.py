@@ -8,6 +8,7 @@ Creates a compact 2-panel figure:
 
 Uses saved results from nuts_4condition_comparison.json.
 """
+
 import json
 import numpy as np
 import matplotlib

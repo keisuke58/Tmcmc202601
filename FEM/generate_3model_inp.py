@@ -18,6 +18,7 @@ Usage
   python generate_3model_inp.py
   python generate_3model_inp.py --conditions dh_baseline dysbiotic_static
 """
+
 import argparse
 import json
 import os

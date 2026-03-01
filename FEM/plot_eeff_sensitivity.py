@@ -16,6 +16,7 @@ Usage
   python3 plot_eeff_sensitivity.py [--csv _eeff_sensitivity_runs/eeff_sensitivity_summary.csv]
                                    [--out-dir figures]
 """
+
 import argparse
 import os
 import csv

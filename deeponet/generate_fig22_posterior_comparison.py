@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Fig 22: DeepONet vs ODE posterior comparison (paper quality)."""
+
 import json
 import numpy as np
 from pathlib import Path
@@ -84,7 +85,7 @@ def plot_kde(ax, data, color, label, alpha_fill=0.25):
         y = kde(xg)
         ax.plot(xg, y, color=color, lw=1.5, label=label)
         ax.fill_between(xg, y, alpha=alpha_fill, color=color)
-    except:
+    except (np.linalg.LinAlgError, ValueError):
         ax.hist(data, bins=30, alpha=0.4, density=True, color=color, label=label)
 
 

@@ -8,7 +8,6 @@ Decoder: z -> θ (20)
 Uses reparameterization trick for training.
 """
 
-
 import torch
 import torch.nn as nn
 

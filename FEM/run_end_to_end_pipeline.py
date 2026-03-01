@@ -31,13 +31,17 @@ Usage
   # Custom theta:
   python run_end_to_end_pipeline.py --theta-json /path/to/theta_MAP.json
 """
+
 import argparse
 import json
+import logging
 import sys
 import time
 from pathlib import Path
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 _HERE = Path(__file__).resolve().parent
 _TMCMC_ROOT = _HERE.parent
@@ -130,7 +134,7 @@ def step_abaqus_inp(results_dir, tooth="T23"):
     """Generate two-layer Tie model INP from DI CSV."""
     di_csv = Path(results_dir) / "abaqus_field_2d.csv"
     if not di_csv.exists():
-        print(f"[INP] Skipping: {di_csv} not found")
+        logger.info("Skipping: %s not found", di_csv)
         return None
 
     try:
@@ -169,12 +173,13 @@ def run_pipeline(args):
     elif args.condition in CONDITION_RUNS:
         theta_path = str(CONDITION_RUNS[args.condition] / "theta_MAP.json")
     else:
-        print(f"[ERROR] Unknown condition: {args.condition}")
-        print(f"  Available: {list(CONDITION_RUNS.keys())}")
+        logger.error(
+            "Unknown condition: %s. Available: %s", args.condition, list(CONDITION_RUNS.keys())
+        )
         sys.exit(1)
 
     if not Path(theta_path).exists():
-        print(f"[ERROR] theta_MAP.json not found: {theta_path}")
+        logger.error("theta_MAP.json not found: %s", theta_path)
         sys.exit(1)
 
     theta = load_theta(theta_path)
@@ -215,53 +220,55 @@ def run_pipeline(args):
         )
 
     # ── Header ────────────────────────────────────────────────────
-    print("=" * 60)
-    print("End-to-End Biofilm FEM Pipeline")
-    print("=" * 60)
-    print(f"  Condition : {args.condition}")
-    print(f"  Theta from: {theta_path}")
-    print(f"  Grid      : {cfg.Nx}x{cfg.Ny}")
-    print(f"  n_macro   : {cfg.n_macro}")
-    print(f"  Output    : {out_dir}")
-    print(f"  Steps     : Hamilton+Nutrient -> CSV -> {'INP -> ' if not args.no_inp else ''}Viz")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("End-to-End Biofilm FEM Pipeline")
+    logger.info("=" * 60)
+    logger.info("  Condition : %s", args.condition)
+    logger.info("  Theta from: %s", theta_path)
+    logger.info("  Grid      : %dx%d", cfg.Nx, cfg.Ny)
+    logger.info("  n_macro   : %d", cfg.n_macro)
+    logger.info("  Output    : %s", out_dir)
+    logger.info(
+        "  Steps     : Hamilton+Nutrient -> CSV -> %sViz", "INP -> " if not args.no_inp else ""
+    )
+    logger.info("=" * 60)
 
     # ── STEP 1: Hamilton + Nutrient ───────────────────────────────
-    print("\n[STEP 1/3] 2D Hamilton + Nutrient PDE coupling...")
+    logger.info("[STEP 1/3] 2D Hamilton + Nutrient PDE coupling...")
     t1 = time.perf_counter()
     step_hamilton_nutrient(theta, args.condition, cfg, out_dir)
     dt1 = time.perf_counter() - t1
-    print(f"  -> {dt1:.1f}s")
+    logger.info("  -> %.1fs", dt1)
 
     # ── STEP 2: Abaqus INP (optional) ────────────────────────────
     if not args.no_inp:
-        print(f"\n[STEP 2/3] Abaqus INP generation (tooth={args.tooth})...")
+        logger.info("[STEP 2/3] Abaqus INP generation (tooth=%s)...", args.tooth)
         t2 = time.perf_counter()
         step_abaqus_inp(out_dir, tooth=args.tooth)
         dt2 = time.perf_counter() - t2
-        print(f"  -> {dt2:.1f}s")
+        logger.info("  -> %.1fs", dt2)
     else:
-        print("\n[STEP 2/3] Skipped (--no-inp)")
+        logger.info("[STEP 2/3] Skipped (--no-inp)")
         dt2 = 0.0
 
     # ── STEP 3: Visualization ─────────────────────────────────────
-    print("\n[STEP 3/3] Visualization...")
+    logger.info("[STEP 3/3] Visualization...")
     t3 = time.perf_counter()
     step_visualize(out_dir, args.condition)
     dt3 = time.perf_counter() - t3
-    print(f"  -> {dt3:.1f}s")
+    logger.info("  -> %.1fs", dt3)
 
     # ── Summary ───────────────────────────────────────────────────
     total = time.perf_counter() - t_start
-    print(f"\n{'=' * 60}")
-    print("Pipeline complete!")
-    print(f"  Hamilton+Nutrient : {dt1:6.1f}s")
+    logger.info("=" * 60)
+    logger.info("Pipeline complete!")
+    logger.info("  Hamilton+Nutrient : %6.1fs", dt1)
     if not args.no_inp:
-        print(f"  Abaqus INP        : {dt2:6.1f}s")
-    print(f"  Visualization     : {dt3:6.1f}s")
-    print(f"  Total             : {total:6.1f}s")
-    print(f"  Output dir        : {out_dir}")
-    print(f"{'=' * 60}")
+        logger.info("  Abaqus INP        : %6.1fs", dt2)
+    logger.info("  Visualization     : %6.1fs", dt3)
+    logger.info("  Total             : %6.1fs", total)
+    logger.info("  Output dir        : %s", out_dir)
+    logger.info("=" * 60)
 
     # ── Save pipeline metadata ────────────────────────────────────
     meta = {
@@ -292,6 +299,7 @@ def run_pipeline(args):
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(
         description="End-to-end biofilm FEM pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,

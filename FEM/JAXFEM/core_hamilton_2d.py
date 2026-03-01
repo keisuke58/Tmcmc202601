@@ -7,7 +7,6 @@ from .core_hamilton_1d import (
     make_initial_state,
 )
 
-
 jax.config.update("jax_enable_x64", True)
 
 

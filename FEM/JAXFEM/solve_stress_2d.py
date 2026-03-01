@@ -20,6 +20,7 @@ Usage:
     python solve_stress_2d.py --condition dh_baseline   # from TMCMC result
     python solve_stress_2d.py --from-npy phi.npy c.npy  # from pre-computed fields
 """
+
 import argparse
 import json
 import sys
@@ -39,7 +40,6 @@ from material_models import (
     compute_E_eps_synergy,
     compute_di,
 )
-
 
 # ============================================================================
 # 2D QUAD4 FEM Core

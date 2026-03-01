@@ -17,6 +17,7 @@ Usage:
   python compare_di_alternatives.py              # synthetic test data
   python compare_di_alternatives.py --samples    # posterior samples (if available)
 """
+
 from __future__ import annotations
 
 import argparse

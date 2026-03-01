@@ -38,7 +38,6 @@ The orientation (e1 direction) is defined once globally via *ORIENTATION.
 import sys
 import math
 
-
 # ---------------------------------------------------------------------------
 # Defaults
 # ---------------------------------------------------------------------------

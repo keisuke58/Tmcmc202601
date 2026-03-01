@@ -12,7 +12,6 @@ from scipy.sparse.linalg import (
 from skimage import measure  # for marching cubes
 import xml.etree.ElementTree as ET
 
-
 # Sub-Functions
 
 # ----------------------------------------- 1. sub-functions for geometry processing
@@ -553,7 +552,7 @@ def read_vol_mesh(path):
     try:
         # Try to access label data and store in L
         L = mesh.cell_data["gmsh:geometrical"][0]
-    except:
+    except (KeyError, IndexError, TypeError):
         # If label data inaccessible label everything as zero
         L = np.zeros(len(T))
     return V, T, L

@@ -12,6 +12,7 @@ Usage
 -----
   python plot_stress_3d_unified.py
 """
+
 import json
 from pathlib import Path
 

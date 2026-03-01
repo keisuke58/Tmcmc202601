@@ -12,9 +12,12 @@ Usage:
 
 import argparse
 import json
+import logging
 from pathlib import Path
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 import torch
 
 from graph_builder import build_pyg_data
@@ -140,7 +143,7 @@ def main():
         }
         with open(out_path, "w") as f:
             json.dump(prior, f, indent=2)
-        print(f"\nSaved prior to {out_path}")
+        logger.info("Saved prior to %s", out_path)
 
     return 0
 

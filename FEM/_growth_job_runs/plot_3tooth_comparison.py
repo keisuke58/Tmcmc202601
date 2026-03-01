@@ -4,6 +4,7 @@ plot_3tooth_comparison.py
 =========================
 Cross-tooth comparison: T23, T30, T31 × 4 conditions
 """
+
 import os
 import csv
 import numpy as np

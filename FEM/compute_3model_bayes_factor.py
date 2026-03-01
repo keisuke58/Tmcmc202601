@@ -16,6 +16,7 @@ Models:
 Usage:
   python compute_3model_bayes_factor.py [--n-samples 50] [--workers 4]
 """
+
 import json
 import sys
 import time

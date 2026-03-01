@@ -10,6 +10,7 @@ stiffness measurements from Pattem et al. 2018/2021 and Gloag et al. 2019.
 Usage:
   python plot_material_model_literature.py
 """
+
 import json
 from pathlib import Path
 

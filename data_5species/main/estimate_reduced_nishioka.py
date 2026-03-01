@@ -2643,22 +2643,23 @@ def main():
             notifier=notifier,
         )
 
-        # Print batch summary
-        print("\n" + "=" * 70)
-        print("BATCH PROCESSING COMPLETE")
-        print("=" * 70)
+        # Log batch summary
+        logger.info("\n" + "=" * 70)
+        logger.info("BATCH PROCESSING COMPLETE")
+        logger.info("=" * 70)
         n_success = sum(1 for r in batch_results.values() if r.get("success", False))
-        print(f"Results: {n_success}/{len(batch_results)} successful")
-        print("-" * 70)
+        logger.info("Results: %d/%d successful", n_success, len(batch_results))
+        logger.info("-" * 70)
         for name, result in batch_results.items():
             if result.get("success", False):
-                print(
-                    f"  ✓ {name}: LogL={result.get('logL_max', 'N/A'):.2f}, "
-                    f"Converged={result.get('converged', 'N/A')}"
+                logl = result.get("logL_max")
+                logl_str = f"{logl:.2f}" if isinstance(logl, (int, float)) else "N/A"
+                logger.info(
+                    "  ✓ %s: LogL=%s, Converged=%s", name, logl_str, result.get("converged", "N/A")
                 )
             else:
-                print(f"  ✗ {name}: FAILED - {result.get('error', 'Unknown error')}")
-        print("=" * 70)
+                logger.error("  ✗ %s: FAILED - %s", name, result.get("error", "Unknown error"))
+        logger.info("=" * 70)
 
         return  # Exit after batch processing
 
@@ -3352,62 +3353,77 @@ def main():
 
     logger.info(f"Estimation complete. Results saved to {output_dir}")
 
-    # Print summary
-    print("\n" + "=" * 80)
-    print("ESTIMATION SUMMARY (Nishioka v2)")
-    print("=" * 80)
-    print(f"Condition: {args.condition} {args.cultivation}")
-    print(f"Elapsed Time: {results['elapsed_time']:.2f}s")
-    print("-" * 80)
-
-    # Convergence diagnostics
+    # Log summary
     mcmc_diag = results["mcmc_diagnostics"]
-    print("CONVERGENCE DIAGNOSTICS:")
-    print(
-        f"  R-hat max:     {mcmc_diag['rhat_max']:.4f} {'✓' if mcmc_diag['converged_rhat'] else '✗'} (target < 1.1)"
+    logger.info("\n" + "=" * 80)
+    logger.info("ESTIMATION SUMMARY (Nishioka v2)")
+    logger.info("=" * 80)
+    logger.info("Condition: %s %s", args.condition, args.cultivation)
+    logger.info("Elapsed Time: %.2fs", results["elapsed_time"])
+    logger.info("-" * 80)
+    logger.info("CONVERGENCE DIAGNOSTICS:")
+    logger.info(
+        "  R-hat max:     %.4f %s (target < 1.1)",
+        mcmc_diag["rhat_max"],
+        "✓" if mcmc_diag["converged_rhat"] else "✗",
     )
-    print(
-        f"  ESS min:       {mcmc_diag['ess_min']:.1f} {'✓' if mcmc_diag['converged_ess'] else '✗'} (target > 100)"
+    logger.info(
+        "  ESS min:       %.1f %s (target > 100)",
+        mcmc_diag["ess_min"],
+        "✓" if mcmc_diag["converged_ess"] else "✗",
     )
-    print(f"  Overall:       {'CONVERGED' if mcmc_diag['converged'] else 'NOT CONVERGED'}")
-    print("-" * 80)
+    logger.info("  Overall:       %s", "CONVERGED" if mcmc_diag["converged"] else "NOT CONVERGED")
+    logger.info("-" * 80)
 
-    # Model evidence (if computed)
     if results["evidence"] is not None:
         ev = results["evidence"]
-        print("MODEL EVIDENCE:")
-        print(
-            f"  log(p(D)):     {ev['log_evidence']:.2f} ± {ev['log_evidence_se']:.2f} ({ev['method']})"
+        logger.info("MODEL EVIDENCE:")
+        logger.info(
+            "  log(p(D)):     %.2f ± %.2f (%s)",
+            ev["log_evidence"],
+            ev["log_evidence_se"],
+            ev["method"],
         )
-        print(f"  BIC:           {ev['BIC']:.2f}")
-        print("-" * 80)
+        logger.info("  BIC:           %.2f", ev["BIC"])
+        logger.info("-" * 80)
 
-    # Parameter estimates with HDI
     ci = results["credible_intervals"]
-    print("PARAMETER ESTIMATES (with 95% HDI):")
-    print("-" * 80)
-    print(
-        f"{'Name':<8} {'MAP':>10} {'Mean':>10} {'HDI_low':>10} {'HDI_high':>10} {'R-hat':>8} {'ESS':>8}"
+    logger.info("PARAMETER ESTIMATES (with 95%% HDI):")
+    logger.info("-" * 80)
+    logger.info(
+        "%-8s %10s %10s %10s %10s %8s %8s",
+        "Name",
+        "MAP",
+        "Mean",
+        "HDI_low",
+        "HDI_high",
+        "R-hat",
+        "ESS",
     )
-    print("-" * 80)
+    logger.info("-" * 80)
 
     for i, name in enumerate(results["param_names"]):
-        # Use MAP_active/mean_active which are correctly extracted for active indices
         map_val = MAP_active[i]
         mean_val = mean_active[i]
         hdi_l = ci["hdi_lower"][i]
         hdi_h = ci["hdi_upper"][i]
         rhat_val = mcmc_diag["rhat"][i]
         ess_val = mcmc_diag["ess"][i]
-
         rhat_str = f"{rhat_val:.3f}" if not np.isnan(rhat_val) else "N/A"
-        print(
-            f"{name:<8} {map_val:>10.4f} {mean_val:>10.4f} {hdi_l:>10.4f} {hdi_h:>10.4f} {rhat_str:>8} {ess_val:>8.1f}"
+        logger.info(
+            "%-8s %10.4f %10.4f %10.4f %10.4f %8s %8.1f",
+            name,
+            map_val,
+            mean_val,
+            hdi_l,
+            hdi_h,
+            rhat_str,
+            ess_val,
         )
 
-    print("=" * 80)
-    print(f"\nResults saved to: {output_dir}")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("Results saved to: %s", output_dir)
+    logger.info("=" * 80)
 
     # =========================================================================
     # Send Slack notification on completion (single condition mode)

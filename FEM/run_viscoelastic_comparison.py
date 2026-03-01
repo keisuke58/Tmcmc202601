@@ -13,6 +13,7 @@ Generates INP files under _viscoelastic_comparison/{condition}_{model}/ for:
     - mr_visco   : Mooney-Rivlin + Prony viscoelastic
     - umat_visco : UMAT F=Fe*Fv*Fg
 """
+
 import argparse
 import os
 import subprocess

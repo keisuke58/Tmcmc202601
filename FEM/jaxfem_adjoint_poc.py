@@ -29,12 +29,12 @@ Usage
   # Quick test:
   python jaxfem_adjoint_poc.py --quick
 """
+
 import argparse
 import json
 import sys
 import time
 from pathlib import Path
-
 
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))

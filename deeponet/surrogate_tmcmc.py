@@ -34,7 +34,6 @@ sys.path.insert(0, str(PROJECT_ROOT / "data_5species"))
 from improved_5species_jit import BiofilmNewtonSolver5S
 from deeponet_hamilton import DeepONet
 
-
 # ============================================================
 # Surrogate likelihood
 # ============================================================
@@ -205,7 +204,7 @@ def simple_tmcmc(
             particles[:, i] = rng.uniform(lo, hi, n_particles)
 
     # Evaluate initial log-likelihoods
-    print(f"TMCMC: {n_particles} particles, {d_free} free dims")
+    logger.info("TMCMC: %d particles, %d free dims", n_particles, d_free)
     t0 = time.time()
 
     logL = np.array([log_likelihood(p) for p in particles])
@@ -289,11 +288,14 @@ def simple_tmcmc(
         stage_times.append(dt)
 
         accept_rate = n_accept / n_particles
-        print(
-            f"  Stage {stage:2d}: beta={beta:.4f}, "
-            f"accept={accept_rate:.2f}, "
-            f"logL=[{logL.min():.1f}, {logL.max():.1f}], "
-            f"{dt:.1f}s"
+        logger.info(
+            "  Stage %2d: beta=%.4f, accept=%.2f, logL=[%.1f, %.1f], %.1fs",
+            stage,
+            beta,
+            accept_rate,
+            logL.min(),
+            logL.max(),
+            dt,
         )
 
     total_time = time.time() - t0
@@ -375,9 +377,9 @@ def run_comparison(n_particles: int = 200, seed: int = 42):
     data = phi_down[idx_sparse] + rng.normal(0, sigma_obs, (len(obs_times), 5))
 
     # ----- ODE-based TMCMC -----
-    print("=" * 60)
-    print("ODE-based TMCMC")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("ODE-based TMCMC")
+    logger.info("=" * 60)
 
     def ode_log_likelihood(theta):
         try:
@@ -410,9 +412,10 @@ def run_comparison(n_particles: int = 200, seed: int = 42):
     result_don = simple_tmcmc(don_logL, bounds, n_particles=n_particles, seed=seed)
 
     # ----- Comparison -----
-    print("\n" + "=" * 60)
-    print("COMPARISON")
-    print("=" * 60)
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("COMPARISON")
+    logger.info("=" * 60)
     speedup = result_ode["total_time"] / result_don["total_time"]
     print(f"  ODE total time:     {result_ode['total_time']:.1f}s")
     print(f"  DeepONet total time: {result_don['total_time']:.1f}s")
@@ -420,18 +423,20 @@ def run_comparison(n_particles: int = 200, seed: int = 42):
 
     # MAP comparison
     species = ["So", "An", "Vd", "Fn", "Pg"]
-    print(f"\n  {'Param':<6} {'True':>8} {'ODE MAP':>8} {'DON MAP':>8}")
-    print("  " + "-" * 34)
+    logger.info("  %-6s %8s %8s %8s", "Param", "True", "ODE MAP", "DON MAP")
+    logger.info("  %s", "-" * 34)
     free_dims = [i for i in range(20) if abs(bounds[i, 1] - bounds[i, 0]) > 1e-12]
     for i in free_dims[:10]:  # show first 10
         name = BiofilmNewtonSolver5S.THETA_NAMES[i]
-        print(
-            f"  {name:<6} {theta_true[i]:>8.3f} "
-            f"{result_ode['theta_MAP'][i]:>8.3f} "
-            f"{result_don['theta_MAP'][i]:>8.3f}"
+        logger.info(
+            "  %-6s %8.3f %8.3f %8.3f",
+            name,
+            theta_true[i],
+            result_ode["theta_MAP"][i],
+            result_don["theta_MAP"][i],
         )
     if len(free_dims) > 10:
-        print(f"  ... ({len(free_dims) - 10} more)")
+        logger.info("  ... (%d more)", len(free_dims) - 10)
 
     return result_ode, result_don
 
@@ -461,4 +466,5 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     main()

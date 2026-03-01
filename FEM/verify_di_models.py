@@ -18,6 +18,7 @@ Usage:
   python verify_di_models.py
   python verify_di_models.py --verbose
 """
+
 from __future__ import annotations
 
 import argparse

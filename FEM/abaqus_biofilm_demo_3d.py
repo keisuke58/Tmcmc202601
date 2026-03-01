@@ -33,7 +33,6 @@ binary (legacy)
 import sys
 import os
 
-
 # ---------------------------------------------------------------------------
 # Material mapping  (pure Python, no numpy – Abaqus ships Python 2.7)
 # ---------------------------------------------------------------------------

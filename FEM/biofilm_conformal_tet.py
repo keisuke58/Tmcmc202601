@@ -743,8 +743,21 @@ def write_abaqus_inp(
                 f.write("*Hyperelastic, Mooney-Rivlin\n")
                 f.write(" %.6g, %.6g, %.6g\n" % (C10_mr, C01_mr, D1_mr))
                 if viscoelastic:
-                    f.write("*Viscoelastic, time=PRONY\n")
-                    f.write(" %.6g, %.6g, %.6g\n" % (prony_g1, prony_k1, prony_tau1))
+                    if prony_di_dependent:
+                        from material_models import compute_viscoelastic_params_di
+
+                        di_bin_center = (b + 0.5) / n_bins
+                        ve_bin = compute_viscoelastic_params_di(
+                            np.array([di_bin_center]),
+                            di_scale=1.0,
+                        )
+                        g1_bin = float(ve_bin["E_1"][0] / ve_bin["E_0"][0])
+                        tau_bin = float(ve_bin["tau"][0])
+                        f.write("*Viscoelastic, time=PRONY\n")
+                        f.write(" %.6g, %.6g, %.6g\n" % (g1_bin, g1_bin, tau_bin))
+                    else:
+                        f.write("*Viscoelastic, time=PRONY\n")
+                        f.write(" %.6g, %.6g, %.6g\n" % (prony_g1, prony_k1, prony_tau1))
                 if growth_eigenstrain > 0.0:
                     f.write("*Expansion, type=ISO, zero=0.0\n")
                     f.write(" 1.0\n")
@@ -755,8 +768,22 @@ def write_abaqus_inp(
                 f.write("*Hyperelastic, Neo Hooke\n")
                 f.write(" %.6g, %.6g\n" % (C10, D1))
                 if viscoelastic:
-                    f.write("*Viscoelastic, time=PRONY\n")
-                    f.write(" %.6g, %.6g, %.6g\n" % (prony_g1, prony_k1, prony_tau1))
+                    if prony_di_dependent:
+                        # DI-dependent Prony: g1 and tau vary per bin
+                        from material_models import compute_viscoelastic_params_di
+
+                        di_bin_center = (b + 0.5) / n_bins
+                        ve_bin = compute_viscoelastic_params_di(
+                            np.array([di_bin_center]),
+                            di_scale=1.0,
+                        )
+                        g1_bin = float(ve_bin["E_1"][0] / ve_bin["E_0"][0])
+                        tau_bin = float(ve_bin["tau"][0])
+                        f.write("*Viscoelastic, time=PRONY\n")
+                        f.write(" %.6g, %.6g, %.6g\n" % (g1_bin, g1_bin, tau_bin))
+                    else:
+                        f.write("*Viscoelastic, time=PRONY\n")
+                        f.write(" %.6g, %.6g, %.6g\n" % (prony_g1, prony_k1, prony_tau1))
                 if growth_eigenstrain > 0.0:
                     f.write("*Expansion, type=ISO, zero=0.0\n")
                     f.write(" 1.0\n")
@@ -845,8 +872,13 @@ def write_abaqus_inp(
                 )
             f.write("*Step, name=GROWTH, nlgeom=%s\n" % nlgeom_str)
             f.write(" Growth-induced eigenstrain: constrained expansion by tooth adhesion\n")
-            f.write("*Static\n")
-            f.write(" 1.0, 1.0, 1e-6, 1.0\n")
+            if nlgeom or neo_hookean or mooney_rivlin:
+                # Hyperelastic needs smaller initial increment for convergence
+                f.write("*Static\n")
+                f.write(" 0.1, 1.0, 1e-8, 0.5\n")
+            else:
+                f.write("*Static\n")
+                f.write(" 1.0, 1.0, 1e-6, 1.0\n")
             f.write("**\n")
             # Apply temperature field to nodes
             # alpha_T = 1.0 (set in *Expansion) → thermal strain = T per direction
@@ -873,15 +905,24 @@ def write_abaqus_inp(
 
         # ── Step 2 (or Step 1 if no growth): LOAD — external GCF pressure ──────
         f.write("** =====  STEP%s: LOAD  =====\n" % (" 2" if growth_eigenstrain > 0.0 else ""))
-        f.write("*Step, name=LOAD, nlgeom=%s\n" % nlgeom_str)
+        if viscoelastic or umat_visco:
+            f.write("*Step, name=LOAD, nlgeom=%s, inc=10000\n" % nlgeom_str)
+        else:
+            f.write("*Step, name=LOAD, nlgeom=%s\n" % nlgeom_str)
         f.write(" Biofilm pressure loading (%.3g Pa inward on outer face)\n" % pressure)
         if viscoelastic or umat_visco:
             # Time-dependent analysis for viscoelastic material
-            t_period = 5.0 * prony_tau1  # 5× relaxation time for full response
+            if prony_di_dependent:
+                from material_models import TAU_MAX_S
+
+                tau_max = TAU_MAX_S  # max τ across all DI values
+            else:
+                tau_max = prony_tau1
+            t_period = 5.0 * tau_max  # 5× relaxation time for full response
             f.write("*Visco\n")
-            f.write(" 0.01, %.4g, 1e-6, %.4g\n" % (t_period, t_period / 10.0))
+            f.write(" 1.0, %.4g, 1e-8, %.4g\n" % (t_period, t_period / 5.0))
             f.write(
-                "** Viscoelastic step: t_period=%.4g s (5*tau=%.4g s)\n" % (t_period, prony_tau1)
+                "** Viscoelastic step: t_period=%.4g s (5*tau_max=%.4g s)\n" % (t_period, tau_max)
             )
         elif nlgeom:
             f.write("*Static\n")
@@ -1380,7 +1421,7 @@ def main():
         args.di_csv,
         args.n_layers,
         args.thickness,
-        nlgeom=(args.mode == "biofilm"),
+        nlgeom=(args.mode == "biofilm") and not args.viscoelastic,
         growth_eigenstrain=alpha_eff,
         T_nodes=T_nodes,
         neo_hookean=args.neo_hookean,

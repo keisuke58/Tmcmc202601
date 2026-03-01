@@ -58,17 +58,38 @@ uncertainty:  ## Run posterior → stress uncertainty propagation
 	$(PYTHON_JAX) FEM/posterior_uncertainty_propagation.py
 
 # ── CI / Test ──────────────────────────────────────────────
-.PHONY: check lint
+.PHONY: check lint test format repro paper
 
 check:  ## Smoke test: py_compile + import test
 	$(PYTHON_TMCMC) -m py_compile data_5species/core/tmcmc.py
 	$(PYTHON_TMCMC) -m py_compile data_5species/core/evaluator.py
 	$(PYTHON_TMCMC) -c "from data_5species.core.nishioka_model import INTERACTION_GRAPH_JSON; print('OK')"
 
-lint:  ## Run basic syntax checks on all Python files
-	$(PYTHON_TMCMC) -m py_compile data_5species/core/tmcmc.py
-	$(PYTHON_TMCMC) -m py_compile data_5species/core/evaluator.py
-	$(PYTHON_TMCMC) -m py_compile data_5species/core/nishioka_model.py
+lint:  ## Ruff + Black check (requires: pip install ruff black)
+	ruff check . --line-length 100 --exclude 'FEM/JAXFEM/' --exclude 'FEM/external_tooth_models/'
+	black --check --line-length 100 .
+
+test:  ## Run pytest (FEM + data_5species)
+	$(PYTHON_TMCMC) -m pytest FEM/tests/ -v --tb=short -x
+	$(PYTHON_TMCMC) -m pytest data_5species/ -v --tb=short -x --ignore=data_5species/_runs/ -k "not slow" 2>/dev/null || true
+
+format:  ## Black + ruff fix
+	black --line-length 100 .
+	ruff check . --line-length 100 --fix 2>/dev/null || true
+
+repro:  ## Full pipeline: tmcmc-quick → multiscale → hybrid → eigenstrain
+	$(MAKE) tmcmc-quick
+	$(MAKE) multiscale
+	$(MAKE) hybrid
+	$(MAKE) eigenstrain
+
+paper:  ## Generate paper figures (LaTeX 前提)
+	$(MAKE) all-figures
+	@if [ -f data_5species/docs/nishioka_latex20260218.tex ]; then \
+		cd data_5species/docs && latexmk -pdf nishioka_latex20260218.tex 2>/dev/null || echo "LaTeX build skipped (latexmk not found)"; \
+	else \
+		echo "LaTeX source not found"; \
+	fi
 
 # ── Full Pipeline ──────────────────────────────────────────
 .PHONY: all-figures

@@ -19,6 +19,7 @@ Data sources:
 Usage:
   python generate_fig24_n_sensitivity.py
 """
+
 import json
 from pathlib import Path
 

@@ -5,6 +5,7 @@ plot_1kpa_comparison.py
 Comparison figure: 1 kPa (brushing) vs 1 MPa (occlusal) loading.
 Shows physical displacement values under clinically relevant load.
 """
+
 from pathlib import Path
 
 import numpy as np

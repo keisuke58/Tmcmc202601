@@ -49,7 +49,7 @@ def smooth_curve(x, y, x_new):
         # Clip to valid range [0, 1]
         y_smooth = np.clip(y_smooth, 0.0, 1.0)
         return y_smooth
-    except:
+    except (ValueError, np.linalg.LinAlgError):
         return np.interp(x_new, x, y)
 
 

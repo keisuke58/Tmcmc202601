@@ -35,13 +35,17 @@ Usage
   # Quick sanity test:
   python run_hamilton_2d_nutrient.py --quick-test
 """
+
 import argparse
 import json
+import logging
 import sys
 import time
 from pathlib import Path
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # ── paths ────────────────────────────────────────────────────────────────────
 _HERE = Path(__file__).resolve().parent
@@ -96,9 +100,9 @@ def load_theta(path: str) -> np.ndarray:
         vec = np.array(d["theta_sub"], dtype=np.float64)
     else:
         vec = np.array([d[k] for k in _PARAM_KEYS], dtype=np.float64)
-    print(f"Loaded theta from: {path}")
+    logger.info("Loaded theta from: %s", path)
     for i, (k, v) in enumerate(zip(_PARAM_KEYS, vec)):
-        print(f"  [{i:2d}] {k:5s} = {v:8.4f}")
+        logger.info("  [%2d] %5s = %8.4f", i, k, v)
     return vec
 
 
@@ -140,7 +144,7 @@ def export_abaqus_csv(
                         float(r_pg[ix, iy]),
                     )
                 )
-    print(f"Exported Abaqus CSV -> {out_csv}")
+    logger.info("Exported Abaqus CSV -> %s", out_csv)
 
 
 # ── macro eigenstrain CSV (bridge to P1 Abaqus) ─────────────────────────────
@@ -185,7 +189,7 @@ def export_eigenstrain_csv(
                         float(E_Pa[ix, iy]),
                     )
                 )
-    print(f"Exported eigenstrain CSV -> {out_csv}")
+    logger.info("Exported eigenstrain CSV -> %s", out_csv)
 
 
 # ── run for one condition ────────────────────────────────────────────────────
@@ -264,15 +268,16 @@ def run_condition(theta, condition, cfg, out_dir):
         json.dump(config, f, indent=2)
 
     # Summary
-    print(f"\n{'='*50}")
-    print(f"Condition: {condition}")
-    print(f"  phi shape: {phi_snaps.shape}")
-    print(f"  DI range:  [{di_field[-1].min():.4f}, {di_field[-1].max():.4f}]")
-    print(f"  alpha range: [{alpha_monod.min():.6f}, {alpha_monod.max():.6f}]")
-    print(f"  c_min={c_snaps[-1].min():.4f}  c_max={c_snaps[-1].max():.4f}")
-    print(f"  Elapsed: {elapsed:.1f}s")
-    print(f"  Output: {out_dir}")
-    print(f"{'='*50}")
+    logger.info("")
+    logger.info("=" * 50)
+    logger.info("Condition: %s", condition)
+    logger.info("  phi shape: %s", phi_snaps.shape)
+    logger.info("  DI range:  [%.4f, %.4f]", di_field[-1].min(), di_field[-1].max())
+    logger.info("  alpha range: [%.6f, %.6f]", alpha_monod.min(), alpha_monod.max())
+    logger.info("  c_min=%.4f  c_max=%.4f", c_snaps[-1].min(), c_snaps[-1].max())
+    logger.info("  Elapsed: %.1fs", elapsed)
+    logger.info("  Output: %s", out_dir)
+    logger.info("=" * 50)
 
     return result
 
@@ -348,7 +353,7 @@ def main():
         for cond, run_dir in CONDITION_RUNS.items():
             theta_json = run_dir / "theta_MAP.json"
             if not theta_json.exists():
-                print(f"[skip] {cond}: theta_MAP.json not found at {theta_json}")
+                logger.info("[skip] %s: theta_MAP.json not found at %s", cond, theta_json)
                 continue
             theta = load_theta(str(theta_json))
             out_dir = _HERE / "_results_2d_nutrient" / cond
@@ -359,4 +364,5 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     main()
