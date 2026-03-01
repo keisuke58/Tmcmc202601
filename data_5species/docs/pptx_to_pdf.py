@@ -37,7 +37,7 @@ def rgb_from_pptx(color):
         if color and color.rgb:
             r = color.rgb.__str__()
             return (int(r[0:2], 16), int(r[2:4], 16), int(r[4:6], 16))
-    except:
+    except (AttributeError, ValueError, TypeError):
         pass
     return None
 
@@ -51,7 +51,7 @@ def get_fill_color(shape):
             if fc and fc.rgb:
                 r = fc.rgb.__str__()
                 return (int(r[0:2], 16), int(r[2:4], 16), int(r[4:6], 16))
-    except:
+    except (AttributeError, ValueError, TypeError):
         pass
     return None
 
@@ -65,7 +65,7 @@ def get_bg_color(slide):
             if fc and fc.rgb:
                 r = fc.rgb.__str__()
                 return (int(r[0:2], 16), int(r[2:4], 16), int(r[4:6], 16))
-    except:
+    except (AttributeError, ValueError, TypeError):
         pass
     return (240, 242, 245)  # default SLIDE_BG
 
@@ -92,7 +92,7 @@ def find_font(size=14, bold=False):
         if os.path.exists(fp):
             try:
                 return ImageFont.truetype(fp, size)
-            except:
+            except (OSError, IOError):
                 continue
     return ImageFont.load_default()
 
@@ -137,7 +137,7 @@ for slide_idx, slide in enumerate(prs.slides):
                     border = (int(lc[0:2], 16), int(lc[2:4], 16), int(lc[4:6], 16))
                     lw = max(1, int((line.width or Pt(1)) / 914400 * DPI))
                     draw.rectangle([x, y, x + w, y + h], outline=border, width=lw)
-            except:
+            except (AttributeError, ValueError, TypeError):
                 pass
 
         # Draw pictures
@@ -177,7 +177,7 @@ for slide_idx, slide in enumerate(prs.slides):
                             color = fc
                     elif para.font and para.font.size:
                         sz = int(para.font.size / 12700)
-                except:
+                except (AttributeError, ValueError, TypeError):
                     pass
 
                 font_px = max(8, int(sz * DPI / 72))
@@ -220,7 +220,7 @@ for slide_idx, slide in enumerate(prs.slides):
                             bbox = font.getbbox(line)
                             tw = bbox[2] - bbox[0] if bbox else 0
                             tx = x + w - tw - 4
-                    except:
+                    except (AttributeError, ImportError, ValueError):
                         pass
                     draw.text((tx, ty), line, fill=color, font=font)
                     ty += font_px + 2

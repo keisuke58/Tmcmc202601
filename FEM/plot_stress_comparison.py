@@ -13,6 +13,7 @@ Usage
   python plot_stress_comparison.py --suffix v2
   python plot_stress_comparison.py --conditions commensal_static dh_baseline
 """
+
 import argparse
 import json
 from pathlib import Path

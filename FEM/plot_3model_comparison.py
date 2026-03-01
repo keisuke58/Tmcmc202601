@@ -8,6 +8,7 @@ Key finding: φ_Pg and Virulence models produce identical displacements
 across all conditions (E ≈ 1000 Pa), while DI model shows 30× difference
 (32–909 Pa). This demonstrates DI is the appropriate biomarker.
 """
+
 from pathlib import Path
 
 import numpy as np

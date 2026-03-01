@@ -3,7 +3,6 @@ import jax.numpy as jnp
 
 from .core_hamilton_1d import THETA_DEMO, simulate_hamilton_1d
 
-
 jax.config.update("jax_enable_x64", True)
 
 

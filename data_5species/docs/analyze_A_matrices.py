@@ -7,7 +7,6 @@ import numpy as np
 import seaborn as sns
 from pathlib import Path
 
-
 BASE = "/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/_runs"
 
 RUNS = {

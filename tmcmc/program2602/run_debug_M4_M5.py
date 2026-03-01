@@ -145,8 +145,8 @@ def run_estimation(stage, base_dir, run_id, n_particles):
                 lines = f.readlines()
                 for line in lines[-10:]:
                     print(line.strip())
-        except:
-            pass
+        except (OSError, IOError) as e:
+            print(f"Could not read log: {e}")
         sys.exit(1)
 
     # After run, update theta_MAP.json for next stage

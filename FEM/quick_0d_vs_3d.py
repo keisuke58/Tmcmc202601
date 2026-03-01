@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """quick_0d_vs_3d.py - 0D vs 3D reaction-diffusion comparison."""
+
 import json
 import sys
 import time

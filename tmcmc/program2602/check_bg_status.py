@@ -100,7 +100,7 @@ if runs_dir.exists():
                         config = json.load(f)
                         if "sigma_obs" in config:
                             print(f"   sigma_obs: {config['sigma_obs']}")
-                except:
+                except (json.JSONDecodeError, OSError):
                     pass
 
             # run.logの確認
@@ -114,7 +114,7 @@ if runs_dir.exists():
                             if len(last_line) > 100:
                                 last_line = last_line[:100] + "..."
                             print(f"   最新ログ: {last_line}")
-                except:
+                except OSError:
                     pass
 
             print()

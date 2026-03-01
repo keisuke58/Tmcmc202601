@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Generate corner plot for dh_baseline posterior (paper figure)."""
+
 import sys
 import os
 

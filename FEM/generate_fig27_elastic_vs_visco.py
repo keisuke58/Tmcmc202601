@@ -8,6 +8,7 @@ Top row: viscoelastic σ_vm, Bottom row: difference (elastic - VE).
 
 Output: FEM/figures/paper_final/Fig27_elastic_vs_visco.{png,pdf}
 """
+
 import sys
 from pathlib import Path
 

@@ -3,10 +3,15 @@
 Compute fit_metrics for old 20-free runs that don't have them.
 Uses the Hamilton ODE solver to simulate with saved theta_MAP.
 """
-import sys
+
 import json
-import numpy as np
+import logging
+import sys
 from pathlib import Path
+
+import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # Setup paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -53,7 +58,7 @@ def load_data_for_condition(condition, cultivation):
     cond_name = f"{condition}_{cultivation}"
     csv_path = DATA_ROOT / "processed_data" / f"target_data_{cond_name}_normalized.csv"
     if not csv_path.exists():
-        print(f"  WARNING: {csv_path} not found")
+        logger.warning("%s not found", csv_path)
         return None, None, None
 
     import csv
@@ -91,7 +96,7 @@ def simulate_and_compute_rmse(run_dir, label, condition, cultivation):
     theta_full = np.array(theta_data.get("theta_full", theta_data.get("theta_sub", [])))
 
     if len(theta_full) != 20:
-        print(f"  {label}: theta has {len(theta_full)} values, expected 20")
+        logger.info("  {label}: theta has {len(theta_full)} values, expected 20")
         return None
 
     # Load experimental data
@@ -111,7 +116,7 @@ def simulate_and_compute_rmse(run_dir, label, condition, cultivation):
         )
         t_arr, x0 = solver.run_deterministic(theta_full)
     except Exception as e:
-        print(f"  {label}: Solver failed: {e}")
+        logger.warning("  %s: Solver failed: %s", label, e)
         return None
 
     # Compute φ̄ = φ × ψ at observation times
@@ -142,49 +147,56 @@ def simulate_and_compute_rmse(run_dir, label, condition, cultivation):
 
 
 def main():
-    print("=" * 80)
-    print("FIT METRICS RECOMPUTATION: Old vs New runs")
-    print("=" * 80)
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logger.info("=" * 80)
+    logger.info("FIT METRICS RECOMPUTATION: Old vs New runs")
+    logger.info("=" * 80)
 
     results = {}
     for dirname, label, condition, cultivation in RUNS_TO_ANALYZE:
         run_dir = RUNS / dirname
         if not run_dir.exists():
-            print(f"\n  {label}: directory not found")
+            logger.info("  %s: directory not found", label)
             continue
 
-        # Check if fit_metrics already exists
         existing = run_dir / "fit_metrics.json"
         if existing.exists():
             with open(existing) as f:
                 fm = json.load(f)
             m = fm["MAP"]
-            print(f"\n  {label} (from existing fit_metrics.json)")
+            logger.info("  %s (from existing fit_metrics.json)", label)
         else:
             result = simulate_and_compute_rmse(run_dir, label, condition, cultivation)
             if result is None:
                 continue
             m = result
-            print(f"\n  {label} (recomputed)")
+            logger.info("  %s (recomputed)", label)
 
-        print(f"    Total RMSE = {m['rmse_total']:.4f}")
-        print(f"    {'Species':<16} {'RMSE':>8}")
-        print(f"    {'─'*24}")
+        logger.info("    Total RMSE = %.4f", m["rmse_total"])
+        logger.info("    %-16s %8s", "Species", "RMSE")
+        logger.info("    %s", "─" * 24)
         for i, sp in enumerate(SPECIES):
             flag = " <<<" if m["rmse_per_species"][i] > 0.10 else ""
-            print(f"    {sp:<16} {m['rmse_per_species'][i]:8.4f}{flag}")
+            logger.info("    %-16s %8.4f%s", sp, m["rmse_per_species"][i], flag)
         results[label] = m
 
-    # Summary table
-    print("\n" + "=" * 80)
-    print("SUMMARY: RMSE COMPARISON TABLE")
-    print("=" * 80)
-    print(f"\n  {'Run':<25} {'Total':>8} {'So':>8} {'An':>8} {'Vd':>8} {'Fn':>8} {'Pg':>8}")
-    print(f"  {'─'*73}")
+    logger.info("")
+    logger.info("=" * 80)
+    logger.info("SUMMARY: RMSE COMPARISON TABLE")
+    logger.info("=" * 80)
+    logger.info("  %-25s %8s %8s %8s %8s %8s %8s", "Run", "Total", "So", "An", "Vd", "Fn", "Pg")
+    logger.info("  %s", "─" * 73)
     for label, m in results.items():
         r = m["rmse_per_species"]
-        print(
-            f"  {label:<25} {m['rmse_total']:8.4f} {r[0]:8.4f} {r[1]:8.4f} {r[2]:8.4f} {r[3]:8.4f} {r[4]:8.4f}"
+        logger.info(
+            "  %-25s %8.4f %8.4f %8.4f %8.4f %8.4f %8.4f",
+            label,
+            m["rmse_total"],
+            r[0],
+            r[1],
+            r[2],
+            r[3],
+            r[4],
         )
 
 

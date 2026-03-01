@@ -3,7 +3,6 @@ import jax.numpy as jnp
 
 from jax_rd_nd_demo import solve_nd
 
-
 jax.config.update("jax_enable_x64", True)
 
 

@@ -17,6 +17,7 @@ Usage
 -----
   python3 p8_element_quality.py [--inp biofilm_3tooth.inp] [--out-dir figures]
 """
+
 import argparse
 import os
 import numpy as np

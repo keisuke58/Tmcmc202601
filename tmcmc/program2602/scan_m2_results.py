@@ -46,7 +46,7 @@ def parse_map_from_log(log_path):
                 last_map_str = last_map_str.replace("\n", " ").strip()
                 try:
                     map_vec = np.fromstring(last_map_str, sep=" ")
-                except:
+                except (ValueError, TypeError):
                     pass
 
     except Exception as e:

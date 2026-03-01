@@ -28,6 +28,7 @@ Usage
   python generate_paper_figures.py --figs 9 10  # specific figures only
   python generate_paper_figures.py --dpi 300    # high-res for print
 """
+
 import argparse
 import json
 from pathlib import Path

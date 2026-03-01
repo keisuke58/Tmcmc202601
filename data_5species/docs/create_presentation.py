@@ -212,7 +212,7 @@ def _txt(
     tf.auto_size = None
     try:
         tf.vertical_anchor = valign
-    except:
+    except (AttributeError, ValueError):
         pass
     p = tf.paragraphs[0]
     p.text = text
@@ -465,9 +465,9 @@ items_r = [
     ("      結果：健康・流動", 14, False, MID_GRAY),
     ("\u2469  Results: Dysbiotic HOBIC (Surge)", 19, True, ACCENT_RED),
     ("      結果：疾患・流動 (Surge)", 14, False, MID_GRAY),
-    ("\u246A  Comparative Analysis", 19, True, DARK_TEXT),
+    ("\u246a  Comparative Analysis", 19, True, DARK_TEXT),
     ("      比較分析", 14, False, MID_GRAY),
-    ("\u246B  Conclusion & Future Work", 19, True, DARK_TEXT),
+    ("\u246b  Conclusion & Future Work", 19, True, DARK_TEXT),
     ("      結論・今後の課題", 14, False, MID_GRAY),
 ]
 _card(s, Inches(0.4), Inches(1.3), Inches(6.2), Inches(5.6))
@@ -1499,7 +1499,7 @@ for cond_key, cond in CONDS.items():
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECTION 11: COMPARATIVE ANALYSIS
 # ═══════════════════════════════════════════════════════════════════════════════
-_section("\u246A Comparative Analysis", "比較分析")
+_section("\u246a Comparative Analysis", "比較分析")
 
 # -- Heatmaps side by side --
 s = prs.slides.add_slide(prs.slide_layouts[6])
@@ -1737,7 +1737,7 @@ if any(os.path.exists(f) for f in [pub_map, pub_hm, pub_fit]):
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECTION 12: CONCLUSION
 # ═══════════════════════════════════════════════════════════════════════════════
-_section("\u246B Conclusion & Future Work", "結論・今後の課題")
+_section("\u246b Conclusion & Future Work", "結論・今後の課題")
 
 s = prs.slides.add_slide(prs.slide_layouts[6])
 _bg(s)

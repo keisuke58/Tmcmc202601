@@ -17,6 +17,7 @@ Generates 7 PNG figures in ./figures/:
   Fig6 – MISES box plot per tooth (summary)
   Fig7 – Numeric summary table
 """
+
 from __future__ import print_function
 import os
 

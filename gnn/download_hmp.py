@@ -19,7 +19,6 @@ TODO:
 - [ ] co-occurrence network 構築
 """
 
-
 # 5 菌種と HMP/NCBI  taxonomy の対応 (要調整)
 SPECIES_MAPPING = {
     "S. oralis": ["Streptococcus", "oralis"],
@@ -41,14 +40,15 @@ def get_hmp_sources():
 
 
 def main():
-    print("HMP 口腔 16S データ取得 (Phase 2)")
-    print("=" * 50)
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logger.info("HMP 口腔 16S データ取得 (Phase 2)")
+    logger.info("=" * 50)
     for name, desc in get_hmp_sources().items():
-        print(f"  {name}: {desc}")
-    print()
-    print("次のステップ: R で HMP16SData::V35() を呼び、")
-    print("  HMP_BODY_SUBSITE で oral をフィルタ → CSV export")
-    print("  または rpy2 で Python から R を呼び出し")
+        logger.info("  %s: %s", name, desc)
+    logger.info("")
+    logger.info("次のステップ: R で HMP16SData::V35() を呼び、")
+    logger.info("  HMP_BODY_SUBSITE で oral をフィルタ → CSV export")
+    logger.info("  または rpy2 で Python から R を呼び出し")
 
 
 if __name__ == "__main__":

@@ -4,13 +4,19 @@ Diagnostic: RMSE gap analysis between old (20-free) and new (locked) runs.
 
 Quantifies per-species, per-timepoint residuals and identifies improvement opportunities.
 """
+
 import json
+import logging
+from pathlib import Path
+
 import numpy as np
+
+logger = logging.getLogger(__name__)
+
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from pathlib import Path
 
 RUNS = Path(__file__).parent.parent / "_runs"
 SPECIES = ["S. oralis", "A. naeslundii", "V. dispar", "F. nucleatum", "P. gingivalis"]
@@ -102,9 +108,10 @@ def load_config(run_dir):
 
 
 def main():
-    print("=" * 80)
-    print("RMSE GAP DIAGNOSTIC: Old (20-free) vs New (biologically-locked) runs")
-    print("=" * 80)
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logger.info("=" * 80)
+    logger.info("RMSE GAP DIAGNOSTIC: Old (20-free) vs New (biologically-locked) runs")
+    logger.info("=" * 80)
 
     # ── Collect metrics ──────────────────────────────────────────────
     runs_info = {
@@ -116,7 +123,7 @@ def main():
         "DH_old": ("dh_baseline", "DH (20-free)"),
     }
 
-    print("\n── Per-Species RMSE Comparison ──")
+    logger.info("\n── Per-Species RMSE Comparison ──")
     for key, (dirname, label) in runs_info.items():
         run_dir = RUNS / dirname
         metrics = load_fit_metrics(run_dir)
@@ -127,7 +134,9 @@ def main():
             n_free = "?"
             if theta is not None:
                 n_free = len([v for v in theta if abs(v) > 1e-10])
-            print(f"\n  {label} ({dirname}): NO fit_metrics.json [theta has {n_free} non-zero]")
+            logger.info(
+                f"\n  {label} ({dirname}): NO fit_metrics.json [theta has {n_free} non-zero]"
+            )
             continue
 
         m = metrics["MAP"]
@@ -136,28 +145,28 @@ def main():
         use_init = config.get("use_exp_init", False) if config else "?"
         n_part = config.get("n_particles", "?") if config else "?"
 
-        print(f"\n  {label} ({dirname})")
-        print(f"    Particles={n_part}, use_exp_init={use_init}")
-        print(f"    Total RMSE = {m['rmse_total']:.4f}")
-        print(f"    {'Species':<16} {'RMSE':>8} {'MAE':>8}")
-        print(f"    {'─'*32}")
+        logger.info(f"\n  {label} ({dirname})")
+        logger.info(f"    Particles={n_part}, use_exp_init={use_init}")
+        logger.info(f"    Total RMSE = {m['rmse_total']:.4f}")
+        logger.info(f"    {'Species':<16} {'RMSE':>8} {'MAE':>8}")
+        logger.info(f"    {'─'*32}")
         for i, sp in enumerate(SPECIES):
             flag = " <<<" if rmse_sp[i] > 0.10 else ""
-            print(f"    {sp:<16} {rmse_sp[i]:8.4f} {m['mae_per_species'][i]:8.4f}{flag}")
+            logger.info(f"    {sp:<16} {rmse_sp[i]:8.4f} {m['mae_per_species'][i]:8.4f}{flag}")
 
     # ── Experimental data dynamics analysis ──────────────────────────
-    print("\n" + "=" * 80)
-    print("EXPERIMENTAL DATA DYNAMICS (normalized fractions)")
-    print("=" * 80)
+    logger.info("\n" + "=" * 80)
+    logger.info("EXPERIMENTAL DATA DYNAMICS (normalized fractions)")
+    logger.info("=" * 80)
 
     for cond, info in EXP_DATA.items():
         fracs = info["fracs"]
         days = info["days"]
-        print(f"\n  ── {cond} ──")
-        print(f"    {'Day':>4}  " + "  ".join(f"{s:>6}" for s in SPECIES_SHORT))
+        logger.info(f"\n  ── {cond} ──")
+        logger.info(f"    {'Day':>4}  " + "  ".join(f"{s:>6}" for s in SPECIES_SHORT))
         for i, d in enumerate(days):
             vals = "  ".join(f"{fracs[i,j]:6.3f}" for j in range(5))
-            print(f"    {d:>4}  {vals}")
+            logger.info(f"    {d:>4}  {vals}")
 
         # Key dynamics metrics
         vd_ratio = fracs[0, 2] / max(fracs[-1, 2], 0.001)
@@ -165,14 +174,14 @@ def main():
         so_final = fracs[-1, 0]
         pg_change = fracs[-1, 4] - fracs[0, 4]
 
-        print(f"    V.dispar Day1/Day21 ratio = {vd_ratio:.1f}×")
-        print(f"    S.oralis peak = {so_peak:.3f}, final = {so_final:.3f}")
-        print(f"    P.gingivalis Δ = {pg_change:+.3f} (Day 1→21)")
+        logger.info(f"    V.dispar Day1/Day21 ratio = {vd_ratio:.1f}×")
+        logger.info(f"    S.oralis peak = {so_peak:.3f}, final = {so_final:.3f}")
+        logger.info(f"    P.gingivalis Δ = {pg_change:+.3f} (Day 1→21)")
 
     # ── Identify improvement opportunities ───────────────────────────
-    print("\n" + "=" * 80)
-    print("IMPROVEMENT OPPORTUNITIES")
-    print("=" * 80)
+    logger.info("\n" + "=" * 80)
+    logger.info("IMPROVEMENT OPPORTUNITIES")
+    logger.info("=" * 80)
 
     improvements = []
 
@@ -207,7 +216,7 @@ def main():
     )
 
     for imp in improvements:
-        print(imp)
+        logger.info(imp)
 
     # ── Summary figure ──────────────────────────────────────────────
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
@@ -259,14 +268,14 @@ def main():
     plt.tight_layout()
     out_path = RUNS / "rmse_gap_diagnostic.png"
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
-    print(f"\n  Figure saved: {out_path}")
+    logger.info(f"\n  Figure saved: {out_path}")
     plt.close()
 
     # ── Concrete next steps ──────────────────────────────────────────
-    print("\n" + "=" * 80)
-    print("RECOMMENDED NEXT STEPS (priority order)")
-    print("=" * 80)
-    print(
+    logger.info("\n" + "=" * 80)
+    logger.info("RECOMMENDED NEXT STEPS (priority order)")
+    logger.info("=" * 80)
+    logger.info(
         """
   1. Re-run with --use-exp-init + more particles:
      python estimate_reduced_nishioka.py \\

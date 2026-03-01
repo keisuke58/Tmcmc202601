@@ -334,8 +334,8 @@ def generate_markdown(run_dir, lang="JP"):
                 # If fitting to phibar, it is phibar.
             row += f"{total_vols[i]:.2f} |"
             md.append(row)
-    except:
-        md.append("(Data table could not be reconstructed)")
+    except (IndexError, KeyError, TypeError) as e:
+        md.append(f"(Data table could not be reconstructed: {e})")
 
     md.append("\n---\n")
 

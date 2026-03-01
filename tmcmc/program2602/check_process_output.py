@@ -42,7 +42,7 @@ if pid_file.exists():
                         ctime = d.stat().st_ctime
                         if current_time - ctime < 3600:  # 1時間以内
                             recent_dirs.append((d, ctime))
-                    except:
+                    except OSError:
                         pass
 
             if recent_dirs:

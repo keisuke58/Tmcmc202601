@@ -40,7 +40,6 @@ The orientation (e1 direction) is defined once globally via *ORIENTATION.
 import sys
 import math
 
-
 _DEF = {
     "field_csv": None,
     "mapping": "power",

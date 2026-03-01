@@ -25,6 +25,7 @@ Usage
   python fem_2d_visualize.py --results-dir _results_2d/dh_baseline \\
                               --condition "dh_baseline"
 """
+
 import argparse
 from pathlib import Path
 

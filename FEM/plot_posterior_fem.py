@@ -5,7 +5,6 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 COLORS = [
     "#1f77b4",
     "#2ca02c",

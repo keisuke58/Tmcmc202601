@@ -118,7 +118,7 @@ if samples is not None:
         # Phibar
         try:
             phi_s = compute_phibar(x_s, active_species)
-        except:
+        except (ValueError, TypeError, IndexError) as e:
             phi_s = x_s
 
         # Plot lines (thin, transparent)

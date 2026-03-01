@@ -8,6 +8,7 @@ Usage:
     python run_2d_stress_all_conditions.py
     python run_2d_stress_all_conditions.py --quick   # 10x10 grid
 """
+
 import argparse
 import json
 import sys

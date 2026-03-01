@@ -19,6 +19,7 @@ Usage
       --labels "N=20" "N=30" "N=40" \\
       --out-dir _results_2d/convergence
 """
+
 import argparse
 from pathlib import Path
 

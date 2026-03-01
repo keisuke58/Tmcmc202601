@@ -80,7 +80,7 @@ if runs_dir.exists():
                 creation_time = d.stat().st_ctime
                 if current_time - creation_time < 600:  # 10分以内
                     recent_runs.append((d, creation_time))
-            except:
+            except OSError:
                 pass
 
     if recent_runs:
@@ -143,7 +143,7 @@ for d in runs_dir.iterdir():
         try:
             ctime = d.stat().st_ctime
             all_runs.append((d, ctime))
-        except:
+        except OSError:
             pass
 
 if all_runs:
@@ -162,7 +162,7 @@ if all_runs:
                         "sigma_obs", "N/A"
                     )
                     print(f"   sigma_obs: {sigma_obs}")
-            except:
+            except (json.JSONDecodeError, OSError):
                 pass
     print()
 
@@ -183,7 +183,7 @@ if pid_file.exists():
         except psutil.NoSuchProcess:
             print(f"⚠️ Process completed or terminated (PID: {pid})")
             print("実行が完了したか、エラーで終了した可能性があります。")
-    except:
+    except (ValueError, psutil.NoSuchProcess):
         pass
 else:
     print("❌ PID file not found")

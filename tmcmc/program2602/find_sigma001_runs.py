@@ -32,7 +32,7 @@ for runs_dir in runs_dirs:
                 if sigma_obs == 0.001:
                     run_dir = config_file.parent
                     found_runs.append((run_dir, config))
-        except:
+        except (json.JSONDecodeError, OSError):
             pass
 
 if found_runs:
@@ -71,7 +71,7 @@ else:
                         with open(config_file, "r", encoding="utf-8") as f:
                             config = json.load(f)
                             all_runs.append((d, config))
-                    except:
+                    except (json.JSONDecodeError, OSError):
                         pass
 
     all_runs.sort(key=lambda x: x[0].stat().st_mtime if x[0].exists() else 0, reverse=True)

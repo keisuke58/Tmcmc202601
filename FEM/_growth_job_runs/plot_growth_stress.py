@@ -10,6 +10,7 @@ Figures produced:
   fig_growth_3_spatial_load.png    – 2D scatter (x-z plane) coloured by σ_Mises_LOAD
   fig_growth_4_spatial_growth.png  – 2D scatter (x-z plane) coloured by σ_Mises_GROWTH
 """
+
 import os
 import csv
 import numpy as np

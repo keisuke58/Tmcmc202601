@@ -13,6 +13,7 @@ Effective load:      h* = exp(-dt/τ)·h_n - E_1·γ·ε_e_n
 
 Unconditionally stable, exact for piecewise-linear strain.
 """
+
 import numpy as np
 from pathlib import Path
 import sys

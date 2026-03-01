@@ -61,12 +61,16 @@ multiscale_coupling_1d.py — ミクロ↔マクロ 二スケール連成パイ�
 """
 
 from __future__ import annotations
+
 import json
+import logging
 import os
 import sys
 import time
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 import jax
 import jax.numpy as jnp
 import matplotlib
@@ -157,7 +161,6 @@ N_POWER = 2.0  # 冪乗則指数
 
 # φ_Pg / Virulence モデル (material_models.py)
 from material_models import compute_E_phi_pg, compute_E_virulence
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ユーティリティ関数
@@ -332,7 +335,7 @@ def run_micro_simulation(theta: np.ndarray, condition_label: str) -> dict:
     # c_all shape: (n_macro+1, N)
 
     elapsed = time.time() - t0
-    print(f"  [{condition_label}] 完了 ({elapsed:.1f} s)", flush=True)
+    logger.info("  [{condition_label}] 完了 ({elapsed:.1f} s)", flush=True)
 
     # ── α(x,T) を時間積分で計算 ──────────────────────────────────────────────
     dt_macro = DT_H * N_REACT  # マクロステップの時間幅 [T*]
@@ -442,7 +445,7 @@ def export_macro_csv(result: dict, condition_key: str) -> str:
         f.write("\n".join(rows) + "\n")
 
     size_kb = os.path.getsize(path) / 1024
-    print(f"  CSV 出力: {path}  ({size_kb:.1f} KB, {N_NODES} nodes)")
+    logger.info("  CSV 出力: %s  (%.1f KB, %d nodes)", path, size_kb, N_NODES)
     return path
 
 
@@ -593,7 +596,7 @@ def plot_multiscale_comparison(results: dict[str, dict]) -> str:
     out_path = os.path.join(OUT_DIR, "multiscale_comparison.png")
     fig.savefig(out_path, dpi=180, bbox_inches="tight")
     plt.close(fig)
-    print(f"  図 出力: {out_path}")
+    logger.info("  図 出力: {out_path}")
     return out_path
 
 
@@ -604,51 +607,54 @@ def plot_multiscale_comparison(results: dict[str, dict]) -> str:
 
 def print_summary_table(results: dict[str, dict]) -> None:
     """4条件のマクロ量サマリーを表示する。"""
-    print()
-    print("=" * 80)
-    print("  二スケール連成 サマリー (ミクロ → マクロ)")
-    print(
-        f"  k_α = {K_ALPHA},  L_biofilm = {L_BIOFILM_MM} mm,  "
-        f"N = {N_NODES},  n_macro = {N_MACRO}"
+    logger.info("")
+    logger.info("=" * 80)
+    logger.info("  二スケール連成 サマリー (ミクロ → マクロ)")
+    logger.info(
+        "  k_α = %s,  L_biofilm = %s mm,  N = %d,  n_macro = %d",
+        K_ALPHA,
+        L_BIOFILM_MM,
+        N_NODES,
+        N_MACRO,
     )
-    print("=" * 80)
+    logger.info("=" * 80)
     hdr = (
         f"  {'条件':<22}  {'α_Monod[tooth]':>14}  {'α_Monod[sal]':>12}  "
         f"{'ratio':>6}  {'c_min':>7}  {'E_mean[Pa]':>11}"
     )
-    print(hdr)
-    print("  " + "-" * 80)
+    logger.info("%s", hdr)
+    logger.info("  " + "-" * 80)
     for ckey, res in results.items():
         label = CONDITIONS[ckey]["label"]
         am = res["alpha_monod"]
         tooth_val = am[0]
         sal_val = am[-1]
         ratio = sal_val / max(tooth_val, 1e-12)
-        print(
-            f"  {label:<22}  "
-            f"{tooth_val:14.4f}  "
-            f"{sal_val:12.4f}  "
-            f"{ratio:6.1f}x  "
-            f"{res['c'].min():7.4f}  "
-            f"{res['E_Pa'].mean():11.1f}"
+        logger.info(
+            "  %-22s  %14.4f  %12.4f  %6.1fx  %7.4f  %11.1f",
+            label,
+            tooth_val,
+            sal_val,
+            ratio,
+            res["c"].min(),
+            res["E_Pa"].mean(),
         )
-    print()
-    print("  KEY: α_Monod(x,T) = k_α ∫ φ_total · c/(k+c) dt")
-    print("       x=0(歯面)で c≈0.004 → α_Monod ≈ 0  (栄養枯渇で成長なし)")
-    print("       x=1(唾液)で c=1.000 → α_Monod ≈ α/2 (栄養豊富で成長あり)")
-    print("       → 空間非一様固有ひずみ場 ε_growth = α_Monod/3 として Abaqus に入力")
-    print()
+    logger.info("")
+    logger.info("  KEY: α_Monod(x,T) = k_α ∫ φ_total · c/(k+c) dt")
+    logger.info("       x=0(歯面)で c≈0.004 → α_Monod ≈ 0  (栄養枯渇で成長なし)")
+    logger.info("       x=1(唾液)で c=1.000 → α_Monod ≈ α/2 (栄養豊富で成長あり)")
+    logger.info("       → 空間非一様固有ひずみ場 ε_growth = α_Monod/3 として Abaqus に入力")
+    logger.info("")
 
-    # 条件間の α 差分を表示
     ckeys = list(results.keys())
     if len(ckeys) >= 2:
         ref = results[ckeys[0]]
-        print(f"  α_mean 差分 (基準: {CONDITIONS[ckeys[0]]['label']}):")
+        logger.info("  α_mean 差分 (基準: %s):", CONDITIONS[ckeys[0]]["label"])
         for ck in ckeys[1:]:
             diff = results[ck]["alpha"].mean() - ref["alpha"].mean()
             pct = diff / (ref["alpha"].mean() + 1e-12) * 100
-            print(f"    {CONDITIONS[ck]['label']:<22}: Δα = {diff:+.4f}  ({pct:+.1f}%)")
-    print()
+            logger.info("    %-22s: Δα = %+.4f  (%+.1f%%)", CONDITIONS[ck]["label"], diff, pct)
+    logger.info("")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -661,27 +667,26 @@ def print_abaqus_next_steps(csv_paths: dict[str, str]) -> None:
     生成した CSV を使って Abaqus biofilm mode + eigenstrain を実行する
     コマンド例を表示する。
     """
-    print("=" * 80)
-    print("  次のステップ: マクロ FEM (Abaqus) への固有ひずみ入力")
-    print("=" * 80)
-    print()
-    print("  各条件の代表的 α_mean を --growth-eigenstrain に渡す:")
-    print()
+    logger.info("=" * 80)
+    logger.info("  次のステップ: マクロ FEM (Abaqus) への固有ひずみ入力")
+    logger.info("=" * 80)
+    logger.info("")
+    logger.info("  各条件の代表的 α_mean を --growth-eigenstrain に渡す:")
+    logger.info("")
     stl = "external_tooth_models/.../P1_Tooth_23.stl"
     for ckey, csv_path in csv_paths.items():
-        # α_mean を再読み込み
         data = np.genfromtxt(csv_path, delimiter=",", skip_header=6)
-        alpha_mean = data[:, 10].mean()  # alpha カラム
-        print(f"  # {CONDITIONS[ckey]['label']}")
-        print("  python3 biofilm_conformal_tet.py \\")
-        print(f"      --stl {stl} \\")
-        print(f"      --di-csv _di_credible/{ckey}/p50_field.csv \\")
-        print(f"      --out p23_{ckey}_multiscale.inp \\")
-        print("      --mode biofilm \\")
-        print(f"      --growth-eigenstrain {alpha_mean:.4f}")
-        print()
-    print("  詳細 CSV (深さ方向プロファイル) は将来の USDFLD/FORTRAN 実装で直接利用可。")
-    print()
+        alpha_mean = data[:, 10].mean()
+        logger.info("  # %s", CONDITIONS[ckey]["label"])
+        logger.info("  python3 biofilm_conformal_tet.py \\")
+        logger.info("      --stl %s \\", stl)
+        logger.info("      --di-csv _di_credible/%s/p50_field.csv \\", ckey)
+        logger.info("      --out p23_%s_multiscale.inp \\", ckey)
+        logger.info("      --mode biofilm \\")
+        logger.info("      --growth-eigenstrain %.4f", alpha_mean)
+        logger.info("")
+    logger.info("  詳細 CSV (深さ方向プロファイル) は将来の USDFLD/FORTRAN 実装で直接利用可。")
+    logger.info("")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -690,14 +695,15 @@ def print_abaqus_next_steps(csv_paths: dict[str, str]) -> None:
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    print()
-    print("=" * 80)
-    print("  multiscale_coupling_1d.py")
-    print("  ミクロ↔マクロ 二スケール連成パイプライン")
-    print(f"  出力先: {OUT_DIR}")
-    print("=" * 80)
+    logger.info("")
+    logger.info("=" * 80)
+    logger.info("  multiscale_coupling_1d.py")
+    logger.info("  ミクロ↔マクロ 二スケール連成パイプライン")
+    logger.info("  出力先: %s", OUT_DIR)
+    logger.info("=" * 80)
 
     results = {}
     res_0d = {}
@@ -705,81 +711,86 @@ def main():
 
     for ckey in CONDITIONS:
         info = CONDITIONS[ckey]
-        print()
-        print(f"── {info['label']} ({info['run']}) ──")
+        logger.info("")
+        logger.info("── %s (%s) ──", info["label"], info["run"])
 
-        # 1. TMCMC MAP パラメータ読み込み
         try:
             theta = load_theta(ckey)
         except FileNotFoundError as e:
-            print(f"  SKIP: {e}")
+            logger.info("  SKIP: %s", e)
             continue
-        print(f"  θ[18]=a35={theta[18]:.4f}  θ[19]=a45={theta[19]:.4f}  " f"(Vd→Pg, Fn→Pg 促進)")
+        logger.info(
+            "  θ[18]=a35=%.4f  θ[19]=a45=%.4f  (Vd→Pg, Fn→Pg 促進)",
+            theta[18],
+            theta[19],
+        )
 
-        # 2a. 0D JAX Hamilton ソルバー (条件別 DI・組成)
-        print("  [0D] JAX Hamilton ODE (n=2500, dt=0.01, T*=25) ...", flush=True)
+        logger.info("  [0D] JAX Hamilton ODE (n=2500, dt=0.01, T*=25) ...")
         r0d = solve_0d_hamilton_jax(theta, n_steps=2500, dt=0.01)
         res_0d[ckey] = r0d
         phi0 = r0d["phi_final"]
-        print(
-            f"  [0D] α_0D={r0d['alpha_0d']:.4f}  DI_0D={r0d['di_0d']:.4f}  "
-            f"φ_Pg={phi0[4]:.4f}  φ_tot={r0d['phi_total_final']:.4f}"
+        logger.info(
+            "  [0D] α_0D=%.4f  DI_0D=%.4f  φ_Pg=%.4f  φ_tot=%.4f",
+            r0d["alpha_0d"],
+            r0d["di_0d"],
+            phi0[4],
+            r0d["phi_total_final"],
         )
 
-        # 2b. ミクロシミュレーション (Hamilton 1D + 栄養PDE)
         res = run_micro_simulation(theta, info["label"])
         results[ckey] = res
 
-        # 3. マクロ CSV エクスポート
         csv_path = export_macro_csv(res, ckey)
         csv_paths[ckey] = csv_path
 
-        # 4. 簡易表示
-        print(
-            f"  [1D] α_Monod: tooth={res['alpha_monod'][0]:.4f}  "
-            f"saliva={res['alpha_monod'][-1]:.4f}  "
-            f"ratio={res['alpha_monod'][-1]/max(res['alpha_monod'][0],1e-9):.1f}x"
+        ratio_1d = res["alpha_monod"][-1] / max(res["alpha_monod"][0], 1e-9)
+        logger.info(
+            "  [1D] α_Monod: tooth=%.4f  saliva=%.4f  ratio=%.1fx",
+            res["alpha_monod"][0],
+            res["alpha_monod"][-1],
+            ratio_1d,
         )
 
     if not results:
-        print("ERROR: シミュレーション結果なし。TMCMC ランディレクトリを確認してください。")
+        logger.error("シミュレーション結果なし。TMCMC ランディレクトリを確認してください。")
         sys.exit(1)
 
-    # 5a. 0D サマリー (条件別 DI・組成)
-    print()
-    print("=" * 80)
-    print("  [0D Hamilton ODE] 条件別 定常組成 (T*=25, k_α=0.05)")
-    print("=" * 80)
+    logger.info("")
+    logger.info("=" * 80)
+    logger.info("  [0D Hamilton ODE] 条件別 定常組成 (T*=25, k_α=0.05)")
+    logger.info("=" * 80)
     hdr0 = (
         f"  {'条件':<22}  {'DI_0D':>7}  {'α_0D':>7}  "
         f"{'φ_So':>6}  {'φ_Vd':>6}  {'φ_Pg':>6}  {'φ_tot':>6}"
     )
-    print(hdr0)
-    print("  " + "-" * 68)
+    logger.info("%s", hdr0)
+    logger.info("  " + "-" * 68)
     for ck, r0 in res_0d.items():
         φ = r0["phi_final"]
-        print(
-            f"  {CONDITIONS[ck]['label']:<22}  "
-            f"{r0['di_0d']:7.4f}  {r0['alpha_0d']:7.4f}  "
-            f"{φ[0]:6.4f}  {φ[2]:6.4f}  {φ[4]:6.4f}  {r0['phi_total_final']:6.4f}"
+        logger.info(
+            "  %-22s  %7.4f  %7.4f  %6.4f  %6.4f  %6.4f  %6.4f",
+            CONDITIONS[ck]["label"],
+            r0["di_0d"],
+            r0["alpha_0d"],
+            φ[0],
+            φ[2],
+            φ[4],
+            r0["phi_total_final"],
         )
-    print()
-    print("  [1D Hamilton PDE] 空間プロファイル (栄養制限型 α_Monod)")
-    print("  DI≈0 in 1D: diffusion homogenizes species → condition diff. from 0D")
+    logger.info("")
+    logger.info("  [1D Hamilton PDE] 空間プロファイル (栄養制限型 α_Monod)")
+    logger.info("  DI≈0 in 1D: diffusion homogenizes species → condition diff. from 0D")
 
-    # 5b. 1D サマリーテーブル
     print_summary_table(results)
 
-    # 6. 4条件比較図
-    print("  4条件比較図を生成中 ...")
+    logger.info("  4条件比較図を生成中 ...")
     plot_multiscale_comparison(results)
 
-    # 7. Abaqus 次ステップ
     print_abaqus_next_steps(csv_paths)
 
-    print("=" * 80)
-    print(f"  完了! 出力: {OUT_DIR}")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("  完了! 出力: %s", OUT_DIR)
+    logger.info("=" * 80)
 
 
 if __name__ == "__main__":

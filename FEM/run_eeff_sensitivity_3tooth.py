@@ -27,7 +27,6 @@ import subprocess
 
 import numpy as np
 
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 

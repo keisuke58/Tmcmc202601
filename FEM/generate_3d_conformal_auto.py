@@ -24,6 +24,7 @@ Usage
   # Quick test:
   python generate_3d_conformal_auto.py --condition dh_baseline --quick
 """
+
 import argparse
 import json
 import sys

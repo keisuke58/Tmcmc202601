@@ -12,6 +12,7 @@ Usage
 -----
   python3 p7_tie_diagnostic.py [--nodes odb_nodes.csv]
 """
+
 import argparse
 import os
 import numpy as np

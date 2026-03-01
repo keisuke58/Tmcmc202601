@@ -5,6 +5,7 @@ Professional conference presentation: 5-species biofilm FOM / ROM / TMCMC.
 All equations are rendered as LaTeX images via matplotlib (usetex).
 Generates both Japanese and English 16:9 PPTX files with speaker notes.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -1668,7 +1669,11 @@ SLIDES_EN: list[tuple[str, list]] = [
             ("g", 0.05),
             ("e", _EQ["psi_total"], 20),
             ("g", 0.05),
-            ("t", "→  Dissipation defined via φ̄ = φψ rate leads to deeply coupled φ-ψ system.", 16),
+            (
+                "t",
+                "→  Dissipation defined via φ̄ = φψ rate leads to deeply coupled φ-ψ system.",
+                16,
+            ),
         ],
     ),
     # ── 4. State variables ─────────────────────────────────────

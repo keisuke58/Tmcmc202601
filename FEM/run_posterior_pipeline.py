@@ -23,10 +23,14 @@ Usage
   # Skip FEM computation (re-plot from existing outputs):
   python run_posterior_pipeline.py --plot-only
 """
+
 import argparse
+import logging
 import subprocess
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # ── canonical run-directory mapping ──────────────────────────────────────────
 _HERE = Path(__file__).resolve().parent
@@ -43,10 +47,10 @@ _OUT_PLOT = _HERE / "_posterior_plots"
 
 
 def _run(cmd: list[str]) -> None:
-    print(f"\n$ {' '.join(str(c) for c in cmd)}")
+    logger.info("$ %s", " ".join(str(c) for c in cmd))
     ret = subprocess.run([str(c) for c in cmd])
     if ret.returncode != 0:
-        print(f"[error] command exited with code {ret.returncode}")
+        logger.error("command exited with code %d", ret.returncode)
         sys.exit(ret.returncode)
 
 
@@ -153,6 +157,7 @@ def run_sensitivity(cond: str, post_dir: Path, n_samples: int) -> None:
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(description="End-to-end posterior FEM pipeline")
     ap.add_argument("--n-samples", type=int, default=20, help="Posterior samples per condition")
     ap.add_argument("--n-macro", type=int, default=100, help="FEM macro steps")
@@ -183,7 +188,7 @@ def main() -> None:
 
     for cond in args.conditions:
         if cond not in CONDITION_RUNS:
-            print(f"[warn] unknown condition {cond!r}, skipping")
+            logger.warning("unknown condition %r, skipping", cond)
             continue
         run_dir = CONDITION_RUNS[cond]
         post_dir = _OUT_3D / f"{cond}_posterior" / "posterior"
@@ -212,9 +217,9 @@ def main() -> None:
     if len(post_dirs) > 1:
         plot_comparison(post_dirs)
 
-    print("\n[pipeline complete]")
-    print(f"  Plots  : {_OUT_PLOT}")
-    print(f"  Data   : {_OUT_3D}")
+    logger.info("Pipeline complete")
+    logger.info("  Plots  : %s", _OUT_PLOT)
+    logger.info("  Data   : %s", _OUT_3D)
 
 
 if __name__ == "__main__":
