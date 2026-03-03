@@ -15,6 +15,14 @@ import logging
 import sys
 import os
 
+# Quantum Surrogate Integration
+try:
+    from .quantum_surrogate import QuantumBiofilmSurrogate
+except ImportError:
+    # Fallback if running from a different directory
+    sys.path.append(os.path.dirname(__file__))
+    from quantum_surrogate import QuantumBiofilmSurrogate
+
 from improved_5species_jit import BiofilmNewtonSolver5S, HAS_NUMBA
 
 if HAS_NUMBA:
@@ -77,9 +85,24 @@ class BiofilmTSM5S:
         active_theta_indices=None,
         cov_rel: float = 0.005,
         theta_linearization=None,
+        use_quantum_surrogate=False,
+        quantum_weights_path=None,
     ):
         self.solver = solver
         self.cov_rel = float(cov_rel)
+
+        # Quantum Surrogate Integration
+        self.use_quantum_surrogate = use_quantum_surrogate
+        self.quantum_surrogate = None
+        if self.use_quantum_surrogate:
+            try:
+                self.quantum_surrogate = QuantumBiofilmSurrogate()
+                if quantum_weights_path and os.path.exists(quantum_weights_path):
+                    self.quantum_surrogate.load_weights(quantum_weights_path)
+                logger.info("Quantum Surrogate Model initialized.")
+            except Exception as e:
+                logger.error(f"Failed to initialize Quantum Surrogate: {e}")
+                self.use_quantum_surrogate = False
 
         # Default active indices: all 20 parameters
         if active_theta_indices is None:
@@ -260,6 +283,20 @@ class BiofilmTSM5S:
         Returns: t_arr, x0 (mean), sigma2 (variance)
         """
         theta = np.asarray(theta, dtype=np.float64)
+
+        # --- Quantum Surrogate Hook ---
+        if self.use_quantum_surrogate and self.quantum_surrogate:
+            # Predict scalar metric using Quantum Circuit
+            q_val = self.quantum_surrogate.predict(theta)
+            logger.info(f"Quantum Surrogate Prediction: {q_val:.4f}")
+            # TODO: Map q_val to full state vector (currently returns placeholder)
+            # We return a dummy trajectory with the quantum value in the first component
+            # to demonstrate integration without breaking the interface.
+            t_arr = np.linspace(0, 1.0, 10)
+            g_dummy = np.zeros((10, 12))
+            g_dummy[:, 0] = q_val  # Place prediction in first component
+            sigma2_dummy = np.zeros_like(g_dummy) + 0.01
+            return t_arr, g_dummy, sigma2_dummy
 
         # Determine linearization center
         if self._has_explicit_linearization:
