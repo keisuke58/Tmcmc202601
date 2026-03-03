@@ -49,7 +49,7 @@ jobs:
           fi
 
       - name: Upload PDF artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: paper-draft
           path: data_5species/docs/nishioka_latex20260218.pdf
