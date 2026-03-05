@@ -36,7 +36,7 @@ if [ "$MODE" = "--test" ]; then
     echo " JAX ODE + NUTS — テスト (50p, 500 steps)"
     echo " Condition: $CONDITION $CULTIVATION"
     echo "=========================================="
-    $PYTHON estimate_reduced_nishioka_jax.py \
+    JAX_PLATFORMS=cuda $PYTHON estimate_reduced_nishioka_jax.py \
         --condition "$CONDITION" --cultivation "$CULTIVATION" \
         --quick --use-exp-init \
         "$@"
@@ -49,7 +49,7 @@ elif [ "$MODE" = "--production" ]; then
     echo " Condition: $CONDITION $CULTIVATION"
     echo " Output: $OUT"
     echo "=========================================="
-    $PYTHON estimate_reduced_nishioka_jax.py \
+    JAX_PLATFORMS=cuda $PYTHON estimate_reduced_nishioka_jax.py \
         --condition "$CONDITION" --cultivation "$CULTIVATION" \
         --n-particles 200 --use-exp-init \
         --output-dir "$OUT" \

@@ -59,8 +59,10 @@ $SYNC_ONLY && { echo "Sync only. Done."; exit 0; }
 echo ""
 echo "=== Phase 1: Running 4-GPU TMCMC on $SERVER ==="
 # REMOTE_PYTHON で stuttgart 用 Python を指定可能（例: /home/nishioka/miniconda3/envs/klempt_fem2/bin/python）
-REMOTE_PY="${REMOTE_PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python}"
-$SSH_CMD "$SERVER" "cd $MAIN_DIR && PYTHON=$REMOTE_PY bash run_jax_ode_4gpu.sh \
+REMOTE_PY="${REMOTE_PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3}"
+# GPU_IDS 未設定時: stuttgart01 は GPU 使用状況が変動 → "2" または "2 3" を試す
+# JAX_PLATFORMS='' で自動選択（OOM の GPU をスキップして利用可能なものを使用）
+$SSH_CMD "$SERVER" "cd $MAIN_DIR && XLA_PYTHON_CLIENT_PREALLOCATE=false GPU_IDS=\${GPU_IDS:-2} JAX_PLATFORMS= PYTHON=$REMOTE_PY bash run_jax_ode_4gpu.sh \
     --condition $CONDITION --cultivation $CULTIVATION \
     --n-particles $N_PARTICLES $QUICK" 2>&1 | tee /tmp/jax_ode_4gpu_${SERVER}.log
 

@@ -17,8 +17,13 @@ conda create -n klempt_fem2 python=3.10 -y
 conda activate klempt_fem2
 pip install jax[cuda12] equinox matplotlib numpy pandas requests numba
 
-# パスを確認
-which python  # 例: /home/nishioka/miniconda3/envs/klempt_fem2/bin/python
+# パスを確認（miniforge3 の場合）
+which python3  # /home/nishioka/miniforge3/envs/klempt_fem2/bin/python3
+
+# CUDA が CPU フォールバックする場合
+python data_5species/main/check_cuda_jax.py   # 診断
+# JAX_PLATFORMS=cuda は run スクリプトに組み込み済み
+# LD_LIBRARY_PATH 競合時: unset LD_LIBRARY_PATH
 ```
 
 ## 実行
@@ -28,8 +33,8 @@ which python  # 例: /home/nishioka/miniconda3/envs/klempt_fem2/bin/python
 cd Tmcmc202601
 bash deeponet/run_nuts_stuttgart.sh
 
-# stuttgart 用 Python を明示指定する場合
-PYTHON=/home/nishioka/miniconda3/envs/klempt_fem2/bin/python bash deeponet/run_nuts_stuttgart.sh
+# stuttgart 用 Python を明示指定する場合（miniforge3）
+PYTHON=/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3 bash deeponet/run_nuts_stuttgart.sh
 ```
 
 ## JAX ODE × 4 GPU（data_5species/main）
@@ -37,10 +42,10 @@ PYTHON=/home/nishioka/miniconda3/envs/klempt_fem2/bin/python bash deeponet/run_n
 ```bash
 # ローカルから実行（プロジェクト同期 + stuttgart01 で 4 GPU 並列）
 cd Tmcmc202601/data_5species/main
-REMOTE_PYTHON=/home/nishioka/miniconda3/envs/klempt_fem2/bin/python bash run_jax_ode_4gpu_stuttgart.sh
+REMOTE_PYTHON=/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3 bash run_jax_ode_4gpu_stuttgart.sh
 
 # クイックテスト（50p×500st）
-REMOTE_PYTHON=/home/nishioka/miniconda3/envs/klempt_fem2/bin/python bash run_jax_ode_4gpu_stuttgart.sh --quick
+REMOTE_PYTHON=/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3 bash run_jax_ode_4gpu_stuttgart.sh --quick
 ```
 
 ## Git 管理
