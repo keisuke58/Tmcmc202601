@@ -74,3 +74,10 @@ docs/*.pptx
 
 # ===== Misc large files =====
 tmcmc/program2602/Data Sheet 1.pdf
+
+# ===== Quantum artifacts =====
+quantum_weights.json
+tmcmc/program2602/quantum_weights.json
+quantum_*.png
+tmcmc/program2602/quantum_*.png
+data_5species/_runs/
