@@ -124,6 +124,23 @@ CONDITION_IMPORTANCE_PRESETS = {
 }
 
 
+def load_posterior_samples(posterior_dir: Path, max_samples: int = 5000) -> Optional[np.ndarray]:
+    """Load posterior theta samples from TMCMC run. Returns (N, 20) or None."""
+    for fname in ["samples.npy", "posterior_samples.npy", "posterior/samples.npy"]:
+        path = Path(posterior_dir) / fname
+        if path.exists():
+            arr = np.load(path)
+            if arr.ndim == 2 and arr.shape[1] >= 20:
+                return arr[:max_samples, :20].astype(np.float64)
+            if arr.ndim == 3:  # (n_stages, n_particles, n_params)
+                arr = arr[-1]  # last stage
+            if arr.ndim == 2:
+                return arr[:max_samples, :20].astype(np.float64)
+            if arr.ndim == 1:
+                return arr.reshape(-1, 20)[:max_samples].astype(np.float64)
+    return None
+
+
 def generate_dataset(
     n_samples: int = 10000,
     condition: str = "Dysbiotic_HOBIC",
@@ -134,6 +151,8 @@ def generate_dataset(
     map_frac: Optional[float] = None,  # None = use condition preset
     map_std_frac: Optional[float] = None,  # None = use condition preset
     expand_bounds: bool = True,  # expand bounds to include θ_MAP + margin
+    posterior_dir: Optional[str] = None,  # TMCMC run dir for importance-weighted sampling
+    posterior_frac: float = 0.5,  # fraction from posterior when posterior_dir set
 ):
     """Generate training dataset with optional importance sampling around θ_MAP.
 
@@ -151,6 +170,15 @@ def generate_dataset(
         map_frac = preset.get("map_frac", 0.3)
     if map_std_frac is None:
         map_std_frac = preset.get("map_std_frac", 0.1)
+
+    # Importance-weighted: load posterior samples for a32, a35 overlap improvement
+    posterior_samples = None
+    if posterior_dir:
+        posterior_samples = load_posterior_samples(Path(posterior_dir))
+        if posterior_samples is not None:
+            print(f"Loaded {len(posterior_samples)} posterior samples from {posterior_dir}")
+        else:
+            print(f"Warning: no posterior samples found in {posterior_dir}")
 
     bounds = load_prior_bounds(condition)
 
@@ -175,9 +203,22 @@ def generate_dataset(
             print(f"Expanded {n_expanded} bound(s) to include θ_MAP")
     rng = np.random.default_rng(seed)
 
-    # Use θ_MAP for importance sampling
+    # Use θ_MAP and/or posterior for importance sampling
     theta_map = theta_map_check if map_frac > 0 else None
-    if theta_map is not None:
+    n_posterior = int(n_samples * posterior_frac) if posterior_samples is not None else 0
+    n_remaining = n_samples - n_posterior
+    if theta_map is not None and n_remaining > 0:
+        n_map = int(n_remaining * map_frac)
+        n_uniform = n_remaining - n_map
+        print(
+            f"Importance sampling: {n_posterior} posterior + {n_map} MAP-centered + {n_uniform} uniform "
+            f"(std={map_std_frac:.0%} of range)"
+        )
+    elif posterior_samples is not None:
+        n_map = 0
+        n_uniform = n_remaining
+        print(f"Importance sampling: {n_posterior} posterior + {n_uniform} uniform")
+    elif theta_map is not None:
         n_map = int(n_samples * map_frac)
         n_uniform = n_samples - n_map
         print(
@@ -219,17 +260,27 @@ def generate_dataset(
     n_success = 0
     n_failed = 0
     n_map_done = 0
+    n_posterior_done = 0
+    posterior_idx = 0
     t0 = time.time()
 
     while n_success < n_samples:
-        # Decide: MAP-centered or uniform
-        use_map = theta_map is not None and n_map_done < n_map
-        theta = sample_theta(
-            bounds,
-            rng,
-            theta_map=theta_map if use_map else None,
-            map_std_frac=map_std_frac,
-        )
+        # Decide: posterior, MAP-centered, or uniform
+        use_posterior = posterior_samples is not None and n_posterior_done < n_posterior
+        use_map = not use_posterior and theta_map is not None and n_map_done < n_map
+        if use_posterior:
+            theta = posterior_samples[posterior_idx % len(posterior_samples)].copy()
+            posterior_idx += 1
+            # Add small noise to avoid exact duplicates
+            theta += rng.normal(0, 0.01, size=20)
+            theta = np.clip(theta, bounds[:, 0], bounds[:, 1])
+        else:
+            theta = sample_theta(
+                bounds,
+                rng,
+                theta_map=theta_map if use_map else None,
+                map_std_frac=map_std_frac,
+            )
         result = run_single(solver, theta)
 
         if result is None:
@@ -248,13 +299,19 @@ def generate_dataset(
         theta_list.append(theta)
         phi_list.append(phi_down)
         n_success += 1
-        if use_map:
+        if use_posterior:
+            n_posterior_done += 1
+        elif use_map:
             n_map_done += 1
 
         if n_success % 500 == 0:
             elapsed = time.time() - t0
             rate = n_success / elapsed
-            map_info = f", MAP={n_map_done}" if theta_map is not None else ""
+            map_info = (
+                f", post={n_posterior_done}, MAP={n_map_done}"
+                if (posterior_samples is not None or theta_map is not None)
+                else ""
+            )
             print(
                 f"  {n_success}/{n_samples} done ({rate:.0f} samples/s, "
                 f"{n_failed} failed{map_info})"
@@ -265,8 +322,10 @@ def generate_dataset(
         f"Done: {n_success} samples in {elapsed:.1f}s "
         f"({n_success/elapsed:.0f}/s, {n_failed} failed)"
     )
-    if theta_map is not None:
-        print(f"  MAP-centered: {n_map_done}, Uniform: {n_success - n_map_done}")
+    if posterior_samples is not None or theta_map is not None:
+        print(
+            f"  Posterior: {n_posterior_done}, MAP-centered: {n_map_done}, Uniform: {n_success - n_posterior_done - n_map_done}"
+        )
 
     theta_arr = np.array(theta_list)  # (N, 20)
     phi_arr = np.array(phi_list)  # (N, n_time_out, 5)
@@ -292,6 +351,18 @@ def main():
     parser.add_argument(
         "--map-std", type=float, default=0.1, help="Gaussian std as fraction of prior range"
     )
+    parser.add_argument(
+        "--posterior-dir",
+        type=str,
+        default=None,
+        help="TMCMC run dir for importance-weighted sampling (improves a32, a35 overlap)",
+    )
+    parser.add_argument(
+        "--posterior-frac",
+        type=float,
+        default=0.5,
+        help="Fraction of samples from posterior when --posterior-dir set",
+    )
     args = parser.parse_args()
 
     theta_arr, phi_arr, t_out, bounds = generate_dataset(
@@ -302,12 +373,15 @@ def main():
         maxtimestep=args.maxtimestep,
         map_frac=args.map_frac,
         map_std_frac=args.map_std,
+        posterior_dir=args.posterior_dir,
+        posterior_frac=args.posterior_frac,
     )
 
-    # Save
+    # Save (use _importance suffix when posterior-weighted to avoid overwriting uniform data)
     out_dir = Path(__file__).parent / "data"
     out_dir.mkdir(exist_ok=True)
-    out_file = out_dir / f"train_{args.condition}_N{args.n_samples}.npz"
+    suffix = "_importance" if args.posterior_dir else ""
+    out_file = out_dir / f"train_{args.condition}_N{args.n_samples}{suffix}.npz"
 
     np.savez_compressed(
         out_file,

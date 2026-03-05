@@ -2031,6 +2031,7 @@ def run_estimation(
                     ],
                     "Dysbiotic_Static": ["checkpoints_DS_v2", "checkpoints_Dysbiotic_Static"],
                     "Dysbiotic_HOBIC": [
+                        "checkpoints_DH_50k_importance",  # importance-weighted (posterior_frac=0.5)
                         "checkpoints_Dysbiotic_HOBIC_50k",
                         "checkpoints_Dysbiotic_HOBIC",
                     ],

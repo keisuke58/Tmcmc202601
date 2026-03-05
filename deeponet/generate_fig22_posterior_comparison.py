@@ -90,8 +90,22 @@ def plot_kde(ax, data, color, label, alpha_fill=0.25):
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Fig 22: DeepONet vs ODE posterior comparison")
+    parser.add_argument(
+        "--don-dir",
+        type=str,
+        default=None,
+        help="DeepONet TMCMC run dir for DH (default: deeponet_Dysbiotic_HOBIC)",
+    )
+    args = parser.parse_args()
+
+    don_dir = args.don_dir if args.don_dir else "deeponet_Dysbiotic_HOBIC"
+    don_path = Path(don_dir) if Path(don_dir).is_absolute() else RUNS_DIR / don_dir
+
     ode_s, ode_m, _ = load_samples_and_map(RUNS_DIR / "dh_baseline")
-    don_s, don_m, _ = load_samples_and_map(RUNS_DIR / "deeponet_Dysbiotic_HOBIC")
+    don_s, don_m, _ = load_samples_and_map(don_path)
     if ode_s is None or don_s is None:
         print("ERROR: DH samples not found")
         return

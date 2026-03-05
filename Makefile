@@ -45,6 +45,39 @@ eigenstrain:  ## Generate Abaqus INP with thermal eigenstrain
 klempt-demo:  ## Run Klempt 2024 reaction-diffusion demo
 	$(PYTHON_JAX) FEM/jax_fem_reaction_diffusion_demo.py
 
+# ── Experimental verification (DI→E) ──────────────────────
+.PHONY: exp-verify exp-verify-design exp-verify-test
+
+exp-verify:  ## Run DI→E experimental validation (synthetic data)
+	$(PYTHON_TMCMC) -m experimental_verification_DI.run_validation
+
+exp-verify-design:  ## Estimate required sample size for 16S+AFM experiment
+	$(PYTHON_TMCMC) -m experimental_verification_DI.run_validation --design
+
+exp-verify-literature:  ## Generate literature consistency report + E(DI) figure
+	$(PYTHON_TMCMC) -m experimental_verification_DI.generate_literature_report
+	$(PYTHON_TMCMC) -m experimental_verification_DI.plot_E_DI_with_literature
+
+exp-verify-test:  ## Run experimental verification unit tests
+	$(PYTHON_TMCMC) -m pytest experimental_verification_DI/tests/ -v --tb=short
+
+hill-sensitivity:  ## Hill gate K, n sensitivity analysis (requires JAX)
+	$(PYTHON_JAX) tools/hill_gate_sensitivity.py
+
+verify-symmetric-A:  ## Verify A = A^T for all TMCMC runs
+	$(PYTHON_TMCMC) tools/verify_symmetric_A.py
+
+test-time-dependent-A:  ## Test time-dependent A35, A45 (state-dependent pilot)
+	$(PYTHON_TMCMC) tools/test_time_dependent_A.py
+
+# DeepONet importance-weighted retraining (a32, a35 overlap improvement)
+deeponet-importance-data:  ## Generate 50k importance-weighted training data
+	cd deeponet && $(PYTHON_JAX) generate_training_data.py --condition Dysbiotic_HOBIC \
+		--n-samples 50000 --posterior-dir ../data_5species/_runs/dh_baseline --posterior-frac 0.5
+
+deeponet-importance-pipeline:  ## Full pipeline: train + TMCMC + overlap (requires data from deeponet-importance-data)
+	cd deeponet && ./run_importance_weighted_pipeline.sh
+
 # ── Analysis ───────────────────────────────────────────────
 .PHONY: competition summary uncertainty
 
@@ -69,8 +102,9 @@ lint:  ## Ruff + Black check (requires: pip install ruff black)
 	ruff check . --line-length 100 --exclude 'FEM/JAXFEM/' --exclude 'FEM/external_tooth_models/'
 	black --check --line-length 100 .
 
-test:  ## Run pytest (FEM + data_5species)
+test:  ## Run pytest (FEM + data_5species + experimental_verification_DI)
 	$(PYTHON_TMCMC) -m pytest FEM/tests/ -v --tb=short -x
+	$(PYTHON_TMCMC) -m pytest experimental_verification_DI/tests/ -v --tb=short 2>/dev/null || true
 	$(PYTHON_TMCMC) -m pytest data_5species/ -v --tb=short -x --ignore=data_5species/_runs/ -k "not slow" 2>/dev/null || true
 
 format:  ## Black + ruff fix
