@@ -19,7 +19,7 @@ set -e
 cd "$(dirname "$0")"
 PROJECT_ROOT="$(cd .. && pwd)"
 DATA_5SPECIES="${PROJECT_ROOT}/data_5species"
-PYTHON="${HOME}/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python"
+PYTHON="${HOME}/.pyenv/versions/miniconda3-latest/envs/klempt_fem2/bin/python"
 
 # Prefer _importance (posterior-weighted); fallback to base (e.g. if renamed)
 DATA="data/train_Dysbiotic_HOBIC_N50000_importance.npz"

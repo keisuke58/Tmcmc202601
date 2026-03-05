@@ -4,8 +4,8 @@
 # fifawc（ローカル）から実行。conda deactivate してから実行すると SSH が安定
 # =============================================================================
 # Prerequisites (stuttgart01-03 各サーバ):
-#   conda create -n klempt_fem python=3.10 -y
-#   conda activate klempt_fem && pip install jax[cuda12] equinox matplotlib numpy
+#   conda create -n klempt_fem2 python=3.10 -y
+#   conda activate klempt_fem2 && pip install jax[cuda12] equinox matplotlib numpy
 #
 # Usage:
 #   cd Tmcmc202601/data_5species/main
@@ -24,7 +24,7 @@ PROJECT_ROOT="${PROJECT_ROOT:-/home/nishioka/IKM_Hiwi/Tmcmc202601}"
 MAIN_DIR="${PROJECT_ROOT}/data_5species/main"
 # stuttgart は miniforge3 を使用（conda create で作成した場合）
 # パスはリモート（stuttgart）のものを想定
-REMOTE_PYTHON="${REMOTE_PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem/bin/python}"
+REMOTE_PYTHON="${REMOTE_PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python}"
 SERVERS="${SERVERS:-stuttgart01 stuttgart02 stuttgart03}"
 SYNC_ONLY=false
 N_PARTICLES=200

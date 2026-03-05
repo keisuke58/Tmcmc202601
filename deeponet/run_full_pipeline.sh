@@ -3,7 +3,7 @@
 # Usage: bash run_full_pipeline.sh
 set -euo pipefail
 
-PYTHON="$HOME/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python"
+PYTHON="$HOME/.pyenv/versions/miniconda3-latest/envs/klempt_fem2/bin/python"
 DEEPONET_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DEEPONET_DIR"
 

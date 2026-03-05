@@ -32,7 +32,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 PYTHON = os.environ.get(
     "PYTHON",
-    f"{os.environ.get('HOME', '')}/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python",
+    f"{os.environ.get('HOME', '')}/.pyenv/versions/miniconda3-latest/envs/klempt_fem2/bin/python",
 )
 
 

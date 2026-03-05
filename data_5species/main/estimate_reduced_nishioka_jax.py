@@ -11,9 +11,9 @@ Usage:
     python estimate_reduced_nishioka_jax.py --condition Dysbiotic --cultivation HOBIC \\
         --n-particles 200 --use-exp-init
 
-Requires: jax, jaxlib (e.g. conda env klempt_fem)
+Requires: jax, jaxlib (e.g. conda env klempt_fem2)
 
-  PYTHON=$HOME/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python
+  PYTHON=$HOME/.pyenv/versions/miniconda3-latest/envs/klempt_fem2/bin/python
   $PYTHON estimate_reduced_nishioka_jax.py --condition Dysbiotic --cultivation HOBIC ...
 """
 

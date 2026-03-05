@@ -12,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MAIN_DIR="$SCRIPT_DIR"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-PYTHON="${PYTHON:-$HOME/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python}"
+PYTHON="${PYTHON:-$HOME/.pyenv/versions/miniconda3-latest/envs/klempt_fem2/bin/python}"
 
 CONDITION="Dysbiotic"
 CULTIVATION="HOBIC"

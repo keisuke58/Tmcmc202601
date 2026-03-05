@@ -3,7 +3,7 @@
 # JAX ODE + NUTS × 4 GPU を stuttgart で実行
 # =============================================================================
 # Prerequisites (stuttgart):
-#   - klempt_fem 環境: conda create -n klempt_fem python=3.10
+#   - klempt_fem2 環境: conda create -n klempt_fem2 python=3.10
 #     pip install jax[cuda12] equinox matplotlib numpy
 #
 # Usage:
@@ -21,7 +21,7 @@ SSH_CMD="${SSH_CMD:-/usr/bin/ssh}"
 PROJECT_ROOT="${PROJECT_ROOT:-/home/nishioka/IKM_Hiwi/Tmcmc202601}"
 MAIN_DIR="${PROJECT_ROOT}/data_5species/main"
 SERVER="${SERVER:-stuttgart01}"
-PYTHON="${PYTHON:-$HOME/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python}"
+PYTHON="${PYTHON:-$HOME/.pyenv/versions/miniconda3-latest/envs/klempt_fem2/bin/python}"
 SYNC_ONLY=false
 CONDITION="Dysbiotic"
 CULTIVATION="HOBIC"
@@ -58,8 +58,8 @@ $SYNC_ONLY && { echo "Sync only. Done."; exit 0; }
 # Phase 1: stuttgart で 4 GPU 実行
 echo ""
 echo "=== Phase 1: Running 4-GPU TMCMC on $SERVER ==="
-# REMOTE_PYTHON で stuttgart 用 Python を指定可能（例: /home/nishioka/miniconda3/envs/klempt_fem/bin/python）
-REMOTE_PY="${REMOTE_PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem/bin/python}"
+# REMOTE_PYTHON で stuttgart 用 Python を指定可能（例: /home/nishioka/miniconda3/envs/klempt_fem2/bin/python）
+REMOTE_PY="${REMOTE_PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python}"
 $SSH_CMD "$SERVER" "cd $MAIN_DIR && PYTHON=$REMOTE_PY bash run_jax_ode_4gpu.sh \
     --condition $CONDITION --cultivation $CULTIVATION \
     --n-particles $N_PARTICLES $QUICK" 2>&1 | tee /tmp/jax_ode_4gpu_${SERVER}.log

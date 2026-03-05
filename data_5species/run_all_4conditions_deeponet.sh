@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run all 4 TMCMC conditions with DeepONet surrogate (klempt_fem env).
+# Run all 4 TMCMC conditions with DeepONet surrogate (klempt_fem2 env).
 # Requires: JAX, Equinox, DeepONet checkpoints for each condition.
 #
 # Usage:
@@ -10,7 +10,7 @@
 set -e
 
 BASEDIR="/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species"
-PYTHON="${HOME}/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python"
+PYTHON="${HOME}/.pyenv/versions/miniconda3-latest/envs/klempt_fem2/bin/python"
 SCRIPT="main/estimate_reduced_nishioka.py"
 
 MODE="${1:-full}"
@@ -37,7 +37,7 @@ echo "=========================================="
 
 cd "${BASEDIR}"
 
-# Run batch with --use-deeponet (klempt_fem has JAX/Equinox)
+# Run batch with --use-deeponet (klempt_fem2 has JAX/Equinox)
 # NOTE: --n-jobs 1 required (JAX/DeepONet not pickleable for multiprocessing)
 echo "[1/1] Running batch: Commensal_Static, Commensal_HOBIC, Dysbiotic_Static, Dysbiotic_HOBIC"
 ${PYTHON} "${SCRIPT}" \
