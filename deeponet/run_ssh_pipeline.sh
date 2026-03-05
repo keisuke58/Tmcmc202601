@@ -9,7 +9,7 @@ set -euo pipefail
 
 # Python environments
 PYTHON_NUMBA="/home/nishioka/.pyenv/shims/python3"         # has numba (for data gen)
-PYTHON_JAX="/home/nishioka/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python"  # has JAX
+PYTHON_JAX="/home/nishioka/.pyenv/versions/miniconda3-latest/envs/klempt_fem2/bin/python"  # has JAX
 
 DEEPONET_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$DEEPONET_DIR/.." && pwd)"

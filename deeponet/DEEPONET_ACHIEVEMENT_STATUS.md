@@ -40,7 +40,7 @@
 
 **実行例**:
 ```bash
-# klempt_fem 等の JAX 環境で
+# klempt_fem2 等の JAX 環境で
 python data_5species/main/estimate_reduced_nishioka.py \
   --condition Dysbiotic --cultivation HOBIC \
   --use-deeponet --n-particles 1000

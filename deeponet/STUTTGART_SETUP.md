@@ -11,14 +11,14 @@
 # stuttgart01 に SSH
 ssh stuttgart01
 
-# conda または pyenv で klempt_fem 環境を作成
+# conda または pyenv で klempt_fem2 環境を作成
 # 例: conda
-conda create -n klempt_fem python=3.10 -y
-conda activate klempt_fem
-pip install jax[cuda12] equinox matplotlib numpy
+conda create -n klempt_fem2 python=3.10 -y
+conda activate klempt_fem2
+pip install jax[cuda12] equinox matplotlib numpy pandas requests numba
 
 # パスを確認
-which python  # 例: /home/nishioka/miniconda3/envs/klempt_fem/bin/python
+which python  # 例: /home/nishioka/miniconda3/envs/klempt_fem2/bin/python
 ```
 
 ## 実行
@@ -29,10 +29,21 @@ cd Tmcmc202601
 bash deeponet/run_nuts_stuttgart.sh
 
 # stuttgart 用 Python を明示指定する場合
-PYTHON=/home/nishioka/miniconda3/envs/klempt_fem/bin/python bash deeponet/run_nuts_stuttgart.sh
+PYTHON=/home/nishioka/miniconda3/envs/klempt_fem2/bin/python bash deeponet/run_nuts_stuttgart.sh
+```
+
+## JAX ODE × 4 GPU（data_5species/main）
+
+```bash
+# ローカルから実行（プロジェクト同期 + stuttgart01 で 4 GPU 並列）
+cd Tmcmc202601/data_5species/main
+REMOTE_PYTHON=/home/nishioka/miniconda3/envs/klempt_fem2/bin/python bash run_jax_ode_4gpu_stuttgart.sh
+
+# クイックテスト（50p×500st）
+REMOTE_PYTHON=/home/nishioka/miniconda3/envs/klempt_fem2/bin/python bash run_jax_ode_4gpu_stuttgart.sh --quick
 ```
 
 ## Git 管理
 
-- `run_nuts_stuttgart.sh`, `check_stuttgart.sh` は Git 管理推奨
+- `run_nuts_stuttgart.sh`, `check_stuttgart.sh`, `run_jax_ode_4gpu_stuttgart.sh` は Git 管理推奨
 - rsync で同期するため、コミット済みのファイルが stuttgart に反映される

@@ -3,8 +3,8 @@
 # DeepONet + NUTS を stuttgart01-03 (GPU) で分散実行
 # =============================================================================
 # Prerequisites (stuttgart 側):
-#   - klempt_fem 環境 (JAX + CUDA) をセットアップ
-#   - 例: conda create -n klempt_fem python=3.10; pip install jax[cuda12] equinox
+#   - klempt_fem2 環境 (JAX + CUDA) をセットアップ
+#   - 例: conda create -n klempt_fem2 python=3.10; pip install jax[cuda12] equinox
 #
 # Usage:
 #   bash run_nuts_stuttgart.sh              # 4条件を3台に振り分け
@@ -22,7 +22,7 @@ SSH_CMD="${SSH_CMD:-/usr/bin/ssh}"
 PROJECT_ROOT="${PROJECT_ROOT:-/home/nishioka/IKM_Hiwi/Tmcmc202601}"
 DEEPONET_DIR="${PROJECT_ROOT}/deeponet"
 # stuttgart 用 Python（リモートパス）。miniforge3 で作成した場合
-PYTHON="${PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem/bin/python}"
+PYTHON="${PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python}"
 
 SERVERS="${SERVERS:-stuttgart01 stuttgart02 stuttgart03}"
 SYNC_ONLY=false
@@ -65,7 +65,7 @@ echo ""
 echo "=== Pre-check: Python env on ${SRV_ARRAY[0]} ==="
 if ! $SSH_CMD "${SRV_ARRAY[0]}" "test -x $PYTHON" 2>/dev/null; then
     echo "  [WARN] $PYTHON not found on remote. Set PYTHON=... for stuttgart."
-    echo "  Example: PYTHON=/path/to/klempt_fem/bin/python bash run_nuts_stuttgart.sh"
+    echo "  Example: PYTHON=/path/to/klempt_fem2/bin/python bash run_nuts_stuttgart.sh"
     echo "  Skipping pre-check (will fail at run time if env missing)."
 fi
 

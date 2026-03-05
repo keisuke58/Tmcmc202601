@@ -8,7 +8,7 @@
 #   bash run_jax_ode_nuts.sh --production         # 本番 (200p, 2500 steps)
 #   bash run_jax_ode_nuts.sh --test --condition Commensal --cultivation HOBIC
 # =============================================================================
-# Requires: JAX (e.g. klempt_fem conda env)
+# Requires: JAX (e.g. klempt_fem2 conda env)
 # GPU: jax-cuda12-plugin 入りなら自動で GPU 使用（高速化）
 #   環境: bash setup_jax_gpu.sh または pip install -r requirements-jax-gpu.txt
 #   比較: python benchmark_cpu_gpu.py --quick
@@ -19,7 +19,7 @@ PROJECT_ROOT="${PROJECT_ROOT:-/home/nishioka/IKM_Hiwi/Tmcmc202601}"
 cd "$PROJECT_ROOT/data_5species/main"
 
 # JAX 環境（なければ python3 で試す）
-PYTHON="${PYTHON:-$HOME/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python}"
+PYTHON="${PYTHON:-$HOME/.pyenv/versions/miniconda3-latest/envs/klempt_fem2/bin/python}"
 if ! command -v "$PYTHON" &>/dev/null; then
     PYTHON="python3"
 fi

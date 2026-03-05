@@ -1,5 +1,5 @@
 PYTHON_TMCMC = python
-PYTHON_JAX   = $(HOME)/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python
+PYTHON_JAX   = $(HOME)/.pyenv/versions/miniconda3-latest/envs/klempt_fem2/bin/python
 
 # ── TMCMC ──────────────────────────────────────────────────
 .PHONY: tmcmc tmcmc-quick
@@ -14,7 +14,7 @@ tmcmc-quick:  ## Run TMCMC estimation (quick: 150 particles)
 		--n-particles 150 --n-stages 8 \
 		--lambda-pg 2.0 --lambda-late 1.5
 
-# TMCMC + DeepONet (requires klempt_fem: JAX, Equinox)
+# TMCMC + DeepONet (requires klempt_fem2: JAX, Equinox)
 tmcmc-deeponet:  ## Run TMCMC with DeepONet surrogate (single: Dysbiotic HOBIC)
 	$(PYTHON_JAX) data_5species/main/estimate_reduced_nishioka.py \
 		--condition Dysbiotic --cultivation HOBIC \
