@@ -71,7 +71,33 @@ bash run_jax_ode_nuts.sh --test              # 50p, 500 steps（数分）
 bash run_jax_ode_nuts.sh --production        # 200p, 2500 steps（30分〜1時間）
 ```
 
-**GPU**: `jax[cuda12]` 入りなら自動で GPU 使用。CPU より数倍〜10倍速くなる場合あり。
+**GPU**: `jax-cuda12-plugin` 入りなら自動で GPU 使用。CPU より数倍〜10倍速くなる場合あり。
+
+```bash
+# GPU 環境セットアップ
+cd data_5species/main
+bash setup_jax_gpu.sh --existing   # 既存 klempt_fem に追加
+# または pip install -r requirements-jax-gpu.txt
+
+# CPU vs GPU 速度・精度比較
+python benchmark_cpu_gpu.py --quick      # 50p, 500 steps
+python benchmark_cpu_gpu.py              # 200p, 2500 steps（本番相当）
+# 結果: _runs/benchmark_cpu_gpu_YYYYMMDD_HHMMSS/report.json
+```
+
+**Stuttgart 4並列（fifawc から実行）**:
+
+```bash
+# conda deactivate してから実行（OpenSSL 競合回避）
+conda deactivate
+cd Tmcmc202601/data_5species/main
+bash run_jax_ode_4parallel_stuttgart.sh       # 4条件を stuttgart01-03 に並列投入
+bash run_jax_ode_4parallel_stuttgart.sh --quick  # テスト（--quick）
+```
+
+- stuttgart01: Commensal_Static
+- stuttgart02: Commensal_HOBIC
+- stuttgart03: Dysbiotic_Static, Dysbiotic_HOBIC（01 が空けば 01 にも振り分け）
 
 #### A3. 実験初期値の使用（use_exp_init）
 
@@ -369,7 +395,38 @@ python gradient_tmcmc_nuts.py --condition Dysbiotic_HOBIC \
 
 ---
 
-## 10. 参照
+## 10. JAX ODE の MCMC 高速化（NUTS 以外）
+
+JAX ODE が使えるようになったため、NUTS 以外の高速化手法を検討可能。
+
+| 手法 | 効果 | 実装難易度 |
+|------|------|------------|
+| **vmap バッチ評価** | 粒子の logL を一括 GPU 評価（既に init で使用） | 低 |
+| **Delayed acceptance** | DeepONet で 1 段目 reject → ODE は accept 候補のみ | 中 |
+| **n_steps 削減** | 2500 → 1000–1500、dt 調整で同等精度を狙う | 低 |
+| **並列チェーン (pmap)** | 複数 GPU で独立チェーン、最後にマージ | 中 |
+| **Preconditioning** | 質量行列で NUTS の leapfrog 効率化 | 中 |
+| **Sparse 観測** | idx_sparse をさらに間引き（6 点→4 点など） | 低 |
+| **Early stopping** | ODE 軌道が明らかに悪い場合に早期打ち切り | 中 |
+
+### 推奨順（即効性）
+
+1. **n_steps 削減**: `--n-steps 1500 --dt 1.5e-4` で試行（T* は同等）
+2. **Delayed acceptance**: DeepONet で reject 判定 → ODE は残り 10–30% のみ
+3. **vmap 強化**: mutation 後の logL 更新もバッチ化（現状は 1 粒子ずつ）
+
+### Delayed acceptance の疑似コード
+
+```python
+# 1. DeepONet で logL_surrogate(θ_propose) を高速評価
+# 2. logL_surrogate が低ければ reject（ODE 不要）
+# 3. 通った候補のみ ODE で logL_true を評価
+# 4. 2 段階の acceptance で補正
+```
+
+---
+
+## 11. 参照
 
 | 項目 | パス |
 |------|------|
@@ -382,5 +439,6 @@ python gradient_tmcmc_nuts.py --condition Dysbiotic_HOBIC \
 | DH 事後 | `data_5species/_runs/dh_baseline/` |
 | NUTS 比較 | `deeponet/gradient_tmcmc_nuts.py` |
 | Stuttgart (GPU) 分散実行 | `deeponet/run_nuts_stuttgart.sh` |
+| JAX ODE 4並列 Stuttgart | `data_5species/main/run_jax_ode_4parallel_stuttgart.sh` |
 | Importance-weighted | `deeponet/run_importance_weighted_pipeline.sh` |
 | DH MAE 悪化対策 | `project_e/docs/ISSUE_Dysbiotic_HOBIC_MAE_degradation.md` |
