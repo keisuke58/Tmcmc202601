@@ -91,7 +91,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from improved1207_paper_jit import BiofilmNewtonSolver, HAS_NUMBA
 from improved_5species_jit import BiofilmNewtonSolver5S
 from demo_analytical_tsm_with_linearization_jit import BiofilmTSM_Analytical
-from tmcmc_5species_tsm import BiofilmTSM5S
+
+# BiofilmTSM5S: use BiofilmTSM_Analytical for 5-species (same interface: solver, active_theta_indices, cov_rel, theta_linearization)
+# tmcmc_5species_tsm.TMCMC_5Species_TSM has different API (data_loader); BiofilmTSM_Analytical works with BiofilmNewtonSolver5S
+BiofilmTSM5S = BiofilmTSM_Analytical
 
 
 def build_species_sigma(
@@ -398,6 +401,7 @@ class LogLikelihoodEvaluator:
                 active_theta_indices=self.active_indices,
                 cov_rel=self.cov_rel,
                 theta_linearization=theta_linearization,
+                paper_mode=False,  # 5-species uses 20 params; paper_mode=True is for 14-param model
             )
         else:
             self.solver = BiofilmNewtonSolver(

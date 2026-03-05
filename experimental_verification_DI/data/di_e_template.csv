@@ -1,0 +1,6 @@
+di,E,E_err,condition,sample_id
+0.05,850.2,120.5,commensal_static,S01
+0.12,720.1,95.0,commensal_static,S02
+0.25,480.3,70.2,commensal_hobic,S03
+0.51,85.4,15.0,dysbiotic_hobic,S04
+0.82,45.1,8.2,dysbiotic_static,S05

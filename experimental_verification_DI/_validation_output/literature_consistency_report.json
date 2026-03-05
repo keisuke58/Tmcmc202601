@@ -1,0 +1,55 @@
+{
+  "model_params": {
+    "e_max_Pa": 909.0,
+    "e_min_Pa": 32.0,
+    "di_scale": 1.0,
+    "exponent": 2.0
+  },
+  "literature_comparison": [
+    {
+      "label": "Pattem 2018 (low-suc)",
+      "source": "Pattem2018",
+      "di_approx": 0.15,
+      "E_lit_kPa": 14.35,
+      "E_model_kPa": 0.6615524999999999,
+      "residual_pct": -95.3898780487805
+    },
+    {
+      "label": "Pattem 2018 (high-suc)",
+      "source": "Pattem2018",
+      "di_approx": 0.85,
+      "E_lit_kPa": 0.55,
+      "E_model_kPa": 0.0476525,
+      "residual_pct": -91.3359090909091
+    },
+    {
+      "label": "Pattem 2021 (LC)",
+      "source": "Pattem2021",
+      "di_approx": 0.2,
+      "E_lit_kPa": 10.4,
+      "E_model_kPa": 0.5881600000000001,
+      "residual_pct": -94.34461538461538
+    },
+    {
+      "label": "Pattem 2021 (HC)",
+      "source": "Pattem2021",
+      "di_approx": 0.75,
+      "E_lit_kPa": 2.8,
+      "E_model_kPa": 0.0808125,
+      "residual_pct": -97.11383928571429
+    },
+    {
+      "label": "Gloag 2019 (dual)",
+      "source": "Gloag2019",
+      "di_approx": 0.5,
+      "E_lit_kPa": 0.48,
+      "E_model_kPa": 0.24325,
+      "residual_pct": -49.322916666666664
+    }
+  ],
+  "summary": {
+    "n_points": 5,
+    "mean_abs_residual_pct": 85.50143169533719,
+    "conclusion": "Literature (Pattem, Gloag) reports different biofilm systems and protocols; absolute E values differ. Our model captures the qualitative trend (diverse\u2192stiffer, dysbiotic\u2192softer). Direct validation requires same-sample 16S+AFM data."
+  }
+}

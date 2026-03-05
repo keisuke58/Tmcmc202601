@@ -28,7 +28,7 @@ CONDITION_CHECKPOINTS = {
     "Commensal_Static": "checkpoints_Commensal_Static",
     "Commensal_HOBIC": "checkpoints_Commensal_HOBIC",
     "Dysbiotic_Static": "checkpoints_DS_v2",
-    "Dysbiotic_HOBIC": "checkpoints_Dysbiotic_HOBIC_50k",
+    "Dysbiotic_HOBIC": "checkpoints_DH_50k_importance",  # importance-weighted (prefer over 50k)
 }
 
 # All available checkpoints per condition (for comparison)
@@ -48,6 +48,7 @@ ALL_CHECKPOINTS = {
         "checkpoints_DS_v2",
     ],
     "Dysbiotic_HOBIC": [
+        "checkpoints_DH_50k_importance",
         "checkpoints_Dysbiotic_HOBIC",
         "checkpoints_Dysbiotic_HOBIC_50k",
     ],

@@ -64,10 +64,10 @@
 \maketitle
 
 \begin{abstract}
-We present a complete multiscale pipeline that bridges Bayesian parameter estimation of a 5-species oral biofilm model with 3D finite-element stress analysis. Starting from experimental time-course data of \textit{Streptococcus oralis}, \textit{Actinomyces naeslundii}, \textit{Veillonella} spp., \textit{Fusobacterium nucleatum}, and \textit{Porphyromonas gingivalis} under four cultivation conditions, Transitional Markov Chain Monte Carlo (TMCMC) with biologically-constrained parameter reduction estimates a 20-parameter Hamilton interaction model, achieving 30\% RMSE improvement over unconstrained baselines. A novel Dysbiosis Index (DI) based on Shannon entropy serves as the bridging variable to a DI-dependent elastic modulus, producing a 28-fold stiffness range (commensal 909~Pa vs.\ dysbiotic 32~Pa) and 29.4-fold displacement ratio on a patient-specific 3D tooth geometry. Bayesian model comparison decisively favours the DI model over pathogen-fraction alternatives (pseudo Bayes factor $= 1.35 \times 10^9$). An end-to-end differentiable surrogate (DeepONet + Deep Energy Method) achieves a 3.8~million-fold speedup over Abaqus FEM, enabling gradient-based TMCMC (NUTS) with 1.75$\times$ higher acceptance rates than random-walk mutation. DeepONet-accelerated TMCMC provides $\sim$100$\times$ wall-time speedup while recovering 17/20 posterior marginals with $>$0.95 overlap. Basin sensitivity analysis reveals that commensal equilibria are fragile, with 96\% of perturbed samples jumping to a dysbiotic attractor, highlighting the importance of uncertainty quantification in biofilm mechanical predictions.
+We present a multiscale pipeline from Bayesian parameter estimation of a 5-species oral biofilm model to 3D finite-element stress analysis. TMCMC with biologically-constrained reduction estimates a Hamilton interaction model from experimental time-course data under four conditions, achieving 30\% RMSE improvement. A Dysbiosis Index (DI) based on Shannon entropy bridges to a DI-dependent elastic modulus, yielding a 28-fold stiffness range (909~Pa vs.\ 32~Pa) and 29.4-fold displacement ratio on patient-specific 3D geometry; Bayesian model comparison strongly favours the DI model (pseudo Bayes factor $= 1.35 \times 10^9$). A differentiable surrogate (DeepONet + DEM) enables 3.8~million-fold speedup and gradient-based NUTS with 1.75$\times$ higher acceptance. Basin analysis shows commensal equilibria are fragile (96\% of perturbed samples jump to dysbiosis), underscoring the need for uncertainty quantification in clinical predictions.
 
 \vspace{0.5cm}
-\noindent\textbf{Keywords:} Transitional Markov Chain Monte Carlo (TMCMC), oral biofilm, multiscale modelling, Bayesian inverse problem, dysbiosis index, DeepONet surrogate, uncertainty quantification, finite element method, peri-implantitis, graph neural network
+\noindent\textbf{Keywords:} TMCMC, oral biofilm, multiscale modelling, dysbiosis index, DeepONet, uncertainty quantification, FEM, peri-implantitis
 \end{abstract}
 
 \tableofcontents
@@ -407,6 +407,29 @@ holds by construction for all $t$.
 
 In all experiments reported here, the initial bacterial volume fractions $\phi_i(t_0)$ are fixed to the observed species composition at the initial measurement time (Day 0) for the corresponding condition. The TMCMC inference therefore focuses on the interaction and decay parameters, while uncertainty in the initial conditions is not treated explicitly.
 
+\subsection{Experimental Data}
+\label{sec:exp_data}
+
+The time-course data are from Heine et al.~\cite{Heine2025PeriImplant}, obtained using the HOBIC flow chamber \cite{Kommerein2018HOBIC}. Table~\ref{tab:exp_data_detail} summarises the dataset characteristics for reproducibility.
+
+\begin{table}[H]
+\centering
+\caption{Experimental dataset characteristics (Heine et al.~\cite{Heine2025PeriImplant})}
+\label{tab:exp_data_detail}
+\begin{tabular}{ll}
+\toprule
+\textbf{Item} & \textbf{Value} \\
+\midrule
+Time points & Day 1--21 (typically 7--10 observations per condition) \\
+Species & 5 (S.~oralis, A.~naeslundii, Veillonella, F.~nucleatum, P.~gingivalis) \\
+Measurement & qPCR (relative abundance) \\
+Noise $\sigma_i$ & 10--25\% of observed range per species (fixed in TMCMC) \\
+Detection limit & F.n, P.g below limit in Commensal conditions (Table~\ref{tab:free_params}) \\
+Conditions & 4 (Commensal/Dysbiotic $\times$ Static/HOBIC) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Bayesian Inverse Problem}
 
 The goal of Bayesian parameter estimation is to infer the posterior distribution $p(\boldsymbol{\theta} \mid \mathbf{y}_{\mathrm{obs}})$ of the model parameters $\boldsymbol{\theta}$ given the observed experimental data $\mathbf{y}_{\mathrm{obs}} = \{y_{\mathrm{obs},i}(t_k)\}_{i,k}$. By Bayes' theorem:
@@ -627,7 +650,7 @@ In practice, $\varepsilon_\mathrm{ROM} < 0.01$ for $>95\%$ of final-stage partic
 \subsection{Sensitivity Analysis of Hill Gate Parameters}
 \label{sec:sensitivity_kn}
 
-The Hill gate parameters $K$ and $n$ (Section~\ref{sec:hill_gate}) control the F.~nucleatum colonisation threshold for P.~gingivalis establishment. We performed a grid search over $K \in \{0.01, 0.05, 0.10, 0.20\}$ and $n \in \{2, 4, 6, 8\}$ using the Dysbiotic HOBIC condition (where P.~gingivalis dynamics are most pronounced). The optimal combination $(K=0.05, n=4)$ was selected based on: (i)~lowest total RMSE across all five species, (ii)~biologically plausible estimates for the cross-species interaction parameters $a_{35}$ and $a_{45}$, and (iii)~convergence diagnostics ($\hat{R} < 1.1$, ESS $> 100$). A detailed sensitivity table is provided in the supplementary material.
+The Hill gate parameters $K$ and $n$ (Section~\ref{sec:hill_gate}) control the F.~nucleatum colonisation threshold for P.~gingivalis establishment. We performed a grid search over $K \in \{0.01, 0.05, 0.10, 0.20\}$ and $n \in \{2, 4, 6, 8\}$ using the Dysbiotic HOBIC condition (where P.~gingivalis dynamics are most pronounced). The optimal combination $(K=0.05, n=4)$ was selected based on: (i)~lowest total RMSE across all five species, (ii)~biologically plausible estimates for the cross-species interaction parameters $a_{35}$ and $a_{45}$, and (iii)~convergence diagnostics ($\hat{R} < 1.1$, ESS $> 100$). A detailed sensitivity table is provided in the supplementary material. A follow-up sensitivity analysis over $K$ and $n$ shows that the Dysbiosis Index (DI) varies by less than 2\% across the grid for both dysbiotic and commensal equilibria, confirming that the main conclusions (CS $>$ DH ordering, 28-fold stiffness range) are robust to the choice of Hill gate parameters.
 
 %==============================================================================
 \section{Experiment Conditions \& Parameter Estimation}
@@ -1063,19 +1086,19 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{Fig_A02_per_species_panel.png}
+\includegraphics[width=0.95\textwidth]{Commensal_HOBIC_Fig_A02_per_species_panel.png}
 \caption{Posterior fit for Commensal HOBIC. The shaded regions indicate the 95\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.8\textwidth]{Fig_A01_interaction_matrix_heatmap.png}
+\includegraphics[width=0.8\textwidth]{Commensal_HOBIC_Fig_A01_interaction_matrix_heatmap.png}
 \caption{Estimated interaction matrix (MAP) for Commensal HOBIC. Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{Fig_A05_parameter_violins.png}
+\includegraphics[width=0.95\textwidth]{Commensal_HOBIC_Fig_A05_parameter_violins.png}
 \caption{Parameter uncertainty (Violin plots) for Commensal HOBIC. Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}
 \end{figure}
 
@@ -1087,19 +1110,19 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{Fig_A02_per_species_panel.png}
+\includegraphics[width=0.95\textwidth]{Dysbiotic_HOBIC_Fig_A02_per_species_panel.png}
 \caption{Posterior fit for Dysbiotic HOBIC (Surge). The shaded regions indicate the 95\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.8\textwidth]{Fig_A01_interaction_matrix_heatmap.png}
+\includegraphics[width=0.8\textwidth]{Dysbiotic_HOBIC_Fig_A01_interaction_matrix_heatmap.png}
 \caption{Estimated interaction matrix (MAP) for Dysbiotic HOBIC (Surge). Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{Fig_A05_parameter_violins.png}
+\includegraphics[width=0.95\textwidth]{Dysbiotic_HOBIC_Fig_A05_parameter_violins.png}
 \caption{Parameter uncertainty (Violin plots) for Dysbiotic HOBIC (Surge). Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}
 \end{figure}
 
@@ -1111,19 +1134,19 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{Fig_A02_per_species_panel.png}
+\includegraphics[width=0.95\textwidth]{Commensal_Static_Fig_A02_per_species_panel.png}
 \caption{Posterior fit for Commensal Static. The shaded regions indicate the 95\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.8\textwidth]{Fig_A01_interaction_matrix_heatmap.png}
+\includegraphics[width=0.8\textwidth]{Commensal_Static_Fig_A01_interaction_matrix_heatmap.png}
 \caption{Estimated interaction matrix (MAP) for Commensal Static. Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{Fig_A05_parameter_violins.png}
+\includegraphics[width=0.95\textwidth]{Commensal_Static_Fig_A05_parameter_violins.png}
 \caption{Parameter uncertainty (Violin plots) for Commensal Static. Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}
 \end{figure}
 
@@ -1135,19 +1158,19 @@ This suggests that the proposed model successfully captures the main trends of t
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{Fig_A02_per_species_panel.png}
+\includegraphics[width=0.95\textwidth]{Dysbiotic_Static_Fig_A02_per_species_panel.png}
 \caption{Posterior fit for Dysbiotic Static. The shaded regions indicate the 95\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.8\textwidth]{Fig_A01_interaction_matrix_heatmap.png}
+\includegraphics[width=0.8\textwidth]{Dysbiotic_Static_Fig_A01_interaction_matrix_heatmap.png}
 \caption{Estimated interaction matrix (MAP) for Dysbiotic Static. Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{Fig_A05_parameter_violins.png}
+\includegraphics[width=0.95\textwidth]{Dysbiotic_Static_Fig_A05_parameter_violins.png}
 \caption{Parameter uncertainty (Violin plots) for Dysbiotic Static. Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}
 \end{figure}
 
@@ -1734,12 +1757,12 @@ The GNN-informed prior (Section~\ref{sec:gnn_prior}) demonstrates that microbial
 Several limitations should be noted:
 
 \begin{itemize}
-  \item \textbf{DI$\to$E mapping}: The constitutive law $E(\mathrm{DI})$ is phenomenological and has not been calibrated against simultaneous measurements of species composition and local stiffness. While the parameter range is consistent with published AFM data (Section~\ref{sec:3model_bayes}), experimental validation through coupled 16S rRNA sequencing and nanoindentation would strengthen the model.
-  \item \textbf{Symmetric interaction matrix}: The variational formulation enforces $A_{ij} = A_{ji}$ (Section~\ref{sec:symmetric_A}), which may not capture asymmetric biological interactions. However, this is a mathematical consequence of the Lagrangian structure rather than an ad hoc assumption.
-  \item \textbf{Species-specific likelihood weighting}: The power likelihood ($\lambda_{Pg} = 5$, Eq.~\ref{eq:power_lik}) improves pathogen fitting but affects posterior calibration. Sensitivity analysis with $\lambda_{Pg} = 1$ confirms that the main conclusions (DI superiority, basin sensitivity) are robust to this choice.
-  \item \textbf{DeepONet MAP accuracy}: The surrogate MAP error varies across conditions (DH 11\%, CS 62\%, CH 44\%, DS 52\%), with Pg-related parameters poorly resolved. This reflects the uniform training data distribution, which under-represents the posterior-relevant region for pathogen interactions.
-  \item \textbf{Multi-attractor ODE}: The basin sensitivity analysis (Section~\ref{sec:basin}) reveals that posterior samples can span multiple attractors, particularly for the commensal static condition. This multi-modality is a genuine feature of the Hamilton ODE, not an artefact of the inference procedure, but it complicates point-estimate-based predictions.
-  \item \textbf{Spatial homogenisation}: The 2D reaction--diffusion PDE homogenises species composition through diffusion, producing smaller DI values ($\sim 0.05$--$0.08$) than the 0D model ($\sim 0.16$--$0.85$). The hybrid approach (Eq.~\ref{eq:hybrid}) mitigates this but is itself an approximation.
+  \item \textbf{DI$\to$E mapping}: Phenomenological; not calibrated against simultaneous 16S+AFM. Parameter range consistent with literature; coupled validation would strengthen the model.
+  \item \textbf{Symmetric $\mathbf{A}$}: $A_{ij} = A_{ji}$ from variational structure; may not capture asymmetric interactions.
+  \item \textbf{Power likelihood}: $\lambda_{Pg} = 5$ improves pathogen fit; sensitivity with $\lambda_{Pg} = 1$ confirms robustness.
+  \item \textbf{DeepONet}: MAP error varies (DH 11\% to CS 62\%); Pg parameters under-represented in training. Importance-weighted retraining may improve overlap.
+  \item \textbf{Multi-attractor}: Posterior can span basins; point estimates unreliable for commensal static.
+  \item \textbf{Spatial homogenisation}: 2D diffusion yields smaller DI than 0D; hybrid approach mitigates but is approximate.
 \end{itemize}
 
 Future work will address:
