@@ -24,7 +24,8 @@ PROJECT_ROOT="${PROJECT_ROOT:-/home/nishioka/IKM_Hiwi/Tmcmc202601}"
 MAIN_DIR="${PROJECT_ROOT}/data_5species/main"
 # stuttgart は miniforge3 を使用（conda create で作成した場合）
 # パスはリモート（stuttgart）のものを想定
-REMOTE_PYTHON="${REMOTE_PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python}"
+# klempt_fem2 を常に使用（miniforge3）
+REMOTE_PYTHON="${REMOTE_PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3}"
 SERVERS="${SERVERS:-stuttgart01 stuttgart02 stuttgart03}"
 SYNC_ONLY=false
 N_PARTICLES=200
@@ -86,9 +87,12 @@ for i in "${!CONDITIONS[@]}"; do
     out_dir="${MAIN_DIR}/_runs/jax_ode_${cond}_${cult}_${TS}"
     log="${LOG_BASE}/${cond}_${cult}.log"
 
-    echo "  [$((i+1))/4] ${cond}_${cult} -> $srv"
-    $SSH_CMD "$srv" "cd $MAIN_DIR && mkdir -p $out_dir && \
-        CUDA_VISIBLE_DEVICES=0 $REMOTE_PYTHON estimate_reduced_nishioka_jax.py \
+    # 同一サーバで複数ジョブ時は GPU を振り分け（stuttgart01: GPU 0 と 1）
+    gpu_id=$((i / N_SRV))
+    echo "  [$((i+1))/4] ${cond}_${cult} -> $srv (GPU $gpu_id)"
+    # XLA メモリ節約: command buffer 無効化
+    $SSH_CMD "$srv" "cd $MAIN_DIR && mkdir -p $out_dir $LOG_BASE && \
+        JAX_PLATFORMS=cuda CUDA_VISIBLE_DEVICES=$gpu_id XLA_FLAGS=--xla_gpu_enable_command_buffer= $REMOTE_PYTHON estimate_reduced_nishioka_jax.py \
         --condition $cond --cultivation $cult \
         --n-particles $N_PARTICLES --use-exp-init \
         --output-dir $out_dir \

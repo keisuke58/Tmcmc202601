@@ -43,17 +43,25 @@ echo " N_PARTICLES: $N_PARTICLES"
 echo " Output: $OUT_BASE"
 echo "=============================================="
 
-# 4 チェーンを 4 GPU に振り分け
+# GPU 0/1 が OOM やハードウェアエラーの場合: GPU_IDS="2 3" で 2 チェーンに縮小
+# XLA_PYTHON_CLIENT_PREALLOCATE=false でメモリ節約
+export XLA_PYTHON_CLIENT_PREALLOCATE="${XLA_PYTHON_CLIENT_PREALLOCATE:-false}"
+GPU_IDS=(${GPU_IDS:-0 1 2 3})
+N_CHAINS=${#GPU_IDS[@]}
+
+# 4 チェーンを GPU に振り分け
 PIDS=()
-for i in 0 1 2 3; do
-    CHAIN_DIR="${OUT_BASE}/chain_${i}"
+for idx in "${!GPU_IDS[@]}"; do
+    i="${GPU_IDS[$idx]}"
+    CHAIN_DIR="${OUT_BASE}/chain_${idx}"
     mkdir -p "$CHAIN_DIR"
     SEED=$((42 + i * 1000))
-    LOG="${CHAIN_DIR}.log"
+    LOG="${OUT_BASE}/chain_${idx}.log"
 
     echo ""
-    echo "  Chain $i -> GPU $i (seed=$SEED)"
-    CUDA_VISIBLE_DEVICES=$i $PYTHON "$MAIN_DIR/estimate_reduced_nishioka_jax.py" \
+    echo "  Chain $idx -> GPU $i (seed=$SEED)"
+    JAX_PLATFORMS=cuda CUDA_VISIBLE_DEVICES=$i $PYTHON "$MAIN_DIR/estimate_reduced_nishioka_jax.py" \
+        --device gpu \
         --condition "$CONDITION" \
         --cultivation "$CULTIVATION" \
         --n-particles "$N_PARTICLES" \
@@ -67,7 +75,7 @@ for i in 0 1 2 3; do
 done
 
 echo ""
-echo "Waiting for 4 chains..."
+echo "Waiting for $N_CHAINS chains..."
 for pid in "${PIDS[@]}"; do
     wait "$pid" || true
 done
@@ -83,8 +91,9 @@ import numpy as np
 from pathlib import Path
 
 out_base = Path("$OUT_BASE")
+n_chains = $N_CHAINS
 samples_list, logL_list = [], []
-for i in range(4):
+for i in range(n_chains):
     chain_dir = out_base / f"chain_{i}"
     s = np.load(chain_dir / "samples.npy")
     l = np.load(chain_dir / "logL.npy")
@@ -97,7 +106,7 @@ np.save(out_base / "samples_combined.npy", samples)
 np.save(out_base / "logL_combined.npy", logL)
 
 # R-hat 簡易計算（パラメータごと）
-n_chains, n_per = 4, len(samples_list[0])
+n_chains, n_per = len(samples_list), len(samples_list[0])
 chain_samples = np.array(samples_list)  # (4, n_per, 20)
 n_params = chain_samples.shape[2]
 rhat = []
@@ -105,7 +114,7 @@ for p in range(n_params):
     x = chain_samples[:, :, p]  # (4, n_per)
     m = x.mean(axis=1)
     M = m.mean()
-    B = n_per * ((m - M)**2).sum() / 3
+    B = n_per * ((m - M)**2).sum() / max(n_chains - 1, 1)
     s2 = ((x - m[:, None])**2).sum(axis=1) / (n_per - 1)
     W = s2.mean()
     var_hat = (n_per - 1)/n_per * W + B/n_per

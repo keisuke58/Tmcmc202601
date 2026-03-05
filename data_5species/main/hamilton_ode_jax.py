@@ -16,6 +16,37 @@ import jax.numpy as jnp
 jax.config.update("jax_enable_x64", True)
 
 
+def _solve_linear_pure_jax(A, b):
+    """
+    Solve A @ x = b using Gaussian elimination (no pivoting).
+    Pure JAX implementation to avoid cuSOLVER (gpusolverDnCreate failures on some GPUs).
+    For the 12x12 Newton Jacobian this is numerically adequate.
+    """
+    n = A.shape[0]
+    Ab = jnp.concatenate([A, b[:, jnp.newaxis]], axis=1)
+
+    def elim_step(carry, k):
+        Ab_curr = carry
+        pivot = Ab_curr[k, k]
+        pivot_safe = jnp.where(jnp.abs(pivot) > 1e-14, pivot, 1.0)
+        row_k = Ab_curr[k, :]
+        scale = Ab_curr[:, k] / pivot_safe
+        scale = jnp.where(jnp.arange(n) > k, scale, 0.0)
+        Ab_new = Ab_curr - scale[:, jnp.newaxis] * row_k
+        return Ab_new, None
+
+    Ab_final, _ = jax.lax.scan(elim_step, Ab, jnp.arange(n - 1))
+    # Back substitution (unrolled for n=12)
+    x = jnp.zeros(n)
+    for i in range(n - 1, -1, -1):
+        row = Ab_final[i, :]
+        known = jnp.dot(row[i + 1 : n], x[i + 1 : n])
+        diag = jnp.where(jnp.abs(row[i]) > 1e-14, row[i], 1.0)
+        x_i = (row[n] - known) / diag
+        x = x.at[i].set(x_i)
+    return x
+
+
 def theta_to_matrices(theta):
     """Map 20 params to A(5,5) and b(5). Same layout as improved_5species_jit."""
     A = jnp.zeros((5, 5))
@@ -160,7 +191,7 @@ def newton_step(g_prev, params):
 
         Q = F(g)
         J = jax.jacfwd(F)(g)
-        delta = jnp.linalg.solve(J, -Q)
+        delta = _solve_linear_pure_jax(J, -Q)
         g_next = clip_state(g + delta, active_mask)
         return g_next, None
 

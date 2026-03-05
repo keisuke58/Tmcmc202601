@@ -47,6 +47,15 @@ def _parse_device_early():
 _device_early = _parse_device_early()
 if _device_early == "cpu":
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
+elif _device_early in ("auto", "gpu"):
+    # CUDA を優先: JAX_PLATFORMS が未設定なら cuda を明示（ROCM 誤検出回避）
+    if "JAX_PLATFORMS" not in os.environ:
+        os.environ["JAX_PLATFORMS"] = "cuda"
+    # jax-cuda12-plugin を JAX より先にロード（CUDA 初期化を確実に）
+    try:
+        import jax_cuda12_plugin  # noqa: F401
+    except ImportError:
+        pass  # CPU-only jaxlib の場合は無視
 
 import jax
 import jax.numpy as jnp
@@ -164,7 +173,16 @@ def main():
         logger.info("Quick mode: n_particles=50, n_steps=500")
 
     devs = jax.devices()
+    has_gpu = any("cuda" in str(d).lower() or "gpu" in str(d).lower() for d in devs)
     logger.info(f"JAX devices: {[str(d) for d in devs]} (--device={args.device})")
+    if args.device == "gpu" and not has_gpu:
+        raise RuntimeError(
+            "GPU が利用できません。以下を確認してください:\n"
+            "  1. pip install jax[cuda12] または jax-cuda12-plugin が入っているか\n"
+            "  2. nvidia-smi で GPU が認識されているか\n"
+            '  3. python -c "import jax; print(jax.devices())" でデバイス確認\n'
+            "  4. LD_LIBRARY_PATH がシステム CUDA を指しており pip の nvidia-* と競合していないか"
+        )
 
     logger.info("Loading experimental data...")
     data, t_days, sigma_obs_est, phi_init_exp, metadata = load_experimental_data(
