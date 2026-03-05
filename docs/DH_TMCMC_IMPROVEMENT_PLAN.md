@@ -43,6 +43,17 @@ python estimate_reduced_nishioka.py \
 
 #### A2. NUTS/HMC mutation の使用
 
+**JAX ODE 版（推奨）** — DeepONet 不要、サロゲート誤差ゼロ:
+
+```bash
+cd data_5species/main
+PYTHON=$HOME/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python
+$PYTHON estimate_reduced_nishioka_jax.py --condition Dysbiotic --cultivation HOBIC \
+  --n-particles 200 --use-exp-init --mutation nuts
+```
+
+**DeepONet 版**:
+
 ```bash
 cd deeponet
 python gradient_tmcmc_nuts.py --condition Dysbiotic_HOBIC \
@@ -50,7 +61,17 @@ python gradient_tmcmc_nuts.py --condition Dysbiotic_HOBIC \
 ```
 
 - **効果**: PAPER_OUTLINE より DH で RW 0.45 → NUTS 0.97（**2.2× acceptance**）
-- **注意**: ODE ベースでは JAX 化が必要。現状は DeepONet 経由で NUTS が使える。
+- **JAX ODE**: `hamilton_ode_jax.py` + `tmcmc_nuts_engine.py` で ODE 直接 NUTS が可能。
+
+**JAX ODE テスト／本番**:
+
+```bash
+cd data_5species/main
+bash run_jax_ode_nuts.sh --test              # 50p, 500 steps（数分）
+bash run_jax_ode_nuts.sh --production        # 200p, 2500 steps（30分〜1時間）
+```
+
+**GPU**: `jax[cuda12]` 入りなら自動で GPU 使用。CPU より数倍〜10倍速くなる場合あり。
 
 #### A3. 実験初期値の使用（use_exp_init）
 
@@ -145,6 +166,22 @@ python estimate_reduced_nishioka.py ... --lambda-pg 8 --lambda-late 4
 #### D6. dh_v3_tight_bounds の利用
 
 - 既存の `dh_v3_tight_bounds` は prior を絞った run。同様の narrow prior で再実行すると収束が早くなる可能性。
+
+---
+
+## 2.5 推定手法の使い分け
+
+| 手法 | 用途 | 速度 | 精度 | NUTS | 分散実行 |
+|------|------|------|------|------|----------|
+| **NumPy ODE** (`estimate_reduced_nishioka.py`) | 本番・ハイパラ sweep | 中 | 正確 | 不可 | 可（複数サーバ） |
+| **JAX ODE** (`estimate_reduced_nishioka_jax.py`) | NUTS で acceptance 向上 | CPU:遅 / GPU:速 | 正確 | 可 | 要 JAX（GPU 可） |
+| **DeepONet** (`gradient_tmcmc_nuts.py`) | 高速・大量サンプル | 最速 | 近似（overlap 17/20） | 可 | 要 GPU 推奨 |
+
+**推奨**:
+- **ハイパラ探索・分散実行**: NumPy ODE（`run_dh_ch_hyperparam_distributed.sh`）
+- **NUTS で acceptance 向上したい**: JAX ODE（`run_jax_ode_nuts.sh --production`）
+- **サロゲート誤差を避けたい**: JAX ODE または NumPy ODE
+- **大量サンプル・高速**: DeepONet
 
 ---
 
@@ -337,6 +374,9 @@ python gradient_tmcmc_nuts.py --condition Dysbiotic_HOBIC \
 | 項目 | パス |
 |------|------|
 | 推定スクリプト | `data_5species/main/estimate_reduced_nishioka.py` |
+| JAX ODE + NUTS | `data_5species/main/estimate_reduced_nishioka_jax.py` |
+| JAX Hamilton ODE | `data_5species/main/hamilton_ode_jax.py` |
+| TMCMC NUTS engine | `data_5species/main/tmcmc_nuts_engine.py` |
 | DH/CH ハイパラ探索 | `data_5species/main/run_dh_ch_hyperparam_sweep.sh` |
 | Prior bounds | `data_5species/model_config/prior_bounds.json` |
 | DH 事後 | `data_5species/_runs/dh_baseline/` |
