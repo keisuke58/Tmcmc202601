@@ -1046,6 +1046,26 @@ This suggests that the proposed model successfully captures the main trends of t
 \label{fig:residuals}
 \end{figure}
 
+\subsubsection{Hyperparameter Sensitivity (DH and CH)}
+
+To improve MAP RMSE for Dysbiotic HOBIC (DH) and Commensal HOBIC (CH), we performed a hyperparameter grid search over $\sigma_{\mathrm{scale}}$ (0.5, 1.0), $\lambda_{\mathrm{Pg}}$ (5, 8), and $\lambda_{\mathrm{late}}$ (3, 4), where $\sigma_{\mathrm{scale}}$ scales the observation noise and $\lambda_{\mathrm{Pg}}$, $\lambda_{\mathrm{late}}$ weight P.\,gingivalis and late-time residuals in the likelihood.
+The sweep was distributed across six compute nodes (500 particles, 30 stages per run).
+\emph{Results will be incorporated when the runs complete; the best configuration will be reported and used for subsequent analysis.}
+
+% \begin{table}[H]
+% \centering
+% \caption{DH/CH hyperparameter sweep results (MAP RMSE). To be filled when runs complete.}
+% \label{tab:hyperparam_sweep}
+% \begin{tabular}{llcc}
+% \toprule
+% \textbf{Config} & $\sigma_{\mathrm{scale}}$ & $\lambda_{\mathrm{Pg}}$ & $\lambda_{\mathrm{late}}$ & RMSE (DH) & RMSE (CH) \\
+% \midrule
+% baseline & 1.0 & 5 & 3 & --- & --- \\
+% ... \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
 % \subsection{Parameter Estimation Results}
 
 % The posterior distributions of estimated parameters are shown in Figure \ref{fig:boxplots}.

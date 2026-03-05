@@ -486,7 +486,13 @@ class BiofilmNewtonSolver5S:
         self.c_const = float(c_const)
         self.alpha_const = float(alpha_const)
         self.alpha_schedule = alpha_schedule
-        self.phi_init = float(phi_init)
+        phi_init = np.asarray(phi_init, dtype=float)
+        if phi_init.ndim == 0 or phi_init.size == 1:
+            self.phi_init = np.full(5, float(phi_init.flat[0]))
+        else:
+            self.phi_init = np.asarray(phi_init, dtype=float)
+            if self.phi_init.size != 5:
+                self.phi_init = np.resize(self.phi_init, 5)
         self.max_newton_iter = int(max_newton_iter)
         self.K_hill = float(K_hill)
         self.n_hill = float(n_hill)
@@ -563,7 +569,7 @@ class BiofilmNewtonSolver5S:
                 active_mask[i] = 1
 
         for i in range(5):
-            g_prev[i] = self.phi_init if active_mask[i] else 0.0
+            g_prev[i] = self.phi_init[i] if active_mask[i] else 0.0
         g_prev[5] = 1.0 - np.sum(g_prev[0:5])
         for i in range(5):
             g_prev[6 + i] = 0.999 if active_mask[i] else 0.0

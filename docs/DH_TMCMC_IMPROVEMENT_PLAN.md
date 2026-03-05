@@ -238,9 +238,101 @@ bash run_dh_ch_hyperparam_sweep.sh --parallel   # DH/CH 並列
 
 探索するハイパラ: `sigma_scale` (0.5, 1.0), `lambda_pg` (5, 8), `lambda_late` (3, 4)
 
+### 実行状況（2026-03-05）
+
+| 種別 | 状態 | 出力 |
+|------|------|------|
+| テスト (--quick) | 完了 | `_runs/dh_ch_hyperparam_20260305_204944/` |
+| 本番 (500p×30st) | 実行中 | `_runs/dh_ch_hyperparam_20260305_210702/` |
+
+**結果が出たら**: 本ドキュメントと論文に RMSE 比較表を追記予定。
+
 ---
 
-## 9. 参照
+## 9. スコア定義と満点達成へのアクション
+
+### 満点の定義（100点満点）
+
+| 項目 | 配点 | 満点基準 | 現状 | 現状得点 |
+|------|------|----------|------|----------|
+| **MAP RMSE (DH)** | 30 | ≤ 0.060（他条件並み） | 0.075 | 約 12 |
+| **事後較正 (MAE)** | 25 | 事後平均 vs θ_MAP の MAE ≤ 0.2 | 1.65 | 約 0 |
+| **DeepONet overlap** | 25 | 20/20 パラメータで > 0.95 | 17/20 | 約 21 |
+| **収束診断** | 10 | R-hat < 1.05, ESS > 0.3N | 要確認 | 仮 8 |
+| **パイプライン一貫性** | 10 | DI credible interval が他条件と同程度 | DH が 35× 広い | 約 0 |
+
+**現状合計: 約 41/100 点**
+
+### 満点達成のためのアクション（項目別）
+
+| 項目 | やること | コマンド・手順 |
+|------|----------|----------------|
+| **MAP RMSE** | A1+A3+D4: 500p×30st, use_exp_init, λ_Pg=8, λ_late=4 | 下記 Step 1 |
+| **事後較正** | A1+A3+B2: 500p×30st, use_exp_init, GNN prior | 下記 Step 1 + Step 2 |
+| **DeepONet overlap** | C1: posterior_frac=0.7 で再学習 | 下記 Step 3 |
+| **収束診断** | D5: n-chains=3, 複数 seed で R-hat/ESS 確認 | `--n-chains 3 --seed 42` 等 |
+| **パイプライン一貫性** | 事後較正の改善に伴い DI CI が縮小 | Step 1–2 の副産物 |
+
+### 実行ステップ（優先順）
+
+**Step 1（即効・1–2時間）**: ODE-TMCMC の強化
+
+```bash
+cd data_5species/main
+python estimate_reduced_nishioka.py \
+  --condition Dysbiotic --cultivation HOBIC \
+  --n-particles 500 --n-stages 30 \
+  --use-exp-init --lambda-pg 8 --lambda-late 4 \
+  --checkpoint-every 5 \
+  --out-dir _runs/dh_step1_$(date +%Y%m%d_%H%M%S)
+```
+
+→ MAP RMSE, 事後較正 (MAE) の改善を確認。fit_metrics.json, theta_MEAN vs theta_MAP を比較。
+
+**Step 2（数時間）**: GNN prior を追加
+
+```bash
+python estimate_reduced_nishioka.py \
+  --condition Dysbiotic --cultivation HOBIC \
+  --n-particles 500 --n-stages 30 \
+  --use-exp-init --gnn-prior-json gnn/data/gnn_prior_predictions_v2.json \
+  --lambda-pg 8 --lambda-late 4 \
+  --out-dir _runs/dh_step2_$(date +%Y%m%d_%H%M%S)
+```
+
+→ 事後較正・ESS のさらなる改善。Step 1 の事後を `--posterior-dir` に渡して 2 段階 prior も検討可。
+
+**Step 3（1日）**: DeepONet 再学習
+
+```bash
+cd deeponet
+python generate_training_data.py --condition Dysbiotic_HOBIC \
+  --n-samples 50000 --posterior-dir ../data_5species/_runs/dh_step2_* \
+  --posterior-frac 0.7
+# posterior-dir は Step 2 の出力ディレクトリを指定。学習 → TMCMC → overlap 評価（Fig22）
+```
+
+→ overlap 17/20 → 18–20/20 を目指す。
+
+**Step 4（オプション）**: NUTS で acceptance 向上
+
+```bash
+python gradient_tmcmc_nuts.py --condition Dysbiotic_HOBIC \
+  --compare-all --n-particles 500 --real
+```
+
+### チェックリスト（満点に向けて）
+
+- [ ] Step 1 実行 → MAP RMSE ≤ 0.065 を確認
+- [ ] Step 1 実行 → 事後平均 vs θ_MAP の MAE ≤ 0.5 を確認
+- [ ] Step 2 実行 → MAE ≤ 0.2 を確認
+- [ ] Step 3 実行 → overlap ≥ 18/20 を確認
+- [ ] DI credible interval が CS の 5 倍以内に縮小
+- [ ] R-hat < 1.05, ESS > 0.3N を全条件で確認
+
+---
+
+## 10. 参照
 
 | 項目 | パス |
 |------|------|
@@ -249,5 +341,6 @@ bash run_dh_ch_hyperparam_sweep.sh --parallel   # DH/CH 並列
 | Prior bounds | `data_5species/model_config/prior_bounds.json` |
 | DH 事後 | `data_5species/_runs/dh_baseline/` |
 | NUTS 比較 | `deeponet/gradient_tmcmc_nuts.py` |
+| Stuttgart (GPU) 分散実行 | `deeponet/run_nuts_stuttgart.sh` |
 | Importance-weighted | `deeponet/run_importance_weighted_pipeline.sh` |
 | DH MAE 悪化対策 | `project_e/docs/ISSUE_Dysbiotic_HOBIC_MAE_degradation.md` |
