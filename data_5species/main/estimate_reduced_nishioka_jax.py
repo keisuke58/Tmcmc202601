@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -33,6 +34,19 @@ MAIN_DIR = SCRIPT_DIR
 DATA_DIR = SCRIPT_DIR.parent
 PROJECT_ROOT = DATA_DIR.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+
+# Device selection MUST be before jax import
+def _parse_device_early():
+    for i, a in enumerate(sys.argv):
+        if a == "--device" and i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+    return "auto"
+
+
+_device_early = _parse_device_early()
+if _device_early == "cpu":
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 import jax
 import jax.numpy as jnp
@@ -136,12 +150,21 @@ def main():
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--mutation", default="nuts", choices=["rw", "hmc", "nuts"])
     parser.add_argument("--quick", action="store_true", help="Test run: 50p, 500 steps")
+    parser.add_argument(
+        "--device",
+        choices=["auto", "cpu", "gpu"],
+        default="auto",
+        help="Device: auto (use GPU if available), cpu, gpu",
+    )
     args = parser.parse_args()
 
     if args.quick:
         args.n_particles = 50
         args.n_steps = 500
         logger.info("Quick mode: n_particles=50, n_steps=500")
+
+    devs = jax.devices()
+    logger.info(f"JAX devices: {[str(d) for d in devs]} (--device={args.device})")
 
     logger.info("Loading experimental data...")
     data, t_days, sigma_obs_est, phi_init_exp, metadata = load_experimental_data(

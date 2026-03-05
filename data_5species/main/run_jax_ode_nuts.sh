@@ -9,7 +9,9 @@
 #   bash run_jax_ode_nuts.sh --test --condition Commensal --cultivation HOBIC
 # =============================================================================
 # Requires: JAX (e.g. klempt_fem conda env)
-# GPU: jax[cuda12] 入りなら自動で GPU 使用（高速化）
+# GPU: jax-cuda12-plugin 入りなら自動で GPU 使用（高速化）
+#   環境: bash setup_jax_gpu.sh または pip install -r requirements-jax-gpu.txt
+#   比較: python benchmark_cpu_gpu.py --quick
 # =============================================================================
 set -euo pipefail
 

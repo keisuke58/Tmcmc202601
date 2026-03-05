@@ -200,8 +200,10 @@ def tmcmc_engine(
     t0 = time.time()
     logL_jit = jax.jit(log_likelihood)
     grad_jit = jax.jit(jax.value_and_grad(log_likelihood))
+    logL_vmap = jax.jit(jax.vmap(log_likelihood))
 
-    logL = np.array([float(logL_jit(jnp.array(p))) for p in particles])
+    particles_jax = jnp.array(particles)
+    logL = np.array(logL_vmap(particles_jax))
     if verbose:
         print(f"  Init: {time.time()-t0:.1f}s")
 

@@ -12,12 +12,17 @@
 #   bash run_nuts_stuttgart.sh --servers "stuttgart01 stuttgart02"
 #   PYTHON=/path/to/python bash run_nuts_stuttgart.sh  # stuttgart 用 Python 指定
 # =============================================================================
+# fifawc から実行時: conda deactivate してから実行すると SSH が安定（OpenSSL 競合回避）
+# =============================================================================
 set -euo pipefail
+
+SSH_CMD="${SSH_CMD:-/usr/bin/ssh}"
+[[ ! -x "$SSH_CMD" ]] && SSH_CMD="ssh"
 
 PROJECT_ROOT="${PROJECT_ROOT:-/home/nishioka/IKM_Hiwi/Tmcmc202601}"
 DEEPONET_DIR="${PROJECT_ROOT}/deeponet"
-# stuttgart では PYTHON を明示指定するか、各サーバの klempt_fem パスを設定
-PYTHON="${PYTHON:-$HOME/.pyenv/versions/miniconda3-latest/envs/klempt_fem/bin/python}"
+# stuttgart 用 Python（リモートパス）。miniforge3 で作成した場合
+PYTHON="${PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem/bin/python}"
 
 SERVERS="${SERVERS:-stuttgart01 stuttgart02 stuttgart03}"
 SYNC_ONLY=false
@@ -45,7 +50,7 @@ echo "=== Phase 0: Syncing project to Stuttgart ==="
 REMOTE_DIR="$(dirname "$PROJECT_ROOT")"
 for srv in $SERVERS; do
     echo "  $srv: mkdir + rsync ..."
-    ssh "$srv" "mkdir -p $REMOTE_DIR" 2>/dev/null || true
+    $SSH_CMD "$srv" "mkdir -p $REMOTE_DIR" 2>/dev/null || true
     rsync -avz --exclude '_runs' --exclude '__pycache__' --exclude '*.pyc' \
         --exclude '.git' --exclude '*.odb' --exclude '*.odb_f' \
         "$PROJECT_ROOT/" "$srv:$PROJECT_ROOT/" || echo "  [WARN] rsync to $srv failed"
@@ -58,7 +63,7 @@ read -ra SRV_ARRAY <<< "$SERVERS"
 # Pre-check: Python/JAX on first server
 echo ""
 echo "=== Pre-check: Python env on ${SRV_ARRAY[0]} ==="
-if ! ssh "${SRV_ARRAY[0]}" "test -x $PYTHON" 2>/dev/null; then
+if ! $SSH_CMD "${SRV_ARRAY[0]}" "test -x $PYTHON" 2>/dev/null; then
     echo "  [WARN] $PYTHON not found on remote. Set PYTHON=... for stuttgart."
     echo "  Example: PYTHON=/path/to/klempt_fem/bin/python bash run_nuts_stuttgart.sh"
     echo "  Skipping pre-check (will fail at run time if env missing)."
@@ -85,7 +90,7 @@ for i in "${!CONDITIONS[@]}"; do
     log="${LOG_BASE}/${cond}.log"
 
     echo "  [$((i+1))/4] $cond -> $srv"
-    ssh "$srv" "cd $DEEPONET_DIR && mkdir -p $LOG_BASE && \
+    $SSH_CMD "$srv" "cd $DEEPONET_DIR && mkdir -p $LOG_BASE && \
         CUDA_VISIBLE_DEVICES=0 $PYTHON gradient_tmcmc_nuts.py \
         --real --condition $cond --compare-all \
         --n-particles $N_PARTICLES \

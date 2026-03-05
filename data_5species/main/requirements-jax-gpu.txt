@@ -1,0 +1,18 @@
+# JAX with CUDA 12 for GPU acceleration
+# Install: pip install -r requirements-jax-gpu.txt
+#
+# Requires: CUDA 12.x + cuDNN (nvidia-smi で GPU 確認)
+#
+# Method 1 (recommended): CUDA plugin
+jax>=0.4.0
+jax-cuda12-plugin>=0.9.0
+
+# Method 2 (alternative): direct CUDA build
+# pip install "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --no-cache-dir
+
+# estimate_reduced_nishioka_jax.py が estimate_reduced_nishioka を import するため
+pandas
+requests
+numba
+equinox
+matplotlib
