@@ -1045,6 +1045,97 @@ In addition to the pairwise comparison, we examined the Frobenius norm $\lVert \
 
 
 %==============================================================================
+\subsection{Cross-Condition Transferability}
+\label{sec:cross_condition}
+%==============================================================================
+
+To assess whether the inferred parameters capture condition-specific or generalizable features of the biofilm dynamics, we performed cross-condition prediction: for each pair of biologically related conditions, the MAP parameters $\boldsymbol{\theta}^{(c_1)}_{\text{MAP}}$ estimated from condition $c_1$ were used to simulate the forward model under condition $c_2$, and the resulting RMSE was compared with the self-fit RMSE of $c_2$. The degradation ratio $\delta = \text{RMSE}_{\text{cross}} / \text{RMSE}_{\text{self}}$ quantifies how much predictive accuracy is lost when parameters are transferred.
+
+\begin{table}[H]
+\centering
+\caption{Cross-condition prediction: MAP parameters from the source condition are used to predict the target condition. The degradation ratio $\delta < 1$ indicates that the transferred parameters yield a \emph{better} fit than the target's own MAP, while $\delta > 1$ indicates degradation.}
+\begin{tabular}{l l c c c}
+\toprule
+Source & Target & Cross RMSE & Self RMSE (target) & $\delta$ \\
+\midrule
+Commensal Static  & Commensal HOBIC  & 0.108 & 0.090 & 1.20 \\
+Commensal HOBIC   & Commensal Static & 0.097 & 0.115 & \textbf{0.84} \\
+Dysbiotic Static  & Dysbiotic HOBIC  & 0.183 & 0.135 & 1.35 \\
+Dysbiotic HOBIC   & Dysbiotic Static & 0.182 & 0.091 & 1.99 \\
+\bottomrule
+\end{tabular}
+\label{tab:cross_condition}
+\end{table}
+
+Within the commensal state, MAP parameters are largely transferable: the CH$\to$CS transfer even improves over the CS self-fit ($\delta = 0.84$), while CS$\to$CH degrades only mildly ($\delta = 1.20$). This suggests that the commensal interaction network is robust to cultivation method (Static vs.\ HOBIC) and that the HOBIC parameters, estimated from richer dynamics, generalize well to the simpler Static environment.
+
+In contrast, the dysbiotic pair exhibits $1.4$--$2\times$ degradation, with the DH$\to$DS direction being the most severe ($\delta = 1.99$). The Dysbiotic HOBIC condition, which includes the P.gingivalis surge and unlocks all 20 parameters, learns interaction strengths that are too aggressive for the more quiescent Dysbiotic Static dynamics. This asymmetry underscores that the pathogen surge in DH represents a qualitatively different dynamical regime, consistent with the regime-switching hypothesis discussed above.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/validation/results_cross_condition/cross_condition_validation.png}
+\caption{Cross-condition prediction for all four conditions. Each panel shows the target condition's experimental data (circles), its own MAP simulation (solid), and the transferred MAP simulation from the paired condition (dashed). The shaded red region indicates cross-condition mismatch.}
+\label{fig:cross_condition_validation}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/validation/results_cross_condition/cross_condition_rmse_bar.png}
+\caption{Cross-condition RMSE comparison. Self-fit RMSE (green) vs.\ cross-predicted RMSE (red) for each condition pair. The CH$\to$CS transfer yields lower RMSE than the CS self-fit, indicating strong generalizability within the commensal state.}
+\label{fig:cross_condition_bar}
+\end{figure}
+
+
+%==============================================================================
+\subsection{Temporal Holdout Validation: Early $\to$ Late Prediction}
+\label{sec:early_late}
+%==============================================================================
+
+A clinically relevant question is whether model parameters estimated from early-stage biofilm data (days 1--10) can predict the late-stage maturation dynamics (days 15 and 21). To test this, we re-estimated MAP parameters using only the first four timepoints (days 1, 3, 6, 10) via L-BFGS-B optimization warm-started from the full-data MAP, and then evaluated the forward simulation at the held-out late timepoints.
+
+\begin{table}[H]
+\centering
+\caption{Temporal holdout validation. MAP parameters are estimated from days 1--10 only, and the late-period RMSE (days 15, 21) is compared with the full-data MAP. The degradation ratio $\delta$ indicates how much predictive accuracy is lost by restricting training to early data.}
+\begin{tabular}{l c c c}
+\toprule
+Condition & Full MAP (late RMSE) & Early-trained (late RMSE) & $\delta$ \\
+\midrule
+Commensal Static & 0.143 & 0.222 & 1.56 \\
+Commensal HOBIC  & 0.075 & 0.117 & 1.54 \\
+Dysbiotic Static & 0.097 & 0.263 & \textbf{2.71} \\
+Dysbiotic HOBIC  & 0.171 & 0.173 & 1.02$^{\dagger}$ \\
+\bottomrule
+\end{tabular}
+\begin{flushleft}
+\footnotesize{$^{\dagger}$The DH result should be interpreted with caution: with all 20 parameters free, the early data ($4 \times 5 = 20$ observations) exactly matches the parameter count. Additionally, the full MAP $\theta_{18} = 17.3$ exceeds the prior bounds $[-3, 5]$, causing the warm-started optimizer to stagnate near its initial point. The apparent $\delta \approx 1$ reflects optimizer limitation rather than genuine temporal extrapolation quality.}
+\end{flushleft}
+\label{tab:early_late}
+\end{table}
+
+\textbf{Dysbiotic Static} shows the worst degradation ($\delta = 2.71$), driven primarily by the late-stage growth of V.~dispar (species-level RMSE: 0.56 vs.\ 0.21 for the full MAP). In this condition, the V.~dispar expansion in the maturation phase follows a trajectory that is not sufficiently constrained by the early data.
+
+The commensal conditions show moderate degradation ($\delta \approx 1.5$), indicating that the early-to-late transition is reasonably smooth but that some information about the Day~15--21 equilibrium is lost when excluding the late-stage data.
+
+The Dysbiotic HOBIC condition cannot be meaningfully evaluated in this temporal holdout framework due to two structural limitations: (i)~the number of free parameters (20) equals the number of early-data observations, rendering the re-optimization exactly determined; and (ii)~the full-data MAP estimates for the Vei--P.g interaction ($\theta_{18} = 17.3$) exceed the prior bounds used during re-optimization, so the warm-started optimizer cannot reach the full-data optimum. Proper temporal holdout for this condition would require either a reduced parameterization or substantially more observation timepoints.
+
+Combining these results with the cross-condition analysis (Table~\ref{tab:cross_condition}), we conclude that \textbf{Dysbiotic Static} is the most fragile condition, exhibiting the largest degradation in both validation settings, while the \textbf{commensal conditions} demonstrate reasonable temporal generalizability ($\delta \approx 1.5$).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/validation/results_early_late/early_late_validation.png}
+\caption{Temporal holdout validation for all four conditions. Each panel shows the experimental data (circles), the full-data MAP simulation (solid, faint), and the early-trained MAP simulation (dashed, bold). The shaded red region (days 15--21) indicates the held-out prediction window. The dashed vertical line marks the train/test split boundary at day 12.}
+\label{fig:early_late_validation}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/validation/results_early_late/early_late_rmse_bar.png}
+\caption{Late-period RMSE comparison. Full-data MAP (green) vs.\ early-trained MAP (red) for the held-out days 15 and 21. The Dysbiotic Static condition exhibits the largest degradation (2.71$\times$), while the commensal conditions show moderate degradation ($\approx$1.5$\times$).}
+\label{fig:early_late_bar}
+\end{figure}
+
+
+%==============================================================================
 % \section{Conclusion}
 % %==============================================================================
 
