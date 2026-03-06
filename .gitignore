@@ -7,6 +7,7 @@ Desktop.ini
 
 .vscode/
 .idea/
+.claude/
 
 # =========================
 # Python
@@ -118,6 +119,27 @@ tmcmc/*.json
 *.tmp
 *.swp
 *.swo
+
+# =========================
+# External / cloned projects
+# =========================
+AI-Scientist-v2/
+Open-Full-Jaw/
+FEM_legacy/
+BiofiIm_2025/
+.venv_jax/
+
+# =========================
+# Wiki / local clones
+# =========================
+*.wiki/
+
+# =========================
+# Career / personal outputs (visualize_career_ranking.py)
+# =========================
+career_ranking_visualization.png
+career_recommendation_ranking.csv
+career_*.md
 
 # =========================
 # Environment variables (sensitive)
