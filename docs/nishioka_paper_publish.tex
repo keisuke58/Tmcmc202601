@@ -55,7 +55,7 @@ By encoding experimentally established absent interactions as hard constraints, 
 Inference is performed via Transitional Markov Chain Monte Carlo (TMCMC) with an adaptive tempering schedule, combined with a four-stage sequential estimation strategy that aligns parameter groups with the ecological succession of species colonization.
 The method is validated against in-vitro time-course data under four experimental conditions spanning commensal and dysbiotic community states in static and flow (HOBIC) environments.
 The inferred interaction matrices reveal condition-specific shifts: commensal biofilms are governed by early-colonizer self-regulation, whereas dysbiotic states require cooperative cross-feeding between \textit{Veillonella} and \textit{Porphyromonas~gingivalis} to reproduce the experimentally observed pathogen surge.
-Pairwise Frobenius analysis of the MAP interaction matrices shows moderate within-state correlation ($\rho\approx0.46$) and weak cross-state correlation ($\rho\approx-0.15$), quantifying the transition from health to disease.
+Pairwise Frobenius analysis of the MAP interaction matrices shows moderate within-state correlation ($\rho\approx0.46$) and weak cross-state correlation ($\rho\approx-0.15$), providing a quantitative signature of the health-to-disease transition that may inform early diagnostic strategies.
 
 \vspace{4pt}
 \noindent\textbf{Keywords:}
@@ -78,7 +78,7 @@ Building on the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamil
 Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms} subsequently introduced Bayesian updating with surrogate models for biofilm parameter estimation under hybrid uncertainties.
 
 Despite these advances, estimating all 20 parameters of the five-species model from limited time-course data remains challenging.
-Three difficulties arise: (i) poor identifiability when data are sparse relative to the parameter dimension, (ii) biologically implausible posterior modes that exploit mathematical redundancies, and (iii) high computational cost from exploring unnecessary regions of parameter space.
+Three difficulties arise: (i) poor identifiability when data are sparse relative to the parameter dimension---with $N_t=6$ time points and 5 species, one has at most 30 observations for 20 unknowns---and (ii) biologically implausible posterior modes that exploit mathematical redundancies in the absence of structural constraints.
 These issues are amplified by the multimodal nature of the posterior landscape, which renders standard MCMC methods inefficient~\cite{RobertCasella2004MonteCarlo}.
 
 In this work we address these challenges through two complementary strategies.
@@ -103,11 +103,9 @@ Defining the living volume fraction $u_i = \phi_i\psi_i$, the evolution equation
 \end{equation}
 where $A_{ii}$ is the self-regulation coefficient, $A_{ij}$ ($j\neq i$) encodes the effect of species~$j$ on species~$i$, and $b_i$ is the decay rate.
 This system is a generalised Lotka--Volterra model with symmetric interactions arising naturally from the variational structure.
-Denoting the void fraction by $\phi_{\mathrm{void}}$, the holonomic constraint reads
+The void fraction $\phi_{\mathrm{void}}$ closes the system via the holonomic constraint
 \begin{equation}
-\phi_{\mathrm{void}}(t) = 1 - \sum_{i=0}^{4}\phi_i(t),
-\qquad
-\phi_{\mathrm{void}}(t) + \sum_{i=0}^{4}\phi_i(t) = 1
+\sum_{i=0}^{4}\phi_i(t) + \phi_{\mathrm{void}}(t) = 1
 \quad\forall\,t.
 \label{eq:constraint}
 \end{equation}
@@ -257,7 +255,7 @@ $k$ & \textbf{Symbol} & \textbf{Matrix entry} & \textbf{Species pair} & \textbf{
 19 & $a_{45}$ & $A_{34}=A_{43}$    & Fn--Pg         & Free\\
 \bottomrule
 \end{tabular}
-\caption{Parameter-to-matrix mapping. $^*$Bounds for $\theta_{18}$ are condition-specific (Section~\ref{sec:conditions}).}
+\caption{Parameter-to-matrix mapping. The block symbols $a_{ij}$ follow the 1-based notation of Klempt et al.~\cite{Klempt2025ContinuumBiofilm}; the matrix entries $A_{ij}$ use 0-based indexing consistent with Eq.~\eqref{eq:ode}. $^*$Bounds for $\theta_{18}$ are condition-specific (Section~\ref{sec:conditions}).}
 \label{tab:mapping}
 \end{table}
 
@@ -296,7 +294,8 @@ with log-likelihood
 \biggr].
 \label{eq:loglik}
 \end{equation}
-The noise levels $\sigma_i$ are prescribed as fixed fractions of the observed species range.
+The observation noise $\sigma$ is set as a fixed fraction of the dynamic range $R=\max_i\max_k y_{\mathrm{obs},i}(t_k)-\min_i\min_k y_{\mathrm{obs},i}(t_k)$, yielding condition-specific values: $\sigma_{\mathrm{CS}}=0.11$, $\sigma_{\mathrm{CH}}=0.16$, $\sigma_{\mathrm{DS}}=0.25$, and $\sigma_{\mathrm{DH}}=0.23$.
+The larger noise for dysbiotic conditions reflects the higher replicate variability observed by Heine et al.~\cite{Heine2025PeriImplant}.
 
 \subsection{Constrained prior}
 
@@ -408,6 +407,34 @@ This decomposition offers three advantages:
 \item The estimation order mirrors ecological succession (early colonizers $\to$ bridge $\to$ late colonizers), aligning the sequential conditioning with the causal structure of the biological system.
 \end{enumerate}
 
+\subsection{Algorithm summary}
+
+The complete procedure is summarised in Algorithm~\ref{alg:seqtmcmc}.
+
+\begin{algorithm}[t]
+\caption{Sequential TMCMC with biological constraints}
+\label{alg:seqtmcmc}
+\begin{algorithmic}[1]
+\REQUIRE Data $\yobs$, locked set $\mathcal{L}$, stage groups $\{\mathcal{P}_s\}_{s=1}^4$, $N$ particles
+\STATE Initialise $\btheta_{\mathrm{base}} \leftarrow \mathbf{0}$; \; set $\theta_k=0\;\forall k\in\mathcal{L}$
+\FOR{stage $s = 1,\dots,4$}
+    \STATE Set active indices $\mathcal{A}_s \leftarrow \mathcal{P}_s \setminus \mathcal{L}$
+    \STATE Draw $\{\btheta_j\}_{j=1}^N$ from prior $p(\btheta_{\mathcal{A}_s})$
+    \STATE $\beta_0 \leftarrow 0$
+    \WHILE{$\beta_m < 1$}
+        \STATE Find $\beta_{m+1}$ s.t.\ $\mathrm{CoV}[\{w_j\}]=\delta_{\mathrm{target}}$ via bisection
+        \STATE Compute weights $w_j \leftarrow p(\yobs\mid\btheta_{\mathrm{base}}\oplus_{\mathcal{A}_s}\btheta_j)^{\beta_{m+1}-\beta_m}$
+        \STATE Resample $N$ particles $\propto w_j$
+        \STATE Mutate via MH with proposal $\mathcal{N}(\btheta_j,\gamma^2\boldsymbol{\Sigma}^{(m)})$
+        \STATE Enforce: $\theta_k \leftarrow 0\;\forall k\in\mathcal{L}$; clip free params to bounds
+    \ENDWHILE
+    \STATE $\hat{\btheta}_{\mathcal{A}_s}^{\mathrm{MAP}} \leftarrow \arg\max_j\, p(\yobs\mid\btheta_j)$
+    \STATE Update $\btheta_{\mathrm{base}}[\mathcal{A}_s] \leftarrow \hat{\btheta}_{\mathcal{A}_s}^{\mathrm{MAP}}$
+\ENDFOR
+\RETURN $\btheta_{\mathrm{base}}$, posterior samples, $\ln\hat{Z}$
+\end{algorithmic}
+\end{algorithm}
+
 %==============================================================================
 \section{Experimental conditions and locking strategy}
 \label{sec:conditions}
@@ -431,8 +458,11 @@ Dysbiotic HOBIC (DH)   & Flow   & 0 & 20 & Full unlock for surge\\
 \label{tab:locking}
 \end{table}
 
-The DH condition is of particular interest: by releasing all constraints---including the five structural locks---the TMCMC algorithm explores the full 20-dimensional space.
-This ``discovery mode'' is necessary and sufficient to reproduce the experimentally observed surge of Vei and Pg, validating that the model captures complex non-linear dynamics when fully parameterised.
+The DH condition merits particular discussion.
+While the structural set~$\mathcal{L}$ reflects the absence of \emph{direct} metabolic pathways, the surge dynamics observed in DH may activate \emph{indirect} coupling through shared metabolites or pH-mediated effects that are not captured by pairwise interaction terms alone.
+For example, the So--Pg pair ($\theta_{16}\in\mathcal{L}$) could exhibit effective coupling mediated by the Vei--Pg pH pathway when Vei is abundant.
+Rather than introducing additional model complexity (e.g.\ ternary interactions), we adopt a pragmatic ``discovery mode'' in which all constraints are released ($N_{\text{locked}}=0$) and the data determine which coefficients are non-negligible.
+The posterior indeed recovers zero or near-zero values for most structurally locked parameters (e.g.\ $\hat{A}_{01}^{\mathrm{DH}}\approx0.03$), while concentrating posterior mass on Vei--Pg ($\hat{\theta}_{18}^{\mathrm{MAP}}=17.3$) and Fn--Pg ($\hat{\theta}_{19}^{\mathrm{MAP}}=4.6$), providing data-driven validation of the biological constraints from the maximally unconstrained setting.
 
 %==============================================================================
 \section{Results}
@@ -543,6 +573,8 @@ The MAP interaction matrices (Figure~\ref{fig:heatmaps}) reveal the progressive 
 In CS and CH, the dominant entries are the So--An and So--Vei blocks, reflecting the mutualistic core of early colonizers; structural zeros from $\mathcal{L}$ are clearly visible.
 In DS, pathogen-related entries appear at moderate magnitude.
 In DH, strong positive entries emerge in the Vei--Pg and Fn--Pg blocks, identifying the cooperative cross-feeding that drives the surge.
+The MAP values for the key pathogen-supporting parameters are: $\hat{\theta}_{18}^{\mathrm{DH}}(\text{Vei}\to\text{Pg})=17.3$, $\hat{\theta}_{19}^{\mathrm{DH}}(\text{Fn}\to\text{Pg})=4.6$, and $\hat{\theta}_{14}^{\mathrm{DH}}(\text{Pg self})=1.7$.
+In DS, these coefficients are substantially weaker ($\hat{\theta}_{18}=-0.39$, $\hat{\theta}_{19}=0.93$), and in CS/CH they are locked to zero.
 
 \begin{figure}[t]
 \centering
@@ -636,7 +668,7 @@ DS $\to$ DH & Dysbiotic & 0.183 & 0.135 & 1.35$\times$\\
 DH $\to$ DS & Dysbiotic & 0.182 & 0.091 & 1.99$\times$\\
 \bottomrule
 \end{tabular}
-\caption{Cross-condition prediction. Ratio $>1$ indicates degradation relative to self-fit; $<1$ indicates improvement.}
+\caption{Cross-condition prediction using MAP estimates. Self RMSE is the MAP RMSE from Table~\ref{tab:rmse}. Ratio $>1$ indicates degradation relative to self-fit; $<1$ indicates improvement.}
 \label{tab:transfer}
 \end{table}
 
@@ -669,16 +701,11 @@ The four-stage decomposition reduces the effective dimensionality of each TMCMC 
 The grouping by ecological succession (early colonizers $\to$ bridge organisms $\to$ pathogen) aligns the conditioning order with the causal structure, improving conditional identifiability at each stage.
 
 A potential drawback is that point-estimate fixation at each stage introduces a conditional bias: the MAP from stage~$s$ is treated as the true value in all subsequent stages.
-Let $\hat{\btheta}_{\mathcal{A}_s}^{\mathrm{MAP}}$ denote the MAP from stage~$s$, and $\btheta_{\mathcal{A}_s}^*$ the ``true'' value.
-The approximation error propagating to stage~$s+1$ is bounded by
-\begin{equation}
-\bigl\|\hat{\btheta}_{\mathcal{A}_s}^{\mathrm{MAP}} - \btheta_{\mathcal{A}_s}^*\bigr\|
-\leq \mathrm{diam}\bigl(\mathrm{CI}_{95\%}^{(s)}\bigr),
-\label{eq:propagation}
-\end{equation}
-where $\mathrm{CI}_{95\%}^{(s)}$ is the 95\% credible region at stage~$s$.
-In practice, the early-stage credible intervals are narrow (e.g.\ $<0.1$ for decay rates $b_1,b_2$), limiting the propagation of bias to later stages.
-A fully joint estimation over all 15 parameters could eliminate this approximation but at the cost of substantially higher computational effort.
+This greedy conditioning is valid when the marginal posterior at stage~$s$ is unimodal and sharply peaked, so that the MAP closely approximates the marginal mean.
+For the CS condition, the stage-1 posterior widths (95\% CI) for decay rates are $\Delta b_1=0.08$ and $\Delta b_2=0.06$, which are small relative to the prior range of $[-1,1]$.
+Thus the conditioning error from stage~1 to stage~2 is at most $\sim4\%$ of the prior range.
+For the DH condition, wider posteriors at later stages (e.g.\ $\Delta\theta_{18}=3.2$ for Vei$\to$Pg) motivate the use of larger particle counts ($N=2000$) and the full 20-dimensional exploration without sequential conditioning.
+A fully joint estimation over all 15 parameters could eliminate the conditioning approximation but would require substantially larger particle counts to achieve comparable ESS in the expanded space.
 
 \subsection{Computational aspects}
 
