@@ -1,0 +1,23 @@
+Subject: Draft ready for review – Biofilm TMCMC paper
+
+Dear Felix, Hendrik, Meisam, and Prof. Junker,
+
+I have completed a draft of our paper:
+
+  "Biologically-constrained Bayesian inference of multi-species
+   biofilm interaction parameters via sequential TMCMC"
+
+The manuscript presents our four-stage sequential TMCMC framework
+for estimating the 5-species oral biofilm interaction parameters
+under biological constraints (20 -> 15 dims), validated across
+all four Heine et al. conditions (CS, CH, DS, DH).
+
+LaTeX source & figures:
+  https://github.com/keisuke58/Tmcmc202601/tree/master/docs/nishioka_paper_publish.tex
+
+PDF is attached.
+
+I would appreciate your review and comments.
+
+Best regards,
+Keisuke Nishioka
