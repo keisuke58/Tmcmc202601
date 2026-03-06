@@ -619,6 +619,33 @@ In commensal states, the dominant interactions involve early colonizers: So--An 
 The transition to dysbiosis is characterised by the activation of cooperative pathways involving Pg, particularly the Vei$\to$Pg pH support and Fn$\to$Pg peptide supply.
 The non-monotonic pattern of the Vei--Pg coefficient across conditions---strongest in DH but also present in DS---implies that the pathogen surge is not driven by a single large cooperative coefficient but emerges from the interplay of multiple interaction blocks, decay rates, and initial conditions.
 
+\subsection{Cross-condition transferability}
+
+To assess the condition-specificity of the inferred parameters, we evaluate each MAP estimate $\hat{\btheta}^{(c_1)}$ on data from a different condition~$c_2$ sharing the same health state but different cultivation mode.
+Table~\ref{tab:transfer} reports the cross-condition RMSE alongside the self-fit RMSE for reference.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}llccc@{}}
+\toprule
+\textbf{Transfer} & \textbf{State} & \textbf{Cross RMSE} & \textbf{Self RMSE} & \textbf{Ratio}\\
+\midrule
+CS $\to$ CH & Commensal & 0.108 & 0.090 & 1.20$\times$\\
+CH $\to$ CS & Commensal & 0.097 & 0.116 & 0.84$\times$\\
+DS $\to$ DH & Dysbiotic & 0.183 & 0.135 & 1.35$\times$\\
+DH $\to$ DS & Dysbiotic & 0.182 & 0.091 & 1.99$\times$\\
+\bottomrule
+\end{tabular}
+\caption{Cross-condition prediction. Ratio $>1$ indicates degradation relative to self-fit; $<1$ indicates improvement.}
+\label{tab:transfer}
+\end{table}
+
+Within the commensal state, MAP parameters are largely transferable: CH$\to$CS even improves over the CS self-fit (ratio $0.84\times$), while CS$\to$CH degrades only mildly ($1.20\times$).
+This confirms the structural similarity identified by the Frobenius analysis ($\rho=0.47$, Table~\ref{tab:pairwise}) and suggests that the commensal interaction backbone is robust to the static/HOBIC perturbation.
+In contrast, the dysbiotic pair exhibits $1.4$--$2\times$ degradation, with DH$\to$DS showing the largest mismatch.
+The species contributing most to the cross-prediction error are Vei and An, whose dynamics are strongly modulated by the flow-induced nutrient supply in HOBIC.
+This asymmetry implies that the dysbiotic interaction landscape is more cultivation-dependent than the commensal one, providing additional justification for the condition-specific estimation strategy adopted in this work.
+
 \subsection{Surge dynamics and model limitations}
 
 While the TMCMC-calibrated model qualitatively reproduces the pathogen surge in DH, it underestimates the terminal sharp rise of Pg.
