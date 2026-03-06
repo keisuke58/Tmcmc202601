@@ -1,0 +1,23 @@
+件名: 論文ドラフト確認のお願い – Biofilm TMCMC
+
+Felix, Hendrik, Meisam, Junker先生
+
+論文のドラフトが完成しましたのでご確認をお願いいたします。
+
+  "Biologically-constrained Bayesian inference of multi-species
+   biofilm interaction parameters via sequential TMCMC"
+
+概要:
+- 5菌種 oral biofilm の相互作用パラメータ推定（20→15次元に生物学的制約で削減）
+- 4段階 sequential TMCMC による効率的なベイズ推定
+- Heine et al. の4実験条件（CS, CH, DS, DH）全てで検証済み
+- Commensal→Dysbiotic 遷移を相互作用行列のFrobenius解析で定量化
+
+LaTeXソース・図:
+  https://github.com/keisuke58/Tmcmc202601/tree/master/docs/nishioka_paper_publish.tex
+
+PDFを添付しております。
+ご確認・コメントいただけますと幸いです。
+
+よろしくお願いいたします。
+西岡佳祐
