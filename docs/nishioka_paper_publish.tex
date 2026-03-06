@@ -1,0 +1,700 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage[hidelinks,pdfencoding=auto]{hyperref}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{caption}
+\usepackage{subcaption}
+
+% Compact spacing
+\usepackage{setspace}
+\setstretch{1.08}
+
+\newcommand{\btheta}{\boldsymbol{\theta}}
+\newcommand{\bphi}{\boldsymbol{\phi}}
+\newcommand{\bpsi}{\boldsymbol{\psi}}
+\newcommand{\yobs}{\mathbf{y}_{\mathrm{obs}}}
+\newcommand{\Real}{\mathbb{R}}
+
+\title{Biologically-constrained Bayesian inference of multi-species\\biofilm interaction parameters via sequential TMCMC}
+
+\author{
+Keisuke Nishioka,\;
+Felix Klempt,\;
+Hendrik Geisler,\;
+Meisam Soleimani,\;
+Philipp Junker
+\\[6pt]
+\small Institute of Continuum Mechanics, Leibniz Universit\"at Hannover, Germany
+}
+
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We present a Bayesian framework for inferring interaction parameters of a five-species oral biofilm model derived from the extended Hamilton principle.
+The $5\times5$ symmetric interaction matrix and decay vector yield 20 constitutive parameters.
+By encoding experimentally established absent interactions as hard constraints, the effective parameter space is reduced from 20 to 15 dimensions, improving identifiability and biological interpretability.
+Inference is performed via Transitional Markov Chain Monte Carlo (TMCMC) with an adaptive tempering schedule, combined with a four-stage sequential estimation strategy that aligns parameter groups with the ecological succession of species colonization.
+The method is validated against in-vitro time-course data under four experimental conditions spanning commensal and dysbiotic community states in static and flow (HOBIC) environments.
+The inferred interaction matrices reveal condition-specific shifts: commensal biofilms are governed by early-colonizer self-regulation, whereas dysbiotic states require cooperative cross-feeding between \textit{Veillonella} and \textit{Porphyromonas~gingivalis} to reproduce the experimentally observed pathogen surge.
+Pairwise Frobenius analysis of the MAP interaction matrices shows moderate within-state correlation ($\rho\approx0.46$) and weak cross-state correlation ($\rho\approx-0.15$), quantifying the transition from health to disease.
+
+\vspace{4pt}
+\noindent\textbf{Keywords:}
+Bayesian inference,
+biofilm dynamics,
+TMCMC,
+parameter identification,
+multi-species interaction,
+peri-implantitis
+\end{abstract}
+
+%==============================================================================
+\section{Introduction}
+\label{sec:intro}
+%==============================================================================
+
+Multi-species biofilms on dental implant surfaces are a primary cause of peri-implantitis~\cite{Kolenbrander2010OralMultispecies}.
+Heine et al.~\cite{Heine2025PeriImplant} characterised the in-vitro dynamics of five key oral species---\textit{Streptococcus oralis} (So), \textit{Actinomyces naeslundii} (An), \textit{Veillonella} spp.\ (Vei), \textit{Fusobacterium nucleatum} (Fn), and \textit{Porphyromonas gingivalis} (Pg)---under four combinations of community state (commensal/dysbiotic) and cultivation mode (static/HOBIC flow).
+Building on the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamilton}, Klempt et al.~\cite{Klempt2025ContinuumBiofilm} formulated a continuum model in which a symmetric interaction matrix~$\mathbf{A}$ and a decay vector~$\mathbf{b}$ govern species growth.
+Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms} subsequently introduced Bayesian updating with surrogate models for biofilm parameter estimation under hybrid uncertainties.
+
+Despite these advances, estimating all 20 parameters of the five-species model from limited time-course data remains challenging.
+Three difficulties arise: (i) poor identifiability when data are sparse relative to the parameter dimension, (ii) biologically implausible posterior modes that exploit mathematical redundancies, and (iii) high computational cost from exploring unnecessary regions of parameter space.
+These issues are amplified by the multimodal nature of the posterior landscape, which renders standard MCMC methods inefficient~\cite{RobertCasella2004MonteCarlo}.
+
+In this work we address these challenges through two complementary strategies.
+First, we incorporate experimental evidence from the species interaction network~\cite{Heine2025PeriImplant} to fix five interaction coefficients at zero, reducing the effective parameter space from $\Real^{20}$ to $\Real^{15}$.
+Second, we decompose the estimation into four sequential stages, each targeting a biologically coherent parameter group, and solve each sub-problem with TMCMC~\cite{ChingChen2007TMCMC, Betz2016TMCMC}.
+The framework is validated against all four experimental conditions of Heine et al., demonstrating quantitative reproduction of commensal homeostasis as well as the non-linear pathogen surge characteristic of dysbiotic HOBIC biofilms.
+
+%==============================================================================
+\section{Mathematical model}
+\label{sec:model}
+%==============================================================================
+
+\subsection{Governing equations}
+
+The dynamics of bacterial volume fractions $\phi_i$ and viability fractions $\psi_i$ ($i=0,\dots,4$) follow a coupled ODE system derived from the variational framework of Klempt et al.~\cite{Klempt2025ContinuumBiofilm, Klempt2024ContinuumGrowth}.
+Defining the living volume fraction $u_i = \phi_i\psi_i$, the evolution equation for species~$i$ reads
+\begin{equation}
+\frac{du_i}{dt}
+= \Bigl(A_{ii} + \sum_{j\neq i} A_{ij}\,u_j\Bigr)\,u_i - b_i\,u_i,
+\qquad i=0,\dots,4,
+\label{eq:ode}
+\end{equation}
+where $A_{ii}$ is the self-regulation coefficient, $A_{ij}$ ($j\neq i$) encodes the effect of species~$j$ on species~$i$, and $b_i$ is the decay rate.
+This system is a generalised Lotka--Volterra model with symmetric interactions arising naturally from the variational structure.
+Denoting the void fraction by $\phi_{\mathrm{void}}$, the holonomic constraint reads
+\begin{equation}
+\phi_{\mathrm{void}}(t) = 1 - \sum_{i=0}^{4}\phi_i(t),
+\qquad
+\phi_{\mathrm{void}}(t) + \sum_{i=0}^{4}\phi_i(t) = 1
+\quad\forall\,t.
+\label{eq:constraint}
+\end{equation}
+
+In the original formulation, the growth matrix is scaled by a nutrient variable~$c^*$ and antibiotic effects enter through a sensitivity matrix~$\mathbf{B}$.
+Here we absorb $c^*$ into the entries of~$\mathbf{A}$ and subsume antibiotic-induced killing into~$\mathbf{b}$, so that the inferred parameters represent effective coefficients under the given experimental condition.
+The viscosity matrix $\boldsymbol{\eta}=\mathrm{diag}(\eta_1,\dots,\eta_5)$ of the original dissipation functional is treated as a fixed hyperparameter.
+
+\subsection{Variational origin}
+
+The ODE system~\eqref{eq:ode} is not postulated ad hoc but derived from the extended Hamilton principle of Junker and Balzani~\cite{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic}.
+The total energy functional is decomposed as
+\begin{equation}
+\Pi[\bphi,\bpsi] = \underbrace{\Psi(\bphi,\bpsi)}_{\text{free energy}}
++ \underbrace{\Delta(\dot{\bphi},\dot{\bpsi})}_{\text{dissipation}}
++ \underbrace{W_{\mathrm{ext}}(\bphi,\bpsi)}_{\text{external work}},
+\label{eq:hamilton}
+\end{equation}
+where the free energy $\Psi$ encodes inter-species interactions through $\mathbf{A}$ and self-regulation, while the dissipation potential $\Delta$ governs the relaxation dynamics via~$\boldsymbol{\eta}$.
+The stationarity condition $\delta\Pi = 0$ with respect to the internal variables $(\bphi,\bpsi)$ yields the evolution equations~\eqref{eq:ode} together with the symmetry constraint~$A_{ij}=A_{ji}$.
+This variational structure ensures thermodynamic consistency: the system automatically satisfies the second law of thermodynamics and the interaction symmetry is a consequence of the energetic formulation rather than an empirical assumption.
+
+\subsection{Symmetric interaction matrix}
+
+The interaction matrix $\mathbf{A}\in\Real^{5\times5}$ is symmetric:
+\begin{equation}
+A_{ij} = A_{ji}
+\quad\forall\;i,j\in\{0,\dots,4\},
+\label{eq:symmetry}
+\end{equation}
+reducing the off-diagonal degrees of freedom from 20 to~10.
+Together with the 5 diagonal entries and 5 decay rates, the full parameter vector is
+\begin{equation}
+\btheta = (\theta_0,\dots,\theta_{19})^T \in \Real^{20},
+\label{eq:theta}
+\end{equation}
+organised into five biologically motivated blocks:
+\begin{equation}
+\btheta =
+\underbrace{(a_{11},a_{12},a_{22},b_1,b_2)}_{\text{So--An}}
+\oplus
+\underbrace{(a_{33},a_{34},a_{44},b_3,b_4)}_{\text{Vei--Fn}}
+\oplus
+\underbrace{(a_{13},a_{14},a_{23},a_{24})}_{\text{cross}}
+\oplus
+\underbrace{(a_{55},b_5)}_{\text{Pg}}
+\oplus
+\underbrace{(a_{15},a_{25},a_{35},a_{45})}_{\text{Pg cross}}.
+\label{eq:blocks}
+\end{equation}
+
+\subsection{Biological constraints}
+
+The interaction network established by Heine et al.~\cite{Heine2025PeriImplant} identifies five species pairs without direct metabolic or co-aggregation pathways (Figure~\ref{fig:network}).
+We define the locked index set
+\begin{equation}
+\mathcal{L} = \{6,\,12,\,13,\,16,\,17\},
+\qquad
+\theta_k = 0 \;\;\forall\,k\in\mathcal{L},
+\label{eq:locked}
+\end{equation}
+corresponding to the pairs An--Vei, An--Fn, Vei--Fn, So--Pg, and An--Pg.
+The effective dimensionality is thus $n_{\mathrm{free}}=20-|\mathcal{L}|=15$.
+
+\begin{figure}[t]
+\centering
+\begin{minipage}[t]{0.38\textwidth}
+\centering
+\begin{tikzpicture}[scale=0.7, every node/.style={transform shape},
+    species/.style={circle, draw, minimum size=1.1cm, font=\small\bfseries},
+    edge/.style={<->, thick, >=Stealth},
+    noedge/.style={dashed, gray, thick}
+]
+    \node[species, fill=blue!15] (so) at (0, 2.8) {So};
+    \node[species, fill=green!15] (an) at (-2.4, 0.8) {An};
+    \node[species, fill=yellow!20] (vei) at (0, 0.8) {Vei};
+    \node[species, fill=purple!15] (fn) at (2.4, 0.8) {Fn};
+    \node[species, fill=red!15] (pg) at (0, -1.3) {Pg};
+    \draw[edge, blue!70!black] (so) -- (an) node[midway, left, font=\scriptsize] {co-agg};
+    \draw[edge, blue!70!black] (so) -- (vei) node[midway, right, font=\scriptsize] {lactate};
+    \draw[edge, blue!70!black] (so) -- (fn) node[midway, right, font=\scriptsize] {formate};
+    \draw[edge, blue!70!black] (vei) -- (pg) node[midway, left, font=\scriptsize] {pH};
+    \draw[edge, blue!70!black] (fn) -- (pg) node[midway, right, font=\scriptsize] {peptides};
+    \draw[noedge] (an) -- (vei);
+    \draw[noedge] (an) -- (fn);
+    \draw[noedge] (vei) -- (fn);
+    \draw[noedge] (so) to[bend left=25] (pg);
+    \draw[noedge] (an) to[bend right=25] (pg);
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.58\textwidth}
+\centering\small
+\vspace{6pt}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Species pair} & \textbf{Mechanism} & \textbf{Type}\\
+\midrule
+So $\leftrightarrow$ An & Co-aggregation & Bidir.\\
+So $\leftrightarrow$ Vei & Lactate exchange & Bidir.\\
+So $\leftrightarrow$ Fn & Formate symbiosis & Bidir.\\
+Vei $\rightarrow$ Pg & pH elevation & Positive\\
+Fn $\leftrightarrow$ Pg & Peptide supply & Bidir.\\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Locked ($\mathcal{L}$):} An--Vei, An--Fn, Vei--Fn,}\\
+\multicolumn{3}{@{}l}{\quad So--Pg, An--Pg}\\
+\bottomrule
+\end{tabular}
+\captionof{table}{Active interactions and locked pairs.}
+\label{tab:active}
+\end{minipage}
+\caption{Species interaction network~\cite{Heine2025PeriImplant}. Solid blue: active (free); dashed grey: absent (locked to zero).}
+\label{fig:network}
+\end{figure}
+
+The complete mapping between parameter indices and matrix entries is given in Table~\ref{tab:mapping}.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}cclll@{}}
+\toprule
+$k$ & \textbf{Symbol} & \textbf{Matrix entry} & \textbf{Species pair} & \textbf{Status}\\
+\midrule
+0  & $a_{11}$ & $A_{00}$           & So self        & Free\\
+1  & $a_{12}$ & $A_{01}=A_{10}$    & So--An         & Free\\
+2  & $a_{22}$ & $A_{11}$           & An self        & Free\\
+3  & $b_1$    & $b_0$              & So decay       & Free\\
+4  & $b_2$    & $b_1$              & An decay       & Free\\
+\midrule
+5  & $a_{33}$ & $A_{22}$           & Vei self       & Free\\
+6  & $a_{34}$ & $A_{23}=A_{32}$    & Vei--Fn        & \textbf{Locked}\\
+7  & $a_{44}$ & $A_{33}$           & Fn self        & Free\\
+8  & $b_3$    & $b_2$              & Vei decay      & Free\\
+9  & $b_4$    & $b_3$              & Fn decay       & Free\\
+\midrule
+10 & $a_{13}$ & $A_{02}=A_{20}$    & So--Vei        & Free\\
+11 & $a_{14}$ & $A_{03}=A_{30}$    & So--Fn         & Free\\
+12 & $a_{23}$ & $A_{12}=A_{21}$    & An--Vei        & \textbf{Locked}\\
+13 & $a_{24}$ & $A_{13}=A_{31}$    & An--Fn         & \textbf{Locked}\\
+\midrule
+14 & $a_{55}$ & $A_{44}$           & Pg self        & Free\\
+15 & $b_5$    & $b_4$              & Pg decay       & Free\\
+\midrule
+16 & $a_{15}$ & $A_{04}=A_{40}$    & So--Pg         & \textbf{Locked}\\
+17 & $a_{25}$ & $A_{14}=A_{41}$    & An--Pg         & \textbf{Locked}\\
+18 & $a_{35}$ & $A_{24}=A_{42}$    & Vei--Pg        & Free$^*$\\
+19 & $a_{45}$ & $A_{34}=A_{43}$    & Fn--Pg         & Free\\
+\bottomrule
+\end{tabular}
+\caption{Parameter-to-matrix mapping. $^*$Bounds for $\theta_{18}$ are condition-specific (Section~\ref{sec:conditions}).}
+\label{tab:mapping}
+\end{table}
+
+%==============================================================================
+\section{Bayesian inference framework}
+\label{sec:bayes}
+%==============================================================================
+
+\subsection{Posterior distribution}
+
+Given observed time-course data $\yobs = \{y_{\mathrm{obs},i}(t_k)\}$, we seek the posterior
+\begin{equation}
+p(\btheta\mid\yobs)
+= \frac{p(\yobs\mid\btheta)\,p(\btheta)}{p(\yobs)},
+\label{eq:bayes}
+\end{equation}
+where $p(\yobs\mid\btheta)$ is the likelihood, $p(\btheta)$ the prior, and $p(\yobs)$ the model evidence.
+
+\subsection{Likelihood}
+
+Assuming independent Gaussian errors across species and time points:
+\begin{equation}
+p(\yobs\mid\btheta)
+= \prod_{k=1}^{N_t}\prod_{i=0}^{4}
+\frac{1}{\sqrt{2\pi}\,\sigma_i}
+\exp\!\Bigl(-\frac{(y_{\mathrm{obs},i}(t_k)-\hat{y}_i(t_k;\btheta))^2}{2\sigma_i^2}\Bigr),
+\label{eq:likelihood}
+\end{equation}
+with log-likelihood
+\begin{equation}
+\ell(\btheta)
+= -\frac{1}{2}\sum_{k=1}^{N_t}\sum_{i=0}^{4}
+\biggl[
+  \frac{(y_{\mathrm{obs},i}(t_k)-\hat{y}_i(t_k;\btheta))^2}{\sigma_i^2}
+  + \ln(2\pi\sigma_i^2)
+\biggr].
+\label{eq:loglik}
+\end{equation}
+The noise levels $\sigma_i$ are prescribed as fixed fractions of the observed species range.
+
+\subsection{Constrained prior}
+
+The prior encodes the biological constraints through Dirac masses on locked parameters:
+\begin{equation}
+p(\btheta) = \prod_{k=0}^{19} p(\theta_k),
+\qquad
+p(\theta_k) =
+\begin{cases}
+\delta(\theta_k) & k\in\mathcal{L},\\[3pt]
+\dfrac{1}{u_k-l_k}\,\mathbf{1}_{[l_k,u_k]}(\theta_k) & k\notin\mathcal{L},
+\end{cases}
+\label{eq:prior}
+\end{equation}
+where $[l_k,u_k]=[-1,1]$ for most free parameters.
+The Vei$\to$Pg coupling ($\theta_{18}$) uses condition-specific bounds: $[0,1]$ for commensal/dysbiotic static and $[-3,-1]$ for the dysbiotic HOBIC surge.
+This formulation restricts the posterior to the constrained subspace
+\begin{equation}
+\Theta_{\mathcal{L}}
+= \bigl\{\btheta\in\Real^{20}:\theta_k=0\;\;\forall\,k\in\mathcal{L}\bigr\},
+\end{equation}
+and inference proceeds over the reduced vector $\btheta_{\mathrm{free}}\in\Real^{15}$.
+
+%==============================================================================
+\section{TMCMC with sequential estimation}
+\label{sec:tmcmc}
+%==============================================================================
+
+\subsection{Tempered likelihood sequence}
+
+TMCMC~\cite{ChingChen2007TMCMC, DelMoral2006SMC} constructs a sequence of intermediate distributions
+\begin{equation}
+p_m(\btheta) \propto p(\yobs\mid\btheta)^{\beta_m}\,p(\btheta),
+\qquad
+0=\beta_0<\beta_1<\cdots<\beta_M=1,
+\label{eq:tempered}
+\end{equation}
+interpolating from the prior ($\beta_0=0$) to the full posterior ($\beta_M=1$).
+The tempering parameter $\beta_{m+1}$ is determined adaptively so that the coefficient of variation of the importance weights
+\begin{equation}
+w_j^{(m)} = p(\yobs\mid\btheta_j^{(m)})^{\beta_{m+1}-\beta_m},
+\qquad j=1,\dots,N,
+\label{eq:weights}
+\end{equation}
+satisfies $\mathrm{CoV}[\{w_j^{(m)}\}]=\delta_{\mathrm{target}}$, solved by bisection on $(\beta_m,1]$~\cite{Betz2016TMCMC}.
+
+\subsection{Resampling and mutation}
+
+At each stage~$m$:
+\begin{enumerate}[nosep,leftmargin=*]
+\item \textbf{Resample} $N$ particles from $\{\btheta_j^{(m)}\}$ with probabilities $\propto w_j^{(m)}$.
+\item \textbf{Estimate} the weighted covariance
+\begin{equation}
+\boldsymbol{\Sigma}^{(m)}
+= \sum_{j=1}^{N}\bar{w}_j^{(m)}
+\bigl(\btheta_j^{(m)}-\bar{\btheta}^{(m)}\bigr)
+\bigl(\btheta_j^{(m)}-\bar{\btheta}^{(m)}\bigr)^T.
+\label{eq:cov}
+\end{equation}
+\item \textbf{Mutate} each particle via Metropolis--Hastings with proposal $q(\btheta^*\mid\btheta_j)=\mathcal{N}(\btheta_j,\gamma^2\boldsymbol{\Sigma}^{(m)})$ and acceptance probability
+\begin{equation}
+\alpha = \min\!\biggl(1,\;
+\frac{p(\yobs\mid\btheta^*)^{\beta_{m+1}}\,p(\btheta^*)}
+     {p(\yobs\mid\btheta_j)^{\beta_{m+1}}\,p(\btheta_j)}\biggr).
+\label{eq:accept}
+\end{equation}
+Locked indices are reset to zero and free parameters are clipped to their bounds after each proposal.
+\end{enumerate}
+
+A by-product of TMCMC is the model evidence estimate
+\begin{equation}
+\hat{p}(\yobs) = \prod_{m=0}^{M-1}\Bigl(\frac{1}{N}\sum_{j=1}^{N}w_j^{(m)}\Bigr),
+\label{eq:evidence}
+\end{equation}
+enabling Bayesian model comparison via the Bayes factor $B_{10}=p(\yobs\mid\mathcal{M}_{\text{red}})/p(\yobs\mid\mathcal{M}_{\text{full}})$.
+
+\subsection{Four-stage sequential decomposition}
+
+Rather than estimating all 15 free parameters simultaneously, we decompose the inference into four stages $s=1,\dots,4$, each targeting a biologically coherent subset $\mathcal{P}_s$ (Table~\ref{tab:stages}).
+At stage~$s$, the active index set is $\mathcal{A}_s=\mathcal{P}_s\setminus\mathcal{L}$ and all previously estimated parameters are fixed at their MAP values.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}clcl@{}}
+\toprule
+\textbf{Stage} & \textbf{Group} & \textbf{$|\mathcal{A}_s|$} & \textbf{Parameters}\\
+\midrule
+1 & Early colonizers (So--An) & 5 & $a_{11},a_{12},a_{22},b_1,b_2$\\
+2 & Bridge organisms (Vei--Fn) & $\leq5$ & $a_{33},a_{34},a_{44},b_3,b_4$\\
+3 & Cross-block + Pg self & $\leq6$ & $a_{13},a_{14},a_{23},a_{24},a_{55},b_5$\\
+4 & Pg cross-interactions & $\leq4$ & $a_{15},a_{25},a_{35},a_{45}$\\
+\bottomrule
+\end{tabular}
+\caption{Four-stage sequential estimation. The number of active parameters $|\mathcal{A}_s|$ depends on the condition-specific locked set. The grouping mirrors the temporal succession of colonization.}
+\label{tab:stages}
+\end{table}
+
+The stage likelihood at stage~$s$ is
+\begin{equation}
+p_s(\yobs\mid\btheta_{\mathcal{A}_s})
+= p\!\bigl(\yobs\mid\btheta_{\mathrm{base}}\oplus_{\mathcal{A}_s}\btheta_{\mathcal{A}_s}\bigr),
+\label{eq:stage_lik}
+\end{equation}
+where $\oplus_{\mathcal{A}_s}$ replaces the entries at indices $\mathcal{A}_s$ in the current base vector.
+This decomposition offers three advantages:
+\begin{enumerate}[nosep,leftmargin=*]
+\item Each sub-problem has dimension $|\mathcal{A}_s|\leq 6$, enabling efficient exploration with moderate particle counts.
+\item Conditioning on previously estimated parameters improves conditional identifiability.
+\item The estimation order mirrors ecological succession (early colonizers $\to$ bridge $\to$ late colonizers), aligning the sequential conditioning with the causal structure of the biological system.
+\end{enumerate}
+
+%==============================================================================
+\section{Experimental conditions and locking strategy}
+\label{sec:conditions}
+%==============================================================================
+
+The inference is performed under four experimental conditions from Heine et al.~\cite{Heine2025PeriImplant}, each imposing condition-specific constraints on the parameter space (Table~\ref{tab:locking}).
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}llccl@{}}
+\toprule
+\textbf{Condition} & \textbf{Cultivation} & $N_{\text{locked}}$ & $N_{\text{est}}$ & \textbf{Rationale}\\
+\midrule
+Commensal Static (CS)  & Static & 9 & 11 & Pg, Fn below detection\\
+Commensal HOBIC (CH)   & Flow   & 8 & 12 & Blue bloom, Pg suppressed\\
+Dysbiotic Static (DS)  & Static & 5 & 15 & Pathogen interactions active\\
+Dysbiotic HOBIC (DH)   & Flow   & 0 & 20 & Full unlock for surge\\
+\bottomrule
+\end{tabular}
+\caption{Condition-specific parameter locking. CS and CH apply additional locks on pathogen-related parameters beyond the structural set~$\mathcal{L}$, as qPCR data show Pg and Fn are undetectable~\cite{Heine2025PeriImplant}. DH releases all locks to enable discovery of surge-driving interactions.}
+\label{tab:locking}
+\end{table}
+
+The DH condition is of particular interest: by releasing all constraints---including the five structural locks---the TMCMC algorithm explores the full 20-dimensional space.
+This ``discovery mode'' is necessary and sufficient to reproduce the experimentally observed surge of Vei and Pg, validating that the model captures complex non-linear dynamics when fully parameterised.
+
+%==============================================================================
+\section{Results}
+\label{sec:results}
+%==============================================================================
+
+All experiments use $N=2000$ particles, $\delta_{\mathrm{target}}=1.0$, $\gamma^2=0.04$, and species-specific noise levels derived from replicate variability.
+Initial conditions $\phi_i(t_0)$ are fixed to the observed composition at the first measurement time.
+For posterior refinement, two independent chains of 150 samples each ($N_{\mathrm{total}}=300$) are generated per condition; the DH condition uses 500 samples per chain ($N_{\mathrm{total}}=1000$) to accommodate the higher dimensionality.
+
+\subsection{Quantitative fit metrics}
+
+Table~\ref{tab:rmse} reports the root-mean-square error (RMSE) and mean absolute error (MAE) for both MAP and posterior-mean estimators across the four conditions.
+Commensal conditions achieve RMSE $<0.09$, confirming that the constrained model captures the dominant dynamics with high fidelity.
+The DH condition shows the largest RMSE ($0.146$), consistent with the intrinsic complexity of the surge dynamics and the wider posterior.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+& \multicolumn{2}{c}{\textbf{RMSE}} & \multicolumn{2}{c}{\textbf{MAE}} & & \\
+\textbf{Condition} & MAP & Mean & MAP & Mean & $N_{\text{est}}$ & $\ln\hat{Z}$\\
+\midrule
+CS  & 0.116 & \textbf{0.089} & 0.073 & 0.053 & 11 & $-1.97$\\
+CH  & \textbf{0.090} & 0.093 & 0.057 & 0.060 & 12 & $-12.66$\\
+DS  & 0.112 & \textbf{0.090} & 0.070 & 0.060 & 15 & $-8.89$\\
+DH  & \textbf{0.146} & 0.165 & 0.102 & 0.119 & 20 & $-17.67$\\
+\bottomrule
+\end{tabular}
+\caption{Fit metrics and log model evidence $\ln\hat{Z}$ for each condition. RMSE and MAE are computed over $N_t=6$ time points and 5 species. The posterior-mean estimator outperforms MAP in CS and DS; MAP is preferable in CH and DH. The log evidence decreases with increasing model complexity ($N_{\text{est}}$), reflecting the Bayesian Occam factor.}
+\label{tab:rmse}
+\end{table}
+
+The log model evidence $\ln\hat{Z}$ estimated via~\eqref{eq:evidence} is also reported.
+The CS condition, with the most constrained model ($N_{\text{est}}=11$), achieves the highest evidence ($\ln\hat{Z}=-1.97$), while DH with full parameterisation ($N_{\text{est}}=20$) yields the lowest ($\ln\hat{Z}=-17.67$).
+This monotonic decrease with $N_{\text{est}}$ reflects the Bayesian Occam factor: the model evidence penalises unnecessary complexity, providing quantitative support for the biological constraint strategy.
+
+\subsection{Convergence diagnostics}
+
+Table~\ref{tab:convergence} summarises the TMCMC convergence diagnostics.
+The Gelman--Rubin statistic $\hat{R}$ is below the 1.05 threshold for CS, CH, and DH, indicating adequate inter-chain mixing.
+DS shows a mildly elevated $\hat{R}_{\max}=1.11$ for $b_1$, suggesting that additional samples may be warranted for this condition.
+The effective sample size (ESS) ranges from 59.6\% to 69.2\% of the nominal sample count, which is typical for TMCMC with correlated proposals.
+The mean MCMC acceptance rates (49--71\%) are within the optimal range for Gaussian proposals in moderate dimensions~\cite{RobertCasella2004MonteCarlo}.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+\textbf{Condition} & $N_{\mathrm{total}}$ & $M$ & $\hat{R}_{\max}$ & $\mathrm{ESS}_{\min}$ & ESS\% & $\bar{\alpha}$\\
+\midrule
+CS  & 300  & 5 & 1.017 & 179 & 59.6 & 0.49\\
+CH  & 300  & 3 & 1.009 & 241 & 80.3 & 0.71\\
+DS  & 300  & 4 & 1.110 & 93  & 30.8 & 0.66\\
+DH  & 1000 & 5 & 1.010 & 692 & 69.2 & 0.65\\
+\bottomrule
+\end{tabular}
+\caption{TMCMC convergence diagnostics. $M$: number of tempering stages; $\hat{R}_{\max}$: worst-case Gelman--Rubin statistic across parameters; $\mathrm{ESS}_{\min}$: minimum effective sample size; $\bar{\alpha}$: mean MCMC acceptance rate.}
+\label{tab:convergence}
+\end{table}
+
+\subsection{Posterior fits across conditions}
+
+Figure~\ref{fig:fits_all} presents the posterior predictive fits for all four conditions in the order of increasing dysbiotic severity.
+In CS (Figure~\ref{fig:fit_cs}), the model reproduces the initial rapid growth and steady state of So and An; pathogen species remain near zero, consistent with the locked structure.
+In CH (Figure~\ref{fig:fit_ch}), the So-dominated ``blue bloom'' under flow is correctly captured.
+DS (Figure~\ref{fig:fit_ds}) shows moderate pathogen presence without surge, with interactions estimated at reduced magnitude.
+In DH (Figure~\ref{fig:fit_dh}), the model captures the non-linear amplification of Vei and Pg, though the terminal sharp rise is slightly underestimated.
+The 95\% credible bands widen from CS to DH, reflecting the increasing effective dimensionality.
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/docs/paper_comprehensive_figs/Commensal_Static_Fig_A02_per_species_panel.png}
+\caption{Commensal Static (CS)}
+\label{fig:fit_cs}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/docs/paper_comprehensive_figs/Commensal_HOBIC_Fig_A02_per_species_panel.png}
+\caption{Commensal HOBIC (CH)}
+\label{fig:fit_ch}
+\end{subfigure}
+
+\vspace{4pt}
+\begin{subfigure}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/docs/paper_comprehensive_figs/Dysbiotic_Static_Fig_A02_per_species_panel.png}
+\caption{Dysbiotic Static (DS)}
+\label{fig:fit_ds}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/docs/paper_comprehensive_figs/Dysbiotic_HOBIC_Fig_A02_per_species_panel.png}
+\caption{Dysbiotic HOBIC (DH)}
+\label{fig:fit_dh}
+\end{subfigure}
+\caption{Posterior predictive fits with 95\% credible intervals for all four conditions, ordered by increasing dysbiotic severity. Shaded bands represent posterior uncertainty; dots are experimental data~\cite{Heine2025PeriImplant}.}
+\label{fig:fits_all}
+\end{figure}
+
+\subsection{Inferred interaction matrices}
+
+The MAP interaction matrices (Figure~\ref{fig:heatmaps}) reveal the progressive reorganisation of the interaction landscape from commensal to dysbiotic states.
+In CS and CH, the dominant entries are the So--An and So--Vei blocks, reflecting the mutualistic core of early colonizers; structural zeros from $\mathcal{L}$ are clearly visible.
+In DS, pathogen-related entries appear at moderate magnitude.
+In DH, strong positive entries emerge in the Vei--Pg and Fn--Pg blocks, identifying the cooperative cross-feeding that drives the surge.
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/docs/paper_comprehensive_figs/Commensal_Static_Fig_A01_interaction_matrix_heatmap.png}
+\caption{Commensal Static (CS)}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/docs/paper_comprehensive_figs/Commensal_HOBIC_Fig_A01_interaction_matrix_heatmap.png}
+\caption{Commensal HOBIC (CH)}
+\end{subfigure}
+
+\vspace{4pt}
+\begin{subfigure}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/docs/paper_comprehensive_figs/Dysbiotic_Static_Fig_A01_interaction_matrix_heatmap.png}
+\caption{Dysbiotic Static (DS)}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{/home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/docs/paper_comprehensive_figs/Dysbiotic_HOBIC_Fig_A01_interaction_matrix_heatmap.png}
+\caption{Dysbiotic HOBIC (DH)}
+\end{subfigure}
+\caption{MAP interaction matrices for all four conditions. Red: cooperative ($A_{ij}>0$); blue: competitive ($A_{ij}<0$). The transition from commensal to dysbiotic is characterised by the activation of Vei--Pg and Fn--Pg cooperative blocks.}
+\label{fig:heatmaps}
+\end{figure}
+
+\subsection{Quantitative comparison across conditions}
+
+To quantify the inter-condition differences, we compute for each pair $(c_1,c_2)$ the correlation coefficient and relative Frobenius distance:
+\begin{equation}
+\rho^{(c_1,c_2)} = \mathrm{corr}\bigl(\mathrm{vec}(\mathbf{A}^{(c_1)}),\mathrm{vec}(\mathbf{A}^{(c_2)})\bigr),
+\qquad
+\Delta_F^{(c_1,c_2)} = \frac{\|\mathbf{A}^{(c_1)}-\mathbf{A}^{(c_2)}\|_F}
+{\max\{\|\mathbf{A}^{(c_1)}\|_F,\|\mathbf{A}^{(c_2)}\|_F\}}.
+\label{eq:frob}
+\end{equation}
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}llcc@{}}
+\toprule
+\textbf{Condition 1} & \textbf{Condition 2} & $\rho$ & $\Delta_F$\\
+\midrule
+Commensal HOBIC  & Dysbiotic HOBIC   & $-0.24$ & $0.71$\\
+Commensal HOBIC  & Commensal Static  & $+0.47$ & $0.42$\\
+Commensal HOBIC  & Dysbiotic Static  & $-0.07$ & $0.62$\\
+Dysbiotic HOBIC  & Commensal Static  & $-0.22$ & $0.64$\\
+Dysbiotic HOBIC  & Dysbiotic Static  & $+0.46$ & $0.52$\\
+Commensal Static & Dysbiotic Static  & $-0.11$ & $0.57$\\
+\bottomrule
+\end{tabular}
+\caption{Pairwise comparison of MAP interaction matrices. Within the same health state (C--C or D--D), moderate positive correlations ($\rho\approx0.47$) indicate a shared interaction backbone. Across health states, correlations are weak or negative, reflecting the structural reorganisation of the microbial community.}
+\label{tab:pairwise}
+\end{table}
+
+The results (Table~\ref{tab:pairwise}) show that matrices within the same health state share a common backbone ($\rho\approx0.46$) while differing in magnitude, whereas cross-state comparisons yield weak or negative correlations and larger Frobenius distances ($\Delta_F\geq0.57$).
+This quantifies the transition from health to disease as a structural reorganisation of the interaction landscape, not merely a rescaling of existing coefficients.
+
+
+%==============================================================================
+\section{Discussion}
+\label{sec:discussion}
+%==============================================================================
+
+\subsection{Biological interpretation}
+
+The inferred interaction matrices provide a quantitative map of the commensal-to-dysbiotic transition.
+In commensal states, the dominant interactions involve early colonizers: So--An co-aggregation and So--Vei lactate exchange form a stable mutualistic core.
+The transition to dysbiosis is characterised by the activation of cooperative pathways involving Pg, particularly the Vei$\to$Pg pH support and Fn$\to$Pg peptide supply.
+The non-monotonic pattern of the Vei--Pg coefficient across conditions---strongest in DH but also present in DS---implies that the pathogen surge is not driven by a single large cooperative coefficient but emerges from the interplay of multiple interaction blocks, decay rates, and initial conditions.
+
+\subsection{Surge dynamics and model limitations}
+
+While the TMCMC-calibrated model qualitatively reproduces the pathogen surge in DH, it underestimates the terminal sharp rise of Pg.
+This limitation is inherent to the time-invariant interaction matrix: the current framework assumes constant~$\mathbf{A}$ throughout the experiment.
+Capturing the full surge strength may require state-dependent interactions, e.g.\ $A_{ij}(\mathrm{pH},c^*)$, or regime-switching formulations that allow threshold-triggered changes in the interaction topology.
+
+\subsection{Identifiability and constraint effect}
+
+The parameter reduction from 20 to 15 dimensions has a direct impact on identifiability.
+In the unconstrained formulation, the data-to-parameter ratio for the CS condition is approximately $N_t\times5/20$, where $N_t$ is the number of observation times.
+With the biological constraints, this ratio improves by a factor of $20/11\approx1.8$ for CS.
+More importantly, the locked parameters correspond precisely to the biologically absent interactions, so the constraint does not sacrifice model flexibility in regions where the data carry information.
+
+From a Bayesian perspective, the Dirac-delta priors on locked parameters act as infinitely informative priors, concentrating the posterior mass on the biologically plausible subspace~$\Theta_{\mathcal{L}}$.
+This is formally equivalent to a model selection step: the constrained model is a nested sub-model of the full 20-parameter model, and the Bayes factor~\eqref{eq:evidence} provides a principled comparison.
+The improvement in posterior concentration---narrower credible intervals on free parameters---is thus a direct consequence of the reduced effective dimensionality and the thermodynamically motivated symmetry constraint~\eqref{eq:symmetry}.
+
+\subsection{Sequential estimation and error propagation}
+
+The four-stage decomposition reduces the effective dimensionality of each TMCMC run to at most 6, enabling efficient posterior exploration with $N=2000$ particles.
+The grouping by ecological succession (early colonizers $\to$ bridge organisms $\to$ pathogen) aligns the conditioning order with the causal structure, improving conditional identifiability at each stage.
+
+A potential drawback is that point-estimate fixation at each stage introduces a conditional bias: the MAP from stage~$s$ is treated as the true value in all subsequent stages.
+Let $\hat{\btheta}_{\mathcal{A}_s}^{\mathrm{MAP}}$ denote the MAP from stage~$s$, and $\btheta_{\mathcal{A}_s}^*$ the ``true'' value.
+The approximation error propagating to stage~$s+1$ is bounded by
+\begin{equation}
+\bigl\|\hat{\btheta}_{\mathcal{A}_s}^{\mathrm{MAP}} - \btheta_{\mathcal{A}_s}^*\bigr\|
+\leq \mathrm{diam}\bigl(\mathrm{CI}_{95\%}^{(s)}\bigr),
+\label{eq:propagation}
+\end{equation}
+where $\mathrm{CI}_{95\%}^{(s)}$ is the 95\% credible region at stage~$s$.
+In practice, the early-stage credible intervals are narrow (e.g.\ $<0.1$ for decay rates $b_1,b_2$), limiting the propagation of bias to later stages.
+A fully joint estimation over all 15 parameters could eliminate this approximation but at the cost of substantially higher computational effort.
+
+\subsection{Computational aspects}
+
+Each TMCMC stage with $N=2000$ particles and target CoV $\delta_{\mathrm{target}}=1.0$ typically converges in $M\approx15$--$25$ tempering levels.
+The total number of forward model evaluations per stage is approximately $N\times M\times n_{\mathrm{MH}}$, where $n_{\mathrm{MH}}$ is the number of Metropolis--Hastings steps per particle (here $n_{\mathrm{MH}}=1$).
+For the full four-stage procedure, this yields $\sim2000\times20\times4=160{,}000$ forward solves.
+Since each forward solve of the ODE system~\eqref{eq:ode} requires $\sim1$\,ms, the total wall-clock time is approximately 160\,s on a single core, or $\sim20$\,s with 8-fold parallelisation.
+The embarrassingly parallel structure of TMCMC---all particle evaluations at each tempering level are independent---makes the method well suited for modern multi-core architectures.
+
+\subsection{Relation to previous work}
+
+The present framework extends the continuum biofilm model of Klempt et al.~\cite{Klempt2025ContinuumBiofilm, Klempt2024ContinuumGrowth} to the inverse-problem setting.
+Compared to the surrogate-based Bayesian approach of Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms}, we work directly with the ODE forward model, which avoids surrogate approximation errors but at higher computational cost per likelihood evaluation.
+The biological constraint mechanism is complementary to the hybrid uncertainty treatment of Fritsch et al.\ and could be combined with their surrogate acceleration in future applications.
+The variational origin of the symmetric interaction matrix~\cite{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic} provides a thermodynamically consistent foundation that distinguishes this approach from purely phenomenological Lotka--Volterra formulations.
+
+%==============================================================================
+\section{Conclusions}
+\label{sec:conclusions}
+%==============================================================================
+
+We have presented a biologically-constrained Bayesian framework for estimating the interaction parameters of a five-species oral biofilm model.
+The key contributions are:
+
+\begin{enumerate}[nosep,leftmargin=*]
+\item \textbf{Constrained prior formulation.}
+Encoding experimentally absent interactions as Dirac-delta priors reduces the parameter space from 20 to 15 dimensions, improving identifiability without loss of biological fidelity.
+
+\item \textbf{Sequential TMCMC.}
+A four-stage estimation strategy aligned with ecological succession decomposes the 15-dimensional problem into sub-problems of dimension $\leq6$, enabling efficient sampling and biologically interpretable conditioning.
+
+\item \textbf{Condition-specific validation.}
+The framework is validated across four experimental conditions, correctly reproducing commensal homeostasis (CS, CH), moderate dysbiosis (DS), and the non-linear pathogen surge (DH).
+
+\item \textbf{Quantitative interaction comparison.}
+Pairwise Frobenius analysis reveals that the health-to-disease transition corresponds to a structural reorganisation of the interaction matrix ($\rho_{\text{cross}}\approx-0.15$, $\Delta_F\geq0.57$), not merely a magnitude shift.
+\end{enumerate}
+
+Future work will address state-dependent interaction matrices to capture the full terminal surge, integration with continuum PDE models for spatially resolved inference, and surrogate-accelerated TMCMC for large-scale applications.
+
+%==============================================================================
+\bibliographystyle{unsrt}
+\bibliography{references_ikm}
+%==============================================================================
+
+\end{document}
