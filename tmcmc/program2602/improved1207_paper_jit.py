@@ -1082,6 +1082,7 @@ class BiofilmTSM:
         n_time = len(t_arr)
 
         # store x0 (= mean) and x1 (sensitivities)
+        n_state = g_det.shape[1]  # 10 for 4-species, 12 for 5-species
         x0_list = [g_det[0].astype(np.complex128 if np.iscomplexobj(theta) else np.float64)]
         x1_list = []
 
@@ -1100,7 +1101,7 @@ class BiofilmTSM:
             J = self.solver.compute_Jacobian_matrix(g_new, g_old, tt, self.solver.dt, A0, b0)
 
             # dG/dtheta via complex-step (robust, no subtraction cancellation)
-            x1_t = np.zeros((10, len(self.active_idx)), dtype=np.float64)
+            x1_t = np.zeros((n_state, len(self.active_idx)), dtype=np.float64)
 
             for k, idx in enumerate(self.active_idx):
                 th_cs = theta.astype(np.complex128)
@@ -1115,7 +1116,7 @@ class BiofilmTSM:
                     A_cs,
                     b_cs,
                 )
-                dG = np.imag(Q_cs) / h  # (10,)
+                dG = np.imag(Q_cs) / h  # (n_state,)
 
                 rhs = -dG
                 try:
@@ -1127,15 +1128,15 @@ class BiofilmTSM:
             x1_list.append(x1_t)
             x0_list.append(g_new.copy())
 
-        x0 = np.vstack(x0_list).real  # (n_time, 10)
+        x0 = np.vstack(x0_list).real  # (n_time, n_state)
 
         # x1_list has length n_time - 1 (sensitivities for t[1:] based on steps 0..n_time-2)
-        x1_core = np.stack(x1_list, axis=0)  # (n_time - 1, 10, n_active)
+        x1_core = np.stack(x1_list, axis=0)  # (n_time - 1, n_state, n_active)
 
         # ★ FIX: align sigma2 with all time points in t_arr
         # Define x1_full such that:
         #   x1_full[1:] ↔ sensitivities at t[1:], x1_full[0] copied from first step.
-        x1 = np.zeros((n_time, 10, len(self.active_idx)), dtype=np.float64)
+        x1 = np.zeros((n_time, n_state, len(self.active_idx)), dtype=np.float64)
         x1[1:, :, :] = x1_core
         x1[0, :, :] = x1_core[0, :, :]  # harmless; idx_sparse never uses very early times
 

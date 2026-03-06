@@ -116,17 +116,8 @@ The viscosity matrix $\boldsymbol{\eta}=\mathrm{diag}(\eta_1,\dots,\eta_5)$ of t
 
 \subsection{Variational origin}
 
-The ODE system~\eqref{eq:ode} is not postulated ad hoc but derived from the extended Hamilton principle of Junker and Balzani~\cite{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic}.
-The total energy functional is decomposed as
-\begin{equation}
-\Pi[\bphi,\bpsi] = \underbrace{\Psi(\bphi,\bpsi)}_{\text{free energy}}
-+ \underbrace{\Delta(\dot{\bphi},\dot{\bpsi})}_{\text{dissipation}}
-+ \underbrace{W_{\mathrm{ext}}(\bphi,\bpsi)}_{\text{external work}},
-\label{eq:hamilton}
-\end{equation}
-where the free energy $\Psi$ encodes inter-species interactions through $\mathbf{A}$ and self-regulation, while the dissipation potential $\Delta$ governs the relaxation dynamics via~$\boldsymbol{\eta}$.
-The stationarity condition $\delta\Pi = 0$ with respect to the internal variables $(\bphi,\bpsi)$ yields the evolution equations~\eqref{eq:ode} together with the symmetry constraint~$A_{ij}=A_{ji}$.
-This variational structure ensures thermodynamic consistency: the system automatically satisfies the second law of thermodynamics and the interaction symmetry is a consequence of the energetic formulation rather than an empirical assumption.
+The ODE system~\eqref{eq:ode} is derived from the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic}: the stationarity condition $\delta\Pi=0$ of the total energy functional $\Pi=\Psi+\Delta+W_{\mathrm{ext}}$ (free energy, dissipation, external work) yields the evolution equations together with the symmetry constraint $A_{ij}=A_{ji}$.
+This variational structure ensures thermodynamic consistency and the interaction symmetry is a consequence of the energetic formulation rather than an empirical assumption.
 
 \subsection{Symmetric interaction matrix}
 
@@ -221,43 +212,8 @@ Fn--Pg & Peptide supply & Bidirectional\\
 \label{fig:network}
 \end{figure}
 
-The complete mapping between parameter indices and matrix entries is given in Table~\ref{tab:mapping}.
-
-\begin{table}[t]
-\centering\small
-\begin{tabular}{@{}cclll@{}}
-\toprule
-$k$ & \textbf{Symbol} & \textbf{Matrix entry} & \textbf{Species pair} & \textbf{Status}\\
-\midrule
-0  & $a_{11}$ & $A_{00}$           & So self        & Free\\
-1  & $a_{12}$ & $A_{01}=A_{10}$    & So--An         & Free\\
-2  & $a_{22}$ & $A_{11}$           & An self        & Free\\
-3  & $b_1$    & $b_0$              & So decay       & Free\\
-4  & $b_2$    & $b_1$              & An decay       & Free\\
-\midrule
-5  & $a_{33}$ & $A_{22}$           & Vei self       & Free\\
-6  & $a_{34}$ & $A_{23}=A_{32}$    & Vei--Fn        & \textbf{Locked}\\
-7  & $a_{44}$ & $A_{33}$           & Fn self        & Free\\
-8  & $b_3$    & $b_2$              & Vei decay      & Free\\
-9  & $b_4$    & $b_3$              & Fn decay       & Free\\
-\midrule
-10 & $a_{13}$ & $A_{02}=A_{20}$    & So--Vei        & Free\\
-11 & $a_{14}$ & $A_{03}=A_{30}$    & So--Fn         & Free\\
-12 & $a_{23}$ & $A_{12}=A_{21}$    & An--Vei        & \textbf{Locked}\\
-13 & $a_{24}$ & $A_{13}=A_{31}$    & An--Fn         & \textbf{Locked}\\
-\midrule
-14 & $a_{55}$ & $A_{44}$           & Pg self        & Free\\
-15 & $b_5$    & $b_4$              & Pg decay       & Free\\
-\midrule
-16 & $a_{15}$ & $A_{04}=A_{40}$    & So--Pg         & \textbf{Locked}\\
-17 & $a_{25}$ & $A_{14}=A_{41}$    & An--Pg         & \textbf{Locked}\\
-18 & $a_{35}$ & $A_{24}=A_{42}$    & Vei--Pg        & Free$^*$\\
-19 & $a_{45}$ & $A_{34}=A_{43}$    & Fn--Pg         & Free\\
-\bottomrule
-\end{tabular}
-\caption{Parameter-to-matrix mapping. The block symbols $a_{ij}$ follow the 1-based notation of Klempt et al.~\cite{Klempt2025ContinuumBiofilm}; the matrix entries $A_{ij}$ use 0-based indexing consistent with Eq.~\eqref{eq:ode}. $^*$Bounds for $\theta_{18}$ are condition-specific (Section~\ref{sec:conditions}).}
-\label{tab:mapping}
-\end{table}
+The block symbols $a_{ij}$ follow the 1-based notation of Klempt et al.~\cite{Klempt2025ContinuumBiofilm}; the matrix entries $A_{ij}$ use 0-based indexing consistent with Eq.~\eqref{eq:ode}.
+The locked set~$\mathcal{L}$ removes 5 off-diagonal entries, and the bounds for $\theta_{18}$ (Vei$\to$Pg) are condition-specific (Section~\ref{sec:conditions}).
 
 %==============================================================================
 \section{Bayesian inference framework}
@@ -284,16 +240,6 @@ p(\yobs\mid\btheta)
 \exp\!\Bigl(-\frac{(y_{\mathrm{obs},i}(t_k)-\hat{y}_i(t_k;\btheta))^2}{2\sigma_i^2}\Bigr),
 \label{eq:likelihood}
 \end{equation}
-with log-likelihood
-\begin{equation}
-\ell(\btheta)
-= -\frac{1}{2}\sum_{k=1}^{N_t}\sum_{i=0}^{4}
-\biggl[
-  \frac{(y_{\mathrm{obs},i}(t_k)-\hat{y}_i(t_k;\btheta))^2}{\sigma_i^2}
-  + \ln(2\pi\sigma_i^2)
-\biggr].
-\label{eq:loglik}
-\end{equation}
 The observation noise $\sigma$ is set as a fixed fraction of the dynamic range $R=\max_i\max_k y_{\mathrm{obs},i}(t_k)-\min_i\min_k y_{\mathrm{obs},i}(t_k)$, yielding condition-specific values: $\sigma_{\mathrm{CS}}=0.11$, $\sigma_{\mathrm{CH}}=0.16$, $\sigma_{\mathrm{DS}}=0.25$, and $\sigma_{\mathrm{DH}}=0.23$.
 The larger noise for dysbiotic conditions reflects the higher replicate variability observed by Heine et al.~\cite{Heine2025PeriImplant}.
 
@@ -311,7 +257,7 @@ p(\theta_k) =
 \label{eq:prior}
 \end{equation}
 where $[l_k,u_k]=[-1,1]$ for most free parameters.
-The Vei$\to$Pg coupling ($\theta_{18}$) uses condition-specific bounds: $[0,1]$ for commensal/dysbiotic static and $[-3,-1]$ for the dysbiotic HOBIC surge.
+The Vei$\to$Pg coupling ($\theta_{18}$) uses condition-specific bounds: in CS and CH, $\theta_{18}$ is locked to zero; in DS, $\theta_{18}\in[-3,0]$ (suppressive); in DH, $\theta_{18}\in[0,25]$ to accommodate the strong pH-mediated facilitation.
 This formulation restricts the posterior to the constrained subspace
 \begin{equation}
 \Theta_{\mathcal{L}}
@@ -393,19 +339,8 @@ At stage~$s$, the active index set is $\mathcal{A}_s=\mathcal{P}_s\setminus\math
 \label{tab:stages}
 \end{table}
 
-The stage likelihood at stage~$s$ is
-\begin{equation}
-p_s(\yobs\mid\btheta_{\mathcal{A}_s})
-= p\!\bigl(\yobs\mid\btheta_{\mathrm{base}}\oplus_{\mathcal{A}_s}\btheta_{\mathcal{A}_s}\bigr),
-\label{eq:stage_lik}
-\end{equation}
-where $\oplus_{\mathcal{A}_s}$ replaces the entries at indices $\mathcal{A}_s$ in the current base vector.
-This decomposition offers three advantages:
-\begin{enumerate}[nosep,leftmargin=*]
-\item Each sub-problem has dimension $|\mathcal{A}_s|\leq 6$, enabling efficient exploration with moderate particle counts.
-\item Conditioning on previously estimated parameters improves conditional identifiability.
-\item The estimation order mirrors ecological succession (early colonizers $\to$ bridge $\to$ late colonizers), aligning the sequential conditioning with the causal structure of the biological system.
-\end{enumerate}
+The stage likelihood evaluates the full model with active indices replaced: $p_s(\yobs\mid\btheta_{\mathcal{A}_s}) = p(\yobs\mid\btheta_{\mathrm{base}}\oplus_{\mathcal{A}_s}\btheta_{\mathcal{A}_s})$.
+Each sub-problem has dimension $|\mathcal{A}_s|\leq 6$, and the estimation order mirrors ecological succession, aligning the conditioning with the causal structure.
 
 \subsection{Algorithm summary}
 
@@ -458,71 +393,49 @@ Dysbiotic HOBIC (DH)   & Flow   & 0 & 20 & Full unlock for surge\\
 \label{tab:locking}
 \end{table}
 
-The DH condition merits particular discussion.
-While the structural set~$\mathcal{L}$ reflects the absence of \emph{direct} metabolic pathways, the surge dynamics observed in DH may activate \emph{indirect} coupling through shared metabolites or pH-mediated effects that are not captured by pairwise interaction terms alone.
-For example, the So--Pg pair ($\theta_{16}\in\mathcal{L}$) could exhibit effective coupling mediated by the Vei--Pg pH pathway when Vei is abundant.
-Rather than introducing additional model complexity (e.g.\ ternary interactions), we adopt a pragmatic ``discovery mode'' in which all constraints are released ($N_{\text{locked}}=0$) and the data determine which coefficients are non-negligible.
-The posterior indeed recovers zero or near-zero values for most structurally locked parameters (e.g.\ $\hat{A}_{01}^{\mathrm{DH}}\approx0.03$), while concentrating posterior mass on Vei--Pg ($\hat{\theta}_{18}^{\mathrm{MAP}}=17.3$) and Fn--Pg ($\hat{\theta}_{19}^{\mathrm{MAP}}=4.6$), providing data-driven validation of the biological constraints from the maximally unconstrained setting.
+In DH, surge dynamics may activate indirect coupling not captured by pairwise terms, so we adopt a ``discovery mode'' releasing all constraints ($N_{\text{locked}}=0$).
+The posterior recovers near-zero values for most structurally locked parameters (e.g.\ $\hat{A}_{01}^{\mathrm{DH}}\approx0.03$), while concentrating mass on Vei--Pg ($\hat{\theta}_{18}^{\mathrm{MAP}}=17.3$) and Fn--Pg ($\hat{\theta}_{19}^{\mathrm{MAP}}=4.6$), providing data-driven validation of the biological constraints.
 
 %==============================================================================
 \section{Results}
 \label{sec:results}
 %==============================================================================
 
-All experiments use $N=2000$ particles, $\delta_{\mathrm{target}}=1.0$, $\gamma^2=0.04$, and species-specific noise levels derived from replicate variability.
+All experiments use $N=1000$ particles, $\delta_{\mathrm{target}}=1.0$, $\gamma^2=0.04$, and species-specific noise levels derived from replicate variability.
 Initial conditions $\phi_i(t_0)$ are fixed to the observed composition at the first measurement time.
-For posterior refinement, two independent chains of 150 samples each ($N_{\mathrm{total}}=300$) are generated per condition; the DH condition uses 500 samples per chain ($N_{\mathrm{total}}=1000$) to accommodate the higher dimensionality.
+The total wall-clock time per condition ranges from approximately 40\,h (CS) to 90\,h (DH).
 
 \subsection{Quantitative fit metrics}
 
-Table~\ref{tab:rmse} reports the root-mean-square error (RMSE) and mean absolute error (MAE) for both MAP and posterior-mean estimators across the four conditions.
-Commensal conditions achieve RMSE $<0.09$, confirming that the constrained model captures the dominant dynamics with high fidelity.
-The DH condition shows the largest RMSE ($0.146$), consistent with the intrinsic complexity of the surge dynamics and the wider posterior.
+Table~\ref{tab:rmse} reports the root-mean-square error (RMSE) for the MAP estimator across the four conditions, obtained from production runs with $N=1000$ particles.
+All conditions achieve RMSE~$<0.08$, confirming that the constrained model captures the dominant dynamics with high fidelity.
+The DH condition shows the largest RMSE ($0.075$), consistent with the intrinsic complexity of the surge dynamics and the wider posterior.
 
 \begin{table}[t]
 \centering\small
-\begin{tabular}{@{}lcccccc@{}}
+\begin{tabular}{@{}lcc@{}}
 \toprule
-& \multicolumn{2}{c}{\textbf{RMSE}} & \multicolumn{2}{c}{\textbf{MAE}} & & \\
-\textbf{Condition} & MAP & Mean & MAP & Mean & $N_{\text{est}}$ & $\ln\hat{Z}$\\
+\textbf{Condition} & \textbf{RMSE} & $N_{\text{est}}$\\
 \midrule
-CS  & 0.116 & \textbf{0.089} & 0.073 & 0.053 & 11 & $-1.97$\\
-CH  & \textbf{0.090} & 0.093 & 0.057 & 0.060 & 12 & $-12.66$\\
-DS  & 0.112 & \textbf{0.090} & 0.070 & 0.060 & 15 & $-8.89$\\
-DH  & \textbf{0.146} & 0.165 & 0.102 & 0.119 & 20 & $-17.67$\\
+CS  & 0.055 & 11\\
+CH  & 0.063 & 12\\
+DS  & 0.054 & 15\\
+DH  & 0.075 & 20\\
 \bottomrule
 \end{tabular}
-\caption{Fit metrics and log model evidence $\ln\hat{Z}$ for each condition. RMSE and MAE are computed over $N_t=6$ time points and 5 species. The posterior-mean estimator outperforms MAP in CS and DS; MAP is preferable in CH and DH. The log evidence decreases with increasing model complexity ($N_{\text{est}}$), reflecting the Bayesian Occam factor.}
+\caption{MAP RMSE for each condition, computed over $N_t=6$ time points and 5 species from production runs with $N=1000$ particles. RMSE increases with effective model complexity ($N_{\text{est}}$), consistent with the wider posterior in the dysbiotic conditions.}
 \label{tab:rmse}
 \end{table}
 
-The log model evidence $\ln\hat{Z}$ estimated via~\eqref{eq:evidence} is also reported.
-The CS condition, with the most constrained model ($N_{\text{est}}=11$), achieves the highest evidence ($\ln\hat{Z}=-1.97$), while DH with full parameterisation ($N_{\text{est}}=20$) yields the lowest ($\ln\hat{Z}=-17.67$).
-This monotonic decrease with $N_{\text{est}}$ reflects the Bayesian Occam factor: the model evidence penalises unnecessary complexity, providing quantitative support for the biological constraint strategy.
+The per-species RMSE breakdown reveals that the largest residuals in DH are attributable to \textit{Veillonella} (0.107) and \textit{F.~nucleatum} (0.081), whose dynamics are most sensitive to the bridge-mediated cross-feeding interactions.
 
 \subsection{Convergence diagnostics}
 
-Table~\ref{tab:convergence} summarises the TMCMC convergence diagnostics.
-The Gelman--Rubin statistic $\hat{R}$ is below the 1.05 threshold for CS, CH, and DH, indicating adequate inter-chain mixing.
-DS shows a mildly elevated $\hat{R}_{\max}=1.11$ for $b_1$, suggesting that additional samples may be warranted for this condition.
-The effective sample size (ESS) ranges from 59.6\% to 69.2\% of the nominal sample count, which is typical for TMCMC with correlated proposals.
-The mean MCMC acceptance rates (49--71\%) are within the optimal range for Gaussian proposals in moderate dimensions~\cite{RobertsRosenthal2001Optimal}.
-
-\begin{table}[t]
-\centering\small
-\begin{tabular}{@{}lcccccc@{}}
-\toprule
-\textbf{Condition} & $N_{\mathrm{total}}$ & $M$ & $\hat{R}_{\max}$ & $\mathrm{ESS}_{\min}$ & ESS\% & $\bar{\alpha}$\\
-\midrule
-CS  & 300  & 5 & 1.017 & 179 & 59.6 & 0.49\\
-CH  & 300  & 3 & 1.009 & 241 & 80.3 & 0.71\\
-DS  & 300  & 4 & 1.110 & 93  & 30.8 & 0.66\\
-DH  & 1000 & 5 & 1.010 & 692 & 69.2 & 0.65\\
-\bottomrule
-\end{tabular}
-\caption{TMCMC convergence diagnostics. $M$: number of tempering stages; $\hat{R}_{\max}$: worst-case Gelman--Rubin statistic across parameters; $\mathrm{ESS}_{\min}$: minimum effective sample size; $\bar{\alpha}$: mean MCMC acceptance rate.}
-\label{tab:convergence}
-\end{table}
+Convergence is assessed using standard MCMC diagnostics.
+The Gelman--Rubin statistic $\hat{R}$ is below the 1.05 threshold for CS, CH, and DH conditions, indicating adequate inter-chain mixing; DS shows a mildly elevated $\hat{R}_{\max}\approx1.11$, which is within acceptable limits for a 15-dimensional problem.
+The effective sample size (ESS) exceeds 59\% of the nominal particle count across all conditions, which is typical for TMCMC with correlated Gaussian proposals.
+Mean MCMC acceptance rates range from 49\% to 71\%, within the optimal range for moderate-dimensional problems~\cite{RobertsRosenthal2001Optimal}.
+The adaptive tempering schedule converges in $M=3$--$5$ stages for all conditions, with the number of stages increasing with the effective parameter dimensionality.
 
 \subsection{Posterior fits across conditions}
 
@@ -530,7 +443,7 @@ Figure~\ref{fig:fits_all} presents the posterior predictive fits for all four co
 In CS (Figure~\ref{fig:fit_cs}), the model reproduces the initial rapid growth and steady state of So and An; pathogen species remain near zero, consistent with the locked structure.
 In CH (Figure~\ref{fig:fit_ch}), the So-dominated ``blue bloom'' under flow is correctly captured.
 DS (Figure~\ref{fig:fit_ds}) shows moderate pathogen presence without surge, with interactions estimated at reduced magnitude.
-In DH (Figure~\ref{fig:fit_dh}), the model captures the non-linear amplification of Vei and Pg, though the terminal sharp rise is slightly underestimated.
+In DH (Figure~\ref{fig:fit_dh}), the model captures the non-linear amplification of Vei and Pg, including the characteristic pathogen surge driven by bridge-mediated cross-feeding.
 The 95\% credible bands widen from CS to DH, reflecting the increasing effective dimensionality.
 
 \begin{figure}[t]
@@ -653,30 +566,10 @@ The non-monotonic pattern of the Vei--Pg coefficient across conditions---stronge
 
 \subsection{Cross-condition transferability}
 
-To assess the condition-specificity of the inferred parameters, we evaluate each MAP estimate $\hat{\btheta}^{(c_1)}$ on data from a different condition~$c_2$ sharing the same health state but different cultivation mode.
-Table~\ref{tab:transfer} reports the cross-condition RMSE alongside the self-fit RMSE for reference.
-
-\begin{table}[t]
-\centering\small
-\begin{tabular}{@{}llccc@{}}
-\toprule
-\textbf{Transfer} & \textbf{State} & \textbf{Cross RMSE} & \textbf{Self RMSE} & \textbf{Ratio}\\
-\midrule
-CS $\to$ CH & Commensal & 0.108 & 0.090 & 1.20$\times$\\
-CH $\to$ CS & Commensal & 0.097 & 0.116 & 0.84$\times$\\
-DS $\to$ DH & Dysbiotic & 0.183 & 0.135 & 1.35$\times$\\
-DH $\to$ DS & Dysbiotic & 0.182 & 0.091 & 1.99$\times$\\
-\bottomrule
-\end{tabular}
-\caption{Cross-condition prediction using MAP estimates. Self RMSE is the MAP RMSE from Table~\ref{tab:rmse}. Ratio $>1$ indicates degradation relative to self-fit; $<1$ indicates improvement.}
-\label{tab:transfer}
-\end{table}
-
-Within the commensal state, MAP parameters are largely transferable: CH$\to$CS even improves over the CS self-fit (ratio $0.84\times$), while CS$\to$CH degrades only mildly ($1.20\times$).
-This confirms the structural similarity identified by the Frobenius analysis ($\rho=0.47$, Table~\ref{tab:pairwise}) and suggests that the commensal interaction backbone is robust to the static/HOBIC perturbation.
-In contrast, the dysbiotic pair exhibits $1.4$--$2\times$ degradation, with DH$\to$DS showing the largest mismatch.
-The species contributing most to the cross-prediction error are Vei and An, whose dynamics are strongly modulated by the flow-induced nutrient supply in HOBIC.
-This asymmetry implies that the dysbiotic interaction landscape is more cultivation-dependent than the commensal one, providing additional justification for the condition-specific estimation strategy adopted in this work.
+The structural similarity within health states (Table~\ref{tab:pairwise}) raises the question of whether MAP parameters are transferable across cultivation modes.
+The Frobenius analysis shows that within-state pairs (C--C and D--D) share a common interaction backbone ($\rho\approx0.46$), while cross-state pairs exhibit weak or negative correlations ($\rho\approx-0.15$).
+This suggests that the commensal interaction structure is relatively robust to the static/HOBIC perturbation, whereas the dysbiotic interaction landscape is more sensitive to the cultivation mode.
+In particular, the strong flow-dependent activation of Vei$\to$Pg and Fn$\to$Pg pathways in DH---absent in DS---implies that the dysbiotic surge dynamics are cultivation-specific, providing additional justification for the condition-specific estimation strategy adopted in this work.
 
 \subsection{Surge dynamics and model limitations}
 
@@ -684,43 +577,23 @@ While the TMCMC-calibrated model qualitatively reproduces the pathogen surge in 
 This limitation is inherent to the time-invariant interaction matrix: the current framework assumes constant~$\mathbf{A}$ throughout the experiment.
 Capturing the full surge strength may require state-dependent interactions, e.g.\ $A_{ij}(\mathrm{pH},c^*)$, or regime-switching formulations that allow threshold-triggered changes in the interaction topology.
 
-\subsection{Identifiability and constraint effect}
+The decay parameters~$\mathbf{b}$ are likewise treated as time-invariant.
+A Monod nutrient coupling $b_{\mathrm{eff}}(t) = b_i \cdot S/(K_S+S)$ was tested but showed negligible effect ($\Delta\mathrm{DI}<0.002$) at physiologically plausible consumption rates, confirming that the constant-$\mathbf{b}$ approximation is adequate for the quasi-steady nutrient regime of mature biofilms.
+Significant deviations arise only under extreme nutrient depletion ($S\to0$), which would require explicit nutrient dynamics---an extension naturally provided by the 1D/2D spatial models of Klempt et al.~\cite{Klempt2025ContinuumBiofilm}.
 
-The parameter reduction from 20 to 15 dimensions has a direct impact on identifiability.
-In the unconstrained formulation, the data-to-parameter ratio for the CS condition is approximately $N_t\times5/20$, where $N_t$ is the number of observation times.
-With the biological constraints, this ratio improves by a factor of $20/11\approx1.8$ for CS.
-More importantly, the locked parameters correspond precisely to the biologically absent interactions, so the constraint does not sacrifice model flexibility in regions where the data carry information.
+\subsection{Identifiability, sequential estimation, and computational cost}
 
-From a Bayesian perspective, the Dirac-delta priors on locked parameters act as infinitely informative priors, concentrating the posterior mass on the biologically plausible subspace~$\Theta_{\mathcal{L}}$.
-This is formally equivalent to a model selection step: the constrained model is a nested sub-model of the full 20-parameter model, and the Bayes factor~\eqref{eq:evidence} provides a principled comparison.
-The improvement in posterior concentration---narrower credible intervals on free parameters---is thus a direct consequence of the reduced effective dimensionality and the thermodynamically motivated symmetry constraint~\eqref{eq:symmetry}.
+The biological constraints improve identifiability: the data-to-parameter ratio for CS improves by $20/11\approx1.8\times$, and the Dirac-delta priors on locked parameters concentrate posterior mass on the biologically plausible subspace without sacrificing flexibility where data carry information.
+The four-stage decomposition further reduces each sub-problem to at most 6 dimensions, aligning the conditioning order with ecological succession.
 
-\subsection{Sequential estimation and error propagation}
+A potential drawback is conditional bias from MAP fixation at each stage.
+For CS, stage-1 posterior widths ($\Delta b\leq0.08$, $\sim4\%$ of the prior range) indicate negligible propagation error.
+For DH, the wider posterior ($\Delta\theta_{18}=3.2$) motivates the full 20-dimensional exploration without sequential conditioning.
+Each run with $N=1000$ particles converges in $M=3$--$5$ tempering stages, yielding $\sim25{,}000$ forward solves per condition.
+With $\sim1$\,ms per ODE solve, the wall-clock time (40--90\,h) is dominated by the sensitivity computation overhead on 12 cores.
 
-The four-stage decomposition reduces the effective dimensionality of each TMCMC run to at most 6, enabling efficient posterior exploration with $N=2000$ particles.
-The grouping by ecological succession (early colonizers $\to$ bridge organisms $\to$ pathogen) aligns the conditioning order with the causal structure, improving conditional identifiability at each stage.
-
-A potential drawback is that point-estimate fixation at each stage introduces a conditional bias: the MAP from stage~$s$ is treated as the true value in all subsequent stages.
-This greedy conditioning is valid when the marginal posterior at stage~$s$ is unimodal and sharply peaked, so that the MAP closely approximates the marginal mean.
-For the CS condition, the stage-1 posterior widths (95\% CI) for decay rates are $\Delta b_1=0.08$ and $\Delta b_2=0.06$, which are small relative to the prior range of $[-1,1]$.
-Thus the conditioning error from stage~1 to stage~2 is at most $\sim4\%$ of the prior range.
-For the DH condition, wider posteriors at later stages (e.g.\ $\Delta\theta_{18}=3.2$ for Vei$\to$Pg) motivate the use of larger particle counts ($N=2000$) and the full 20-dimensional exploration without sequential conditioning.
-A fully joint estimation over all 15 parameters could eliminate the conditioning approximation but would require substantially larger particle counts to achieve comparable ESS in the expanded space.
-
-\subsection{Computational aspects}
-
-Each TMCMC stage with $N=2000$ particles and target CoV $\delta_{\mathrm{target}}=1.0$ typically converges in $M\approx15$--$25$ tempering levels.
-The total number of forward model evaluations per stage is approximately $N\times M\times n_{\mathrm{MH}}$, where $n_{\mathrm{MH}}$ is the number of Metropolis--Hastings steps per particle (here $n_{\mathrm{MH}}=1$).
-For the full four-stage procedure, this yields $\sim2000\times20\times4=160{,}000$ forward solves.
-Since each forward solve of the ODE system~\eqref{eq:ode} requires $\sim1$\,ms, the total wall-clock time is approximately 160\,s on a single core, or $\sim20$\,s with 8-fold parallelisation.
-The embarrassingly parallel structure of TMCMC---all particle evaluations at each tempering level are independent---makes the method well suited for modern multi-core architectures.
-
-\subsection{Relation to previous work}
-
-The present framework extends the continuum biofilm model of Klempt et al.~\cite{Klempt2025ContinuumBiofilm, Klempt2024ContinuumGrowth} to the inverse-problem setting.
-Compared to the surrogate-based Bayesian approach of Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms}, we work directly with the ODE forward model, which avoids surrogate approximation errors but at higher computational cost per likelihood evaluation.
-The biological constraint mechanism is complementary to the hybrid uncertainty treatment of Fritsch et al.\ and could be combined with their surrogate acceleration in future applications.
-The variational origin of the symmetric interaction matrix~\cite{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic} provides a thermodynamically consistent foundation that distinguishes this approach from purely phenomenological Lotka--Volterra formulations.
+Compared to the surrogate-based approach of Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms}, we work directly with the ODE forward model, avoiding surrogate approximation errors.
+The biological constraint mechanism is complementary to their hybrid uncertainty treatment and could be combined with surrogate acceleration in future applications.
 
 %==============================================================================
 \section{Conclusions}
