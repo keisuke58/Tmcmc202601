@@ -72,7 +72,7 @@ peri-implantitis
 \label{sec:intro}
 %==============================================================================
 
-Multi-species biofilms on dental implant surfaces are a primary cause of peri-implantitis~\cite{Kolenbrander2010OralMultispecies}.
+Multi-species biofilms on dental implant surfaces are a primary cause of peri-implantitis~\cite{Kolenbrander2010OralMultispecies, Marsh2003Dental}.
 Heine et al.~\cite{Heine2025PeriImplant} characterised the in-vitro dynamics of five key oral species---\textit{Streptococcus oralis} (So), \textit{Actinomyces naeslundii} (An), \textit{Veillonella} spp.\ (Vei), \textit{Fusobacterium nucleatum} (Fn), and \textit{Porphyromonas gingivalis} (Pg)---under four combinations of community state (commensal/dysbiotic) and cultivation mode (static/HOBIC flow).
 Building on the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamilton}, Klempt et al.~\cite{Klempt2025ContinuumBiofilm} formulated a continuum model in which a symmetric interaction matrix~$\mathbf{A}$ and a decay vector~$\mathbf{b}$ govern species growth.
 Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms} subsequently introduced Bayesian updating with surrogate models for biofilm parameter estimation under hybrid uncertainties.
@@ -326,7 +326,7 @@ and inference proceeds over the reduced vector $\btheta_{\mathrm{free}}\in\Real^
 
 \subsection{Tempered likelihood sequence}
 
-TMCMC~\cite{ChingChen2007TMCMC, DelMoral2006SMC} constructs a sequence of intermediate distributions
+TMCMC~\cite{ChingChen2007TMCMC, DelMoral2006SMC, Chopin2002SMC} constructs a sequence of intermediate distributions
 \begin{equation}
 p_m(\btheta) \propto p(\yobs\mid\btheta)^{\beta_m}\,p(\btheta),
 \qquad
@@ -506,7 +506,7 @@ Table~\ref{tab:convergence} summarises the TMCMC convergence diagnostics.
 The Gelman--Rubin statistic $\hat{R}$ is below the 1.05 threshold for CS, CH, and DH, indicating adequate inter-chain mixing.
 DS shows a mildly elevated $\hat{R}_{\max}=1.11$ for $b_1$, suggesting that additional samples may be warranted for this condition.
 The effective sample size (ESS) ranges from 59.6\% to 69.2\% of the nominal sample count, which is typical for TMCMC with correlated proposals.
-The mean MCMC acceptance rates (49--71\%) are within the optimal range for Gaussian proposals in moderate dimensions~\cite{RobertCasella2004MonteCarlo}.
+The mean MCMC acceptance rates (49--71\%) are within the optimal range for Gaussian proposals in moderate dimensions~\cite{RobertsRosenthal2001Optimal}.
 
 \begin{table}[t]
 \centering\small
