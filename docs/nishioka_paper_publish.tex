@@ -174,52 +174,52 @@ The effective dimensionality is thus $n_{\mathrm{free}}=20-|\mathcal{L}|=15$.
 
 \begin{figure}[t]
 \centering
-\begin{minipage}[t]{0.38\textwidth}
+\begin{minipage}[t]{0.32\textwidth}
+\vspace{0pt}
 \centering
-\begin{tikzpicture}[scale=0.7, every node/.style={transform shape},
-    species/.style={circle, draw, minimum size=1.1cm, font=\small\bfseries},
+\begin{tikzpicture}[scale=0.82, every node/.style={transform shape},
+    species/.style={circle, draw, minimum size=0.9cm, font=\footnotesize\bfseries},
     edge/.style={<->, thick, >=Stealth},
     noedge/.style={dashed, gray, thick}
 ]
-    \node[species, fill=blue!15] (so) at (0, 2.8) {So};
-    \node[species, fill=green!15] (an) at (-2.4, 0.8) {An};
-    \node[species, fill=yellow!20] (vei) at (0, 0.8) {Vei};
-    \node[species, fill=purple!15] (fn) at (2.4, 0.8) {Fn};
-    \node[species, fill=red!15] (pg) at (0, -1.3) {Pg};
-    \draw[edge, blue!70!black] (so) -- (an) node[midway, left, font=\scriptsize] {co-agg};
-    \draw[edge, blue!70!black] (so) -- (vei) node[midway, right, font=\scriptsize] {lactate};
-    \draw[edge, blue!70!black] (so) -- (fn) node[midway, right, font=\scriptsize] {formate};
-    \draw[edge, blue!70!black] (vei) -- (pg) node[midway, left, font=\scriptsize] {pH};
-    \draw[edge, blue!70!black] (fn) -- (pg) node[midway, right, font=\scriptsize] {peptides};
+    \node[species, fill=blue!15] (so) at (0, 2.2) {So};
+    \node[species, fill=green!15] (an) at (-1.9, 0.6) {An};
+    \node[species, fill=yellow!20] (vei) at (0, 0.6) {Vei};
+    \node[species, fill=purple!15] (fn) at (1.9, 0.6) {Fn};
+    \node[species, fill=red!15] (pg) at (0, -1.0) {Pg};
+    \draw[edge, blue!70!black] (so) -- (an) node[midway, left, font=\tiny] {co-agg};
+    \draw[edge, blue!70!black] (so) -- (vei) node[midway, right, font=\tiny] {lactate};
+    \draw[edge, blue!70!black] (so) -- (fn) node[midway, right, font=\tiny] {formate};
+    \draw[edge, blue!70!black] (vei) -- (pg) node[midway, left, font=\tiny] {pH};
+    \draw[edge, blue!70!black] (fn) -- (pg) node[midway, right, font=\tiny] {peptides};
     \draw[noedge] (an) -- (vei);
     \draw[noedge] (an) -- (fn);
     \draw[noedge] (vei) -- (fn);
-    \draw[noedge] (so) to[bend left=25] (pg);
-    \draw[noedge] (an) to[bend right=25] (pg);
+    \draw[noedge] (so) to[bend left=20] (pg);
+    \draw[noedge] (an) to[bend right=20] (pg);
 \end{tikzpicture}
 \end{minipage}%
 \hfill
-\begin{minipage}[t]{0.58\textwidth}
-\centering\small
-\vspace{6pt}
+\begin{minipage}[t]{0.65\textwidth}
+\vspace{0pt}
+\small
 \begin{tabular}{@{}lll@{}}
 \toprule
-\textbf{Species pair} & \textbf{Mechanism} & \textbf{Type}\\
+\textbf{Pair} & \textbf{Mechanism} & \textbf{Type}\\
 \midrule
-So $\leftrightarrow$ An & Co-aggregation & Bidir.\\
-So $\leftrightarrow$ Vei & Lactate exchange & Bidir.\\
-So $\leftrightarrow$ Fn & Formate symbiosis & Bidir.\\
-Vei $\rightarrow$ Pg & pH elevation & Positive\\
-Fn $\leftrightarrow$ Pg & Peptide supply & Bidir.\\
+So--An & Co-aggregation & Bidirectional\\
+So--Vei & Lactate exchange & Bidirectional\\
+So--Fn & Formate symbiosis & Bidirectional\\
+Vei$\to$Pg & pH elevation & Unidirectional\\
+Fn--Pg & Peptide supply & Bidirectional\\
 \midrule
-\multicolumn{3}{@{}l}{\textit{Locked ($\mathcal{L}$):} An--Vei, An--Fn, Vei--Fn,}\\
-\multicolumn{3}{@{}l}{\quad So--Pg, An--Pg}\\
+\multicolumn{3}{@{}l}{\textit{Locked ($\mathcal{L}$):} An--Vei, An--Fn, Vei--Fn, So--Pg, An--Pg}\\
 \bottomrule
 \end{tabular}
-\captionof{table}{Active interactions and locked pairs.}
+\captionof{table}{Active interactions and locked pairs ($|\mathcal{L}|=5$).}
 \label{tab:active}
 \end{minipage}
-\caption{Species interaction network~\cite{Heine2025PeriImplant}. Solid blue: active (free); dashed grey: absent (locked to zero).}
+\caption{Species interaction network~\cite{Heine2025PeriImplant}. Solid blue: active; dashed grey: locked to zero.}
 \label{fig:network}
 \end{figure}
 
