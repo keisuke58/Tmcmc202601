@@ -94,6 +94,9 @@ cp -u "$PROJECT"/FEM/plot_basin_sensitivity.py "$BACKUP/source_code/" 2>/dev/nul
 
 # ---- 8. Documents ----
 echo "[7/8] Documents..."
+# nishioka_paper_2026.pdf: use full paper (nishioka_latex20260218) not short generate_paper.py output
+[ -f "$PROJECT/data_5species/docs/nishioka_latex20260218.pdf" ] && \
+  cp -u "$PROJECT/data_5species/docs/nishioka_latex20260218.pdf" "$PROJECT/docs/nishioka_paper_2026.pdf" 2>/dev/null || true
 cp -u "$PROJECT"/docs/*.pdf "$BACKUP/documents/" 2>/dev/null || true
 cp -u "$PROJECT"/docs/*.tex "$BACKUP/documents/" 2>/dev/null || true
 cp -u "$PROJECT"/PAPER_OUTLINE.md "$BACKUP/documents/" 2>/dev/null || true

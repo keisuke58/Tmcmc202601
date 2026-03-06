@@ -1965,10 +1965,14 @@ def run_estimation(
             # Also reset prior bounds for locked parameters to avoid confusion (though not used by TMCMC for inactive)
             prior_bounds[idx] = (0.0, 0.0)
 
-    # Sigma for likelihood
-    sigma_obs_scalar = (
-        args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
-    )
+    # Sigma for likelihood (with optional scale for sensitivity analysis)
+    sigma_base = args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
+    sigma_scale = getattr(args, "sigma_scale", 1.0)
+    sigma_obs_scalar = sigma_base * sigma_scale
+    if sigma_scale != 1.0:
+        logger.info(
+            f"Sigma sensitivity: sigma_obs = {sigma_base:.6f} * {sigma_scale} = {sigma_obs_scalar:.6f}"
+        )
 
     # Species-specific sigma (V. dispar gets higher noise to acknowledge
     # the model's structural inability to capture nutrient depletion dynamics)
@@ -2380,6 +2384,12 @@ Examples:
         default=None,
         help="Observation noise (default: estimated from data)",
     )
+    parser.add_argument(
+        "--sigma-scale",
+        type=float,
+        default=1.0,
+        help="Scale factor for sigma_obs (e.g. 0.5 = half noise, sensitivity analysis)",
+    )
     parser.add_argument("--cov-rel", type=float, default=0.005, help="Relative covariance for ROM")
     parser.add_argument(
         "--use-absolute-volume",
@@ -2737,7 +2747,8 @@ def main():
         "phi_init_is_array": phi_init_array is not None,
         "use_exp_init": args.use_exp_init,
         "day_scale": args.day_scale,
-        "sigma_obs": args.sigma_obs or sigma_obs_est,
+        "sigma_obs": (args.sigma_obs or sigma_obs_est) * getattr(args, "sigma_scale", 1.0),
+        "sigma_scale": getattr(args, "sigma_scale", 1.0),
         "cov_rel": args.cov_rel,
         "prior_min": args.prior_min,
         "prior_max": args.prior_max,
