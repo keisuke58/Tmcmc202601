@@ -345,7 +345,7 @@ so that
 \end{equation}
 holds by construction for all $t$.
 
-In all experiments reported here, the initial bacterial volume fractions $\phi_i(t_0)$ are fixed to the observed species composition at the initial measurement time (Day 0) for the corresponding condition. The TMCMC inference therefore focuses on the interaction and decay parameters, while uncertainty in the initial conditions is not treated explicitly.
+In all experiments reported here, the initial bacterial volume fractions $\phi_i(t_0)$ are fixed to the experimentally measured species composition at Day~1 for the corresponding condition, and the likelihood is evaluated from Day~3 onward (Days 3, 7, 10, 15, 21). While joint estimation of initial conditions is possible in principle \cite{Villaverde2022BayesianSysBio}, the measured inoculum compositions are considered sufficiently reliable, and fixing them avoids exacerbating the identifiability challenges inherent in a 20-parameter model.
 
 \subsection{Bayesian Inverse Problem}
 
