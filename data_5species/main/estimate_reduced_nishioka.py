@@ -1737,7 +1737,10 @@ def load_experimental_data(
         # Adjust sigma for normalized data
         sigma_obs = sigma_obs / total_volumes.mean() if total_volumes.mean() > 0 else sigma_obs
 
-    # Filter data to start from specified day
+    # Always use Day 1 as initial condition (even when fitting from a later day)
+    phi_init_exp = data[0, :].copy()
+
+    # Filter data to start from specified day (for likelihood evaluation only)
     if start_from_day > 1:
         day_indices = [i for i, d in enumerate(days) if d >= start_from_day]
         if len(day_indices) == 0:
@@ -1749,10 +1752,7 @@ def load_experimental_data(
         logger.info(
             f"Filtering data to start from day {start_from_day}: {n_timepoints} timepoints remaining"
         )
-
-    # Extract initial conditions from the FIRST timepoint after filtering
-    # (this is Day 3 if start_from_day=3)
-    phi_init_exp = data[0, :].copy()
+        logger.info(f"Initial condition from Day 1: {phi_init_exp.tolist()}")
 
     metadata = {
         "condition": condition,
@@ -3210,6 +3210,7 @@ def main():
             idx_sparse,
             phibar=phibar_map,
             t_days=t_days,
+            phi_init_exp=phi_init_exp,
         )
     except Exception as e:
         logger.warning(f"Failed to generate MAP fit plot: {e}")
@@ -3225,6 +3226,7 @@ def main():
             idx_sparse,
             phibar=phibar_mean,
             t_days=t_days,
+            phi_init_exp=phi_init_exp,
         )
     except Exception as e:
         logger.warning(f"Failed to generate Mean fit plot: {e}")

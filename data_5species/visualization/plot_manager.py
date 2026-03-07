@@ -77,6 +77,7 @@ class PlotManager:
         idx_sparse: Optional[np.ndarray] = None,
         phibar: Optional[np.ndarray] = None,
         t_days: Optional[np.ndarray] = None,
+        phi_init_exp: Optional[np.ndarray] = None,
     ):
         """Plot TSM simulation results.
 
@@ -87,6 +88,9 @@ class PlotManager:
             This ensures consistency when data was generated from a specific phibar.
         t_days : Optional[np.ndarray]
             Experimental timepoints in days. If provided, x-axis shows Days instead of normalized time.
+        phi_init_exp : Optional[np.ndarray]
+            Day 1 initial condition (n_species,). If provided and t_days starts after Day 1,
+            the model curve is mapped from Day 1 and the IC is shown as a marker.
         """
         # CRITICAL: Use provided phibar if available, otherwise compute from x0
         # This ensures plot uses the exact same phibar as data generation
@@ -105,17 +109,18 @@ class PlotManager:
         # Use days if provided, otherwise normalize time
         if t_days is not None and idx_sparse is not None:
             # Scale t_arr to days (model time to experimental days)
+            # Always map from Day 0 (t=0) to Day max, regardless of start_from_day
             t_min = t_arr.min()
             t_max = t_arr.max()
-            day_min = t_days.min()
             day_max = t_days.max()
+            # Model time t=0 corresponds to Day 0; use day_max for the endpoint
             if t_max > t_min:
-                t_plot = day_min + (t_arr - t_min) / (t_max - t_min) * (day_max - day_min)
+                t_plot = (t_arr - t_min) / (t_max - t_min) * (day_max / 0.95)
             else:
                 t_plot = t_arr
             t_obs_plot = t_days
             xlabel = "Days"
-            xlim = (day_min - 1, day_max + 1)
+            xlim = (0, day_max + 1)
         else:
             # Normalize time to [0.0, 1.0]
             t_min = t_arr.min()
@@ -134,10 +139,7 @@ class PlotManager:
             plt.plot(t_plot, phibar[:, i], label=f"φ̄{sp+1} (model)", linewidth=2, color=color)
 
         if data is not None and t_obs_plot is not None:
-            # CRITICAL: Verify that data points match model at observation indices
-            # This helps debug vertical mismatch issues
             for i, sp in enumerate(active_species):
-                # Plot data points
                 color = self.COLORS[sp] if sp < len(self.COLORS) else f"C{sp}"
                 plt.scatter(
                     t_obs_plot,
@@ -150,12 +152,30 @@ class PlotManager:
                     color=color,
                 )
 
+        # Plot Day 1 initial condition as diamond markers
+        if phi_init_exp is not None and t_days is not None and t_days.min() > 1:
+            for i, sp in enumerate(active_species):
+                if i < len(phi_init_exp):
+                    color = self.COLORS[sp] if sp < len(self.COLORS) else f"C{sp}"
+                    plt.scatter(
+                        [1],
+                        [phi_init_exp[i]],
+                        s=80,
+                        marker="D",
+                        edgecolor="k",
+                        color=color,
+                        alpha=0.6,
+                        zorder=10,
+                        label=f"IC Day1 φ̄{sp+1}" if i == 0 else None,
+                    )
+
         plt.xlabel(xlabel, fontsize=14)
         plt.ylabel("φ̄ = φ * ψ", fontsize=12)
         plt.title(f"TSM Simulation (φ̄) - {name}", fontsize=14)
         plt.xlim(xlim)
         if t_days is not None:
-            plt.xticks(t_days, fontsize=14, fontweight="bold")
+            tick_days = np.unique(np.concatenate(([1], t_days)))
+            plt.xticks(tick_days, fontsize=14, fontweight="bold")
         plt.grid(True, alpha=0.3)
         plt.legend(fontsize=10)
         plt.tight_layout()
