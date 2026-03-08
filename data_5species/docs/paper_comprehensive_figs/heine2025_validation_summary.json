@@ -1,0 +1,21 @@
+{
+  "pH_validation": {
+    "model": "pH = 6.951 + -0.742*phi_So + -0.477*phi_Vd",
+    "R_squared": 0.7117,
+    "RMSE": 0.109,
+    "interpretation": "pH predicted from species fractions alone (not used in TMCMC)"
+  },
+  "metabolic_sign_match": {
+    "predicted_positive": 2,
+    "matched": 1,
+    "pairs": [
+      "So→Vd",
+      "An→Vd"
+    ],
+    "interpretation": "Cross-feeding from metabolic network vs TMCMC A matrix"
+  },
+  "growth_rates": {
+    "Commensal": 0.4117,
+    "Dysbiotic": 0.4215
+  }
+}
