@@ -1,0 +1,21 @@
+{
+  "name": "slides",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "slidev --open false",
+    "build": "slidev build",
+    "export": "slidev export --output presentation.pdf"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@slidev/cli": "^52.14.1",
+    "slidev-theme-academic": "^2.1.0"
+  },
+  "devDependencies": {
+    "playwright-chromium": "^1.58.2"
+  }
+}

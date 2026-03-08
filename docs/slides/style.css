@@ -1,0 +1,207 @@
+/* ===== Global Typography ===== */
+:root {
+  --slidev-theme-primary: #1a5276;
+}
+
+/* Base: Slidev loads Noto Sans JP via fonts frontmatter */
+.slidev-layout {
+  font-size: 16px;
+  line-height: 1.7;
+  font-weight: 400;
+  letter-spacing: 0.025em;
+}
+
+/* ===== Headings ===== */
+.slidev-layout h1 {
+  font-weight: 700 !important;
+  font-size: 1.7rem !important;
+  line-height: 1.35 !important;
+  color: #1a3c5e;
+  border-bottom: 2.5px solid #1a5276;
+  padding-bottom: 0.2rem;
+  margin-bottom: 0.4rem;
+  margin-top: 0.1rem;
+}
+
+.slidev-layout h2 {
+  font-weight: 600 !important;
+  font-size: 1.35rem !important;
+  color: #2c5f7c;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.slidev-layout h3 {
+  font-weight: 600 !important;
+  font-size: 1.1rem !important;
+  color: #34495e;
+  margin-top: 0.4rem;
+  margin-bottom: 0.2rem;
+}
+
+/* Title/cover slide */
+.slidev-layout.cover h1,
+.slidev-layout.intro h1 {
+  font-size: 1.95rem !important;
+  line-height: 1.45 !important;
+  border-bottom: none;
+  color: #0d2b45;
+}
+
+/* Center layout */
+.slidev-layout.center h1 {
+  font-size: 1.9rem !important;
+  border-bottom: none;
+}
+
+/* two-cols: both columns get headings */
+.slidev-layout.two-cols h1 {
+  font-size: 1.45rem !important;
+}
+
+/* ===== Body Text ===== */
+.slidev-layout p {
+  font-size: 0.95rem;
+  margin-top: 0.15rem;
+  margin-bottom: 0.25rem;
+}
+
+.slidev-layout li {
+  font-size: 0.92rem;
+  line-height: 1.65;
+  margin-bottom: 0.1rem;
+}
+
+.slidev-layout ul,
+.slidev-layout ol {
+  margin-top: 0.15rem;
+  margin-bottom: 0.2rem;
+  padding-left: 1.2em;
+}
+
+.slidev-layout strong {
+  font-weight: 700;
+  color: #1a3c5e;
+}
+
+/* ===== Tables ===== */
+.slidev-layout table {
+  font-size: 0.85rem;
+  border-collapse: collapse;
+  width: auto;
+  margin: 0.3rem 0;
+}
+
+.slidev-layout th {
+  font-weight: 700;
+  font-size: 0.85rem;
+  background-color: #e8f0f7;
+  color: #1a3c5e;
+  padding: 0.25rem 0.55rem;
+  border-bottom: 2px solid #1a5276;
+}
+
+.slidev-layout td {
+  padding: 0.18rem 0.55rem;
+  border-bottom: 1px solid #dde4ea;
+  font-size: 0.85rem;
+}
+
+.slidev-layout tr:nth-child(even) td {
+  background-color: #f8fafb;
+}
+
+/* ===== Math (KaTeX) ===== */
+.slidev-layout .katex {
+  font-size: 0.95em !important;
+}
+
+.slidev-layout .katex-display {
+  margin: 0.35rem 0;
+}
+
+.slidev-layout .katex-display .katex {
+  font-size: 1.0em !important;
+}
+
+/* Smaller math in text-sm containers */
+.slidev-layout .text-sm .katex {
+  font-size: 0.88em !important;
+}
+
+.slidev-layout .text-sm .katex-display .katex {
+  font-size: 0.92em !important;
+}
+
+/* ===== Blockquotes ===== */
+.slidev-layout blockquote {
+  border-left: 3px solid #1a5276;
+  padding: 0.25rem 0.7rem;
+  margin: 0.4rem 0;
+  background-color: #eef4f9;
+  font-size: 0.92rem;
+  color: #2c3e50;
+  border-radius: 0 3px 3px 0;
+}
+
+.slidev-layout blockquote p {
+  margin: 0;
+}
+
+/* ===== Images ===== */
+.slidev-layout img {
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* ===== Text size utilities ===== */
+.slidev-layout .text-sm {
+  font-size: 0.85rem !important;
+  line-height: 1.6;
+}
+
+.slidev-layout .text-sm li {
+  font-size: 0.85rem;
+}
+
+.slidev-layout .text-sm p {
+  font-size: 0.85rem;
+}
+
+/* ===== Grid layouts ===== */
+.slidev-layout .grid {
+  gap: 1rem;
+}
+
+/* ===== Two-cols layout ===== */
+.slidev-layout.two-cols {
+  gap: 1rem;
+}
+
+/* ===== Slide padding ===== */
+.slidev-layout {
+  padding: 1.5rem 2rem !important;
+}
+
+/* ===== Page number (CSS counter based) ===== */
+.slidev-slides {
+  counter-reset: slide-counter;
+}
+
+.slidev-slide-container {
+  counter-increment: slide-counter;
+}
+
+.slidev-slide-container .slidev-layout::after {
+  content: counter(slide-counter);
+  position: absolute;
+  right: 1rem;
+  top: 0.5rem;
+  font-size: 0.65rem;
+  opacity: 0.4;
+}
+
+/* Hide page number on first slide (title) */
+.slidev-slide-container:first-child .slidev-layout::after {
+  display: none;
+}
