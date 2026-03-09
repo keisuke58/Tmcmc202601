@@ -13,6 +13,7 @@ from .evaluator import (
     log_likelihood_sparse,
     build_likelihood_weights,
     build_species_sigma,
+    build_replicate_sigma,
 )
 
 from .tmcmc import (
@@ -36,6 +37,7 @@ __all__ = [
     "log_likelihood_sparse",
     "build_likelihood_weights",
     "build_species_sigma",
+    "build_replicate_sigma",
     # TMCMC
     "TMCMCResult",
     "run_TMCMC",

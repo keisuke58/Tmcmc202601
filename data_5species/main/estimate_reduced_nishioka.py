@@ -85,6 +85,7 @@ from core import (
     compute_MAP_with_uncertainty,
     build_likelihood_weights,
     build_species_sigma,
+    build_replicate_sigma,
 )
 from debug import DebugLogger
 from utils import save_json, save_npy
@@ -1974,9 +1975,41 @@ def run_estimation(
             f"Sigma sensitivity: sigma_obs = {sigma_base:.6f} * {sigma_scale} = {sigma_obs_scalar:.6f}"
         )
 
+    # Heteroscedastic sigma from replicate IQR (per-timepoint × per-species)
+    if getattr(args, "replicate_sigma", False):
+        _data_dir = Path(args.data_dir)
+        replicate_csv = _data_dir / "experiment_data" / "fig3_species_distribution_replicates.csv"
+        if not replicate_csv.exists():
+            replicate_csv = _data_dir / "fig3_species_distribution_replicates.csv"
+        # Species name → model index mapping for replicate CSV
+        _rep_species_map = {
+            "S. oralis": 0,
+            "A. naeslundii": 1,
+            "V. dispar": 2,
+            "V. parvula": 2,
+            "F. nucleatum": 3,
+            "P. gingivalis_20709": 4,
+            "P. gingivalis_W83": 4,
+        }
+        sigma_obs = build_replicate_sigma(
+            replicate_csv=str(replicate_csv),
+            condition=args.condition,
+            cultivation=args.cultivation,
+            days=metadata["days"],
+            species_map=_rep_species_map,
+            n_species=data.shape[1],
+            min_sigma=0.005,
+        )
+        # Apply sigma_scale if set
+        if sigma_scale != 1.0:
+            sigma_obs = sigma_obs * sigma_scale
+        logger.info(
+            f"Using replicate-based sigma_obs matrix {sigma_obs.shape}: "
+            f"range [{sigma_obs.min():.4f}, {sigma_obs.max():.4f}]"
+        )
     # Species-specific sigma (V. dispar gets higher noise to acknowledge
     # the model's structural inability to capture nutrient depletion dynamics)
-    if getattr(args, "species_sigma", False):
+    elif getattr(args, "species_sigma", False):
         vd_factor = getattr(args, "vd_sigma_factor", 2.0)
         sigma_obs = build_species_sigma(
             sigma_obs_scalar,
@@ -2569,6 +2602,13 @@ Examples:
         help="Compute and plot parameter correlation matrix",
     )
 
+    # Heteroscedastic sigma from replicate IQR
+    parser.add_argument(
+        "--replicate-sigma",
+        action="store_true",
+        help="Use per-(timepoint, species) sigma from replicate IQR (heteroscedastic likelihood)",
+    )
+
     # Species-specific sigma (V. dispar model inadequacy)
     parser.add_argument(
         "--species-sigma",
@@ -2747,7 +2787,12 @@ def main():
         "phi_init_is_array": phi_init_array is not None,
         "use_exp_init": args.use_exp_init,
         "day_scale": args.day_scale,
-        "sigma_obs": (args.sigma_obs or sigma_obs_est) * getattr(args, "sigma_scale", 1.0),
+        "sigma_obs": (
+            "replicate_matrix"
+            if getattr(args, "replicate_sigma", False)
+            else (args.sigma_obs or sigma_obs_est) * getattr(args, "sigma_scale", 1.0)
+        ),
+        "replicate_sigma": getattr(args, "replicate_sigma", False),
         "sigma_scale": getattr(args, "sigma_scale", 1.0),
         "cov_rel": args.cov_rel,
         "prior_min": args.prior_min,
