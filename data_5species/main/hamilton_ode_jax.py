@@ -213,6 +213,103 @@ def make_initial_state(phi_init, active_mask):
     return jnp.concatenate([phi, phi0[jnp.newaxis], psi, jnp.array([0.0])])
 
 
+def simulate_0d_nutrient(
+    theta,
+    n_steps=2500,
+    dt=1e-4,
+    phi_init=None,
+    K_hill=0.05,
+    n_hill=2.0,
+    c_const=25.0,
+    alpha_const=100.0,
+    S_init=1.0,
+    K_S=0.5,
+    g_consumption=None,
+    supply_rate=0.1,
+    S_ext=1.0,
+):
+    """
+    Run 0D Hamilton ODE with Monod nutrient coupling.
+
+    b_eff_i(t) = b_i * S(t) / (K_S + S(t))  where S(t) is well-mixed nutrient.
+
+    Nutrient ODE:
+        dS/dt = -sum_i g_i * phi_i * S/(K_S + S) + supply_rate * (S_ext - S)
+
+    Parameters
+    ----------
+    theta : (20,) JAX array
+    S_init : float, initial nutrient concentration [0, 1]
+    K_S : float, Monod half-saturation constant
+    g_consumption : (5,) array, per-species consumption rates.
+        Default: [1.0, 0.8, 0.3, 0.5, 0.3] (So > An > Fn > Vei = Pg)
+    supply_rate : float, GCF nutrient influx rate (0 = closed, >0 = open)
+    S_ext : float, external nutrient concentration
+
+    Returns
+    -------
+    phi_traj : (n_steps+1, 5), species volume fractions
+    S_traj : (n_steps+1,), nutrient concentration trajectory
+    """
+    A, b_diag = theta_to_matrices(theta)
+    active_mask = jnp.ones(5, dtype=jnp.int64)
+
+    if phi_init is None:
+        phi_init = jnp.full(5, 0.2)
+    g0 = make_initial_state(phi_init, active_mask)
+
+    if g_consumption is None:
+        g_consumption = jnp.array([1.0, 0.8, 0.3, 0.5, 0.3])
+    else:
+        g_consumption = jnp.asarray(g_consumption, dtype=jnp.float64)
+
+    S_init = jnp.float64(S_init)
+    K_S = jnp.float64(K_S)
+    supply_rate = jnp.float64(supply_rate)
+    S_ext = jnp.float64(S_ext)
+
+    base_params = {
+        "dt_h": dt,
+        "Kp1": 1e-4,
+        "Eta": jnp.ones(5, dtype=jnp.float64),
+        "EtaPhi": jnp.ones(5, dtype=jnp.float64),
+        "c": c_const,
+        "alpha": alpha_const,
+        "K_hill": jnp.array(K_hill, dtype=jnp.float64),
+        "n_hill": jnp.array(n_hill, dtype=jnp.float64),
+        "A": A,
+        "b_diag": b_diag,
+        "active_mask": active_mask,
+    }
+
+    def body(carry, _):
+        g, S = carry
+
+        # Monod modulation of b
+        monod = S / (K_S + S + 1e-12)
+        b_eff = b_diag * monod
+
+        # Update params with effective b
+        params = {**base_params, "b_diag": b_eff}
+        g_next = newton_step(g, params)
+
+        # Nutrient consumption (explicit Euler)
+        phi = g_next[0:5]
+        consumption = jnp.sum(g_consumption * phi * S / (K_S + S + 1e-12))
+        influx = supply_rate * (S_ext - S)
+        S_next = S - dt * consumption + dt * influx
+        S_next = jnp.clip(S_next, 0.0, S_ext)
+
+        return (g_next, S_next), (g_next, S_next)
+
+    _, (g_traj, S_traj) = jax.lax.scan(body, (g0, S_init), jnp.arange(n_steps))
+    phi_traj = g_traj[:, 0:5]
+    phi_first = g0[0:5][jnp.newaxis, :]
+    phi_traj = jnp.concatenate([phi_first, phi_traj], axis=0)
+    S_traj = jnp.concatenate([S_init[jnp.newaxis], S_traj], axis=0)
+    return phi_traj, S_traj
+
+
 def simulate_0d(
     theta,
     n_steps=2500,

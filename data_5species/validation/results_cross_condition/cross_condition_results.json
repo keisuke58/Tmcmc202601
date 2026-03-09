@@ -1,0 +1,86 @@
+{
+  "CS->CH": {
+    "source": "CS",
+    "target": "CH",
+    "source_label": "Commensal Static",
+    "target_label": "Commensal HOBIC",
+    "metrics": {
+      "rmse_total": 0.10758478232468,
+      "mae_total": 0.06358778915134712,
+      "rmse_per_species": [
+        0.1585184795067126,
+        0.07597865673892945,
+        0.1621298224251713,
+        0.020445764853536587,
+        0.0163540115631632
+      ],
+      "max_abs": 0.36477095363164747
+    },
+    "self_rmse_src": 0.11548863671563978,
+    "self_rmse_tgt": 0.08959799573321245,
+    "degradation": 1.2007498766493072
+  },
+  "CH->CS": {
+    "source": "CH",
+    "target": "CS",
+    "source_label": "Commensal HOBIC",
+    "target_label": "Commensal Static",
+    "metrics": {
+      "rmse_total": 0.09700782940940603,
+      "mae_total": 0.06342961949104509,
+      "rmse_per_species": [
+        0.12715549448553734,
+        0.018992296732648434,
+        0.1524636111772411,
+        0.08447029450502588,
+        0.011957605680438304
+      ],
+      "max_abs": 0.335525098728442
+    },
+    "self_rmse_src": 0.08959799573321245,
+    "self_rmse_tgt": 0.11548863671563978,
+    "degradation": 0.8399772667527642
+  },
+  "DS->DH": {
+    "source": "DS",
+    "target": "DH",
+    "source_label": "Dysbiotic Static",
+    "target_label": "Dysbiotic HOBIC",
+    "metrics": {
+      "rmse_total": 0.18319510424093824,
+      "mae_total": 0.10840683790315088,
+      "rmse_per_species": [
+        0.03134589316653763,
+        0.12235389040026003,
+        0.384303947999313,
+        0.039252018164271714,
+        0.05117564065966663
+      ],
+      "max_abs": 0.6074506053735983
+    },
+    "self_rmse_src": 0.09130887609011688,
+    "self_rmse_tgt": 0.1352744586344475,
+    "degradation": 1.3542475504262546
+  },
+  "DH->DS": {
+    "source": "DH",
+    "target": "DS",
+    "source_label": "Dysbiotic HOBIC",
+    "target_label": "Dysbiotic Static",
+    "metrics": {
+      "rmse_total": 0.18158312725149464,
+      "mae_total": 0.11922620702530816,
+      "rmse_per_species": [
+        0.019252265618343697,
+        0.26211084115526834,
+        0.29136933936609816,
+        0.059152331238909096,
+        0.08599027570584267
+      ],
+      "max_abs": 0.483202133194229
+    },
+    "self_rmse_src": 0.1352744586344475,
+    "self_rmse_tgt": 0.09130887609011688,
+    "degradation": 1.988668955603856
+  }
+}

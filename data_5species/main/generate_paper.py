@@ -11,9 +11,11 @@ RUNS_DIR = DATA_5SPECIES_DIR / "_runs"
 DOCS_DIR.mkdir(exist_ok=True)
 
 # Define run directories and labels
+# fig_prefix: used for paper_comprehensive_figs/{prefix}_Fig_A*.png (condition-specific images)
 RUNS = [
     {
         "id": "Commensal_HOBIC_20260208_002100",
+        "fig_prefix": "Commensal_HOBIC",
         "label": "Commensal HOBIC",
         "condition": "Commensal",
         "cultivation": "HOBIC",
@@ -22,6 +24,7 @@ RUNS = [
     },
     {
         "id": "Dysbiotic_HOBIC_20260208_002100",
+        "fig_prefix": "Dysbiotic_HOBIC",
         "label": "Dysbiotic HOBIC (Surge)",
         "condition": "Dysbiotic",
         "cultivation": "HOBIC",
@@ -30,6 +33,7 @@ RUNS = [
     },
     {
         "id": "Commensal_Static_20260208_002100",
+        "fig_prefix": "Commensal_Static",
         "label": "Commensal Static",
         "condition": "Commensal",
         "cultivation": "Static",
@@ -38,6 +42,7 @@ RUNS = [
     },
     {
         "id": "Dysbiotic_Static_20260207_203752",
+        "fig_prefix": "Dysbiotic_Static",
         "label": "Dysbiotic Static",
         "condition": "Dysbiotic",
         "cultivation": "Static",
@@ -176,14 +181,14 @@ This framework offers a powerful tool for analyzing multi-species bacterial inte
 def generate_results_section(runs):
     section = ""
     for run in runs:
-        run_id = run["id"]
+        fig_prefix = run["fig_prefix"]
         label = run["label"]
         desc = run["desc"]
         key_finding = run["key_finding"]
 
-        # Relative path to figures
-        # From docs/paper.tex to _runs/run_id/
-        fig_path = f"../_runs/{run_id}"
+        # Use paper_comprehensive_figs with condition-specific filenames
+        # (avoids duplicate images when _runs is missing)
+        fig_dir = "paper_comprehensive_figs"
 
         section += f"\\subsection{{{label}}}\n"
         section += f"\\textbf{{Description}}: {desc}\n\n"
@@ -192,21 +197,21 @@ def generate_results_section(runs):
         # Fig 1: Fit (Per species panel)
         section += "\\begin{figure}[H]\n"
         section += "\\centering\n"
-        section += f"\\includegraphics[width=0.95\\textwidth]{{{fig_path}/Fig_A02_per_species_panel.png}}\n"
+        section += f"\\includegraphics[width=0.95\\textwidth]{{{fig_dir}/{fig_prefix}_Fig_A02_per_species_panel.png}}\n"
         section += f"\\caption{{Posterior fit for {label}. The shaded regions indicate the 95\\% credible interval. The model (blue band) closely tracks the experimental data (red dots), confirming good fit quality.}}\n"
         section += "\\end{figure}\n\n"
 
         # Fig 2: Interaction Matrix
         section += "\\begin{figure}[H]\n"
         section += "\\centering\n"
-        section += f"\\includegraphics[width=0.8\\textwidth]{{{fig_path}/Fig_A01_interaction_matrix_heatmap.png}}\n"
+        section += f"\\includegraphics[width=0.8\\textwidth]{{{fig_dir}/{fig_prefix}_Fig_A01_interaction_matrix_heatmap.png}}\n"
         section += f"\\caption{{Estimated interaction matrix (MAP) for {label}. Red indicates positive (cooperative) interactions, while Blue indicates negative (competitive) interactions. Note the specific block structures relevant to the condition.}}\n"
         section += "\\end{figure}\n\n"
 
         # Fig 3: Parameter Uncertainty
         section += "\\begin{figure}[H]\n"
         section += "\\centering\n"
-        section += f"\\includegraphics[width=0.95\\textwidth]{{{fig_path}/Fig_A05_parameter_violins.png}}\n"
+        section += f"\\includegraphics[width=0.95\\textwidth]{{{fig_dir}/{fig_prefix}_Fig_A05_parameter_violins.png}}\n"
         section += f"\\caption{{Parameter uncertainty (Violin plots) for {label}. Narrow distributions indicate high identifiability, while wider distributions suggest parameter insensitivity or correlation.}}\n"
         section += "\\end{figure}\n\n"
 
