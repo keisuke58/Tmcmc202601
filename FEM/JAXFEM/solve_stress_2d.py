@@ -107,13 +107,41 @@ def _C_plane_strain(E, nu):
     return C
 
 
-def solve_2d_fem(E_field, nu, eps_growth_field, Nx, Ny, Lx=1.0, Ly=1.0, bc_type="bottom_fixed"):
-    """Solve 2D plane-strain elasticity on regular QUAD4 grid.
+def _C_plane_stress(E, nu):
+    """Constitutive matrix for 2D plane stress (3×3).
+
+    Appropriate for thin biofilm films (thickness << lateral extent).
+    σ_zz = 0, ε_zz ≠ 0 (free expansion in thickness direction).
+    """
+    f = E / (1 - nu**2)
+    C = f * np.array(
+        [
+            [1, nu, 0],
+            [nu, 1, 0],
+            [0, 0, (1 - nu) / 2],
+        ]
+    )
+    return C
+
+
+def solve_2d_fem(
+    E_field,
+    nu,
+    eps_growth_field,
+    Nx,
+    Ny,
+    Lx=1.0,
+    Ly=1.0,
+    bc_type="bottom_fixed",
+    stress_type="plane_strain",
+):
+    """Solve 2D elasticity on regular QUAD4 grid.
 
     Parameters
     ----------
     E_field : (Nx, Ny) — Young's modulus at each node [Pa]
     nu : float — Poisson's ratio
+    stress_type : str — "plane_strain" or "plane_stress"
     eps_growth_field : (Nx, Ny) — isotropic eigenstrain at each node
     Nx, Ny : int — number of nodes in x, y
     Lx, Ly : float — domain size
@@ -183,7 +211,8 @@ def solve_2d_fem(E_field, nu, eps_growth_field, Nx, Ny, Lx=1.0, Ly=1.0, bc_type=
         E_avg = np.mean(E_field.ravel()[enodes])
         eps_avg = np.mean(eps_growth_field.ravel()[enodes])
 
-        C = _C_plane_strain(E_avg, nu)
+        C_func = _C_plane_stress if stress_type == "plane_stress" else _C_plane_strain
+        C = C_func(E_avg, nu)
         eps_growth_voigt = np.array([eps_avg, eps_avg, 0.0])
 
         Ke = np.zeros((8, 8))
@@ -258,7 +287,8 @@ def solve_2d_fem(E_field, nu, eps_growth_field, Nx, Ny, Lx=1.0, Ly=1.0, bc_type=
 
         E_avg = np.mean(E_field.ravel()[enodes])
         eps_avg = np.mean(eps_growth_field.ravel()[enodes])
-        C = _C_plane_strain(E_avg, nu)
+        C_func = _C_plane_stress if stress_type == "plane_stress" else _C_plane_strain
+        C = C_func(E_avg, nu)
 
         u_e = u[edof]
         elem_centers[e] = np.mean(coords[enodes], axis=0)

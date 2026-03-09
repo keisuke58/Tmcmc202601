@@ -3,28 +3,26 @@
 run_coupled_staggered.py — Klempt-style staggered growth-mechanics coupling
 ============================================================================
 
-**Adiabatic (scale-separation) approach**:
-  The Hamilton ODE (population dynamics) equilibrates on a *fast* timescale
-  O(10–100), while biofilm growth/mechanics evolves *slowly*.  At each macro
-  step we therefore run the ODE to convergence (adiabatic limit), then advance
-  the slow growth variable and solve FEM.
+Quasi-static staggered (operator-split) time loop — each growth step dt_growth:
+  (0) Hamilton reaction with LOCAL nutrient c(x,y) → φ evolves spatially
+  (1) Species diffusion (explicit Euler, Neumann BCs)
+  (2) Nutrient PDE (CFL-stable, mixed BCs: Dirichlet top, Neumann bottom/sides)
+  (3) Accumulate growth α(x,y) += Σ wᵢ·φᵢ · Monod · f(σ) · dt
+  (4) DI(x,y) → E(x,y)  (spatially varying due to nutrient-modulated φ)
+  (5) Quasi-static FEM solve → σ(x,y), u(x,y)
 
-Staggered (operator-split) time loop — each macro step dt_growth:
-  (1) Hamilton reaction — iterate Newton until ||Δφ||∞ < tol  (adiabatic)
-  (2) Species diffusion (explicit Euler, Neumann BCs)
-  (3) Nutrient PDE (CFL-stable sub-stepping)
-  (4) Accumulate growth variable  α(x,y) += k_α · φ_total · Monod · dt_growth
-  (5) Compute DI(x,y) → E(x,y)
-  (6) Quasi-static FEM solve → σ(x,y), u(x,y)
-
-This replaces the previous decoupled pipeline:
-  OLD:  ODE(all steps) → final DI → final E → FEM(once)
-  NEW:  each step → ODE(converge) + FEM together (Klempt 2024 style)
+Key improvements over previous adiabatic version:
+  - Hamilton reaction at each growth step with per-node nutrient coupling
+    (c_effective = c_hamilton × c_nutrient / c_boundary)
+  - Species-specific growth weights (EPS production capacity)
+  - Stress-dependent growth modulation: f(σ) = max(0, 1 - σ_vm/σ_crit)
+  - Mixed nutrient BCs (Dirichlet top / Neumann bottom,sides)
+  - Plane stress option for thin biofilm
+  - Equilibrium ψ from 0D solver (not hardcoded 0.999)
 
 Usage:
-    python run_coupled_staggered.py
-    python run_coupled_staggered.py --condition dh_baseline
-    python run_coupled_staggered.py --condition commensal_static --nx 25 --ny 25
+    python run_coupled_staggered.py --condition dh_baseline --nx 25 --ny 25
+    python run_coupled_staggered.py --condition all
 """
 
 import argparse
@@ -41,11 +39,10 @@ sys.path.insert(0, str(_HERE))
 
 from core_hamilton_2d_nutrient import (
     Config2D,
-    _make_reaction_step,
+    _make_newton_step_vmap_localc,
+    _make_nutrient_step_mixed,
     _make_nutrient_step_stable,
-    _make_newton_step_vmap,
     diffusion_step_species_2d,
-    make_initial_state_2d,
     theta_to_matrices,
 )
 from solve_stress_2d import solve_2d_fem
@@ -57,6 +54,15 @@ import jax.numpy as jnp
 jax.config.update("jax_enable_x64", True)
 
 
+# Species-specific growth weights (EPS production capacity)
+# So: primary colonizer, high glucan/fructan EPS
+# An: moderate EPS producer
+# Vei: low EPS, mainly metabolic
+# Fn: bridge organism, moderate structural contribution
+# Pg: protease producer (gingipain), degrades matrix — minimal growth contribution
+GROWTH_WEIGHTS = np.array([1.0, 0.8, 0.6, 0.5, 0.3])
+
+
 # ============================================================================
 # 0D equilibration (Numba) — match TMCMC calibration
 # ============================================================================
@@ -65,9 +71,12 @@ jax.config.update("jax_enable_x64", True)
 def _equilibrate_0d_numba(theta, maxtimestep=2500, dt=1e-5, K_hill=0.05, n_hill=4.0):
     """
     Run 0D Hamilton ODE (Numba solver, 50 Newton iter + line search) to find
-    the quasi-stationary φ at the TMCMC calibration time.
+    the quasi-stationary state at the TMCMC calibration time.
 
-    Returns phi_eq : (5,) species fractions at equilibrium.
+    Returns (phi_eq, psi_eq, gamma_eq):
+      phi_eq   : (5,) species fractions
+      psi_eq   : (5,) viability variables
+      gamma_eq : float  Lagrange multiplier
     """
     sys.path.insert(0, str(_HERE.parent.parent / "tmcmc" / "program2602"))
     from improved_5species_jit import BiofilmNewtonSolver5S
@@ -76,17 +85,17 @@ def _equilibrate_0d_numba(theta, maxtimestep=2500, dt=1e-5, K_hill=0.05, n_hill=
         dt=dt, maxtimestep=maxtimestep, eps=1e-8, K_hill=K_hill, n_hill=n_hill
     )
     _t_arr, g_arr = solver.run_deterministic(theta[:20])
-    phi_eq = g_arr[-1, :5].copy()
-    return phi_eq
+    g_final = g_arr[-1].copy()
+    phi_eq = g_final[:5]
+    psi_eq = g_final[6:11]
+    gamma_eq = g_final[11]
+    return phi_eq, psi_eq, gamma_eq
 
 
-def _make_initial_state_from_0d(cfg, phi_eq):
+def _make_initial_state_from_0d(cfg, phi_eq, psi_eq, gamma_eq):
     """
-    Build 2D initial state G (Nx*Ny, 12) using the 0D equilibrium φ,
-    plus small spatial perturbation for symmetry breaking.
-
-    This ensures the 2D state starts from the SAME quasi-equilibrium that
-    the TMCMC calibration uses, not from the asymmetric 2D seeding.
+    Build 2D initial state G (Nx*Ny, 12) using the FULL 0D equilibrium
+    (φ, ψ, γ), plus small spatial perturbation for symmetry breaking.
     """
     Nx, Ny = cfg.Nx, cfg.Ny
     G_2d = jnp.zeros((Nx, Ny, 12), dtype=jnp.float64)
@@ -106,10 +115,10 @@ def _make_initial_state_from_0d(cfg, phi_eq):
     # phi_0 = 1 - sum(phi)
     G_2d = G_2d.at[:, :, 5].set(1.0 - jnp.sum(G_2d[:, :, :5], axis=-1))
 
-    # psi = phi (near equilibrium)
-    active_mask = jnp.ones(5, dtype=jnp.int64)
-    G_2d = G_2d.at[:, :, 6:11].set(jnp.where(active_mask[None, None, :] == 1, 0.999, 0.0))
-    G_2d = G_2d.at[:, :, 11].set(0.0)  # gamma
+    # ψ from 0D equilibrium (NOT hardcoded 0.999)
+    for s in range(5):
+        G_2d = G_2d.at[:, :, 6 + s].set(jnp.clip(psi_eq[s], 1e-6, 1.0 - 1e-6))
+    G_2d = G_2d.at[:, :, 11].set(gamma_eq)
 
     G = G_2d.reshape(Nx * Ny, 12)
 
@@ -120,15 +129,28 @@ def _make_initial_state_from_0d(cfg, phi_eq):
 
 
 # ============================================================================
-# Staggered coupled solver
+# Helpers
 # ============================================================================
 
 
-def _run_ode_nsteps(G, params, _newton_vmap, n_steps):
-    """Run Hamilton ODE for exactly n_steps implicit time steps."""
-    for _ in range(n_steps):
-        G = _newton_vmap(G, params)
-    return G
+def interpolate_elem_to_node(elem_field, Nx, Ny):
+    """Interpolate element-centered field to nodes by averaging adjacent elements."""
+    n_ex, n_ey = Nx - 1, Ny - 1
+    field_2d = elem_field.reshape(n_ex, n_ey)
+    node_field = np.zeros((Nx, Ny))
+    count = np.zeros((Nx, Ny))
+    for ex in range(n_ex):
+        for ey in range(n_ey):
+            val = field_2d[ex, ey]
+            for ni, nj in [(ex, ey), (ex + 1, ey), (ex + 1, ey + 1), (ex, ey + 1)]:
+                node_field[ni, nj] += val
+                count[ni, nj] += 1
+    return node_field / np.maximum(count, 1)
+
+
+# ============================================================================
+# Staggered coupled solver
+# ============================================================================
 
 
 def run_staggered_coupled(
@@ -142,39 +164,28 @@ def run_staggered_coupled(
     n_growth_steps=50,
     ode_init_steps=2500,
     ode_adjust_steps=100,
+    sigma_crit=0.0,
+    stress_type="plane_strain",
+    nutrient_bc="mixed",
 ):
     """
-    Adiabatic staggered growth-mechanics coupling (Klempt 2024 style).
-
-    **Scale-separation approach**: The Hamilton ODE population dynamics reach
-    a quasi-stationary state much faster than biofilm growth.  We therefore:
-      - Step 0: equilibrate ODE for `ode_init_steps` (matching TMCMC calibration)
-      - Steps 1+: run ODE for `ode_adjust_steps` to track nutrient perturbations
+    Quasi-static staggered growth-mechanics coupling (Klempt 2024 style).
 
     At each growth step dt_growth:
-      (1) Hamilton reaction — ode_init_steps (first) or ode_adjust_steps (subsequent)
-      (2) Species diffusion
-      (3) Nutrient PDE
-      (4) α(x,y) += k_α · φ_total · Monod · dt_growth
-      (5) DI(x,y) → E(x,y)
-      (6) Quasi-static FEM solve → σ(x,y), u(x,y)
+      (0) Hamilton reaction with local c  (ode_adjust_steps Newton steps)
+      (1) Species diffusion               (explicit Euler)
+      (2) Nutrient PDE                    (CFL-stable mixed BCs)
+      (3) α += Σ wᵢ·φᵢ · Monod · f(σ)   (species-specific + stress mod)
+      (4) DI → E                          (from evolved φ)
+      (5) FEM → σ, u                      (quasi-static)
 
     Parameters
     ----------
-    theta : (20,) array
-    cfg : Config2D  — dt_h and newton_iters control the inner ODE step
-    nu : float — Poisson's ratio
-    k_alpha : float — growth rate coefficient
-    e_model : str — "phi_pg", "di", or "virulence"
-    fem_every : int or None — solve FEM every N growth steps
-    dt_growth : float — growth-mechanics time step (slow timescale)
-    n_growth_steps : int — number of growth steps
-    ode_init_steps : int — ODE steps for initial equilibration (match TMCMC maxtimestep)
-    ode_adjust_steps : int — ODE steps per subsequent growth step (perturbation tracking)
-
-    Returns
-    -------
-    dict with time-evolution snapshots of all fields
+    sigma_crit : float — stress threshold for growth inhibition [Pa].
+        0 = no stress feedback (backward compatible).
+        f(σ) = max(0, 1 - σ_vm/σ_crit)
+    stress_type : str — "plane_strain" or "plane_stress"
+    nutrient_bc : str — "mixed" (Dirichlet top, Neumann others) or "dirichlet" (all walls)
     """
     A, b_diag = theta_to_matrices(jnp.asarray(theta, dtype=jnp.float64))
     active_mask = jnp.ones(5, dtype=jnp.int64)
@@ -184,7 +195,7 @@ def run_staggered_coupled(
         "Kp1": cfg.Kp1,
         "Eta": jnp.ones(5),
         "EtaPhi": jnp.ones(5),
-        "c": cfg.c_hamilton,
+        "c": cfg.c_hamilton,  # unused when local c is provided
         "alpha": cfg.alpha,
         "K_hill": jnp.array(cfg.K_hill),
         "n_hill": jnp.array(cfg.n_hill),
@@ -193,9 +204,14 @@ def run_staggered_coupled(
         "active_mask": active_mask,
     }
 
-    # Use Python loop (not lax.scan) to avoid LLVM memory accumulation
-    _newton_vmap = _make_newton_step_vmap(cfg.newton_iters)
-    _nutrient_stable = _make_nutrient_step_stable(30)
+    # JIT-compiled Newton step with per-node nutrient c
+    _newton_vmap_c = _make_newton_step_vmap_localc(cfg.newton_iters)
+
+    # Nutrient PDE step
+    if nutrient_bc == "mixed":
+        _nutrient_fn = _make_nutrient_step_mixed(30)
+    else:
+        _nutrient_fn = _make_nutrient_step_stable(30)
 
     D_eff = jnp.array(cfg.D_eff)
     D_c = cfg.D_c
@@ -207,9 +223,9 @@ def run_staggered_coupled(
 
     save_every = fem_every or max(1, n_growth_steps // 10)
 
-    # --- 0D equilibration: find φ_eq using Numba solver (TMCMC-consistent) ---
+    # --- 0D equilibration: full state using Numba solver (TMCMC-consistent) ---
     print(f"  Equilibrating ODE via 0D Numba solver ({ode_init_steps} steps)...")
-    phi_eq = _equilibrate_0d_numba(
+    phi_eq, psi_eq, gamma_eq = _equilibrate_0d_numba(
         theta,
         maxtimestep=ode_init_steps,
         dt=cfg.dt_h,
@@ -217,14 +233,17 @@ def run_staggered_coupled(
         n_hill=cfg.n_hill,
     )
     print(f"  φ_eq = {phi_eq.round(4)}")
+    print(f"  ψ_eq = {psi_eq.round(4)}")
     di_eq = compute_di(phi_eq.reshape(1, 1, 5))[0, 0]
     print(f"  DI_eq = {di_eq:.4f}")
 
-    # Initialize 2D state from 0D equilibrium
-    G, c = _make_initial_state_from_0d(cfg, phi_eq)
+    # Initialize 2D state from full 0D equilibrium (φ + ψ + γ)
+    G, c = _make_initial_state_from_0d(cfg, phi_eq, psi_eq, gamma_eq)
 
     # Growth variable α(x,y) — accumulates over time
     alpha_field = np.zeros((Nx, Ny))
+    # Stress at nodes (for growth modulation feedback)
+    sigma_vm_node = np.zeros((Nx, Ny))
 
     # Storage for time-evolution snapshots
     snaps = {
@@ -243,50 +262,94 @@ def run_staggered_coupled(
 
     # Save initial state
     phi_2d_init = np.asarray(G.reshape(Nx, Ny, 12)[:, :, :5])
-    _save_snapshot(snaps, 0.0, phi_2d_init, np.asarray(c), alpha_field, Nx, Ny, Lx, Ly, nu, e_model)
+    _save_snapshot(
+        snaps,
+        0.0,
+        phi_2d_init,
+        np.asarray(c),
+        alpha_field,
+        Nx,
+        Ny,
+        Lx,
+        Ly,
+        nu,
+        e_model,
+        stress_type,
+    )
 
+    mode_str = "QUASI-STATIC" if ode_adjust_steps > 0 else "ADIABATIC"
+    stress_str = f"σ_crit={sigma_crit:.0f}Pa" if sigma_crit > 0 else "no σ feedback"
     print(f"\n{'='*70}")
-    print(f"  ADIABATIC STAGGERED  |  Nx={Nx} Ny={Ny}  |  {n_growth_steps} growth steps")
-    print(f"  dt_growth={dt_growth:.2e}  0D ODE: {ode_init_steps} steps")
+    print(f"  {mode_str} STAGGERED  |  Nx={Nx} Ny={Ny}  |  {n_growth_steps} growth steps")
+    print(f"  dt_growth={dt_growth:.2e}  ODE adjust: {ode_adjust_steps} steps/growth")
     print(f"  k_alpha={k_alpha}  FEM every {save_every} steps  |  E model: {e_model}")
+    print(f"  {stress_str}  |  {stress_type}  |  nutrient BC: {nutrient_bc}")
     print(f"{'='*70}\n")
 
-    # Species are at quasi-equilibrium (0D). Subsequent evolution via:
-    #   - Species diffusion (slow spatial homogenization)
-    #   - Nutrient PDE (consumption + diffusion)
-    #   - Growth accumulation α
-    # No JAX ODE needed — 0D equilibrium is the adiabatic limit.
-
     t0_wall = time.perf_counter()
+    c_hamilton = float(cfg.c_hamilton)
+    c_boundary = float(cfg.c_boundary)
 
     for step in range(1, n_growth_steps + 1):
         t_growth = step * dt_growth
 
-        # --- (1) Species diffusion (slow spatial mixing from 0D init) ---
+        # --- (0) Hamilton reaction with LOCAL nutrient coupling ---
+        if ode_adjust_steps > 0:
+            # c_effective(x,y) = c_hamilton × c_nutrient(x,y) / c_boundary
+            # At boundary: c_eff = c_hamilton (matches TMCMC calibration)
+            # In depleted regions: c_eff < c_hamilton → weaker interactions → φ shifts
+            c_np_for_ode = np.asarray(c)
+            c_eff_flat = jnp.asarray(c_np_for_ode.reshape(-1) * (c_hamilton / c_boundary))
+            for _ in range(ode_adjust_steps):
+                G = _newton_vmap_c(G, c_eff_flat, params)
+
+        # --- (1) Species diffusion ---
         phi_2d = G.reshape(Nx, Ny, 12)[:, :, :5]
         phi_2d = diffusion_step_species_2d(phi_2d, D_eff, dt_growth, cfg.dx, cfg.dy)
 
-        # Write back to G (maintain consistency)
+        # Write back to G
         G_2d = G.reshape(Nx, Ny, 12)
         G_2d = G_2d.at[:, :, :5].set(phi_2d)
         G_2d = G_2d.at[:, :, 5].set(1.0 - jnp.sum(phi_2d, axis=-1))
         G = G_2d.reshape(Nx * Ny, 12)
 
         # --- (2) Nutrient PDE ---
-        c = _nutrient_stable(c, phi_2d, D_c, k_M, g_cons, c_bc, cfg.dx, cfg.dy, dt_growth)
+        c = _nutrient_fn(c, phi_2d, D_c, k_M, g_cons, c_bc, cfg.dx, cfg.dy, dt_growth)
 
-        # --- (3) Accumulate growth α ---
+        # --- (3) Accumulate growth α with species weights + stress modulation ---
         phi_2d_np = np.asarray(phi_2d)
         c_np = np.asarray(c)
-        phi_total = phi_2d_np.sum(axis=-1)
+        # Species-specific weighted sum: Σ wᵢ · φᵢ
+        weighted_phi = np.sum(GROWTH_WEIGHTS[None, None, :] * phi_2d_np, axis=-1)
         monod = c_np / (k_M + c_np)
-        alpha_field += k_alpha * phi_total * monod * dt_growth
+        # Stress-dependent growth modulation
+        if sigma_crit > 0:
+            stress_mod = np.clip(1.0 - sigma_vm_node / sigma_crit, 0.0, 1.0)
+        else:
+            stress_mod = 1.0
+        alpha_field += k_alpha * weighted_phi * monod * stress_mod * dt_growth
 
         # --- (4-5) FEM solve at snapshot intervals ---
         if step % save_every == 0 or step == n_growth_steps:
             _save_snapshot(
-                snaps, float(t_growth), phi_2d_np, c_np, alpha_field, Nx, Ny, Lx, Ly, nu, e_model
+                snaps,
+                float(t_growth),
+                phi_2d_np,
+                c_np,
+                alpha_field,
+                Nx,
+                Ny,
+                Lx,
+                Ly,
+                nu,
+                e_model,
+                stress_type,
             )
+
+            # Update σ_vm at nodes for next step's stress modulation
+            svm_elem = snaps["sigma_vm"][-1]
+            if svm_elem.size == (Nx - 1) * (Ny - 1):
+                sigma_vm_node = interpolate_elem_to_node(svm_elem, Nx, Ny)
 
             pct = 100 * step / n_growth_steps
             svm_max = snaps["sigma_vm_max"][-1]
@@ -294,12 +357,12 @@ def run_staggered_coupled(
             alpha_max = alpha_field.max()
             DI_min = snaps["DI"][-1].min()
             DI_max = snaps["DI"][-1].max()
-            E_min = snaps["E"][-1].min()
-            E_max = snaps["E"][-1].max()
+            E_min_val = snaps["E"][-1].min()
+            E_max_val = snaps["E"][-1].max()
             print(
                 f"  [{pct:5.1f}%] t_g={t_growth:.2f}  "
                 f"DI=[{DI_min:.3f},{DI_max:.3f}]  "
-                f"E=[{E_min:.0f},{E_max:.0f}]  "
+                f"E=[{E_min_val:.0f},{E_max_val:.0f}]  "
                 f"α={alpha_max:.4f}  "
                 f"σ_vm={svm_max:.1f} Pa  "
                 f"|u|={u_max_val:.2e}"
@@ -325,9 +388,21 @@ def run_staggered_coupled(
     return snaps
 
 
-def _save_snapshot(snaps, t, phi_2d_np, c_np, alpha_field, Nx, Ny, Lx, Ly, nu, e_model):
+def _save_snapshot(
+    snaps,
+    t,
+    phi_2d_np,
+    c_np,
+    alpha_field,
+    Nx,
+    Ny,
+    Lx,
+    Ly,
+    nu,
+    e_model,
+    stress_type="plane_strain",
+):
     """Compute derived fields + FEM solve and store snapshot."""
-    # phi_2d_np: (Nx, Ny, 5)
     DI = compute_di(phi_2d_np)
 
     if e_model == "phi_pg":
@@ -345,7 +420,17 @@ def _save_snapshot(snaps, t, phi_2d_np, c_np, alpha_field, Nx, Ny, Lx, Ly, nu, e
 
     # FEM solve
     if alpha_field.max() > 1e-12:
-        fem = solve_2d_fem(E_field, nu, eps_growth, Nx, Ny, Lx, Ly, bc_type="bottom_fixed")
+        fem = solve_2d_fem(
+            E_field,
+            nu,
+            eps_growth,
+            Nx,
+            Ny,
+            Lx,
+            Ly,
+            bc_type="bottom_fixed",
+            stress_type=stress_type,
+        )
         sigma_vm = fem["sigma_vm"]
         u_mag = np.sqrt(fem["u"][:, 0] ** 2 + fem["u"][:, 1] ** 2)
         u_max = float(u_mag.max())
@@ -382,14 +467,12 @@ def plot_time_evolution(snaps, outpath, condition="demo"):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.gridspec import GridSpec
 
     t_arr = snaps["t"]
     n_snap = len(t_arr)
     Nx, Ny = snaps["Nx"], snaps["Ny"]
     n_ex, n_ey = Nx - 1, Ny - 1
 
-    # Select up to 5 snapshots (evenly spaced + final)
     if n_snap <= 5:
         idx = list(range(n_snap))
     else:
@@ -401,8 +484,6 @@ def plot_time_evolution(snaps, outpath, condition="demo"):
         idx = sorted(set(idx))
 
     n_cols = len(idx)
-
-    # 6 rows: φ_total, c, DI, E, ε_growth, σ_vm
     fig, axes = plt.subplots(6, n_cols, figsize=(3.5 * n_cols, 18))
     if n_cols == 1:
         axes = axes[:, None]
@@ -419,7 +500,7 @@ def plot_time_evolution(snaps, outpath, condition="demo"):
 
     for col_i, snap_i in enumerate(idx):
         t_val = t_arr[snap_i]
-        phi_snap = snaps["phi"][snap_i]  # (5, Nx, Ny)
+        phi_snap = snaps["phi"][snap_i]
         c_snap = snaps["c"][snap_i]
         DI_snap = snaps["DI"][snap_i]
         E_snap = snaps["E"][snap_i]
@@ -427,9 +508,8 @@ def plot_time_evolution(snaps, outpath, condition="demo"):
         svm_snap = snaps["sigma_vm"][snap_i]
 
         phi_total = phi_snap.sum(axis=0)
-
         fields = [phi_total, c_snap, DI_snap, E_snap, alpha_snap]
-        # σ_vm is on element grid
+
         if svm_snap.size == n_ex * n_ey:
             svm_2d = svm_snap.reshape(n_ex, n_ey)
         else:
@@ -453,7 +533,6 @@ def plot_time_evolution(snaps, outpath, condition="demo"):
             if row_i == 0:
                 ax.set_title(f"t = {t_val:.4f}", fontsize=10)
 
-        # σ_vm row
         ax = axes[5, col_i]
         im = ax.imshow(
             svm_2d.T,
@@ -502,7 +581,7 @@ def plot_time_series(snaps, outpath, condition="demo"):
 
     ax = axes[0]
     ax.plot(t, svm_max, "r-o", ms=3, lw=1.5)
-    ax.set_xlabel("t (Hamilton time)")
+    ax.set_xlabel("t (growth time)")
     ax.set_ylabel("σ_vm,max [Pa]")
     ax.set_title("Max von Mises stress")
     ax.grid(True, alpha=0.3)
@@ -566,6 +645,12 @@ def _run_single_condition_subprocess(cond_dir, args):
         str(args.k_alpha),
         "--e-model",
         args.e_model,
+        "--sigma-crit",
+        str(args.sigma_crit),
+        "--stress-type",
+        args.stress_type,
+        "--nutrient-bc",
+        args.nutrient_bc,
         "--outdir",
         str(args.outdir),
         "--save-npz",
@@ -582,7 +667,6 @@ def run_4_conditions(args):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    _TMCMC = _HERE.parent.parent
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -593,13 +677,11 @@ def run_4_conditions(args):
         "dysbiotic_static": "DS",
     }
 
-    # Run each condition in a separate subprocess (JAX LLVM memory isolation)
     for cond_dir, label in conditions.items():
         rc = _run_single_condition_subprocess(cond_dir, args)
         if rc != 0:
             print(f"  WARNING: {cond_dir} failed (rc={rc})")
 
-    # Load saved npz files
     all_snaps = {}
     for cond_dir, label in conditions.items():
         npz_path = outdir / f"coupled_snaps_{cond_dir}.npz"
@@ -608,7 +690,6 @@ def run_4_conditions(args):
             continue
         data = np.load(npz_path, allow_pickle=True)
         snaps = {k: data[k] for k in data.files}
-        # Restore scalar metadata
         snaps["Nx"] = int(snaps["Nx"])
         snaps["Ny"] = int(snaps["Ny"])
         snaps["Lx"] = float(snaps["Lx"])
@@ -621,37 +702,30 @@ def run_4_conditions(args):
         print("Not enough conditions for comparison.")
         return all_snaps
 
-    # --- Comparison figure: σ_vm_max(t) and u_max(t) for all conditions ---
+    # --- Comparison figure ---
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     colors = {"CS": "#2196F3", "CH": "#4CAF50", "DH": "#FF9800", "DS": "#F44336"}
 
     for label, snaps in all_snaps.items():
         t = snaps["t"]
         col = colors.get(label, "gray")
-
         axes[0].plot(t, snaps["sigma_vm_max"], "-o", color=col, ms=3, lw=1.5, label=label)
         axes[1].plot(t, snaps["u_max"], "-o", color=col, ms=3, lw=1.5, label=label)
-
         alpha_max = np.array([snaps["alpha"][i].max() for i in range(len(t))])
         axes[2].plot(t, alpha_max, "-o", color=col, ms=3, lw=1.5, label=label)
 
-    axes[0].set_xlabel("t (Hamilton time)")
-    axes[0].set_ylabel("σ_vm,max [Pa]")
-    axes[0].set_title("Max von Mises stress")
-    axes[0].legend()
-    axes[0].grid(True, alpha=0.3)
-
-    axes[1].set_xlabel("t")
-    axes[1].set_ylabel("|u|_max")
-    axes[1].set_title("Max displacement")
-    axes[1].legend()
-    axes[1].grid(True, alpha=0.3)
-
-    axes[2].set_xlabel("t")
-    axes[2].set_ylabel("α_max")
-    axes[2].set_title("Max growth variable")
-    axes[2].legend()
-    axes[2].grid(True, alpha=0.3)
+    for i, (ylabel, title) in enumerate(
+        [
+            ("σ_vm,max [Pa]", "Max von Mises stress"),
+            ("|u|_max", "Max displacement"),
+            ("α_max", "Max growth variable"),
+        ]
+    ):
+        axes[i].set_xlabel("t (growth time)")
+        axes[i].set_ylabel(ylabel)
+        axes[i].set_title(title)
+        axes[i].legend()
+        axes[i].grid(True, alpha=0.3)
 
     fig.suptitle(
         "Staggered Coupled: 4-Condition Comparison (Klempt-style)",
@@ -664,7 +738,7 @@ def run_4_conditions(args):
     plt.close(fig)
     print(f"\n  Comparison figure: {cmp_path}")
 
-    # --- Final-state comparison: 4 columns (CS/CH/DH/DS) × 3 rows (DI, σ_vm, u) ---
+    # --- Final-state comparison ---
     fig, axes = plt.subplots(3, len(all_snaps), figsize=(4 * len(all_snaps), 10))
     if len(all_snaps) == 1:
         axes = axes[:, None]
@@ -708,7 +782,7 @@ def run_4_conditions(args):
             vmax=E_MAX_PA,
         )
         plt.colorbar(im, ax=ax, fraction=0.046, label="Pa")
-        ax.set_title(f"E(x,y)", fontsize=11)
+        ax.set_title("E(x,y)", fontsize=11)
         ax.set_xticks([])
         ax.set_yticks([])
 
@@ -739,9 +813,13 @@ def run_4_conditions(args):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Adiabatic staggered coupled growth-mechanics solver")
+    ap = argparse.ArgumentParser(
+        description="Klempt-style staggered coupled growth-mechanics solver"
+    )
     ap.add_argument(
-        "--condition", default=None, help="Single condition or 'all' for 4-condition comparison"
+        "--condition",
+        default=None,
+        help="Single condition or 'all' for 4-condition comparison",
     )
     ap.add_argument("--nx", type=int, default=20)
     ap.add_argument("--ny", type=int, default=20)
@@ -757,10 +835,10 @@ def main():
         "--ode-adjust-steps",
         type=int,
         default=100,
-        help="ODE steps per subsequent growth step (perturbation tracking)",
+        help="ODE steps per growth step with local nutrient coupling (0=adiabatic)",
     )
     # Growth (slow) timescale parameters
-    ap.add_argument("--dt-growth", type=float, default=0.1, help="Growth step size (slow scale)")
+    ap.add_argument("--dt-growth", type=float, default=0.1, help="Growth step size")
     ap.add_argument("--n-growth-steps", type=int, default=50, help="Number of growth steps")
     # Physics
     ap.add_argument("--k-hill", type=float, default=0.05)
@@ -768,9 +846,30 @@ def main():
     ap.add_argument("--nu", type=float, default=0.30)
     ap.add_argument("--k-alpha", type=float, default=0.05)
     ap.add_argument("--e-model", choices=["phi_pg", "virulence", "di"], default="phi_pg")
+    # New physics options
+    ap.add_argument(
+        "--sigma-crit",
+        type=float,
+        default=0.0,
+        help="Stress threshold for growth inhibition [Pa]. 0=no feedback.",
+    )
+    ap.add_argument(
+        "--stress-type",
+        choices=["plane_strain", "plane_stress"],
+        default="plane_strain",
+        help="Plane strain (thick) or plane stress (thin biofilm)",
+    )
+    ap.add_argument(
+        "--nutrient-bc",
+        choices=["mixed", "dirichlet"],
+        default="mixed",
+        help="Nutrient BC: mixed (Dirichlet top, Neumann others) or dirichlet (all walls)",
+    )
     ap.add_argument("--outdir", default=None)
     ap.add_argument(
-        "--save-npz", action="store_true", help="Save results as .npz for later comparison"
+        "--save-npz",
+        action="store_true",
+        help="Save results as .npz for later comparison",
     )
     args = ap.parse_args()
 
@@ -782,7 +881,6 @@ def main():
     if args.condition is None or args.condition == "all":
         run_4_conditions(args)
     else:
-        # Single condition
         _RUNS = _TMCMC / "data_5species" / "_runs"
         theta_path = _RUNS / args.condition / "theta_MAP.json"
         if theta_path.exists():
@@ -799,7 +897,7 @@ def main():
             Nx=args.nx,
             Ny=args.ny,
             dt_h=args.dt_h,
-            n_react_sub=1,  # not used directly; ODE steps managed by run_staggered_coupled
+            n_react_sub=1,
             n_macro=args.n_growth_steps,
             K_hill=args.k_hill,
             n_hill=args.n_hill,
@@ -815,6 +913,9 @@ def main():
             n_growth_steps=args.n_growth_steps,
             ode_init_steps=args.ode_init_steps,
             ode_adjust_steps=args.ode_adjust_steps,
+            sigma_crit=args.sigma_crit,
+            stress_type=args.stress_type,
+            nutrient_bc=args.nutrient_bc,
         )
 
         plot_time_evolution(
@@ -828,7 +929,6 @@ def main():
             condition=args.condition,
         )
 
-        # Save npz if requested
         if args.save_npz:
             npz_path = Path(outdir) / f"coupled_snaps_{args.condition}.npz"
             np.savez_compressed(
@@ -853,7 +953,6 @@ def main():
             )
             print(f"  Saved: {npz_path}")
 
-        # Print summary
         print(f"\n  Final DI: [{snaps['DI'][-1].min():.3f}, {snaps['DI'][-1].max():.3f}]")
         print(f"  Final E:  [{snaps['E'][-1].min():.1f}, {snaps['E'][-1].max():.1f}] Pa")
         print(f"  Final α:  [{snaps['alpha'][-1].min():.5f}, {snaps['alpha'][-1].max():.5f}]")
