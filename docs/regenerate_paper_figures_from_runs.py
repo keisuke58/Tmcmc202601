@@ -115,10 +115,15 @@ def theta_to_matrices(theta):
 # ============================================================
 # Fig 3: Interaction matrix heatmaps
 # ============================================================
+def _is_locked(val):
+    """Check if a cell is locked (inactive parameter = 0)."""
+    return abs(val) < 0.01
+
+
 def _heatmap_text_color(val, vmax):
     """Choose text color for readability: white on dark, black on light."""
-    if abs(val) < 0.01:
-        return "#888888"  # gray for locked (0.00)
+    if _is_locked(val):
+        return "#c0c0c0"  # very light gray for locked "—"
     if abs(val) > vmax * 0.55:
         return "white"
     return "black"
@@ -199,20 +204,24 @@ def generate_fig3(runs: dict):
             ax.set_title(title, fontsize=17, fontweight="bold", pad=8)
             for ii in range(5):
                 for jj in range(5):
+                    # Show "—" for locked cells instead of "0.00"
+                    cell_text = "—" if _is_locked(A[ii, jj]) else f"{A[ii,jj]:.2f}"
                     ax.text(
                         jj,
                         ii,
-                        f"{A[ii,jj]:.2f}",
+                        cell_text,
                         ha="center",
                         va="center",
-                        fontsize=14,
-                        fontweight="bold",
+                        fontsize=14 if not _is_locked(A[ii, jj]) else 12,
+                        fontweight="bold" if not _is_locked(A[ii, jj]) else "normal",
                         color=_heatmap_text_color(A[ii, jj], vmax),
                     )
 
-        # Colorbar between the two heatmaps
-        cbar = fig.colorbar(im, ax=axes[:2], shrink=0.6, pad=0.02, aspect=25)
+        # Colorbar below the two heatmaps (horizontal)
+        cbar_ax = fig.add_axes([0.08, -0.02, 0.55, 0.025])  # [left, bottom, width, height]
+        cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal")
         cbar.ax.tick_params(labelsize=12)
+        cbar.set_label("Interaction strength $a_{ij}$", fontsize=13)
 
         ax3 = axes[2]
         y_pos = np.arange(5)
@@ -258,81 +267,114 @@ def generate_fig3(runs: dict):
 # ============================================================
 # Fig 2: Posterior predictive per-species panels
 # ============================================================
-def generate_fig2(runs: dict):
-    """Generate Fig 2 panels by running forward model with MAP theta."""
-    print("\n=== Fig 2: Posterior predictive (forward model) ===")
+def _backup_existing(filepath: Path):
+    """Backup existing file by appending _prev suffix before overwriting."""
+    if filepath.exists():
+        stem = filepath.stem
+        suffix = filepath.suffix
+        backup = filepath.parent / f"{stem}_prev{suffix}"
+        # If _prev already exists, keep it (don't chain backups)
+        if not backup.exists():
+            import shutil
 
-    # Need the solver
+            shutil.copy2(filepath, backup)
+            print(f"    backed up: {backup.name}")
+
+
+def _setup_solver_and_data(runs, cond, run_dir):
+    """Common setup: load data, create solver, return components."""
     sys.path.insert(0, str(ROOT / "data_5species"))
     sys.path.insert(0, str(ROOT / "data_5species" / "main"))
 
-    try:
-        from improved_5species_jit import BiofilmNewtonSolver5S
-        from estimate_reduced_nishioka import load_experimental_data
-    except ImportError as e:
-        print(f"  Cannot import solver: {e}")
-        print("  Skipping Fig 2 (run from data_5species/main/ directory)")
-        return
+    from improved_5species_jit import BiofilmNewtonSolver5S
+    from estimate_reduced_nishioka import load_experimental_data
+
+    data_run = load_run(run_dir)
+    if "theta_MAP" not in data_run or "config" not in data_run:
+        return None
+
+    config = data_run["config"]
+    cond_map = {
+        "CS": ("Commensal", "Static"),
+        "CH": ("Commensal", "HOBIC"),
+        "DS": ("Dysbiotic", "Static"),
+        "DH": ("Dysbiotic", "HOBIC"),
+    }
+    condition, cultivation = cond_map.get(cond, ("Commensal", "Static"))
 
     data_dir = ROOT / "data_5species"
+    exp_data, t_days, sigma_obs, phi_init_exp, metadata = load_experimental_data(
+        data_dir, condition, cultivation, start_from_day=3
+    )
 
-    for i, (cond, run_dir) in enumerate(runs.items()):
-        data_run = load_run(run_dir)
-        if "theta_MAP" not in data_run or "config" not in data_run:
-            print(f"  {cond}: SKIP (missing theta_MAP/config)")
-            continue
+    theta_map = np.array(data_run["theta_MAP"]["theta_full"])
+    dt = config.get("dt", 0.001)
+    maxtimestep = config.get("maxtimestep", 50000)
 
-        config = data_run["config"]
-        condition = config.get("condition", cond[:1].upper() + cond[1:].lower())
-        cultivation = config.get("cultivation", "Static")
-
-        # Map short cond to condition/cultivation
-        cond_map = {
-            "CS": ("Commensal", "Static"),
-            "CH": ("Commensal", "HOBIC"),
-            "DS": ("Dysbiotic", "Static"),
-            "DH": ("Dysbiotic", "HOBIC"),
-        }
-        condition, cultivation = cond_map.get(cond, (condition, cultivation))
-
-        # Load experimental data with Day 1 IC
-        exp_data, t_days, sigma_obs, phi_init_exp, metadata = load_experimental_data(
-            data_dir, condition, cultivation, start_from_day=3
-        )
-
-        # Setup solver
-        theta_map = np.array(data_run["theta_MAP"]["theta_full"])
-        dt = config.get("dt", 0.001)
-        maxtimestep = config.get("maxtimestep", 50000)
-
-        solver = BiofilmNewtonSolver5S(
+    def make_solver(phi_init):
+        return BiofilmNewtonSolver5S(
             dt=dt,
             maxtimestep=maxtimestep,
             c_const=config.get("c_const", 1.0),
             alpha_const=config.get("alpha_const", 1.0),
-            phi_init=phi_init_exp / phi_init_exp.sum() if phi_init_exp.sum() > 0 else phi_init_exp,
+            phi_init=phi_init / phi_init.sum() if phi_init.sum() > 0 else phi_init,
             Kp1=config.get("kp1", 1.0),
             K_hill=config.get("K_hill", 0.05),
             n_hill=config.get("n_hill", 4),
         )
 
-        # Forward solve
-        t_arr, x0 = solver.solve(theta_map)
+    # Load posterior samples if available
+    samples_path = run_dir / "samples.npy"
+    samples = np.load(samples_path) if samples_path.exists() else None
 
-        # Compute phibar = phi * psi
-        active_species = [0, 1, 2, 3, 4]
-        n_sp = len(active_species)
-        phibar = np.zeros((x0.shape[0], n_sp))
-        for si, sp in enumerate(active_species):
-            phi = x0[:, sp]
-            psi = x0[:, 5 + sp]
-            phibar[:, si] = phi * psi
+    return {
+        "data_run": data_run,
+        "config": config,
+        "condition": condition,
+        "cultivation": cultivation,
+        "exp_data": exp_data,
+        "t_days": t_days,
+        "phi_init_exp": phi_init_exp,
+        "theta_map": theta_map,
+        "make_solver": make_solver,
+        "samples": samples,
+    }
 
-        # Time mapping (model time -> days)
-        day_max = t_days.max()
+
+def _forward_solve_phibar(make_solver, theta, phi_init):
+    """Run forward model, return (t_arr, phibar[n_time, 5])."""
+    solver = make_solver(phi_init)
+    t_arr, x0 = solver.solve(theta)
+    phibar = np.zeros((x0.shape[0], 5))
+    for si in range(5):
+        phibar[:, si] = x0[:, si] * x0[:, 5 + si]
+    return t_arr, phibar
+
+
+def generate_fig2_new(runs: dict):
+    """Generate Fig 2 NEW style: 1x5 compact panels with MAP only."""
+    print("\n=== Fig 2 (new style): 1x5 MAP posterior predictive ===")
+
+    sys.path.insert(0, str(ROOT / "data_5species"))
+    sys.path.insert(0, str(ROOT / "data_5species" / "main"))
+    try:
+        from improved_5species_jit import BiofilmNewtonSolver5S  # noqa: F401
+    except ImportError as e:
+        print(f"  Cannot import solver: {e}")
+        return
+
+    for i, (cond, run_dir) in enumerate(runs.items()):
+        ctx = _setup_solver_and_data(runs, cond, run_dir)
+        if ctx is None:
+            print(f"  {cond}: SKIP (missing theta_MAP/config)")
+            continue
+
+        t_arr, phibar = _forward_solve_phibar(
+            ctx["make_solver"], ctx["theta_map"], ctx["phi_init_exp"]
+        )
+        day_max = ctx["t_days"].max()
         t_plot = (t_arr - t_arr.min()) / (t_arr.max() - t_arr.min()) * (day_max / 0.95)
 
-        # Plot per-species panel
         fig, axes = plt.subplots(1, 5, figsize=(20, 4), sharey=False)
         fig.suptitle(COND_LABELS[cond], fontsize=20, fontweight="bold", y=1.02)
 
@@ -340,18 +382,17 @@ def generate_fig2(runs: dict):
             ax = axes[si]
             ax.plot(t_plot, phibar[:, si], color=SPECIES_COLORS[si], linewidth=2, label="MAP")
             ax.scatter(
-                t_days,
-                exp_data[:, si],
+                ctx["t_days"],
+                ctx["exp_data"][:, si],
                 color=SPECIES_COLORS[si],
                 edgecolor="k",
                 s=60,
                 zorder=10,
                 label="Data",
             )
-            # Day 1 IC marker
             ax.scatter(
                 [1],
-                [phi_init_exp[si]],
+                [ctx["phi_init_exp"][si]],
                 color=SPECIES_COLORS[si],
                 marker="D",
                 edgecolor="k",
@@ -363,8 +404,7 @@ def generate_fig2(runs: dict):
             ax.set_xlabel("Days", fontsize=14)
             if si == 0:
                 ax.set_ylabel(r"$\bar{\varphi}_i$", fontsize=16)
-            tick_days = [1, 3, 7, 10, 15, 21]
-            ax.set_xticks(tick_days)
+            ax.set_xticks([1, 3, 7, 10, 15, 21])
             ax.set_xlim(0, 22)
             ax.grid(True, alpha=0.3)
 
@@ -372,9 +412,176 @@ def generate_fig2(runs: dict):
         tag = chr(97 + i)
         for ext in ["png", "pdf"]:
             out = OUT / f"fig2{tag}_{cond}_posterior_predictive.{ext}"
+            _backup_existing(out)
             fig.savefig(out, dpi=300 if ext == "png" else None)
         plt.close()
-        print(f"  {cond}: saved fig2{tag}")
+        print(f"  {cond}: saved fig2{tag} (new style)")
+
+
+def generate_fig2_classic(runs: dict):
+    """Generate Fig 2 CLASSIC style: 2x3 layout with CI bands, paper-compatible naming."""
+    print("\n=== Fig 2 (classic style): 2x3 with CI bands ===")
+
+    sys.path.insert(0, str(ROOT / "data_5species"))
+    sys.path.insert(0, str(ROOT / "data_5species" / "main"))
+    try:
+        from improved_5species_jit import BiofilmNewtonSolver5S  # noqa: F401
+    except ImportError as e:
+        print(f"  Cannot import solver: {e}")
+        return
+
+    PAPER_OUT = ROOT / "data_5species" / "docs" / "paper_comprehensive_figs"
+    PAPER_OUT.mkdir(parents=True, exist_ok=True)
+
+    # Light fill colors per species (for CI bands)
+    fill_colors = [
+        (0.12, 0.47, 0.71, 0.15),  # So blue
+        (1.00, 0.50, 0.05, 0.15),  # An orange
+        (0.17, 0.63, 0.17, 0.15),  # Vd green
+        (0.84, 0.15, 0.16, 0.15),  # Fn red
+        (0.58, 0.40, 0.74, 0.15),  # Pg purple
+    ]
+    fill_colors_dark = [
+        (0.12, 0.47, 0.71, 0.30),
+        (1.00, 0.50, 0.05, 0.30),
+        (0.17, 0.63, 0.17, 0.30),
+        (0.84, 0.15, 0.16, 0.30),
+        (0.58, 0.40, 0.74, 0.30),
+    ]
+
+    for i, (cond, run_dir) in enumerate(runs.items()):
+        ctx = _setup_solver_and_data(runs, cond, run_dir)
+        if ctx is None:
+            print(f"  {cond}: SKIP")
+            continue
+
+        # Forward solve MAP
+        t_arr, phibar_map = _forward_solve_phibar(
+            ctx["make_solver"], ctx["theta_map"], ctx["phi_init_exp"]
+        )
+        day_max = ctx["t_days"].max()
+        t_plot = (t_arr - t_arr.min()) / (t_arr.max() - t_arr.min()) * (day_max / 0.95)
+
+        # Compute posterior CI bands from samples
+        samples = ctx["samples"]
+        n_subsample = min(100, len(samples)) if samples is not None else 0
+        phibar_all = None
+
+        if n_subsample > 0:
+            idx = np.random.choice(len(samples), n_subsample, replace=False)
+            phibar_all = np.zeros((n_subsample, len(t_arr), 5))
+            n_failed = 0
+            for j, si_idx in enumerate(idx):
+                try:
+                    _, pb = _forward_solve_phibar(
+                        ctx["make_solver"], samples[si_idx], ctx["phi_init_exp"]
+                    )
+                    if pb.shape[0] == len(t_arr):
+                        phibar_all[j] = pb
+                    else:
+                        # Interpolate to match t_arr length
+                        for sp in range(5):
+                            phibar_all[j, :, sp] = np.interp(
+                                np.linspace(0, 1, len(t_arr)),
+                                np.linspace(0, 1, pb.shape[0]),
+                                pb[:, sp],
+                            )
+                except Exception:
+                    phibar_all[j] = phibar_map  # fallback
+                    n_failed += 1
+            if n_failed > 0:
+                print(f"    {cond}: {n_failed}/{n_subsample} samples failed, used MAP fallback")
+
+        # 2x3 layout (3 top, 2 bottom centered)
+        fig = plt.figure(figsize=(14, 8))
+        gs = fig.add_gridspec(2, 6, hspace=0.35, wspace=0.4)
+        axes = [
+            fig.add_subplot(gs[0, 0:2]),  # So
+            fig.add_subplot(gs[0, 2:4]),  # An
+            fig.add_subplot(gs[0, 4:6]),  # Vd
+            fig.add_subplot(gs[1, 1:3]),  # Fn
+            fig.add_subplot(gs[1, 3:5]),  # Pg
+        ]
+
+        title = f"{ctx['condition']} {ctx['cultivation']}: Per-Species Posterior Predictive Fits"
+        fig.suptitle(title, fontsize=18, fontweight="bold", y=0.98)
+
+        for si in range(5):
+            ax = axes[si]
+
+            # CI bands
+            if phibar_all is not None:
+                p5 = np.percentile(phibar_all[:, :, si], 5, axis=0)
+                p25 = np.percentile(phibar_all[:, :, si], 25, axis=0)
+                p50 = np.percentile(phibar_all[:, :, si], 50, axis=0)
+                p75 = np.percentile(phibar_all[:, :, si], 75, axis=0)
+                p95 = np.percentile(phibar_all[:, :, si], 95, axis=0)
+
+                ax.fill_between(t_plot, p5, p95, color=fill_colors[si], label="5-95%")
+                ax.fill_between(t_plot, p25, p75, color=fill_colors_dark[si], label="25-75%")
+                ax.plot(t_plot, p50, color=SPECIES_COLORS[si], linewidth=1.2, label="Median")
+
+            # MAP line
+            ax.plot(
+                t_plot,
+                phibar_map[:, si],
+                color=SPECIES_COLORS[si],
+                linewidth=2,
+                linestyle="--",
+                label="MAP",
+            )
+
+            # Data points
+            ax.scatter(
+                ctx["t_days"],
+                ctx["exp_data"][:, si],
+                color=SPECIES_COLORS[si],
+                edgecolor="k",
+                s=70,
+                zorder=10,
+                label="Data",
+            )
+
+            # Day 1 IC
+            ax.scatter(
+                [1],
+                [ctx["phi_init_exp"][si]],
+                color=SPECIES_COLORS[si],
+                marker="D",
+                edgecolor="k",
+                s=80,
+                zorder=10,
+                alpha=0.7,
+            )
+
+            ax.set_title(SPECIES_NAMES[si], fontsize=15, fontweight="bold")
+            ax.set_xlabel("Days", fontsize=13)
+            ax.set_ylabel(r"$\bar{\varphi}$", fontsize=14)
+            ax.set_xticks([1, 3, 6, 10, 15, 21])
+            ax.set_xlim(0, 22)
+            ax.legend(fontsize=8, loc="best", framealpha=0.8)
+
+        # Save to both paper_figures/ and paper_comprehensive_figs/
+        tag = chr(97 + i)
+        cond_name = f"{ctx['condition']}_{ctx['cultivation']}"
+        for ext in ["png", "pdf"]:
+            # paper_figures/ output
+            out1 = OUT / f"fig2{tag}_{cond}_classic.{ext}"
+            fig.savefig(out1, dpi=300 if ext == "png" else None)
+
+            # paper_comprehensive_figs/ output (paper-compatible naming)
+            out2 = PAPER_OUT / f"{cond_name}_Fig_A02_per_species_panel.{ext}"
+            _backup_existing(out2)
+            fig.savefig(out2, dpi=300 if ext == "png" else None)
+
+        plt.close()
+        print(f"  {cond}: saved classic style (CI bands, 2x3)")
+
+
+def generate_fig2(runs: dict):
+    """Generate Fig 2 in both styles."""
+    generate_fig2_new(runs)
+    generate_fig2_classic(runs)
 
 
 # ============================================================

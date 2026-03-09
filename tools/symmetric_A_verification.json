@@ -1,0 +1,26 @@
+{
+  "Commensal_Static": {
+    "run": "commensal_static_posterior",
+    "norm_A_minus_AT": 0.0,
+    "norm_A": 2.715132041738028,
+    "symmetric": true
+  },
+  "Commensal_HOBIC": {
+    "run": "commensal_hobic_posterior",
+    "norm_A_minus_AT": 0.0,
+    "norm_A": 1.9403500393790514,
+    "symmetric": true
+  },
+  "Dysbiotic_Static": {
+    "run": "dysbiotic_static_posterior",
+    "norm_A_minus_AT": 0.0,
+    "norm_A": 2.5563932025661633,
+    "symmetric": true
+  },
+  "Dysbiotic_HOBIC": {
+    "run": "dh_baseline",
+    "norm_A_minus_AT": 0.0,
+    "norm_A": 26.013505580991094,
+    "symmetric": true
+  }
+}

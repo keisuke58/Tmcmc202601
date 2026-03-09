@@ -335,12 +335,30 @@ def run_estimation(
     p_min = args.prior_min if args.prior_min is not None else PRIOR_BOUNDS_DEFAULT[0]
     p_max = args.prior_max if args.prior_max is not None else PRIOR_BOUNDS_DEFAULT[1]
 
-    # Initialize theta_base with prior mean
-    prior_mean = (p_min + p_max) / 2.0
-    theta_base = np.full(20, prior_mean)
+    DECAY_INDICES = [3, 4, 8, 9, 15]
+    INTERACTION_INDICES = [i for i in range(20) if i not in DECAY_INDICES]
 
-    # Prior bounds for all parameters
+    theta_base = np.zeros(20, dtype=float)
     prior_bounds = [(p_min, p_max) for _ in range(20)]
+
+    for i in range(20):
+        lo, hi = prior_bounds[i]
+        theta_base[i] = 0.5 * (lo + hi)
+
+    if args.allow_negative_a or args.prior_a_min is not None or args.prior_a_max is not None:
+        a_min = (
+            args.prior_a_min
+            if args.prior_a_min is not None
+            else (-1.0 if args.allow_negative_a else p_min)
+        )
+        a_max = (
+            args.prior_a_max
+            if args.prior_a_max is not None
+            else (2.0 if args.allow_negative_a else p_max)
+        )
+        for idx in INTERACTION_INDICES:
+            prior_bounds[idx] = (a_min, a_max)
+            theta_base[idx] = 0.5 * (a_min + a_max)
 
     # Widen M1 priors if requested
     if args.widen_m1_priors:
@@ -352,7 +370,6 @@ def run_estimation(
 
     # Tighten decay priors if requested
     # Decay parameters: b1=3, b2=4, b3=8, b4=9, b5=15
-    DECAY_INDICES = [3, 4, 8, 9, 15]
     if args.prior_decay_max is not None:
         decay_max = args.prior_decay_max
         logger.info(
@@ -521,6 +538,17 @@ def parse_args():
         help="Maximum value for prior uniform distribution (default: use config)",
     )
     parser.add_argument(
+        "--allow-negative-a",
+        action="store_true",
+        help="Allow negative interaction coefficients a_ij (uses [-1, 2] unless overridden)",
+    )
+    parser.add_argument(
+        "--prior-a-min", type=float, default=None, help="Minimum value for a_ij priors"
+    )
+    parser.add_argument(
+        "--prior-a-max", type=float, default=None, help="Maximum value for a_ij priors"
+    )
+    parser.add_argument(
         "--widen-m1-priors",
         action="store_true",
         help="Widen priors for M1 parameters (indices 0-4) to [0, 10]",
@@ -531,6 +559,18 @@ def parse_args():
         default=None,
         help="Maximum value for decay parameters b1-b5 (indices 3,4,8,9,15). "
         "Use smaller values (e.g., 1.0) if model over-predicts decline.",
+    )
+    parser.add_argument(
+        "--holdout-last-k",
+        type=int,
+        default=0,
+        help="Hold out last k observation timepoints for validation (default: 0)",
+    )
+    parser.add_argument(
+        "--holdout-days",
+        type=str,
+        default=None,
+        help="Comma-separated day numbers to hold out for validation (e.g., '15,21')",
     )
 
     # TMCMC options
@@ -572,7 +612,7 @@ def main():
 
     # Load experimental data
     logger.info("Loading experimental data...")
-    data, t_days, sigma_obs_est, phi_init_exp, metadata = load_experimental_data(
+    data_full, t_days, sigma_obs_est, phi_init_exp, metadata = load_experimental_data(
         data_dir, args.condition, args.cultivation, args.start_from_day, args.normalize_data
     )
 
@@ -604,11 +644,44 @@ def main():
 
     logger.info(f"Experimental days: {t_days}")
     logger.info(f"Model indices: {idx_sparse}")
-    logger.info(f"Data (absolute volumes):\n{data}")
+    logger.info(f"Data (absolute volumes):\n{data_full}")
+
+    holdout_mask = np.zeros(len(t_days), dtype=bool)
+    if args.holdout_last_k and args.holdout_last_k > 0:
+        k = int(args.holdout_last_k)
+        if k >= len(t_days):
+            raise ValueError("--holdout-last-k must be smaller than number of observations")
+        holdout_mask[-k:] = True
+    if args.holdout_days:
+        want = set()
+        for s in str(args.holdout_days).split(","):
+            s = s.strip()
+            if s:
+                want.add(int(s))
+        for i, d in enumerate(t_days):
+            if int(d) in want:
+                holdout_mask[i] = True
+
+    train_mask = ~holdout_mask
+    if not np.all(train_mask):
+        if train_mask.sum() < 2:
+            raise ValueError("Need at least 2 training observations after holdout")
+        data_train = data_full[train_mask]
+        idx_sparse_train = idx_sparse[train_mask]
+        metadata["holdout_days"] = [int(d) for d in t_days[holdout_mask]]
+        metadata["train_days"] = [int(d) for d in t_days[train_mask]]
+    else:
+        data_train = data_full
+        idx_sparse_train = idx_sparse
+        metadata["holdout_days"] = []
+        metadata["train_days"] = [int(d) for d in t_days]
 
     # Save data
-    save_npy(output_dir / "data.npy", data)
+    save_npy(output_dir / "data.npy", data_full)
     save_npy(output_dir / "idx_sparse.npy", idx_sparse)
+    if not np.all(train_mask):
+        save_npy(output_dir / "data_train.npy", data_train)
+        save_npy(output_dir / "idx_sparse_train.npy", idx_sparse_train)
     save_npy(output_dir / "t_days.npy", t_days)
 
     # Save config
@@ -627,7 +700,12 @@ def main():
         "cov_rel": args.cov_rel,
         "prior_min": args.prior_min,
         "prior_max": args.prior_max,
+        "allow_negative_a": bool(args.allow_negative_a),
+        "prior_a_min": args.prior_a_min,
+        "prior_a_max": args.prior_a_max,
         "prior_decay_max": args.prior_decay_max,
+        "holdout_last_k": args.holdout_last_k,
+        "holdout_days": args.holdout_days,
         "n_particles": args.n_particles,
         "n_stages": args.n_stages,
         "n_chains": args.n_chains,
@@ -638,7 +716,9 @@ def main():
 
     # Run estimation
     logger.info("Running parameter estimation...")
-    results = run_estimation(data, idx_sparse, args, output_dir, metadata, phi_init_array)
+    results = run_estimation(
+        data_train, idx_sparse_train, args, output_dir, metadata, phi_init_array
+    )
 
     # Save results
     save_npy(output_dir / "samples.npy", results["samples"])
@@ -734,6 +814,55 @@ def main():
     _, x_fit_mean = solver.solve(results["theta_mean_full"])
     phibar_mean = compute_phibar(x_fit_mean, active_species)
 
+    if not np.all(train_mask):
+        try:
+            idx_h = idx_sparse[holdout_mask]
+            y_h = data_full[holdout_mask]
+            pred_h_map = phibar_map[idx_h]
+            pred_h_mean = phibar_mean[idx_h]
+
+            def _point_metrics(pred, obs):
+                diff = pred - obs
+                rmse = float(np.sqrt(np.mean(diff**2)))
+                mae = float(np.mean(np.abs(diff)))
+                rmse_sp = np.sqrt(np.mean(diff**2, axis=0)).astype(float)
+                mae_sp = np.mean(np.abs(diff), axis=0).astype(float)
+                return {
+                    "rmse": rmse,
+                    "mae": mae,
+                    "rmse_by_species": rmse_sp.tolist(),
+                    "mae_by_species": mae_sp.tolist(),
+                }
+
+            val = {
+                "holdout_days": [int(d) for d in t_days[holdout_mask]],
+                "train_days": [int(d) for d in t_days[train_mask]],
+                "MAP": _point_metrics(pred_h_map, y_h),
+                "Mean": _point_metrics(pred_h_mean, y_h),
+            }
+
+            sigma_obs_val = (
+                args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
+            )
+            if isinstance(sigma_obs_val, (int, float)) and float(sigma_obs_val) > 0:
+                s = float(sigma_obs_val)
+                ll_map = -0.5 * np.sum(((y_h - pred_h_map) / s) ** 2) - y_h.size * np.log(
+                    s * np.sqrt(2.0 * np.pi)
+                )
+                ll_mean = -0.5 * np.sum(((y_h - pred_h_mean) / s) ** 2) - y_h.size * np.log(
+                    s * np.sqrt(2.0 * np.pi)
+                )
+                val["gaussian_logpdf"] = {
+                    "MAP": float(ll_map),
+                    "Mean": float(ll_mean),
+                    "sigma_obs": s,
+                }
+
+            save_json(output_dir / "validation_metrics.json", val)
+            logger.info("Saved validation metrics to validation_metrics.json")
+        except Exception as e:
+            logger.warning(f"Failed to compute/save validation metrics: {e}")
+
     # 1. MAP Fit
     try:
         plot_mgr.plot_TSM_simulation(
@@ -741,7 +870,7 @@ def main():
             x_fit_map,
             active_species,
             f"{name_tag}_MAP_Fit",
-            data,
+            data_full,
             idx_sparse,
             phibar=phibar_map,
         )
@@ -755,7 +884,7 @@ def main():
             x_fit_mean,
             active_species,
             f"{name_tag}_Mean_Fit",
-            data,
+            data_full,
             idx_sparse,
             phibar=phibar_mean,
         )
@@ -765,7 +894,7 @@ def main():
     # 3. Residuals
     try:
         plot_mgr.plot_residuals(
-            t_fit, phibar_map, data, idx_sparse, active_species, f"{name_tag}_Residuals"
+            t_fit, phibar_map, data_full, idx_sparse, active_species, f"{name_tag}_Residuals"
         )
     except Exception as e:
         logger.warning(f"Failed to generate residuals plot: {e}")
@@ -808,10 +937,41 @@ def main():
 
         phibar_samples = np.array(phibar_samples)  # (n_draws, n_time, n_species)
 
+        if not np.all(train_mask):
+            try:
+                idx_h = idx_sparse[holdout_mask]
+                y_h = data_full[holdout_mask]
+                draws_h = phibar_samples[:, idx_h, :]
+                q05 = np.quantile(draws_h, 0.05, axis=0)
+                q95 = np.quantile(draws_h, 0.95, axis=0)
+                inside = (y_h >= q05) & (y_h <= q95)
+
+                val_path = output_dir / "validation_metrics.json"
+                if val_path.exists():
+                    with open(val_path) as f:
+                        val = json.load(f)
+                else:
+                    val = {
+                        "holdout_days": [int(d) for d in t_days[holdout_mask]],
+                        "train_days": [int(d) for d in t_days[train_mask]],
+                    }
+                val["posterior_predictive_90_coverage"] = {
+                    "overall": float(np.mean(inside)),
+                    "by_species": np.mean(inside, axis=0).astype(float).tolist(),
+                }
+                save_json(val_path, val)
+            except Exception as e:
+                logger.warning(f"Failed to compute/save validation metrics: {e}")
+
         # Posterior Band
         try:
             plot_mgr.plot_posterior_predictive_band(
-                t_fit, phibar_samples, active_species, f"{name_tag}_PosteriorBand", data, idx_sparse
+                t_fit,
+                phibar_samples,
+                active_species,
+                f"{name_tag}_PosteriorBand",
+                data_full,
+                idx_sparse,
             )
         except Exception as e:
             logger.warning(f"Failed to generate posterior band plot: {e}")
@@ -823,7 +983,7 @@ def main():
                 phibar_samples,
                 active_species,
                 f"{name_tag}_PosteriorSpaghetti",
-                data,
+                data_full,
                 idx_sparse,
                 num_trajectories=50,
             )
@@ -844,10 +1004,10 @@ def main():
 
     # 9. Compute and save fit metrics
     try:
-        metrics_map = compute_fit_metrics(t_fit, x_fit_map, active_species, data, idx_sparse)
+        metrics_map = compute_fit_metrics(t_fit, x_fit_map, active_species, data_full, idx_sparse)
         metrics_map["estimate_type"] = "MAP"
 
-        metrics_mean = compute_fit_metrics(t_fit, x_fit_mean, active_species, data, idx_sparse)
+        metrics_mean = compute_fit_metrics(t_fit, x_fit_mean, active_species, data_full, idx_sparse)
         metrics_mean["estimate_type"] = "Mean"
 
         # Convert numpy arrays to lists for JSON

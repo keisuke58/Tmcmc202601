@@ -1,0 +1,15 @@
+# JAX CPU only（GPU 無し／CUDA エラー回避用）
+# GPU が無い環境や cuInit エラーが出る環境で使用
+#
+# Install: pip install -r requirements-jax-cpu.txt
+#
+# メリット: CUDA 初期化をスキップ → 起動が速い、エラーなし
+jax[cpu]>=0.4.0
+
+# estimate_reduced_nishioka_jax の依存
+pandas
+requests
+numba
+equinox
+matplotlib
+numpy

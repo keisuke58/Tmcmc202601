@@ -22,7 +22,7 @@ SSH_CMD="${SSH_CMD:-/usr/bin/ssh}"
 PROJECT_ROOT="${PROJECT_ROOT:-/home/nishioka/IKM_Hiwi/Tmcmc202601}"
 DEEPONET_DIR="${PROJECT_ROOT}/deeponet"
 # stuttgart 用 Python（リモートパス）。miniforge3 で作成した場合
-PYTHON="${PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python}"
+PYTHON="${PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3}"
 
 SERVERS="${SERVERS:-stuttgart01 stuttgart02 stuttgart03}"
 SYNC_ONLY=false

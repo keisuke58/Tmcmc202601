@@ -146,6 +146,7 @@ def main():
     parser.add_argument("--condition", default="Dysbiotic")
     parser.add_argument("--cultivation", default="HOBIC")
     parser.add_argument("--n-particles", type=int, default=200)
+    parser.add_argument("--max-stages", type=int, default=30)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--use-exp-init", action="store_true")
     parser.add_argument("--start-from-day", type=int, default=1)
@@ -160,6 +161,11 @@ def main():
     parser.add_argument("--mutation", default="nuts", choices=["rw", "hmc", "nuts"])
     parser.add_argument("--quick", action="store_true", help="Test run: 50p, 500 steps")
     parser.add_argument(
+        "--benchmark",
+        action="store_true",
+        help="Ultra-short benchmark: 20p, 500 steps, 3 stages (~1min each)",
+    )
+    parser.add_argument(
         "--device",
         choices=["auto", "cpu", "gpu"],
         default="auto",
@@ -171,6 +177,11 @@ def main():
         args.n_particles = 50
         args.n_steps = 500
         logger.info("Quick mode: n_particles=50, n_steps=500")
+    if args.benchmark:
+        args.n_particles = 20
+        args.n_steps = 500
+        args.max_stages = 3
+        logger.info("Benchmark mode: n_particles=20, n_steps=500, max_stages=3")
 
     devs = jax.devices()
     has_gpu = any("cuda" in str(d).lower() or "gpu" in str(d).lower() for d in devs)
@@ -234,6 +245,7 @@ def main():
         prior_bounds,
         mutation=args.mutation,
         n_particles=args.n_particles,
+        max_stages=args.max_stages,
         seed=args.seed,
         nuts_max_depth=6,
     )
@@ -241,6 +253,7 @@ def main():
     theta_MAP = result["theta_MAP"]
     logger.info(
         f"Done: {result['n_stages']} stages, "
+        f"total_time={result['total_time']:.1f}s, "
         f"accept={np.mean(result['accept_rates']):.2f}, "
         f"max logL={result['log_likelihoods'].max():.1f}"
     )
