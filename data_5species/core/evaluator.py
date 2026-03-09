@@ -131,6 +131,62 @@ def build_species_sigma(
     return sigma_arr
 
 
+def build_replicate_sigma(
+    replicate_csv: str,
+    condition: str,
+    cultivation: str,
+    days: list,
+    species_map: dict,
+    n_species: int = 5,
+    min_sigma: float = 0.005,
+) -> np.ndarray:
+    """
+    Build per-(timepoint, species) observation noise matrix from replicate data.
+
+    Computes sigma_ik = IQR / 1.35 for each (day, species) from
+    fig3_species_distribution_replicates.csv.  Values are in volume-fraction
+    space (0-1), matching the normalised data used by the likelihood.
+
+    Parameters
+    ----------
+    replicate_csv : str
+        Path to fig3_species_distribution_replicates.csv.
+    condition, cultivation : str
+        Filter keys (e.g. "Commensal", "Static").
+    days : list
+        Ordered list of days matching the data array rows.
+    species_map : dict
+        Maps species name → model index (0-4).
+    n_species : int
+        Number of species (default 5).
+    min_sigma : float
+        Floor value to avoid zero variance (default 0.005 = 0.5%).
+
+    Returns
+    -------
+    np.ndarray
+        Shape (n_timepoints, n_species) — sigma in fraction space (0-1).
+    """
+    import pandas as pd
+
+    df = pd.read_csv(replicate_csv)
+    mask = (df["condition"] == condition) & (df["cultivation"] == cultivation)
+    dc = df[mask]
+
+    n_t = len(days)
+    sigma_mat = np.full((n_t, n_species), min_sigma, dtype=np.float64)
+
+    for i, day in enumerate(days):
+        for sp_name, sp_idx in species_map.items():
+            vals = dc[(dc["species"] == sp_name) & (dc["day"] == day)]["distribution_pct"].values
+            if len(vals) >= 3:
+                iqr = np.percentile(vals, 75) - np.percentile(vals, 25)
+                sigma_pct = max(iqr / 1.35, min_sigma * 100.0)
+                sigma_mat[i, sp_idx] = sigma_pct / 100.0  # fraction space
+
+    return sigma_mat
+
+
 def build_likelihood_weights(
     n_obs: int,
     n_species: int,
@@ -227,10 +283,11 @@ def log_likelihood_sparse(
     n_obs, n_species = data.shape
     logL = 0.0
 
-    # Vectorize sigma_obs: scalar → per-species array
+    # Vectorize sigma_obs: scalar → (n_species,), 1D → (n_species,), 2D kept as-is
     sigma_obs_arr = np.atleast_1d(np.asarray(sigma_obs, dtype=np.float64))
-    if sigma_obs_arr.size == 1:
+    if sigma_obs_arr.ndim == 1 and sigma_obs_arr.size == 1:
         sigma_obs_arr = np.full(n_species, sigma_obs_arr[0])
+    # sigma_obs_arr is now (n_species,) or (n_obs, n_species)
 
     # Pre-compute R inverse and determinant if rho is used
     use_correlation = (abs(rho) > 1e-9) and (n_species > 1)
@@ -249,7 +306,8 @@ def log_likelihood_sparse(
         # 1. Variance vector and total covariance diagonal
         var_total_vec = np.zeros(n_species)
         for j in range(n_species):
-            var_raw = sig[i, j] + sigma_obs_arr[j] ** 2
+            s_ij = sigma_obs_arr[i, j] if sigma_obs_arr.ndim == 2 else sigma_obs_arr[j]
+            var_raw = sig[i, j] + s_ij**2
 
             # Health checks
             if health is not None:
