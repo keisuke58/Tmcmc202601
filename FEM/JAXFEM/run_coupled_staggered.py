@@ -905,6 +905,11 @@ def main():
         action="store_true",
         help="Save results as .npz for later comparison",
     )
+    ap.add_argument(
+        "--theta-json",
+        default=None,
+        help="Direct path to theta JSON file (overrides condition-based lookup)",
+    )
     args = ap.parse_args()
 
     _TMCMC = _HERE.parent.parent
@@ -915,17 +920,25 @@ def main():
     if args.condition is None or args.condition == "all":
         run_4_conditions(args)
     else:
-        _RUNS = _TMCMC / "data_5species" / "_runs"
-        theta_path = _RUNS / args.condition / "theta_MAP.json"
-        if theta_path.exists():
-            with open(theta_path) as f:
+        theta = None
+        # Direct theta file takes priority
+        if args.theta_json and Path(args.theta_json).exists():
+            with open(args.theta_json) as f:
                 d = json.load(f)
             theta = np.array(d.get("theta_full", d.get("theta_sub")), dtype=np.float64)
         else:
+            _RUNS = _TMCMC / "data_5species" / "_runs"
+            theta_path = _RUNS / args.condition / "theta_MAP.json"
+            if theta_path.exists():
+                with open(theta_path) as f:
+                    d = json.load(f)
+                theta = np.array(d.get("theta_full", d.get("theta_sub")), dtype=np.float64)
+
+        if theta is None:
             from core_hamilton_2d_nutrient import THETA_DEMO
 
             theta = THETA_DEMO
-            print(f"  WARNING: {theta_path} not found, using demo theta")
+            print(f"  WARNING: No theta found, using demo theta")
 
         cfg = Config2D(
             Nx=args.nx,
