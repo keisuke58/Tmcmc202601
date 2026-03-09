@@ -22,10 +22,13 @@
 #   # On specific node:
 #   qsub -l nodes=frontale04:ppn=12 -v CONDITION=Commensal,CULTIVATION=Static,NPART=1000 tmcmc_job.sh
 #
+#   # With expIC + heteroscedastic sigma:
+#   qsub -v CONDITION=Dysbiotic,CULTIVATION=HOBIC,NPART=1000,USE_EXP_INIT=1,REPLICATE_SIGMA=1 tmcmc_job.sh
+#
 #   # All 4 conditions at once:
 #   for c in "Commensal,Static" "Commensal,HOBIC" "Dysbiotic,Static" "Dysbiotic,HOBIC"; do
 #     IFS=',' read -r COND CULT <<< "$c"
-#     qsub -v CONDITION=$COND,CULTIVATION=$CULT,NPART=1000 tmcmc_job.sh
+#     qsub -v CONDITION=$COND,CULTIVATION=$CULT,NPART=1000,USE_EXP_INIT=1,REPLICATE_SIGMA=1 tmcmc_job.sh
 #   done
 # ============================================================
 
@@ -44,6 +47,7 @@ K_HILL="${K_HILL:-0.05}"
 N_HILL="${N_HILL:-4}"
 CHECKPOINT="${CHECKPOINT:-5}"
 USE_EXP_INIT="${USE_EXP_INIT:-0}"
+REPLICATE_SIGMA="${REPLICATE_SIGMA:-0}"
 
 # --- Environment ---
 cd /home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/main
@@ -52,8 +56,12 @@ PYTHON=python3
 # --- Output directory ---
 TS=$(date +%Y%m%d_%H%M%S)
 SHORT="${CONDITION:0:1}${CULTIVATION:0:1}"
-if [ "${USE_EXP_INIT}" = "1" ]; then
+if [ "${USE_EXP_INIT}" = "1" ] && [ "${REPLICATE_SIGMA}" = "1" ]; then
+    OUTDIR="_runs/${SHORT}_${NPART}p_expIC_repSigma_${TS}"
+elif [ "${USE_EXP_INIT}" = "1" ]; then
     OUTDIR="_runs/${SHORT}_${NPART}p_expIC_${TS}"
+elif [ "${REPLICATE_SIGMA}" = "1" ]; then
+    OUTDIR="_runs/${SHORT}_${NPART}p_repSigma_${TS}"
 else
     OUTDIR="_runs/${SHORT}_${NPART}p_${NCHAINS}ch_${TS}"
 fi
@@ -69,8 +77,12 @@ echo "=============================================="
 
 EXTRA_ARGS=""
 if [ "${USE_EXP_INIT}" = "1" ]; then
-    EXTRA_ARGS="--use-exp-init"
+    EXTRA_ARGS="${EXTRA_ARGS} --use-exp-init"
     echo "  Using experimental Day 1 IC (--use-exp-init)"
+fi
+if [ "${REPLICATE_SIGMA}" = "1" ]; then
+    EXTRA_ARGS="${EXTRA_ARGS} --replicate-sigma"
+    echo "  Using heteroscedastic sigma from replicates (--replicate-sigma)"
 fi
 
 $PYTHON estimate_reduced_nishioka.py \
