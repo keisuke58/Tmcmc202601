@@ -551,49 +551,40 @@ Commensal Static & Dysbiotic Static  & $-0.11$ & $0.57$\\
 The results (Table~\ref{tab:pairwise}) show that matrices within the same health state share a common backbone ($\rho\approx0.46$) while differing in magnitude, whereas cross-state comparisons yield weak or negative correlations and larger Frobenius distances ($\Delta_F\geq0.57$).
 This quantifies the transition from health to disease as a structural reorganisation of the interaction landscape, not merely a rescaling of existing coefficients.
 
+\subsection{Independent validation}
+
+We validate the inferred parameters against four measurements from Heine et al.~\cite{Heine2025PeriImplant} that were \emph{not} used in calibration.
+
+\textit{pH prediction} ($R^2=0.71$):
+a linear model $\mathrm{pH}(t) = 6.95 - 0.74\,\phi_{\mathrm{So}} - 0.48\,\phi_{\mathrm{Vd}}$ fitted to HOBIC pH data (Fig.~4A in~\cite{Heine2025PeriImplant}) yields Pearson $r=0.84$ over $N=12$ time points.
+The negative So coefficient confirms lactate-driven acidification consistent with the inferred species dynamics.
+
+\textit{Gingipain--Pg correlation} ($r=0.90$):
+the temporal profile of gingipain (Fig.~4B), the principal virulence factor of Pg, correlates strongly with the predicted Pg trajectory in DH, both exhibiting delayed onset at Day~15--21.
+
+\textit{Metabolic sign consistency}:
+the MAP An$\to$Vd coefficient ($A_{12}=+1.65$) matches predicted lactate/succinate cross-feeding, while So$\to$Vd ($A_{02}=-0.44$) indicates niche competition dominates---ecologically plausible for species sharing metabolic substrates (Fig.~4C).
+
+\textit{Growth rate parity}:
+planktonic doubling times (1.68\,h commensal vs.\ 1.64\,h dysbiotic; Fig.~1B) confirm that condition differences arise from community interactions, not individual species fitness.
+
 
 %==============================================================================
 \section{Discussion}
 \label{sec:discussion}
 %==============================================================================
 
-\subsection{Biological interpretation}
+The inferred interaction matrices map the commensal-to-dysbiotic transition quantitatively.
+In commensal states, So--An co-aggregation and So--Vei lactate exchange form a stable mutualistic core; the transition to dysbiosis activates cooperative Vei$\to$Pg and Fn$\to$Pg pathways whose strength is cultivation-dependent.
+The structural similarity within health states ($\rho\approx0.46$, Table~\ref{tab:pairwise}) contrasts with cross-state anticorrelations ($\rho\approx-0.15$), confirming that the health-to-disease shift is a topological reorganisation of the interaction network.
+The strong flow-dependent activation of Vei$\to$Pg in DH---absent in DS---implies cultivation-specific surge dynamics, justifying the condition-specific estimation strategy.
 
-The inferred interaction matrices provide a quantitative map of the commensal-to-dysbiotic transition.
-In commensal states, the dominant interactions involve early colonizers: So--An co-aggregation and So--Vei lactate exchange form a stable mutualistic core.
-The transition to dysbiosis is characterised by the activation of cooperative pathways involving Pg, particularly the Vei$\to$Pg pH support and Fn$\to$Pg peptide supply.
-The non-monotonic pattern of the Vei--Pg coefficient across conditions---strongest in DH but also present in DS---implies that the pathogen surge is not driven by a single large cooperative coefficient but emerges from the interplay of multiple interaction blocks, decay rates, and initial conditions.
+While the model reproduces the DH pathogen surge qualitatively, the time-invariant $\mathbf{A}$ underestimates the terminal Pg rise; state-dependent interactions $A_{ij}(\mathrm{pH},c^*)$ or regime-switching formulations may be required.
+A Monod nutrient coupling was tested but showed negligible effect ($\Delta\mathrm{DI}<0.002$), confirming that constant $\mathbf{b}$ is adequate for quasi-steady biofilm nutrient regimes.
 
-\subsection{Cross-condition transferability}
-
-The structural similarity within health states (Table~\ref{tab:pairwise}) raises the question of whether MAP parameters are transferable across cultivation modes.
-The Frobenius analysis shows that within-state pairs (C--C and D--D) share a common interaction backbone ($\rho\approx0.46$), while cross-state pairs exhibit weak or negative correlations ($\rho\approx-0.15$).
-This suggests that the commensal interaction structure is relatively robust to the static/HOBIC perturbation, whereas the dysbiotic interaction landscape is more sensitive to the cultivation mode.
-In particular, the strong flow-dependent activation of Vei$\to$Pg and Fn$\to$Pg pathways in DH---absent in DS---implies that the dysbiotic surge dynamics are cultivation-specific, providing additional justification for the condition-specific estimation strategy adopted in this work.
-
-\subsection{Surge dynamics and model limitations}
-
-While the TMCMC-calibrated model qualitatively reproduces the pathogen surge in DH, it underestimates the terminal sharp rise of Pg.
-This limitation is inherent to the time-invariant interaction matrix: the current framework assumes constant~$\mathbf{A}$ throughout the experiment.
-Capturing the full surge strength may require state-dependent interactions, e.g.\ $A_{ij}(\mathrm{pH},c^*)$, or regime-switching formulations that allow threshold-triggered changes in the interaction topology.
-
-The decay parameters~$\mathbf{b}$ are likewise treated as time-invariant.
-A Monod nutrient coupling $b_{\mathrm{eff}}(t) = b_i \cdot S/(K_S+S)$ was tested but showed negligible effect ($\Delta\mathrm{DI}<0.002$) at physiologically plausible consumption rates, confirming that the constant-$\mathbf{b}$ approximation is adequate for the quasi-steady nutrient regime of mature biofilms.
-Significant deviations arise only under extreme nutrient depletion ($S\to0$), which would require explicit nutrient dynamics---an extension naturally provided by the 1D/2D spatial models of Klempt et al.~\cite{Klempt2025ContinuumBiofilm}.
-
-\subsection{Identifiability, sequential estimation, and computational cost}
-
-The biological constraints improve identifiability: the data-to-parameter ratio for CS improves by $20/11\approx1.8\times$, and the Dirac-delta priors on locked parameters concentrate posterior mass on the biologically plausible subspace without sacrificing flexibility where data carry information.
-The four-stage decomposition further reduces each sub-problem to at most 6 dimensions, aligning the conditioning order with ecological succession.
-
-A potential drawback is conditional bias from MAP fixation at each stage.
-For CS, stage-1 posterior widths ($\Delta b\leq0.08$, $\sim4\%$ of the prior range) indicate negligible propagation error.
-For DH, the wider posterior ($\Delta\theta_{18}=3.2$) motivates the full 20-dimensional exploration without sequential conditioning.
-Each run with $N=1000$ particles converges in $M=3$--$5$ tempering stages, yielding $\sim25{,}000$ forward solves per condition.
-With $\sim1$\,ms per ODE solve, the wall-clock time (40--90\,h) is dominated by the sensitivity computation overhead on 12 cores.
-
-Compared to the surrogate-based approach of Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms}, we work directly with the ODE forward model, avoiding surrogate approximation errors.
-The biological constraint mechanism is complementary to their hybrid uncertainty treatment and could be combined with surrogate acceleration in future applications.
+The biological constraints improve identifiability: the data-to-parameter ratio increases to $30/11\approx2.7\times$ for CS, while the four-stage decomposition reduces each sub-problem to at most 6 dimensions.
+Each run requires $\sim25{,}000$ forward solves per condition; with $\sim1$\,ms per ODE integration, wall-clock times range from 40--90\,h on 12 cores.
+Compared to Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms}, the direct-ODE approach avoids surrogate approximation errors; combining their surrogate acceleration with our biological constraints is a natural extension.
 
 %==============================================================================
 \section{Conclusions}
@@ -610,8 +601,9 @@ Encoding experimentally absent interactions as Dirac-delta priors reduces the pa
 \item \textbf{Sequential TMCMC.}
 A four-stage estimation strategy aligned with ecological succession decomposes the 15-dimensional problem into sub-problems of dimension $\leq6$, enabling efficient sampling and biologically interpretable conditioning.
 
-\item \textbf{Condition-specific validation.}
+\item \textbf{Condition-specific and independent validation.}
 The framework is validated across four experimental conditions, correctly reproducing commensal homeostasis (CS, CH), moderate dysbiosis (DS), and the non-linear pathogen surge (DH).
+Independent validation against unused pH ($R^2=0.71$), gingipain ($r=0.90$), and metabolic data confirms that the inferred parameters are mechanistically consistent.
 
 \item \textbf{Quantitative interaction comparison.}
 Pairwise Frobenius analysis reveals that the health-to-disease transition corresponds to a structural reorganisation of the interaction matrix ($\rho_{\text{cross}}\approx-0.15$, $\Delta_F\geq0.57$), not merely a magnitude shift.
