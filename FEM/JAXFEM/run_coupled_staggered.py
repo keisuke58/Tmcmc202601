@@ -55,11 +55,22 @@ jax.config.update("jax_enable_x64", True)
 
 
 # Species-specific growth weights (EPS production capacity)
-# So: primary colonizer, high glucan/fructan EPS
-# An: moderate EPS producer
-# Vei: low EPS, mainly metabolic
-# Fn: bridge organism, moderate structural contribution
-# Pg: protease producer (gingipain), degrades matrix — minimal growth contribution
+# Weights reflect relative contribution to biofilm matrix expansion:
+#   So (1.0): Primary EPS producer — glucosyltransferases (gtfB/C/D) synthesize
+#             water-insoluble glucans, the main structural scaffold.
+#             Ref: Bowen & Koo (2011) Caries Res 45:69; Xiao & Koo (2010)
+#   An (0.8): Moderate EPS — fimbriae-mediated coaggregation + heteropolysaccharide.
+#             Ref: Palmer et al. (2003) Microbiology 149:3507
+#   Vei (0.6): Low EPS — primarily metabolic (lactate consumer), limited matrix.
+#             Ref: Mashima & Nakazawa (2014) Curr Oral Health Rep 1:138
+#   Fn (0.5): Bridge organism — outer membrane adhesins (RadD, Fap2) rather than
+#             polysaccharide EPS. Moderate structural via coaggregation.
+#             Ref: Kolenbrander et al. (2010) Nat Rev Microbiol 8:471
+#   Pg (0.3): Keystone pathogen — gingipains degrade matrix components.
+#             Net negative contribution to structural EPS.
+#             Ref: Hajishengallis et al. (2012) Nat Rev Microbiol 10:717
+# Ranking consistent with Kenney & Ash (1969) classification of EPS producers
+# and Flemming et al. (2016) Nat Rev Microbiol 14:563 (general biofilm matrix).
 GROWTH_WEIGHTS = np.array([1.0, 0.8, 0.6, 0.5, 0.3])
 
 
@@ -167,6 +178,7 @@ def run_staggered_coupled(
     sigma_crit=0.0,
     stress_type="plane_strain",
     nutrient_bc="mixed",
+    alpha_max=0.0,
 ):
     """
     Quasi-static staggered growth-mechanics coupling (Klempt 2024 style).
@@ -186,6 +198,10 @@ def run_staggered_coupled(
         f(σ) = max(0, 1 - σ_vm/σ_crit)
     stress_type : str — "plane_strain" or "plane_stress"
     nutrient_bc : str — "mixed" (Dirichlet top, Neumann others) or "dirichlet" (all walls)
+    alpha_max : float — logistic growth saturation limit.
+        0 = no saturation (linear growth, backward compatible).
+        > 0: α_dot *= (1 - α/α_max), giving logistic saturation.
+        Klempt (2024) uses α_max ≈ 0.3 for volumetric growth.
     """
     A, b_diag = theta_to_matrices(jnp.asarray(theta, dtype=jnp.float64))
     active_mask = jnp.ones(5, dtype=jnp.int64)
@@ -258,6 +274,7 @@ def run_staggered_coupled(
         "u_max": [],  # scalar
         "sigma_vm_max": [],  # scalar
         "sigma_vm_mean": [],  # scalar
+        "geom_nonlin": [],  # scalar: |∇u|/|ε| ratio (< 0.05 ≈ linear OK)
     }
 
     # Save initial state
@@ -279,11 +296,12 @@ def run_staggered_coupled(
 
     mode_str = "QUASI-STATIC" if ode_adjust_steps > 0 else "ADIABATIC"
     stress_str = f"σ_crit={sigma_crit:.0f}Pa" if sigma_crit > 0 else "no σ feedback"
+    alpha_str = f"α_max={alpha_max:.2f}" if alpha_max > 0 else "no saturation"
     print(f"\n{'='*70}")
     print(f"  {mode_str} STAGGERED  |  Nx={Nx} Ny={Ny}  |  {n_growth_steps} growth steps")
-    print(f"  dt_growth={dt_growth:.2e}  ODE adjust: {ode_adjust_steps} steps/growth")
+    print(f"  dt_growth={dt_growth:.2e} [hours]  ODE adjust: {ode_adjust_steps} steps/growth")
     print(f"  k_alpha={k_alpha}  FEM every {save_every} steps  |  E model: {e_model}")
-    print(f"  {stress_str}  |  {stress_type}  |  nutrient BC: {nutrient_bc}")
+    print(f"  {stress_str}  |  {alpha_str}  |  {stress_type}  |  nutrient BC: {nutrient_bc}")
     print(f"{'='*70}\n")
 
     t0_wall = time.perf_counter()
@@ -327,7 +345,12 @@ def run_staggered_coupled(
             stress_mod = np.clip(1.0 - sigma_vm_node / sigma_crit, 0.0, 1.0)
         else:
             stress_mod = 1.0
-        alpha_field += k_alpha * weighted_phi * monod * stress_mod * dt_growth
+        # Logistic saturation: dα/dt *= (1 - α/α_max)
+        if alpha_max > 0:
+            logistic = np.clip(1.0 - alpha_field / alpha_max, 0.0, 1.0)
+        else:
+            logistic = 1.0
+        alpha_field += k_alpha * weighted_phi * monod * stress_mod * logistic * dt_growth
 
         # --- (4-5) FEM solve at snapshot intervals ---
         if step % save_every == 0 or step == n_growth_steps:
@@ -373,7 +396,7 @@ def run_staggered_coupled(
     print(f"  Snapshots: {len(snaps['t'])}")
 
     # Convert lists to arrays
-    for key in ["t", "u_max", "sigma_vm_max", "sigma_vm_mean"]:
+    for key in ["t", "u_max", "sigma_vm_max", "sigma_vm_mean", "geom_nonlin"]:
         snaps[key] = np.array(snaps[key])
     for key in ["phi", "c", "DI", "E", "alpha", "eps_growth", "sigma_vm"]:
         snaps[key] = np.array(snaps[key])
@@ -419,6 +442,7 @@ def _save_snapshot(
     eps_growth = alpha_field / 3.0
 
     # FEM solve
+    geom_nonlin = 0.0
     if alpha_field.max() > 1e-12:
         fem = solve_2d_fem(
             E_field,
@@ -436,6 +460,7 @@ def _save_snapshot(
         u_max = float(u_mag.max())
         svm_max = float(sigma_vm.max())
         svm_mean = float(sigma_vm.mean())
+        geom_nonlin = fem.get("geom_nonlin_ratio", 0.0)
     else:
         n_elem = (Nx - 1) * (Ny - 1)
         sigma_vm = np.zeros(n_elem)
@@ -454,6 +479,7 @@ def _save_snapshot(
     snaps["u_max"].append(u_max)
     snaps["sigma_vm_max"].append(svm_max)
     snaps["sigma_vm_mean"].append(svm_mean)
+    snaps["geom_nonlin"].append(geom_nonlin)
 
 
 # ============================================================================
@@ -651,6 +677,8 @@ def _run_single_condition_subprocess(cond_dir, args):
         args.stress_type,
         "--nutrient-bc",
         args.nutrient_bc,
+        "--alpha-max",
+        str(args.alpha_max),
         "--outdir",
         str(args.outdir),
         "--save-npz",
@@ -865,6 +893,12 @@ def main():
         default="mixed",
         help="Nutrient BC: mixed (Dirichlet top, Neumann others) or dirichlet (all walls)",
     )
+    ap.add_argument(
+        "--alpha-max",
+        type=float,
+        default=0.0,
+        help="Logistic growth saturation limit. 0=no cap. Klempt uses ~0.3.",
+    )
     ap.add_argument("--outdir", default=None)
     ap.add_argument(
         "--save-npz",
@@ -916,6 +950,7 @@ def main():
             sigma_crit=args.sigma_crit,
             stress_type=args.stress_type,
             nutrient_bc=args.nutrient_bc,
+            alpha_max=args.alpha_max,
         )
 
         plot_time_evolution(
@@ -944,6 +979,7 @@ def main():
                 u_max=snaps["u_max"],
                 sigma_vm_max=snaps["sigma_vm_max"],
                 sigma_vm_mean=snaps["sigma_vm_mean"],
+                geom_nonlin=snaps["geom_nonlin"],
                 Nx=snaps["Nx"],
                 Ny=snaps["Ny"],
                 Lx=snaps["Lx"],
@@ -958,6 +994,10 @@ def main():
         print(f"  Final α:  [{snaps['alpha'][-1].min():.5f}, {snaps['alpha'][-1].max():.5f}]")
         print(f"  Final σ_vm_max: {snaps['sigma_vm_max'][-1]:.2f} Pa")
         print(f"  Final |u|_max:  {snaps['u_max'][-1]:.2e}")
+        gnl = snaps["geom_nonlin"][-1]
+        print(
+            f"  Geom nonlin ratio: {gnl:.4f} ({'LINEAR OK' if gnl < 0.05 else 'WARNING: nonlinear'})"
+        )
 
     print(f"\n  Output: {outdir}")
 

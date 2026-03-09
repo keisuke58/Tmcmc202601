@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N stag-v2
+#PBS -N stag-v3
 #PBS -l nodes=1:ppn=4
 #PBS -l walltime=2:00:00
 #PBS -j oe
@@ -10,20 +10,21 @@ cd /home/nishioka/IKM_Hiwi/Tmcmc202601
 # Use the venv with JAX installed
 export PATH="/home/nishioka/IKM_Hiwi/.venv_jax/bin:$PATH"
 
-echo "=== Quasi-Static Staggered Coupled Growth-Mechanics (v2) ==="
+echo "=== Quasi-Static Staggered Coupled Growth-Mechanics (v3) ==="
 echo "Node: $(hostname)"
 echo "Date: $(date)"
 echo "Python: $(which python)"
 echo ""
 
-# Quasi-static staggered coupling (v2):
+# Quasi-static staggered coupling (v3):
 #   - 0D Numba solver for initial equilibration (2500 steps = TMCMC calibration)
 #   - Hamilton reaction at EACH growth step with LOCAL nutrient c(x,y)
-#     c_effective = c_hamilton * c_nutrient(x,y) / c_boundary
 #   - Species-specific growth weights (So=1.0, An=0.8, Vei=0.6, Fn=0.5, Pg=0.3)
 #   - Mixed nutrient BCs (Dirichlet top=saliva, Neumann bottom=tooth)
 #   - Stress-dependent growth inhibition: f(σ) = max(0, 1 - σ_vm/100)
+#   - Logistic growth saturation: α_max = 0.3 (Klempt 2024)
 #   - Plane stress (thin biofilm assumption)
+#   - Geometric nonlinearity diagnostic (|∇u|/|ε| ratio)
 python FEM/JAXFEM/run_coupled_staggered.py \
     --condition all \
     --nx 25 --ny 25 \
@@ -36,7 +37,8 @@ python FEM/JAXFEM/run_coupled_staggered.py \
     --e-model phi_pg \
     --sigma-crit 100 \
     --stress-type plane_stress \
-    --nutrient-bc mixed
+    --nutrient-bc mixed \
+    --alpha-max 0.3
 
 echo ""
 echo "=== Completed: $(date) ==="
