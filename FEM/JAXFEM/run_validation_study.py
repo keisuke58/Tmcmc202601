@@ -278,22 +278,17 @@ def study_posterior_uq(condition="dh_baseline", outdir=None, n_samples=50):
         with open(theta_tmp, "w") as f:
             json.dump({"theta_full": theta.tolist()}, f)
 
-        # Create temp condition dir
-        cond_tmp = sub_dir / f"sample_{i:03d}"
-        cond_tmp.mkdir(exist_ok=True)
-        map_tmp = cond_tmp / "theta_MAP.json"
-        with open(map_tmp, "w") as f:
-            json.dump({"theta_full": theta.tolist()}, f)
-
         out_tmp = sub_dir / f"out_{i:03d}"
         out_tmp.mkdir(exist_ok=True)
 
-        # Run solver (use the temp dir as "condition")
+        # Run solver with --theta-json (direct path, no condition lookup)
         cmd = [
             sys.executable,
             str(_HERE / "run_coupled_staggered.py"),
             "--condition",
-            str(cond_tmp.relative_to(_RUNS)),
+            f"uq_sample_{i:03d}",
+            "--theta-json",
+            str(theta_tmp),
             "--nx",
             "25",
             "--ny",
@@ -336,6 +331,9 @@ def study_posterior_uq(condition="dh_baseline", outdir=None, n_samples=50):
                     f"  [{i+1}/{len(samples)}] E={r['E_mean']:.1f} Pa, "
                     f"σ_vm={r['sigma_vm_max']:.1f} Pa"
                 )
+        else:
+            if proc.returncode != 0:
+                print(f"  [{i+1}/{len(samples)}] FAILED: {proc.stderr[-200:]}")
 
     if not results_list:
         print("  ERROR: No UQ results")
