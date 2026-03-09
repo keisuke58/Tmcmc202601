@@ -377,7 +377,7 @@ def run_staggered_coupled(
             pct = 100 * step / n_growth_steps
             svm_max = snaps["sigma_vm_max"][-1]
             u_max_val = snaps["u_max"][-1]
-            alpha_max = alpha_field.max()
+            alpha_cur_max = alpha_field.max()
             DI_min = snaps["DI"][-1].min()
             DI_max = snaps["DI"][-1].max()
             E_min_val = snaps["E"][-1].min()
@@ -386,7 +386,7 @@ def run_staggered_coupled(
                 f"  [{pct:5.1f}%] t_g={t_growth:.2f}  "
                 f"DI=[{DI_min:.3f},{DI_max:.3f}]  "
                 f"E=[{E_min_val:.0f},{E_max_val:.0f}]  "
-                f"α={alpha_max:.4f}  "
+                f"α={alpha_cur_max:.4f}  "
                 f"σ_vm={svm_max:.1f} Pa  "
                 f"|u|={u_max_val:.2e}"
             )
