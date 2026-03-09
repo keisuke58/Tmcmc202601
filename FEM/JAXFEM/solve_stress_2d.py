@@ -311,20 +311,17 @@ def solve_2d_fem(
     sigma_vm = np.sqrt(sigma_xx**2 + sigma_yy**2 - sigma_xx * sigma_yy + 3 * sigma_xy**2)
 
     # Geometric nonlinearity diagnostic:
-    # Compare |∇u|² (nonlinear strain contribution) to |ε| (linear strain)
-    # If max(|∇u|²/2) / max(|ε|) << 1, linear FEM is justified.
+    # max(|∇u|) measures whether displacements are "small" in the
+    # sense of linear elasticity. If max(|∇u|) < 0.05, the nonlinear
+    # strain term ½(∇u)ᵀ∇u is < 0.1% of the linear term → linear OK.
     u_2d = u.reshape(Nx, Ny, 2)
-    du_dx = np.zeros((Nx, Ny, 2, 2))
+    du_dx = np.zeros((Nx - 2, Ny - 2, 2, 2))
     for d in range(2):
-        # Central differences for ∂u_d/∂x, ∂u_d/∂y
-        du_dx[1:-1, :, d, 0] = (u_2d[2:, :, d] - u_2d[:-2, :, d]) / (2 * dx)
-        du_dx[:, 1:-1, d, 1] = (u_2d[:, 2:, d] - u_2d[:, :-2, d]) / (2 * dy)
-    # |∇u|² = Σ (∂u_i/∂x_j)²
-    grad_u_sq = np.sum(du_dx**2)
-    n_inner = max((Nx - 2) * (Ny - 2), 1)
-    grad_u_sq_mean = np.sum(du_dx[1:-1, 1:-1] ** 2) / n_inner
-    eps_max = max(np.max(np.abs(eps_growth_field)), 1e-15)
-    geom_nonlin_ratio = float(np.sqrt(grad_u_sq_mean) / eps_max)
+        du_dx[:, :, d, 0] = (u_2d[2:, 1:-1, d] - u_2d[:-2, 1:-1, d]) / (2 * dx)
+        du_dx[:, :, d, 1] = (u_2d[1:-1, 2:, d] - u_2d[1:-1, :-2, d]) / (2 * dy)
+    # Frobenius norm of ∇u at each interior node
+    grad_u_norm = np.sqrt(np.sum(du_dx**2, axis=(2, 3)))
+    geom_nonlin_ratio = float(grad_u_norm.max())
 
     return {
         "u": u.reshape(-1, 2),
