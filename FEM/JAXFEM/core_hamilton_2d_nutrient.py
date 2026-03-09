@@ -298,6 +298,43 @@ def _make_reaction_step(n_sub, n_iters):
     return reaction_step
 
 
+def _make_newton_step_vmap_localc(n_iters):
+    """Create jitted vmapped Newton step with per-node local nutrient c.
+
+    Uses residual_c() which accepts c_node as a separate scalar argument,
+    enabling spatial nutrient coupling: nodes in nutrient-depleted regions
+    have weaker Hamilton interactions → different φ_eq(c_local).
+
+    Returns a function: (G, c_flat, params) -> G_new
+      G      : (N_nodes, 12)
+      c_flat : (N_nodes,)  per-node effective c = c_hamilton * c_nutrient / c_boundary
+      params : dict (shared across nodes, "c" key is ignored)
+    """
+
+    def newton_step(g_prev, c_node, params):
+        active_mask = params["active_mask"]
+
+        def body(carry, _):
+            g = carry
+            g = clip_state(g, active_mask)
+
+            def F(gg):
+                return residual_c(gg, g_prev, c_node, params)
+
+            Q = F(g)
+            J = jax.jacfwd(F)(g)
+            delta = jnp.linalg.solve(J, -Q)
+            g_next = g + delta
+            g_next = clip_state(g_next, active_mask)
+            return g_next, None
+
+        g0 = clip_state(g_prev, active_mask)
+        g_final, _ = jax.lax.scan(body, g0, jnp.arange(n_iters))
+        return g_final
+
+    return jax.jit(jax.vmap(newton_step, in_axes=(0, 0, None)))
+
+
 # ---------------------------------------------------------------------------
 # 2D Laplacian (Neumann BCs)
 # ---------------------------------------------------------------------------
@@ -805,6 +842,64 @@ def _make_nutrient_step_stable(n_sub_c):
                 c_pad[1:-1, :-2] + c_pad[1:-1, 2:] - 2.0 * c_pad[1:-1, 1:-1]
             ) / dy2
             # Monod consumption
+            monod = c_np / (kM + c_np)
+            consumption = phi_total_w * monod
+
+            c_np = c_np + dt_sub * (D * lap - consumption)
+            c_np = np.clip(c_np, 0.0, cb)
+
+        return jnp.array(c_np)
+
+    return step
+
+
+def _make_nutrient_step_mixed(n_sub_c):
+    """CFL-stable nutrient step with physically motivated mixed BCs.
+
+    Boundary conditions:
+      - Top  (y=Ly): Dirichlet c = c_bc  (saliva interface)
+      - Bottom (y=0): Neumann dc/dy = 0  (tooth surface, no flux)
+      - Left/Right:   Neumann dc/dx = 0  (symmetry)
+
+    This creates a realistic depth-dependent nutrient gradient:
+    c ≈ 1 at saliva side, depleted toward tooth surface.
+    """
+
+    def step(c, phi_2d, D_c, k_M, g_cons, c_bc, dx, dy, dt_macro):
+        dt_sub = float(dt_macro / n_sub_c)
+        c_np = np.asarray(c, dtype=np.float64)
+        phi_np = np.asarray(phi_2d, dtype=np.float64)
+        g_np = np.asarray(g_cons, dtype=np.float64)
+        D = float(D_c)
+        kM = float(k_M)
+        cb = float(c_bc)
+        dx2 = float(dx * dx)
+        dy2 = float(dy * dy)
+        Nx, Ny = c_np.shape
+
+        phi_total_w = np.sum(phi_np * g_np[None, None, :], axis=-1)
+
+        for _ in range(n_sub_c):
+            # Custom padding for mixed BCs
+            c_pad = np.zeros((Nx + 2, Ny + 2))
+            c_pad[1:-1, 1:-1] = c_np
+            # x=0, x=Lx: Neumann (zero-flux) → ghost = boundary
+            c_pad[0, 1:-1] = c_np[0, :]
+            c_pad[-1, 1:-1] = c_np[-1, :]
+            # y=0 (bottom/tooth): Neumann → ghost = boundary
+            c_pad[1:-1, 0] = c_np[:, 0]
+            # y=Ly (top/saliva): Dirichlet c = c_bc
+            c_pad[1:-1, -1] = cb
+            # Corners
+            c_pad[0, 0] = c_np[0, 0]
+            c_pad[-1, 0] = c_np[-1, 0]
+            c_pad[0, -1] = cb
+            c_pad[-1, -1] = cb
+
+            lap = (c_pad[:-2, 1:-1] + c_pad[2:, 1:-1] - 2.0 * c_pad[1:-1, 1:-1]) / dx2 + (
+                c_pad[1:-1, :-2] + c_pad[1:-1, 2:] - 2.0 * c_pad[1:-1, 1:-1]
+            ) / dy2
+
             monod = c_np / (kM + c_np)
             consumption = phi_total_w * monod
 
