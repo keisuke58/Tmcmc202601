@@ -1,0 +1,24 @@
+{
+  "condition": "dh_baseline",
+  "total_elapsed_s": 3807.7,
+  "mesh_convergence": {},
+  "timestep_convergence": {},
+  "sigma_crit_sensitivity": {},
+  "posterior_uq": {
+    "n_samples": 50,
+    "E_mean": 775.8168284005324,
+    "E_std": 200.96034285687895,
+    "E_ci_5": 556.0283273035682,
+    "E_ci_95": 997.5354950549026,
+    "sigma_vm_max_mean": 14.735088457087118,
+    "sigma_vm_max_std": 3.3311935253390925,
+    "sigma_vm_ci_5": 10.78254045469641,
+    "sigma_vm_ci_95": 18.39058616084919,
+    "u_max_mean": 0.014719991786066944,
+    "u_max_ci_5": 0.014517644139354162,
+    "u_max_ci_95": 0.015210789795378647,
+    "DI_max_mean": 0.25504120581461714,
+    "DI_max_ci_5": 0.017734922963730266,
+    "DI_max_ci_95": 0.5044736355330052
+  }
+}
