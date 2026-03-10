@@ -28,12 +28,12 @@ RUNS_ROOT_DEFAULT = Path("tmcmc") / "_runs"
 
 @dataclass(frozen=True)
 class TMCMCDefaults:
-    n_particles: int = 2000
+    n_particles: int = 500
     n_stages: int = 30
     target_ess_ratio: float = 0.5
     min_delta_beta: float = 0.02
     update_linearization_interval: int = 3
-    n_mutation_steps: int = 5
+    n_mutation_steps: int = 1
     linearization_threshold: float = 0.75
     max_linearization_updates: int = 5
 
