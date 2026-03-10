@@ -1837,7 +1837,7 @@ def run_multi_chain_TMCMC(
     logL_scale: float = 1.0,
     n_chains: int = 1,
     update_linearization_interval: int = 3,  # ★ Update every N stages
-    n_mutation_steps: int = 5,  # ★ Number of MCMC steps per particle (K-step mutation)
+    n_mutation_steps: int = DEFAULT_N_MUTATION_STEPS,  # ★ Number of MCMC steps per particle (K-step mutation)
     use_observation_based_update: bool = True,  # ★ Use observation-based linearization update (ROM error weighted)
     linearization_threshold: float = DEFAULT_LINEARIZATION_THRESHOLD,
     linearization_enable_rom_threshold: float = 0.05,
