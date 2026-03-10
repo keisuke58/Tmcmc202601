@@ -2613,7 +2613,14 @@ Examples:
     parser.add_argument(
         "--replicate-sigma",
         action="store_true",
-        help="Use per-(timepoint, species) sigma from replicate IQR (heteroscedastic likelihood)",
+        default=True,
+        help="Use per-(timepoint, species) sigma from replicate IQR (heteroscedastic likelihood, default: True)",
+    )
+    parser.add_argument(
+        "--no-replicate-sigma",
+        action="store_false",
+        dest="replicate_sigma",
+        help="Disable replicate-based sigma (use uniform scalar sigma)",
     )
 
     # Species-specific sigma (V. dispar model inadequacy)
