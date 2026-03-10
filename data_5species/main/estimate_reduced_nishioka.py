@@ -2399,7 +2399,14 @@ Examples:
     parser.add_argument(
         "--use-exp-init",
         action="store_true",
-        help="Use experimental data (from start-from-day) as initial conditions",
+        default=True,
+        help="Use experimental data (from start-from-day) as initial conditions (default: True)",
+    )
+    parser.add_argument(
+        "--no-exp-init",
+        action="store_false",
+        dest="use_exp_init",
+        help="Disable experimental initial conditions (use uniform phi_init)",
     )
     parser.add_argument(
         "--start-from-day", type=int, default=1, help="Start fitting from this day (default: 1)"
