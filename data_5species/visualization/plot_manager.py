@@ -214,9 +214,12 @@ class PlotManager:
         if phibar_samples.ndim != 3:
             raise ValueError(f"phibar_samples must be 3D, got shape {phibar_samples.shape}")
 
-        q05 = np.nanpercentile(phibar_samples, 5, axis=0)
+        # 1σ (68.27%) and 2σ (95.45%) credible intervals
+        q_2s_lo = np.nanpercentile(phibar_samples, 2.275, axis=0)
+        q_1s_lo = np.nanpercentile(phibar_samples, 15.865, axis=0)
         q50 = np.nanpercentile(phibar_samples, 50, axis=0)
-        q95 = np.nanpercentile(phibar_samples, 95, axis=0)
+        q_1s_hi = np.nanpercentile(phibar_samples, 84.135, axis=0)
+        q_2s_hi = np.nanpercentile(phibar_samples, 97.725, axis=0)
 
         # Use days if provided, otherwise normalize time
         if t_days is not None and idx_sparse is not None:
@@ -245,8 +248,22 @@ class PlotManager:
         plt.figure(figsize=(10, 6))
         for i, sp in enumerate(active_species):
             color = self.COLORS[sp] if sp < len(self.COLORS) else f"C{sp}"
+            # 2σ band (lighter)
             plt.fill_between(
-                t_plot, q05[:, i], q95[:, i], alpha=0.25, label=f"φ̄{sp+1} 5–95%", color=color
+                t_plot,
+                q_2s_lo[:, i],
+                q_2s_hi[:, i],
+                alpha=0.12,
+                color=color,
+            )
+            # 1σ band (darker)
+            plt.fill_between(
+                t_plot,
+                q_1s_lo[:, i],
+                q_1s_hi[:, i],
+                alpha=0.25,
+                label=f"φ̄{sp+1} 1σ/2σ",
+                color=color,
             )
             plt.plot(t_plot, q50[:, i], linewidth=2, label=f"φ̄{sp+1} median", color=color)
 
@@ -264,32 +281,68 @@ class PlotManager:
                     color=color,
                 )
 
-        # Overlay experimental replicate boxplots
+        # Overlay experimental replicate boxplots (Q1-Q3 box + whiskers)
         if exp_boxplot is not None:
-            box_width = 0.6  # width in days
+            from matplotlib.patches import FancyBboxPatch
+
+            n_sp = len(active_species)
+            box_w = 0.35  # half-width of box in days
             for i, sp in enumerate(active_species):
                 if sp not in exp_boxplot:
                     continue
                 bp = exp_boxplot[sp]
                 color = self.COLORS[sp] if sp < len(self.COLORS) else f"C{sp}"
+                offset = (i - (n_sp - 1) / 2) * box_w * 0.55  # spread per species
                 for j, day in enumerate(bp["days"]):
+                    x = day + offset
                     med = bp["median"][j]
+                    q1 = bp["q1"][j] if "q1" in bp else med
+                    q3 = bp["q3"][j] if "q3" in bp else med
                     lo = bp["low"][j]
                     hi = bp["high"][j]
-                    x = day + (i - 2) * box_width * 0.22  # offset per species
-                    hw = box_width * 0.1
-                    # Whisker line
-                    plt.plot([x, x], [lo, hi], color=color, linewidth=1.0, alpha=0.6)
-                    # Caps
-                    plt.plot([x - hw, x + hw], [lo, lo], color=color, linewidth=1.0, alpha=0.6)
-                    plt.plot([x - hw, x + hw], [hi, hi], color=color, linewidth=1.0, alpha=0.6)
-                    # Median tick
+                    hw = box_w * 0.2  # half-width of box
+
+                    # IQR box
+                    rect = plt.Rectangle(
+                        (x - hw, q1),
+                        2 * hw,
+                        q3 - q1,
+                        linewidth=1.2,
+                        edgecolor=color,
+                        facecolor=color,
+                        alpha=0.2,
+                        zorder=5,
+                    )
+                    plt.gca().add_patch(rect)
+                    # Median line
                     plt.plot(
-                        [x - hw * 1.5, x + hw * 1.5],
+                        [x - hw, x + hw],
                         [med, med],
                         color=color,
                         linewidth=2.0,
-                        alpha=0.8,
+                        alpha=0.9,
+                        zorder=6,
+                    )
+                    # Whiskers (Q1→min, Q3→max)
+                    plt.plot([x, x], [lo, q1], color=color, linewidth=1.0, alpha=0.5, zorder=4)
+                    plt.plot([x, x], [q3, hi], color=color, linewidth=1.0, alpha=0.5, zorder=4)
+                    # Caps
+                    cap_hw = hw * 0.6
+                    plt.plot(
+                        [x - cap_hw, x + cap_hw],
+                        [lo, lo],
+                        color=color,
+                        linewidth=1.0,
+                        alpha=0.5,
+                        zorder=4,
+                    )
+                    plt.plot(
+                        [x - cap_hw, x + cap_hw],
+                        [hi, hi],
+                        color=color,
+                        linewidth=1.0,
+                        alpha=0.5,
+                        zorder=4,
                     )
 
         plt.xlabel(xlabel, fontsize=14)

@@ -291,73 +291,69 @@ def export_tmcmc_diagnostics_tables(
 
 # ── Experimental boxplot data loader ──────────────────────────────────────
 
-# Color → species index mapping (Heine 2025 staining)
-# Yellow/Orange both map to Vd (sp2) — naming varies by condition in the CSV
-_COLOR_TO_SPECIES = {"Blue": 0, "Green": 1, "Yellow": 2, "Orange": 2, "Red": 3, "Purple": 4}
+# Species name → index mapping (fig3_species_distribution_summary.csv)
+_SPECIES_TO_IDX = {
+    "S. oralis": 0,
+    "A. naeslundii": 1,
+    "V. dispar": 2,
+    "V. parvula": 2,  # Dysbiotic uses V. parvula
+    "F. nucleatum": 3,
+    "P. gingivalis_20709": 4,  # Commensal strain
+    "P. gingivalis_W83": 4,  # Dysbiotic strain
+}
 
 
 def load_exp_boxplot(condition: str, cultivation: str, *, data_dir: Path | None = None) -> Dict:
-    """Load experimental replicate range data for boxplot overlay.
+    """Load experimental replicate boxplot data (Q1, median, Q3, min, max).
 
-    Returns dict: {species_idx: {"days": [...], "median": [...], "low": [...], "high": [...]}}
+    Source: fig3_species_distribution_summary.csv (digitized from Heine 2025 Fig.3)
+
+    Returns dict: {species_idx: {"days", "median", "q1", "q3", "low", "high"}}
     All values are fractions (0-1), not percentages.
     """
     if data_dir is None:
         data_dir = Path(__file__).parent.parent / "experiment_data"
 
-    csv_path = data_dir / f"{condition}_{cultivation}_all.csv"
+    csv_path = data_dir / "fig3_species_distribution_summary.csv"
     if not csv_path.exists():
-        logger.warning("Experimental data not found: %s", csv_path)
+        logger.warning("Species distribution summary not found: %s", csv_path)
         return {}
 
     result: Dict[int, Dict[str, list]] = {}
 
     with open(csv_path) as f:
         header = f.readline().strip().split(",")
-        source_idx = header.index("_source")
-        species_idx = header.index("species")
-        median_idx = header.index("median")
-        day_idx = header.index("day")
-        # range columns vary: look for 'range' or compute from whisker_low/high
-        has_range = "range" in header
-        range_idx = header.index("range") if has_range else None
+        col = {name: i for i, name in enumerate(header)}
 
         for line in f:
             fields = line.strip().split(",")
-            if "species_distribution" not in fields[source_idx]:
-                continue
-            color = fields[species_idx]
-            if color not in _COLOR_TO_SPECIES:
+            if fields[col["condition"]] != condition or fields[col["cultivation"]] != cultivation:
                 continue
 
-            sp = _COLOR_TO_SPECIES[color]
+            species_name = fields[col["species"]]
+            if species_name not in _SPECIES_TO_IDX:
+                continue
+
+            sp = _SPECIES_TO_IDX[species_name]
             if sp not in result:
-                result[sp] = {"days": [], "median": [], "low": [], "high": []}
+                result[sp] = {
+                    "days": [],
+                    "median": [],
+                    "q1": [],
+                    "q3": [],
+                    "low": [],
+                    "high": [],
+                }
 
-            day = int(fields[day_idx])
-            median_pct = float(fields[median_idx])
+            day = int(fields[col["day"]])
+            to_frac = 1.0 / 100.0  # % → fraction
 
-            # range column = half-range from median
-            # low/high columns in the CSV
-            low_col = header.index("whisker_low") if "whisker_low" in header else None
-            high_col = header.index("whisker_high") if "whisker_high" in header else None
-
-            if low_col and high_col and fields[low_col] and fields[high_col]:
-                lo_pct = float(fields[low_col])
-                hi_pct = float(fields[high_col])
-            elif range_idx and fields[range_idx]:
-                rng = float(fields[range_idx])
-                lo_pct = median_pct - rng
-                hi_pct = median_pct + rng
-            else:
-                lo_pct = median_pct
-                hi_pct = median_pct
-
-            # Convert % → fraction
             result[sp]["days"].append(day)
-            result[sp]["median"].append(median_pct / 100.0)
-            result[sp]["low"].append(lo_pct / 100.0)
-            result[sp]["high"].append(hi_pct / 100.0)
+            result[sp]["median"].append(float(fields[col["median"]]) * to_frac)
+            result[sp]["q1"].append(float(fields[col["q1"]]) * to_frac)
+            result[sp]["q3"].append(float(fields[col["q3"]]) * to_frac)
+            result[sp]["low"].append(float(fields[col["min"]]) * to_frac)
+            result[sp]["high"].append(float(fields[col["max"]]) * to_frac)
 
     # Convert lists to arrays
     for sp in result:
