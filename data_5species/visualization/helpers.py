@@ -292,7 +292,8 @@ def export_tmcmc_diagnostics_tables(
 # ── Experimental boxplot data loader ──────────────────────────────────────
 
 # Color → species index mapping (Heine 2025 staining)
-_COLOR_TO_SPECIES = {"Blue": 0, "Green": 1, "Yellow": 2, "Red": 3, "Purple": 4}
+# Yellow/Orange both map to Vd (sp2) — naming varies by condition in the CSV
+_COLOR_TO_SPECIES = {"Blue": 0, "Green": 1, "Yellow": 2, "Orange": 2, "Red": 3, "Purple": 4}
 
 
 def load_exp_boxplot(condition: str, cultivation: str, *, data_dir: Path | None = None) -> Dict:
