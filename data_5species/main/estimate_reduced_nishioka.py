@@ -1049,7 +1049,12 @@ def run_single_condition_estimation(
 
         # Load data (using function directly, no import)
         data, t_days, sigma_obs_est, phi_init_exp, metadata = load_experimental_data(
-            data_dir, condition, cultivation, args.start_from_day, args.normalize_data
+            data_dir,
+            condition,
+            cultivation,
+            args.start_from_day,
+            args.normalize_data,
+            use_exp_init=args.use_exp_init,
         )
 
         # Determine initial conditions
@@ -1627,6 +1632,7 @@ def load_experimental_data(
     cultivation: str = "Static",
     start_from_day: int = 1,
     normalize: bool = False,
+    use_exp_init: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Dict[str, Any]]:
     """
     Load experimental data and convert to model format.
@@ -1752,6 +1758,21 @@ def load_experimental_data(
         n_timepoints = len(days)
         logger.info(
             f"Filtering data to start from day {start_from_day}: {n_timepoints} timepoints remaining"
+        )
+        logger.info(f"Initial condition from Day 1: {phi_init_exp.tolist()}")
+    elif start_from_day == 1 and use_exp_init:
+        # When using Day 1 as IC, exclude it from likelihood (trivially matched)
+        day_indices = [i for i, d in enumerate(days) if d > 1]
+        if len(day_indices) == 0:
+            raise ValueError(
+                "No data found for day > 1 (needed when use_exp_init with start_from_day=1)"
+            )
+        data = data[day_indices, :]
+        days = [days[i] for i in day_indices]
+        total_volumes = total_volumes[day_indices]
+        n_timepoints = len(days)
+        logger.info(
+            f"Excluding Day 1 from likelihood (used as IC): {n_timepoints} timepoints remaining"
         )
         logger.info(f"Initial condition from Day 1: {phi_init_exp.tolist()}")
 
@@ -2760,7 +2781,12 @@ def main():
     # Load experimental data
     logger.info("Loading experimental data...")
     data, t_days, sigma_obs_est, phi_init_exp, metadata = load_experimental_data(
-        data_dir, args.condition, args.cultivation, args.start_from_day, args.normalize_data
+        data_dir,
+        args.condition,
+        args.cultivation,
+        args.start_from_day,
+        args.normalize_data,
+        use_exp_init=args.use_exp_init,
     )
 
     # Determine initial conditions
@@ -3377,6 +3403,24 @@ def main():
         except Exception as e:
             logger.warning(f"Failed to generate posterior band plot: {e}")
 
+        # 5-Panel Per-Species Plot
+        try:
+            plot_mgr.plot_5panel(
+                t_fit,
+                phibar_samples,
+                active_species,
+                f"{name_tag}",
+                data,
+                idx_sparse,
+                t_days=t_days,
+                exp_boxplot=exp_boxplot,
+                phibar_map=phibar_map,
+                phibar_mean=phibar_mean,
+                phi_init=phi_init_array,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to generate 5-panel plot: {e}")
+
         # Spaghetti Plot
         try:
             plot_mgr.plot_posterior_predictive_spaghetti(
@@ -3531,6 +3575,34 @@ def main():
             float(np.max(results["logL"])),
             str(output_dir),
         )
+
+    # =========================================================================
+    # Auto-generate cross-condition comparison figures if all 4 conditions exist
+    # =========================================================================
+    try:
+        runs_base = output_dir.parent
+        found = {}
+        for prefix in ["CS", "CH", "DS", "DH"]:
+            candidates = sorted(runs_base.glob(f"{prefix}_*p_expIC_repSigma_*"))
+            # Pick latest that has samples.npy
+            for c in reversed(candidates):
+                if (c / "samples.npy").exists() and (c / "results_summary.json").exists():
+                    found[prefix] = c
+                    break
+        if len(found) == 4:
+            logger.info("All 4 conditions found — generating comparison figures...")
+            from generate_comparison_figures import fig_A_heatmap, fig_B_comparison, load_run
+
+            comp_dir = runs_base / "comparison"
+            comp_dir.mkdir(exist_ok=True)
+            comp_runs = {k: load_run(v) for k, v in found.items()}
+            fig_A_heatmap(comp_runs, comp_dir)
+            fig_B_comparison(comp_runs, comp_dir)
+            logger.info(f"Comparison figures saved to {comp_dir}")
+        else:
+            logger.info(f"Comparison figures skipped ({len(found)}/4 conditions available)")
+    except Exception as e:
+        logger.warning(f"Failed to generate comparison figures: {e}")
 
 
 if __name__ == "__main__":
