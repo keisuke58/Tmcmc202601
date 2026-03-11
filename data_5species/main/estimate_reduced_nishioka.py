@@ -2191,6 +2191,10 @@ def run_estimation(
     logger.info("Starting TMCMC estimation...")
     start_time = time.time()
 
+    mutation_kwargs = {}
+    if getattr(args, "n_mutation_steps", None) is not None:
+        mutation_kwargs["n_mutation_steps"] = args.n_mutation_steps
+
     chains, logL, MAP, converged, diag = run_multi_chain_TMCMC(
         model_tag=f"{args.condition}_{args.cultivation}",
         make_evaluator=make_evaluator,
@@ -2209,6 +2213,7 @@ def run_estimation(
         use_threads=getattr(args, "use_threads", False),
         debug_config=debug_config,
         gnn_prior=gnn_prior_obj,
+        **mutation_kwargs,
     )
 
     elapsed = time.time() - start_time
@@ -2496,6 +2501,13 @@ Examples:
     parser.add_argument("--n-particles", type=int, default=500, help="Number of particles")
     parser.add_argument("--n-stages", type=int, default=30, help="Number of stages")
     parser.add_argument("--n-chains", type=int, default=2, help="Number of chains")
+    parser.add_argument(
+        "--n-mutation-steps",
+        type=int,
+        default=None,
+        help="Mutation steps per particle (default: config)",
+    )
+
     parser.add_argument("--n-jobs", type=int, default=12, help="Parallel jobs")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument(
@@ -3342,6 +3354,14 @@ def main():
 
         phibar_samples = np.array(phibar_samples)  # (n_draws, n_time, n_species)
 
+        # Load experimental boxplot data for overlay
+        try:
+            from data_5species.visualization.helpers import load_exp_boxplot
+
+            exp_boxplot = load_exp_boxplot(args.condition, args.cultivation)
+        except Exception:
+            exp_boxplot = None
+
         # Posterior Band
         try:
             plot_mgr.plot_posterior_predictive_band(
@@ -3352,6 +3372,7 @@ def main():
                 data,
                 idx_sparse,
                 t_days=t_days,
+                exp_boxplot=exp_boxplot,
             )
         except Exception as e:
             logger.warning(f"Failed to generate posterior band plot: {e}")

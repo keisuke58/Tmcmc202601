@@ -287,3 +287,80 @@ def export_tmcmc_diagnostics_tables(
         write_csv(tables_dir / f"{model_tag}_theta0_history.csv", header, theta0_rows)
 
     logger.info("Exported diagnostics tables for %s to %s", model_tag, tables_dir)
+
+
+# ── Experimental boxplot data loader ──────────────────────────────────────
+
+# Color → species index mapping (Heine 2025 staining)
+_COLOR_TO_SPECIES = {"Blue": 0, "Green": 1, "Yellow": 2, "Red": 3, "Purple": 4}
+
+
+def load_exp_boxplot(condition: str, cultivation: str, *, data_dir: Path | None = None) -> Dict:
+    """Load experimental replicate range data for boxplot overlay.
+
+    Returns dict: {species_idx: {"days": [...], "median": [...], "low": [...], "high": [...]}}
+    All values are fractions (0-1), not percentages.
+    """
+    if data_dir is None:
+        data_dir = Path(__file__).parent.parent / "experiment_data"
+
+    csv_path = data_dir / f"{condition}_{cultivation}_all.csv"
+    if not csv_path.exists():
+        logger.warning("Experimental data not found: %s", csv_path)
+        return {}
+
+    result: Dict[int, Dict[str, list]] = {}
+
+    with open(csv_path) as f:
+        header = f.readline().strip().split(",")
+        source_idx = header.index("_source")
+        species_idx = header.index("species")
+        median_idx = header.index("median")
+        day_idx = header.index("day")
+        # range columns vary: look for 'range' or compute from whisker_low/high
+        has_range = "range" in header
+        range_idx = header.index("range") if has_range else None
+
+        for line in f:
+            fields = line.strip().split(",")
+            if "species_distribution" not in fields[source_idx]:
+                continue
+            color = fields[species_idx]
+            if color not in _COLOR_TO_SPECIES:
+                continue
+
+            sp = _COLOR_TO_SPECIES[color]
+            if sp not in result:
+                result[sp] = {"days": [], "median": [], "low": [], "high": []}
+
+            day = int(fields[day_idx])
+            median_pct = float(fields[median_idx])
+
+            # range column = half-range from median
+            # low/high columns in the CSV
+            low_col = header.index("whisker_low") if "whisker_low" in header else None
+            high_col = header.index("whisker_high") if "whisker_high" in header else None
+
+            if low_col and high_col and fields[low_col] and fields[high_col]:
+                lo_pct = float(fields[low_col])
+                hi_pct = float(fields[high_col])
+            elif range_idx and fields[range_idx]:
+                rng = float(fields[range_idx])
+                lo_pct = median_pct - rng
+                hi_pct = median_pct + rng
+            else:
+                lo_pct = median_pct
+                hi_pct = median_pct
+
+            # Convert % → fraction
+            result[sp]["days"].append(day)
+            result[sp]["median"].append(median_pct / 100.0)
+            result[sp]["low"].append(lo_pct / 100.0)
+            result[sp]["high"].append(hi_pct / 100.0)
+
+    # Convert lists to arrays
+    for sp in result:
+        for k in result[sp]:
+            result[sp][k] = np.array(result[sp][k])
+
+    return result

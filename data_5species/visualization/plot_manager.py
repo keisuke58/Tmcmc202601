@@ -195,6 +195,7 @@ class PlotManager:
         filename: Optional[str] = None,
         use_paper_naming: bool = False,
         t_days: Optional[np.ndarray] = None,
+        exp_boxplot: Optional[Dict] = None,
     ) -> None:
         """
         Plot posterior predictive band for φ̄ = φ * ψ.
@@ -205,6 +206,10 @@ class PlotManager:
             φ̄ trajectories for multiple posterior draws.
         t_days : Optional[np.ndarray]
             Experimental timepoints in days. If provided, x-axis shows Days.
+        exp_boxplot : Optional[Dict]
+            Experimental replicate boxplot data per species.
+            Keys: species index (int), values: dict with
+            'days', 'median', 'low', 'high' arrays (all fractions, not %).
         """
         if phibar_samples.ndim != 3:
             raise ValueError(f"phibar_samples must be 3D, got shape {phibar_samples.shape}")
@@ -258,6 +263,34 @@ class PlotManager:
                     zorder=10,
                     color=color,
                 )
+
+        # Overlay experimental replicate boxplots
+        if exp_boxplot is not None:
+            box_width = 0.6  # width in days
+            for i, sp in enumerate(active_species):
+                if sp not in exp_boxplot:
+                    continue
+                bp = exp_boxplot[sp]
+                color = self.COLORS[sp] if sp < len(self.COLORS) else f"C{sp}"
+                for j, day in enumerate(bp["days"]):
+                    med = bp["median"][j]
+                    lo = bp["low"][j]
+                    hi = bp["high"][j]
+                    x = day + (i - 2) * box_width * 0.22  # offset per species
+                    hw = box_width * 0.1
+                    # Whisker line
+                    plt.plot([x, x], [lo, hi], color=color, linewidth=1.0, alpha=0.6)
+                    # Caps
+                    plt.plot([x - hw, x + hw], [lo, lo], color=color, linewidth=1.0, alpha=0.6)
+                    plt.plot([x - hw, x + hw], [hi, hi], color=color, linewidth=1.0, alpha=0.6)
+                    # Median tick
+                    plt.plot(
+                        [x - hw * 1.5, x + hw * 1.5],
+                        [med, med],
+                        color=color,
+                        linewidth=2.0,
+                        alpha=0.8,
+                    )
 
         plt.xlabel(xlabel, fontsize=14)
         plt.ylabel("φ̄ = φ * ψ", fontsize=12)

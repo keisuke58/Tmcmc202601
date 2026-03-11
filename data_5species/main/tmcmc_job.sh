@@ -48,6 +48,7 @@ N_HILL="${N_HILL:-4}"
 CHECKPOINT="${CHECKPOINT:-5}"
 USE_EXP_INIT="${USE_EXP_INIT:-0}"
 REPLICATE_SIGMA="${REPLICATE_SIGMA:-0}"
+N_MUTATION_STEPS="${N_MUTATION_STEPS:-}"
 
 # --- Environment ---
 cd /home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/main
@@ -83,6 +84,10 @@ fi
 if [ "${REPLICATE_SIGMA}" = "1" ]; then
     EXTRA_ARGS="${EXTRA_ARGS} --replicate-sigma"
     echo "  Using heteroscedastic sigma from replicates (--replicate-sigma)"
+fi
+if [ -n "${N_MUTATION_STEPS}" ]; then
+    EXTRA_ARGS="${EXTRA_ARGS} --n-mutation-steps ${N_MUTATION_STEPS}"
+    echo "  Mutation steps: ${N_MUTATION_STEPS}"
 fi
 
 $PYTHON estimate_reduced_nishioka.py \
