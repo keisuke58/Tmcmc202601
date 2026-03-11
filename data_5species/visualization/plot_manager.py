@@ -29,6 +29,30 @@ class PlotManager:
     # S4: Orange (Orange Complex), S5: Red (Red Complex)
     COLORS = ["#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#d62728"]  # S1  # S2  # S3  # S4  # S5
 
+    @staticmethod
+    def _map_time_to_days(t_arr, t_days, idx_sparse):
+        """Map model time array to days using idx_sparse ↔ t_days correspondence."""
+        if t_days is not None and idx_sparse is not None and len(t_days) >= 2:
+            t_known = t_arr[idx_sparse[-1]]
+            d_known = float(t_days[-1])
+            if t_known > 0:
+                t_plot = t_arr * (d_known / t_known)
+            else:
+                t_plot = t_arr
+            t_obs_plot = t_days
+            xlabel = "Days"
+            xlim = (max(t_plot[0] - 0.5, 0), t_days.max() + 1)
+        else:
+            t_min, t_max = t_arr.min(), t_arr.max()
+            if t_max > t_min:
+                t_plot = (t_arr - t_min) / (t_max - t_min)
+            else:
+                t_plot = t_arr
+            t_obs_plot = t_plot[idx_sparse] if idx_sparse is not None else None
+            xlabel = "Normalized Time [0.0, 1.0]"
+            xlim = (0.0, 1.0)
+        return t_plot, t_obs_plot, xlabel, xlim
+
     def __init__(self, output_dir: str):
         """
         Initialize plot manager.
@@ -221,29 +245,7 @@ class PlotManager:
         q_1s_hi = np.nanpercentile(phibar_samples, 84.135, axis=0)
         q_2s_hi = np.nanpercentile(phibar_samples, 97.725, axis=0)
 
-        # Use days if provided, otherwise normalize time
-        if t_days is not None and idx_sparse is not None:
-            t_min = t_arr.min()
-            t_max = t_arr.max()
-            day_min = t_days.min()
-            day_max = t_days.max()
-            if t_max > t_min:
-                t_plot = day_min + (t_arr - t_min) / (t_max - t_min) * (day_max - day_min)
-            else:
-                t_plot = t_arr
-            t_obs_plot = t_days
-            xlabel = "Days"
-            xlim = (day_min - 1, day_max + 1)
-        else:
-            t_min = t_arr.min()
-            t_max = t_arr.max()
-            if t_max > t_min:
-                t_plot = (t_arr - t_min) / (t_max - t_min)
-            else:
-                t_plot = t_arr
-            t_obs_plot = t_plot[idx_sparse] if idx_sparse is not None else None
-            xlabel = "Normalized Time [0.0, 1.0]"
-            xlim = (0.0, 1.0)
+        t_plot, t_obs_plot, xlabel, xlim = self._map_time_to_days(t_arr, t_days, idx_sparse)
 
         plt.figure(figsize=(10, 6))
         for i, sp in enumerate(active_species):
@@ -357,6 +359,181 @@ class PlotManager:
         out_name = filename or f"posterior_predictive_{name}.png"
         self.save_figure(out_name, use_paper_naming=use_paper_naming)
 
+    SPECIES_NAMES = ["S. oralis", "A. naeslundii", "V. dispar", "F. nucleatum", "P. gingivalis"]
+
+    def plot_5panel(
+        self,
+        t_arr: np.ndarray,
+        phibar_samples: np.ndarray,
+        active_species: List[int],
+        name: str,
+        data: Optional[np.ndarray] = None,
+        idx_sparse: Optional[np.ndarray] = None,
+        *,
+        t_days: Optional[np.ndarray] = None,
+        exp_boxplot: Optional[Dict] = None,
+        phibar_map: Optional[np.ndarray] = None,
+        phibar_mean: Optional[np.ndarray] = None,
+        phi_init: Optional[np.ndarray] = None,
+    ) -> None:
+        """5-panel per-species posterior predictive + experimental boxplot."""
+        if phibar_samples.ndim != 3:
+            raise ValueError(f"phibar_samples must be 3D, got shape {phibar_samples.shape}")
+
+        # 1σ / 2σ bands
+        q_2s_lo = np.nanpercentile(phibar_samples, 2.275, axis=0)
+        q_1s_lo = np.nanpercentile(phibar_samples, 15.865, axis=0)
+        q50 = np.nanpercentile(phibar_samples, 50, axis=0)
+        q_1s_hi = np.nanpercentile(phibar_samples, 84.135, axis=0)
+        q_2s_hi = np.nanpercentile(phibar_samples, 97.725, axis=0)
+
+        # Time axis: map model time to days using idx_sparse ↔ t_days correspondence
+        t_plot, t_obs_plot, xlabel, xlim = self._map_time_to_days(t_arr, t_days, idx_sparse)
+
+        n_sp = len(active_species)
+        fig, axes = plt.subplots(1, n_sp, figsize=(4 * n_sp, 4), sharey=False)
+        if n_sp == 1:
+            axes = [axes]
+
+        for i, sp in enumerate(active_species):
+            ax = axes[i]
+            color = self.COLORS[sp] if sp < len(self.COLORS) else f"C{sp}"
+            sp_name = self.SPECIES_NAMES[sp] if sp < len(self.SPECIES_NAMES) else f"Sp{sp+1}"
+
+            # 2σ band
+            ax.fill_between(
+                t_plot, q_2s_lo[:, i], q_2s_hi[:, i], alpha=0.12, color=color, label="2σ"
+            )
+            # 1σ band
+            ax.fill_between(
+                t_plot, q_1s_lo[:, i], q_1s_hi[:, i], alpha=0.25, color=color, label="1σ"
+            )
+            # Median
+            ax.plot(t_plot, q50[:, i], linewidth=2, color=color, label="Median")
+            # MAP
+            if phibar_map is not None:
+                ax.plot(
+                    t_plot,
+                    phibar_map[:, i],
+                    "--",
+                    color="black",
+                    linewidth=1.5,
+                    label="MAP",
+                    alpha=0.7,
+                )
+            # Mean
+            if phibar_mean is not None:
+                ax.plot(
+                    t_plot,
+                    phibar_mean[:, i],
+                    ":",
+                    color="gray",
+                    linewidth=1.5,
+                    label="Mean",
+                    alpha=0.7,
+                )
+
+            # Experimental boxplot overlay
+            if exp_boxplot is not None and sp in exp_boxplot:
+                bp = exp_boxplot[sp]
+                box_hw = 0.4
+                for j, day in enumerate(bp["days"]):
+                    med = bp["median"][j]
+                    q1 = bp["q1"][j] if "q1" in bp else med
+                    q3 = bp["q3"][j] if "q3" in bp else med
+                    lo = bp["low"][j]
+                    hi = bp["high"][j]
+                    hw = box_hw
+                    # IQR box
+                    rect = plt.Rectangle(
+                        (day - hw, q1),
+                        2 * hw,
+                        q3 - q1,
+                        linewidth=1.2,
+                        edgecolor=color,
+                        facecolor=color,
+                        alpha=0.2,
+                        zorder=5,
+                    )
+                    ax.add_patch(rect)
+                    # Median line
+                    ax.plot(
+                        [day - hw, day + hw],
+                        [med, med],
+                        color=color,
+                        linewidth=2.0,
+                        alpha=0.9,
+                        zorder=6,
+                    )
+                    # Whiskers
+                    ax.plot([day, day], [lo, q1], color=color, linewidth=1.0, alpha=0.5, zorder=4)
+                    ax.plot([day, day], [q3, hi], color=color, linewidth=1.0, alpha=0.5, zorder=4)
+                    # Caps
+                    chw = hw * 0.6
+                    ax.plot(
+                        [day - chw, day + chw],
+                        [lo, lo],
+                        color=color,
+                        linewidth=1.0,
+                        alpha=0.5,
+                        zorder=4,
+                    )
+                    ax.plot(
+                        [day - chw, day + chw],
+                        [hi, hi],
+                        color=color,
+                        linewidth=1.0,
+                        alpha=0.5,
+                        zorder=4,
+                    )
+
+            # Data scatter
+            if data is not None and t_obs_plot is not None:
+                ax.scatter(
+                    t_obs_plot,
+                    data[:, i],
+                    s=60,
+                    color=color,
+                    edgecolors="black",
+                    zorder=10,
+                    linewidth=1.2,
+                    label="Data (mean)",
+                )
+
+            # Day 1 IC marker (open diamond)
+            if phi_init is not None and i < len(phi_init):
+                ax.scatter(
+                    [1],
+                    [phi_init[i]],
+                    s=60,
+                    facecolors="white",
+                    edgecolors=color,
+                    zorder=11,
+                    linewidth=1.5,
+                    marker="D",
+                    label="IC (Day 1)",
+                )
+
+            ax.set_title(sp_name, fontsize=13, fontweight="bold")
+            ax.set_xlabel(xlabel, fontsize=11)
+            if i == 0:
+                ax.set_ylabel(r"$\bar{\varphi}$", fontsize=13)
+            ax.grid(True, alpha=0.3)
+            if t_days is not None:
+                # Include Day 1 in x-ticks if IC is provided
+                ticks = sorted(set([1] + list(t_days))) if phi_init is not None else list(t_days)
+                ax.set_xticks(ticks)
+            ax.legend(fontsize=7, loc="best")
+
+        fig.suptitle(
+            f"{name} — Posterior Predictive (1σ/2σ) + Experimental Boxplot",
+            fontsize=14,
+            fontweight="bold",
+        )
+        plt.tight_layout()
+        out_name = f"5panel_{name}.png"
+        self.save_figure(out_name)
+
     def plot_posterior_predictive_spaghetti(
         self,
         t_arr: np.ndarray,
@@ -386,29 +563,7 @@ class PlotManager:
         else:
             phibar_subset = phibar_samples
 
-        # Use days if provided, otherwise normalize time
-        if t_days is not None and idx_sparse is not None:
-            t_min = t_arr.min()
-            t_max = t_arr.max()
-            day_min = t_days.min()
-            day_max = t_days.max()
-            if t_max > t_min:
-                t_plot = day_min + (t_arr - t_min) / (t_max - t_min) * (day_max - day_min)
-            else:
-                t_plot = t_arr
-            t_obs_plot = t_days
-            xlabel = "Days"
-            xlim = (day_min - 1, day_max + 1)
-        else:
-            t_min = t_arr.min()
-            t_max = t_arr.max()
-            if t_max > t_min:
-                t_plot = (t_arr - t_min) / (t_max - t_min)
-            else:
-                t_plot = t_arr
-            t_obs_plot = t_plot[idx_sparse] if idx_sparse is not None else None
-            xlabel = "Normalized Time [0.0, 1.0]"
-            xlim = (0.0, 1.0)
+        t_plot, t_obs_plot, xlabel, xlim = self._map_time_to_days(t_arr, t_days, idx_sparse)
 
         plt.figure(figsize=(10, 6))
 
@@ -707,29 +862,7 @@ class PlotManager:
         q50 = np.nanpercentile(phibar_samples, 50, axis=0)
         q95 = np.nanpercentile(phibar_samples, 95, axis=0)
 
-        # Determine x-axis mapping
-        t_min = t_arr.min()
-        t_max = t_arr.max()
-        if t_days is not None and idx_sparse is not None:
-            # Map model time to experimental days
-            day_min = t_days.min()
-            day_max = t_days.max()
-            if t_max > t_min:
-                t_plot = day_min + (t_arr - t_min) / (t_max - t_min) * (day_max - day_min)
-            else:
-                t_plot = t_arr
-            t_obs_plot = t_days
-            xlabel = "Days"
-            xlim = (day_min - 1, day_max + 1)
-        else:
-            # Normalize time to [0.0, 1.0]
-            if t_max > t_min:
-                t_plot = (t_arr - t_min) / (t_max - t_min)
-            else:
-                t_plot = t_arr
-            t_obs_plot = t_plot[idx_sparse] if idx_sparse is not None else None
-            xlabel = "Normalized Time [0.0, 1.0]"
-            xlim = (-0.05, 1.05)
+        t_plot, t_obs_plot, xlabel, xlim = self._map_time_to_days(t_arr, t_days, idx_sparse)
 
         plt.figure(figsize=(10, 6))
 
