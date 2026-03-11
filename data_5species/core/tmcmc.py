@@ -183,6 +183,21 @@ class TMCMCResult:
     log_evidence: float = 0.0  # Log model evidence: log p(y|M) = sum log S_j (Ching & Chen 2007)
 
 
+def systematic_resample(weights: np.ndarray, rng: np.random.Generator) -> np.ndarray:
+    """
+    Systematic resampling (Carpenter et al. 1999).
+
+    O(1) variance per offspring count vs O(N) for multinomial.
+    Guarantees particles with weight >= 1/N are always selected at least once.
+    """
+    N = len(weights)
+    positions = (rng.random() + np.arange(N)) / N
+    cs = np.cumsum(weights)
+    # Ensure cumsum ends exactly at 1.0 to avoid numerical issues
+    cs[-1] = 1.0
+    return np.clip(np.searchsorted(cs, positions), 0, N - 1)
+
+
 def reflect_into_bounds(x: float, low: float, high: float) -> float:
     """
     Reflect a value into bounds [low, high] using reflection (folding).
@@ -401,6 +416,8 @@ def run_TMCMC(
     ] = None,  # ★ Number of parallel jobs for particle evaluation (None = auto, 1 = sequential)
     use_threads: bool = False,  # ★ Use threads instead of processes (for GIL-friendly code)
     gnn_prior: Optional[Any] = None,  # ★ GNNPrior instance (Project B, Issue #39)
+    beta_schedule: str = "ess",  # ★ B5: "ess" (ESS-based) or "cov" (CoV-based, Korali/ASMC style)
+    target_cov: float = 1.0,  # ★ B5: Target CoV(w) for "cov" schedule (lower = more conservative)
 ) -> TMCMCResult:
     """
     Transitional MCMC (TMCMC) with β tempering + Linearization Update.
@@ -601,15 +618,33 @@ def run_TMCMC(
             sum_w = np.sum(w)
             if sum_w <= 0:
                 ess = 0
+                cov_w = float("inf")
             else:
                 w_norm = w / sum_w
                 ess = 1.0 / np.sum(w_norm**2)
+                # B5: CoV(w) = std(w) / mean(w), equivalent to sqrt(N * sum(w^2) / sum(w)^2 - 1)
+                mean_w = sum_w / n_particles
+                cov_w = (
+                    np.sqrt(np.sum((w - mean_w) ** 2) / n_particles) / mean_w
+                    if mean_w > 0
+                    else float("inf")
+                )
 
-            if ess >= target_ess_ratio * n_particles:
-                delta_low = mid
-                ess_at_delta_low = ess  # 最終的なESS値を記録
+            if beta_schedule == "cov":
+                # B5: CoV-based schedule (Korali / ASMC style)
+                # Accept delta if CoV(w) <= target_cov
+                if cov_w <= target_cov:
+                    delta_low = mid
+                    ess_at_delta_low = ess
+                else:
+                    delta_high = mid
             else:
-                delta_high = mid
+                # Default ESS-based schedule
+                if ess >= target_ess_ratio * n_particles:
+                    delta_low = mid
+                    ess_at_delta_low = ess  # 最終的なESS値を記録
+                else:
+                    delta_high = mid
 
         # ★ 高速化＋安全オプション（全モード共通）:
         # - 下限:  ESS が許す範囲でも、進行幅が小さくなりすぎないように min_delta_beta を保証
@@ -629,6 +664,17 @@ def run_TMCMC(
             )
             beta_next = 1.0
             delta_beta = 1.0 - beta
+
+        # B5: Log schedule type and diagnostics
+        if beta_schedule == "cov":
+            # Compute final CoV at chosen delta for logging
+            x_final = delta_beta * (logL_eff - np.max(logL_eff))
+            w_final = np.exp(x_final)
+            mean_w_final = w_final.mean()
+            cov_final = np.std(w_final) / mean_w_final if mean_w_final > 0 else float("inf")
+            debug_logger.log_info(
+                f"Stage {stage}: β={beta_next:.4f} (Δβ={delta_beta:.4f}, CoV={cov_final:.3f}, target={target_cov:.2f})"
+            )
 
         # ★ ERROR-CHECK: Check beta progression
         debug_logger.check_beta_progression(beta_next, delta_beta, stage, context=f"Stage {stage}")
@@ -690,7 +736,7 @@ def run_TMCMC(
         log_prior_before_resample = np.array([log_prior(t) for t in theta_before_resample])
         log_posterior_before_resample = log_prior_before_resample + beta_next * logL_before_resample
 
-        idx = rng.choice(n_particles, size=n_particles, p=w)
+        idx = systematic_resample(w, rng)
         # Diagnostics: particle degeneracy after resampling (how many unique ancestors survived)
         try:
             n_unique_idx = int(np.unique(idx).size)
@@ -712,7 +758,9 @@ def run_TMCMC(
         # 理由: resampling後は粒子が強く相関しているため、1-stepではESSが見かけ倒しになる
         # ★ 改善: Tempered covariance scaling (Del Moral et al., Ching & Chen)
         # Early stages (small β) need larger proposal variance for exploration
-        cov_base = np.cov(theta.T)
+        # B2: Weighted covariance BEFORE resampling (Ching & Chen 2007, Korali)
+        # Preserves importance weight information instead of discarding it via resampling
+        cov_base = np.cov(theta_before_resample.T, aweights=weights_before_resample)
 
         # ★ CRITICAL FIX: Handle 1D case (n_params == 1)
         # np.cov() returns scalar or 1D array for 1D input, but np.trace() requires 2D+
@@ -734,26 +782,18 @@ def run_TMCMC(
         optimal_scale = OPTIMAL_SCALE_FACTOR / n_params
         tempered_scale = optimal_scale / max(beta_next, 0.1)  # Avoid division by zero
 
-        # ★ Adaptive scaling based on previous acceptance rate
-        # - Low acceptance typically means steps are too large → reduce scale.
-        # - Very high acceptance can mean steps are too small → slightly increase scale.
+        # B4: Smooth adaptive scaling formula (Ramancha et al.)
+        # scalem = 1/9 + 8/9 * R, where R = acceptance rate
+        # Gives: scalem=0.11 at R=0, scalem=1.0 at R=1. Monotonic, smooth, no thresholds.
         adaptive_scale_factor = MUTATION_SCALE_FACTOR
         if len(acc_rate_history) > 0:
             prev_acc_rate = float(acc_rate_history[-1])
-            if prev_acc_rate < 0.05:
-                # Reduce scale factor when acceptance rate is very low
-                # (cap at 0.1x to avoid freezing completely)
-                shrink = max(0.1, prev_acc_rate / 0.05)
-                adaptive_scale_factor = MUTATION_SCALE_FACTOR * shrink
+            scalem = (1.0 / 9.0) + (8.0 / 9.0) * prev_acc_rate
+            adaptive_scale_factor = MUTATION_SCALE_FACTOR * scalem
+            if debug_logger.config.level in (DebugLevel.MINIMAL, DebugLevel.VERBOSE):
                 debug_logger.log_info(
-                    f"⚠️  Low acceptance rate ({prev_acc_rate:.3f}), reducing proposal scale: {adaptive_scale_factor:.2f}x"
-                )
-            elif prev_acc_rate > 0.6:
-                # Slightly increase step size if acceptance is extremely high
-                grow = min(2.0, prev_acc_rate / 0.6)
-                adaptive_scale_factor = MUTATION_SCALE_FACTOR * grow
-                debug_logger.log_info(
-                    f"ℹ️  High acceptance rate ({prev_acc_rate:.3f}), increasing proposal scale: {adaptive_scale_factor:.2f}x"
+                    f"Adaptive scale: scalem={scalem:.3f} (acc_rate={prev_acc_rate:.3f}), "
+                    f"adaptive_scale_factor={adaptive_scale_factor:.3f}"
                 )
 
         # ★ Global knob: MUTATION_SCALE_FACTOR controls overall jump size (and thus acceptance)
@@ -879,8 +919,24 @@ def run_TMCMC(
 
             return _theta, _logL, _acc_rate, int(_acc), int(_total)
 
+        # B3: Adaptive step count based on previous acceptance rate
+        # Target: 99% probability of at least one accepted move per particle
+        # Formula: ceil(log(0.01) / log(1 - acc_rate)) (Ramancha et al.)
+        adaptive_n_steps = n_mutation_steps
+        if len(acc_rate_history) > 0:
+            prev_acc = float(acc_rate_history[-1])
+            if prev_acc > 0.01:
+                adaptive_n_steps = min(
+                    n_mutation_steps * 3,  # cap at 3x configured steps
+                    max(1, int(np.ceil(np.log(0.01) / np.log(1.0 - prev_acc)))),
+                )
+                if debug_logger.config.level in (DebugLevel.MINIMAL, DebugLevel.VERBOSE):
+                    debug_logger.log_info(
+                        f"Adaptive mutation steps: {adaptive_n_steps} (prev_acc={prev_acc:.3f}, configured={n_mutation_steps})"
+                    )
+
         # First mutation attempt
-        theta, logL, acc_rate, acc, total_proposals = _mutate_population(cov, n_mutation_steps)
+        theta, logL, acc_rate, acc, total_proposals = _mutate_population(cov, adaptive_n_steps)
 
         # Diagnostics: population diversity after mutation (rounded unique rows to tolerate tiny FP noise)
         try:
@@ -1741,6 +1797,187 @@ def run_TMCMC(
         likelihood_health=likelihood_health,
         stage_summary=stage_summary if stage_summary else None,
         log_evidence=log_evidence,
+    )
+
+
+# ============================================================
+# A5: Multi-fidelity ASMC Correction (surrogate + HF)
+# ============================================================
+
+
+def multifidelity_correct(
+    surrogate_logL: Callable,
+    hifi_logL: Callable,
+    prior_bounds: List[Tuple[float, float]],
+    n_particles: int = 200,
+    n_stages: int = 20,
+    correction_fraction: float = 0.2,
+    target_ess_ratio: float = 0.5,
+    seed: int = 0,
+    model_name: str = "MF-ASMC",
+    debug_logger: Optional[DebugLogger] = None,
+    n_jobs: Optional[int] = None,
+    **tmcmc_kwargs,
+) -> TMCMCResult:
+    """
+    Multi-fidelity ASMC: Run TMCMC with cheap surrogate, then correct
+    final posterior with expensive high-fidelity model via importance weighting.
+
+    Based on ASMC-SURR (Amaya-Macarena 2023): use surrogate for β < 1,
+    then apply IS correction with HF model at the final stage.
+
+    Args:
+        surrogate_logL: cheap log-likelihood (e.g., DeepONet)
+        hifi_logL: expensive log-likelihood (e.g., ODE solver)
+        prior_bounds: parameter bounds
+        n_particles: number of particles
+        n_stages: TMCMC stages for surrogate phase
+        correction_fraction: fraction of particles to re-evaluate with HF
+            (1.0 = all, 0.2 = top 20% by weight)
+        target_ess_ratio: ESS target for surrogate TMCMC
+        seed: random seed
+        model_name: for logging
+        debug_logger: DebugLogger instance
+        n_jobs: parallel jobs for HF evaluation
+        **tmcmc_kwargs: extra args passed to run_TMCMC
+
+    Returns:
+        TMCMCResult with corrected posterior
+    """
+    if debug_logger is None:
+        debug_logger = DebugLogger()
+
+    debug_logger.log_info(
+        f"Multi-fidelity ASMC: {n_particles} particles, "
+        f"correction_fraction={correction_fraction:.0%}",
+        force=True,
+    )
+
+    # Phase 1: Surrogate TMCMC (cheap, full tempering β: 0 → 1)
+    t0 = time.time()
+    surr_result = run_TMCMC(
+        log_likelihood=surrogate_logL,
+        prior_bounds=prior_bounds,
+        n_particles=n_particles,
+        n_stages=n_stages,
+        target_ess_ratio=target_ess_ratio,
+        seed=seed,
+        model_name=f"{model_name}_surrogate",
+        debug_logger=debug_logger,
+        force_beta_one=True,
+        n_jobs=n_jobs,
+        **tmcmc_kwargs,
+    )
+    t_surr = time.time() - t0
+    debug_logger.log_info(
+        f"Surrogate phase: {t_surr:.1f}s, MAP logL(surr)={surr_result.logL_values.max():.2f}",
+        force=True,
+    )
+
+    # Phase 2: HF correction via importance sampling
+    # Evaluate HF likelihood on (a subset of) surrogate posterior samples
+    theta_surr = surr_result.samples
+    logL_surr = surr_result.logL_values
+
+    n_correct = max(1, int(n_particles * correction_fraction))
+    if correction_fraction < 1.0:
+        # Evaluate top particles by surrogate logL
+        top_idx = np.argsort(logL_surr)[-n_correct:]
+    else:
+        top_idx = np.arange(n_particles)
+
+    debug_logger.log_info(
+        f"HF correction: evaluating {len(top_idx)}/{n_particles} particles...",
+        force=True,
+    )
+
+    t0_hf = time.time()
+    logL_hf = np.full(n_particles, -np.inf)
+
+    # Parallel HF evaluation
+    theta_subset = theta_surr[top_idx]
+    if n_jobs == 1:
+        for i, idx in enumerate(top_idx):
+            logL_hf[idx] = hifi_logL(theta_subset[i])
+    else:
+        jobs = n_jobs or min(mp.cpu_count(), len(top_idx))
+        with ProcessPoolExecutor(max_workers=jobs) as pool:
+            futures = {
+                pool.submit(hifi_logL, theta_subset[i]): top_idx[i] for i in range(len(top_idx))
+            }
+            for future in as_completed(futures):
+                idx = futures[future]
+                try:
+                    logL_hf[idx] = future.result()
+                except Exception as e:
+                    debug_logger.log_warning(f"HF eval failed for particle {idx}: {e}")
+                    logL_hf[idx] = -1e10
+
+    t_hf = time.time() - t0_hf
+
+    # Importance weight correction: w_i = p_HF(D|θ_i) / p_surr(D|θ_i)
+    # In log space: log_w_corr = logL_HF - logL_surr
+    valid_mask = np.isfinite(logL_hf) & (logL_hf > -1e9)
+    n_valid = np.sum(valid_mask)
+
+    if n_valid < 5:
+        debug_logger.log_warning(
+            f"Only {n_valid} valid HF evaluations. Returning surrogate result.",
+            force=True,
+        )
+        return surr_result
+
+    log_w_corr = np.where(valid_mask, logL_hf - logL_surr, -np.inf)
+    log_w_corr -= np.max(log_w_corr[valid_mask])  # shift for stability
+    w_corr = np.exp(log_w_corr)
+    w_corr_sum = np.sum(w_corr)
+
+    if w_corr_sum <= 0 or not np.isfinite(w_corr_sum):
+        debug_logger.log_warning("Correction weights collapsed. Using surrogate.", force=True)
+        return surr_result
+
+    w_norm = w_corr / w_corr_sum
+    ess_corrected = 1.0 / np.sum(w_norm**2)
+
+    debug_logger.log_info(
+        f"HF correction: {t_hf:.1f}s, valid={n_valid}/{len(top_idx)}, "
+        f"ESS_corrected={ess_corrected:.1f}/{n_particles}",
+        force=True,
+    )
+
+    # Resample corrected posterior
+    rng = np.random.default_rng(seed + 999)
+    idx_resampled = systematic_resample(w_norm, rng)
+    theta_corrected = theta_surr[idx_resampled]
+    logL_corrected = np.where(
+        valid_mask[idx_resampled],
+        logL_hf[idx_resampled],
+        logL_surr[idx_resampled],
+    )
+
+    # MAP from corrected samples
+    best_idx = np.argmax(logL_corrected)
+    theta_MAP = theta_corrected[best_idx]
+
+    # Compute MAP improvement
+    surr_MAP_err = float(surr_result.logL_values.max())
+    hf_MAP_err = float(logL_corrected.max())
+    debug_logger.log_info(
+        f"MAP logL: surrogate={surr_MAP_err:.2f} → corrected={hf_MAP_err:.2f}",
+        force=True,
+    )
+
+    return TMCMCResult(
+        samples=theta_corrected,
+        logL_values=logL_corrected,
+        theta_MAP=theta_MAP,
+        beta_schedule=surr_result.beta_schedule + [1.0],
+        converged=surr_result.converged,
+        acc_rate_history=surr_result.acc_rate_history,
+        n_rom_evaluations=int(surr_result.n_rom_evaluations),
+        n_fom_evaluations=int(n_valid),
+        wall_time_s=t_surr + t_hf,
+        log_evidence=surr_result.log_evidence,
     )
 
 

@@ -75,9 +75,10 @@ class TrunkNet(eqx.Module):
         self.layers = layers
 
     def __call__(self, t):
-        x = jax.nn.gelu(self.proj(jnp.atleast_1d(t)))
+        # A2: Sine activation for trunk (captures periodic/oscillatory ODE dynamics)
+        x = jnp.sin(self.proj(jnp.atleast_1d(t)))
         for layer in self.layers[:-1]:
-            h = jax.nn.gelu(layer(x))
+            h = jnp.sin(layer(x))
             x = x + h  # residual
         return self.layers[-1](x)
 
@@ -88,6 +89,9 @@ class DeepONet(eqx.Module):
     branch: BranchNet
     trunk: TrunkNet
     bias: jnp.ndarray
+    # A1: Output normalization stats (set after loading data)
+    phi_mean: jnp.ndarray
+    phi_std: jnp.ndarray
 
     def __init__(
         self,
@@ -103,6 +107,9 @@ class DeepONet(eqx.Module):
         self.branch = BranchNet(theta_dim, hidden, p, n_species, n_layers=n_layers, key=k1)
         self.trunk = TrunkNet(p, n_species, hidden, n_layers=n_layers, key=k2)
         self.bias = jnp.zeros(n_species)
+        # A1: Default to identity transform (no normalization)
+        self.phi_mean = jnp.zeros(n_species)
+        self.phi_std = jnp.ones(n_species)
 
     def __call__(self, theta, t):
         """
@@ -140,9 +147,319 @@ class DeepONet(eqx.Module):
             (T, 5) predicted species fractions
         """
         phi = jax.vmap(lambda t: self(theta, t))(t_grid)
+        # A1: Denormalize output (inverse StandardScaler)
+        phi = phi * self.phi_std + self.phi_mean
         if clip:
             phi = jnp.clip(phi, 0.0, 1.0)
         return phi
+
+
+# ============================================================
+# A3: POD-DeepONet (SVD trunk replaces learned trunk)
+# ============================================================
+
+
+class PODBranchNet(eqx.Module):
+    """Branch network for POD-DeepONet: θ (20) → R^k (POD coefficients)."""
+
+    layers: list
+
+    def __init__(self, in_dim: int, hidden: int, k: int, n_layers: int = 3, *, key):
+        keys = jr.split(key, n_layers + 2)
+        layers = [eqx.nn.Linear(in_dim, hidden, key=keys[0])]
+        for i in range(n_layers - 1):
+            layers.append(eqx.nn.Linear(hidden, hidden, key=keys[i + 1]))
+        layers.append(eqx.nn.Linear(hidden, k, key=keys[n_layers]))
+        self.layers = layers
+
+    def __call__(self, theta):
+        x = jax.nn.gelu(self.layers[0](theta))
+        for layer in self.layers[1:-1]:
+            h = jax.nn.gelu(layer(x))
+            x = x + h  # residual
+        return self.layers[-1](x)
+
+
+class PODDeepONet(eqx.Module):
+    """POD-DeepONet: Branch learns POD coefficients, trunk is fixed SVD basis."""
+
+    branch: PODBranchNet
+    pod_basis: jnp.ndarray  # (T*n_species, k) — fixed, not trained
+    pod_mean: jnp.ndarray  # (T*n_species,) — mean trajectory
+    bias: jnp.ndarray
+    phi_mean: jnp.ndarray
+    phi_std: jnp.ndarray
+    n_species: int
+    n_times: int
+
+    def __init__(
+        self,
+        theta_dim: int = 20,
+        n_species: int = 5,
+        n_times: int = 100,
+        k: int = 32,
+        hidden: int = 128,
+        n_layers: int = 3,
+        *,
+        key,
+    ):
+        self.branch = PODBranchNet(theta_dim, hidden, k, n_layers=n_layers, key=key)
+        # Placeholders — will be set from data via eqx.tree_at
+        self.pod_basis = jnp.zeros((n_times * n_species, k))
+        self.pod_mean = jnp.zeros(n_times * n_species)
+        self.bias = jnp.zeros(n_species)
+        self.phi_mean = jnp.zeros(n_species)
+        self.phi_std = jnp.ones(n_species)
+        self.n_species = n_species
+        self.n_times = n_times
+
+    def __call__(self, theta, t_idx):
+        """Predict φ at time index t_idx given θ."""
+        coeffs = self.branch(theta)  # (k,)
+        # Reconstruct full trajectory and index into it
+        recon = self.pod_mean + self.pod_basis @ coeffs  # (T*5,)
+        recon = recon.reshape(self.n_times, self.n_species)
+        return recon[t_idx]  # (5,)
+
+    def predict_trajectory(self, theta, t_grid=None, clip=True):
+        """Predict full trajectory. t_grid is ignored (uses all time steps)."""
+        coeffs = self.branch(theta)  # (k,)
+        recon = self.pod_mean + self.pod_basis @ coeffs  # (T*5,)
+        phi = recon.reshape(self.n_times, self.n_species)
+        # Denormalize
+        phi = phi * self.phi_std + self.phi_mean
+        if clip:
+            phi = jnp.clip(phi, 0.0, 1.0)
+        return phi
+
+
+def compute_pod_basis(phi_data: np.ndarray, k: int = 32):
+    """
+    Compute POD basis from training trajectories.
+
+    Args:
+        phi_data: (N, T, 5) training trajectories
+        k: number of POD modes to retain
+
+    Returns:
+        pod_basis: (T*5, k) orthonormal basis vectors
+        pod_mean: (T*5,) mean trajectory
+        explained_variance: fraction of variance explained by k modes
+    """
+    N, T, n_species = phi_data.shape
+    X = phi_data.reshape(N, T * n_species)  # (N, T*5)
+    pod_mean = X.mean(axis=0)
+    X_centered = X - pod_mean
+
+    # SVD (economy size)
+    U, S, Vt = np.linalg.svd(X_centered, full_matrices=False)
+    pod_basis = Vt[:k].T  # (T*5, k)
+
+    # Explained variance
+    total_var = np.sum(S**2)
+    explained_var = np.sum(S[:k] ** 2) / total_var
+
+    print(
+        f"  POD: {k} modes explain {explained_var*100:.1f}% variance (S[0]={S[0]:.1f}, S[{k-1}]={S[k-1]:.1f})"
+    )
+    return pod_basis, pod_mean, explained_var
+
+
+@eqx.filter_jit
+def pod_loss_fn(model, theta_batch, phi_batch):
+    """MSE loss for POD-DeepONet (reconstructed trajectories vs targets)."""
+
+    def single_loss(theta, phi_true):
+        # phi_true: (T, 5) normalized
+        coeffs = model.branch(theta)  # (k,)
+        recon = model.pod_mean + model.pod_basis @ coeffs  # (T*5,)
+        phi_pred = recon.reshape(model.n_times, model.n_species)
+        mse = jnp.mean((phi_pred - phi_true) ** 2)
+        # Constraint penalty after denormalization
+        phi_denorm = phi_pred * model.phi_std + model.phi_mean
+        neg_penalty = jnp.mean(jax.nn.relu(-phi_denorm) ** 2)
+        over_penalty = jnp.mean(jax.nn.relu(phi_denorm - 1.0) ** 2)
+        return mse + 0.1 * (neg_penalty + over_penalty)
+
+    losses = jax.vmap(single_loss)(theta_batch, phi_batch)
+    return jnp.mean(losses)
+
+
+@eqx.filter_jit
+def pod_train_step(model, opt_state, theta_batch, phi_batch, optimizer):
+    loss, grads = eqx.filter_value_and_grad(pod_loss_fn)(model, theta_batch, phi_batch)
+    updates, opt_state = optimizer.update(grads, opt_state, model)
+    model = eqx.apply_updates(model, updates)
+    return model, opt_state, loss
+
+
+def train_pod(
+    data_path: str,
+    n_epochs: int = 500,
+    batch_size: int = 256,
+    lr: float = 1e-3,
+    k: int = 32,
+    hidden: int = 128,
+    n_layers: int = 3,
+    val_frac: float = 0.1,
+    seed: int = 0,
+    checkpoint_dir: str = "checkpoints_pod",
+):
+    """Train POD-DeepONet: SVD-based trunk + learned branch coefficients."""
+    print(f"Loading data from {data_path}...")
+    theta, phi, t_grid, stats = load_data(data_path)
+    N = theta.shape[0]
+    T = t_grid.shape[0]
+    n_species = phi.shape[2]
+    print(f"  N={N}, T={T}, theta_dim={theta.shape[1]}, n_species={n_species}")
+
+    # Compute POD basis from normalized training data
+    phi_np = np.array(phi)
+    pod_basis, pod_mean, explained_var = compute_pod_basis(phi_np, k=k)
+
+    # Compute target POD coefficients for reference
+    X = phi_np.reshape(N, T * n_species)
+    target_coeffs = (X - pod_mean) @ pod_basis  # (N, k)
+    print(f"  POD coefficients range: [{target_coeffs.min():.3f}, {target_coeffs.max():.3f}]")
+
+    # Train/val split
+    n_val = max(1, int(N * val_frac))
+    n_train = N - n_val
+    idx = jr.permutation(jr.PRNGKey(seed), N)
+    train_idx, val_idx = idx[:n_train], idx[n_train:]
+
+    theta_train, phi_train = theta[train_idx], phi[train_idx]
+    theta_val, phi_val = theta[val_idx], phi[val_idx]
+    print(f"  Train: {n_train}, Val: {n_val}")
+
+    # Model
+    key = jr.PRNGKey(seed)
+    model = PODDeepONet(
+        theta_dim=theta.shape[1],
+        n_species=n_species,
+        n_times=T,
+        k=k,
+        hidden=hidden,
+        n_layers=n_layers,
+        key=key,
+    )
+    # Set POD basis (fixed, not trained)
+    model = eqx.tree_at(lambda m: m.pod_basis, model, jnp.array(pod_basis, dtype=jnp.float32))
+    model = eqx.tree_at(lambda m: m.pod_mean, model, jnp.array(pod_mean, dtype=jnp.float32))
+    model = eqx.tree_at(lambda m: m.phi_mean, model, jnp.array(stats["phi_mean"]))
+    model = eqx.tree_at(lambda m: m.phi_std, model, jnp.array(stats["phi_std"]))
+
+    n_params = sum(x.size for x in jax.tree.leaves(eqx.filter(model, eqx.is_array)))
+    n_trainable = sum(x.size for x in jax.tree.leaves(eqx.filter(model.branch, eqx.is_array)))
+    print(f"  Total params: {n_params:,} (trainable branch: {n_trainable:,})")
+
+    # Optimizer
+    schedule = optax.warmup_cosine_decay_schedule(
+        init_value=1e-5,
+        peak_value=lr,
+        warmup_steps=100,
+        decay_steps=n_epochs * (n_train // batch_size + 1),
+        end_value=1e-6,
+    )
+    optimizer = optax.adam(schedule)
+    opt_state = optimizer.init(eqx.filter(model, eqx.is_array))
+
+    # Checkpoint
+    ckpt_dir = Path(checkpoint_dir)
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+
+    best_val_loss = float("inf")
+    train_losses = []
+    val_losses = []
+
+    print(
+        f"\nTraining POD-DeepONet for {n_epochs} epochs (k={k} modes, {explained_var*100:.1f}% var)..."
+    )
+    t0 = time.time()
+
+    for epoch in range(n_epochs):
+        perm = jr.permutation(jr.PRNGKey(epoch), n_train)
+        n_batches = n_train // batch_size
+
+        epoch_loss = 0.0
+        for i in range(n_batches):
+            batch_idx = perm[i * batch_size : (i + 1) * batch_size]
+            tb = theta_train[batch_idx]
+            pb = phi_train[batch_idx]
+            model, opt_state, loss = pod_train_step(model, opt_state, tb, pb, optimizer)
+            epoch_loss += float(loss)
+
+        epoch_loss /= max(n_batches, 1)
+        train_losses.append(epoch_loss)
+
+        # Validation
+        val_batch_size = min(batch_size, n_val)
+        n_val_batches = max(1, n_val // val_batch_size)
+        val_loss = 0.0
+        for vi in range(n_val_batches):
+            vb_theta = theta_val[vi * val_batch_size : (vi + 1) * val_batch_size]
+            vb_phi = phi_val[vi * val_batch_size : (vi + 1) * val_batch_size]
+            val_loss += float(pod_loss_fn(model, vb_theta, vb_phi))
+        val_loss /= n_val_batches
+        val_losses.append(val_loss)
+
+        marker = ""
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            eqx.tree_serialise_leaves(str(ckpt_dir / "best.eqx"), model)
+            marker = " *"
+
+        if (epoch + 1) % 10 == 0 or epoch == 0:
+            elapsed = time.time() - t0
+            print(
+                f"  Epoch {epoch+1:4d}/{n_epochs}  "
+                f"train={epoch_loss:.6f}  val={val_loss:.6f}  "
+                f"best={best_val_loss:.6f}  [{elapsed:.0f}s]{marker}"
+            )
+
+    # Save
+    eqx.tree_serialise_leaves(str(ckpt_dir / "final.eqx"), model)
+    np.savez(
+        ckpt_dir / "training_history.npz",
+        train_losses=np.array(train_losses),
+        val_losses=np.array(val_losses),
+    )
+    np.savez(ckpt_dir / "norm_stats.npz", **{k_: np.array(v) for k_, v in stats.items()})
+    np.savez(
+        ckpt_dir / "pod_info.npz",
+        pod_basis=pod_basis,
+        pod_mean=pod_mean,
+        explained_variance=explained_var,
+        k=k,
+    )
+
+    import json
+
+    arch_cfg = {
+        "model_type": "POD-DeepONet",
+        "k": k,
+        "hidden": hidden,
+        "n_layers": n_layers,
+        "theta_dim": int(theta.shape[1]),
+        "n_species": int(n_species),
+        "n_times": int(T),
+        "n_params": int(n_params),
+        "n_trainable": int(n_trainable),
+        "n_train": int(n_train),
+        "n_epochs": n_epochs,
+        "batch_size": batch_size,
+        "lr": lr,
+        "best_val_loss": float(best_val_loss),
+        "explained_variance": float(explained_var),
+    }
+    with open(ckpt_dir / "config.json", "w") as f:
+        json.dump(arch_cfg, f, indent=2)
+
+    elapsed = time.time() - t0
+    print(f"\nDone in {elapsed:.0f}s. Best val loss: {best_val_loss:.6f}")
+    print(f"Checkpoints saved to {ckpt_dir}/")
+
+    return model, stats
 
 
 # ============================================================
@@ -169,17 +486,26 @@ def load_data(path: str):
     t_min, t_max = t.min(), t.max()
     t_norm = (t - t_min) / (t_max - t_min + 1e-12)
 
+    # A1: Per-species output normalization (StandardScaler)
+    # Pg (0.001-0.03) vs So (0.2-0.8) — scale差を解消してMSE loss均等化
+    phi_mean = phi.mean(axis=(0, 1))  # (5,) per-species mean
+    phi_std = phi.std(axis=(0, 1))  # (5,) per-species std
+    phi_std = np.where(phi_std < 1e-8, 1.0, phi_std)  # avoid div by 0
+    phi_norm = (phi - phi_mean) / phi_std
+
     stats = {
         "theta_lo": lo,
         "theta_hi": hi,
         "theta_width": width,
         "t_min": t_min,
         "t_max": t_max,
+        "phi_mean": phi_mean,
+        "phi_std": phi_std,
     }
 
     return (
         jnp.array(theta_norm, dtype=jnp.float32),
-        jnp.array(phi, dtype=jnp.float32),
+        jnp.array(phi_norm, dtype=jnp.float32),
         jnp.array(t_norm, dtype=jnp.float32),
         stats,
     )
@@ -266,6 +592,10 @@ def train(
         n_layers=n_layers,
         key=key,
     )
+    # A1: Set output normalization stats (training uses normalized phi,
+    # predict_trajectory denormalizes back)
+    model = eqx.tree_at(lambda m: m.phi_mean, model, jnp.array(stats["phi_mean"]))
+    model = eqx.tree_at(lambda m: m.phi_std, model, jnp.array(stats["phi_std"]))
 
     n_params = sum(x.size for x in jax.tree.leaves(eqx.filter(model, eqx.is_array)))
     print(f"  Model params: {n_params:,}")
@@ -620,6 +950,18 @@ def main():
     p_train.add_argument("--seed", type=int, default=0)
     p_train.add_argument("--checkpoint-dir", default="checkpoints")
 
+    # Train POD
+    p_pod = sub.add_parser("train-pod")
+    p_pod.add_argument("--data", required=True)
+    p_pod.add_argument("--epochs", type=int, default=500)
+    p_pod.add_argument("--batch-size", type=int, default=256)
+    p_pod.add_argument("--lr", type=float, default=1e-3)
+    p_pod.add_argument("--k", type=int, default=32, help="Number of POD modes")
+    p_pod.add_argument("--hidden", type=int, default=128)
+    p_pod.add_argument("--n-layers", type=int, default=3)
+    p_pod.add_argument("--seed", type=int, default=0)
+    p_pod.add_argument("--checkpoint-dir", default="checkpoints_pod")
+
     # Eval
     p_eval = sub.add_parser("eval")
     p_eval.add_argument("--checkpoint", required=True)
@@ -654,6 +996,18 @@ def main():
             batch_size=args.batch_size,
             lr=args.lr,
             p=args.p,
+            hidden=args.hidden,
+            n_layers=args.n_layers,
+            seed=args.seed,
+            checkpoint_dir=args.checkpoint_dir,
+        )
+    elif args.command == "train-pod":
+        train_pod(
+            data_path=args.data,
+            n_epochs=args.epochs,
+            batch_size=args.batch_size,
+            lr=args.lr,
+            k=args.k,
             hidden=args.hidden,
             n_layers=args.n_layers,
             seed=args.seed,
