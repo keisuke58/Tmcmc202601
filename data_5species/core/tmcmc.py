@@ -418,6 +418,9 @@ def run_TMCMC(
     gnn_prior: Optional[Any] = None,  # ★ GNNPrior instance (Project B, Issue #39)
     beta_schedule: str = "ess",  # ★ B5: "ess" (ESS-based) or "cov" (CoV-based, Korali/ASMC style)
     target_cov: float = 1.0,  # ★ B5: Target CoV(w) for "cov" schedule (lower = more conservative)
+    proposal_type: str = "gaussian",  # ★ B6: "gaussian" (MH) or "dreamzs" (DE-MCMC + snooker)
+    dreamzs_gamma: Optional[float] = None,  # ★ B6: DE scale factor (default: 2.38/sqrt(2*d))
+    dreamzs_snooker_prob: float = 0.1,  # ★ B6: Probability of snooker update vs standard DE
 ) -> TMCMCResult:
     """
     Transitional MCMC (TMCMC) with β tempering + Linearization Update.
@@ -831,6 +834,18 @@ def run_TMCMC(
         # ★ ERROR-CHECK: Check covariance matrix validity
         debug_logger.check_covariance_matrix(cov, context=f"Stage {stage}, mutation covariance")
 
+        # B6: DREAMzs parameters
+        if proposal_type == "dreamzs":
+            _de_gamma = (
+                dreamzs_gamma if dreamzs_gamma is not None else 2.38 / np.sqrt(2.0 * n_params)
+            )
+            _de_eps_std = 1e-6  # Small noise for ergodicity
+            if stage == 1:
+                debug_logger.log_info(
+                    f"DREAMzs proposal: γ={_de_gamma:.4f}, snooker_prob={dreamzs_snooker_prob:.2f}",
+                    force=True,
+                )
+
         def _mutate_population(
             cov_matrix: np.ndarray, steps: int
         ) -> Tuple[np.ndarray, np.ndarray, float, int, int]:
@@ -856,7 +871,34 @@ def run_TMCMC(
                 theta_current = _theta[i].copy()
                 logL_current = _logL[i]
                 for step in range(n_steps):
-                    prop = rng.multivariate_normal(theta_current, cov_matrix)
+                    if proposal_type == "dreamzs":
+                        # B6: DREAMzs (Differential Evolution MCMC with snooker)
+                        # Pick two distinct random particles (not i)
+                        candidates = [c for c in range(n_particles) if c != i]
+                        r1, r2 = rng.choice(candidates, size=2, replace=False)
+
+                        if rng.random() < dreamzs_snooker_prob and n_particles >= 4:
+                            # Snooker update (Ter Braak & Vrugt, 2008)
+                            # Project onto line from current to random point
+                            r3 = rng.choice([c for c in candidates if c != r1 and c != r2])
+                            z = _theta[r3]
+                            diff = theta_current - z
+                            diff_norm = np.dot(diff, diff)
+                            if diff_norm > 1e-30:
+                                # Project r1, r2 onto line
+                                d1 = np.dot(_theta[r1] - z, diff) / diff_norm
+                                d2 = np.dot(_theta[r2] - z, diff) / diff_norm
+                                prop = theta_current + _de_gamma * (d1 - d2) * diff
+                            else:
+                                prop = rng.multivariate_normal(theta_current, cov_matrix)
+                        else:
+                            # Standard DE proposal: x' = x + γ*(x_r1 - x_r2) + ε
+                            de_noise = rng.normal(0, _de_eps_std, n_params)
+                            prop = theta_current + _de_gamma * (_theta[r1] - _theta[r2]) + de_noise
+                    else:
+                        # Standard Gaussian MH proposal
+                        prop = rng.multivariate_normal(theta_current, cov_matrix)
+
                     for j, (low, high) in enumerate(prior_bounds):
                         prop[j] = reflect_into_bounds(prop[j], low, high)
                     lp_p = log_prior(prop)
