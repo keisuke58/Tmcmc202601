@@ -72,7 +72,7 @@ peri-implantitis
 \label{sec:intro}
 %==============================================================================
 
-Multi-species biofilms on dental implant surfaces are a primary cause of peri-implantitis~\cite{Kolenbrander2010OralMultispecies, Marsh2003Dental}.
+Multi-species biofilms on dental implant surfaces are a primary cause of peri-implantitis~\cite{Kolenbrander2010OralMultispecies, Marsh2003Dental}, and recent in-vivo characterisation confirms that these communities are complex, patient-specific, and temporally dynamic~\cite{EarlyImplantBiofilm2024, PeriImplantitisDysbiosis2025}.
 Heine et al.~\cite{Heine2025PeriImplant} characterised the in-vitro dynamics of five key oral species---\textit{Streptococcus oralis} (So), \textit{Actinomyces naeslundii} (An), \textit{Veillonella} spp.\ (Vei), \textit{Fusobacterium nucleatum} (Fn), and \textit{Porphyromonas gingivalis} (Pg)---under four combinations of community state (commensal/dysbiotic) and cultivation mode (static/HOBIC flow).
 Building on the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamilton}, Klempt et al.~\cite{Klempt2025ContinuumBiofilm} formulated a continuum model in which a symmetric interaction matrix~$\mathbf{A}$ and a decay vector~$\mathbf{b}$ govern species growth.
 Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms} subsequently introduced Bayesian updating with surrogate models for biofilm parameter estimation under hybrid uncertainties.
@@ -316,7 +316,7 @@ A by-product of TMCMC is the model evidence estimate
 \hat{p}(\yobs) = \prod_{m=0}^{M-1}\Bigl(\frac{1}{N}\sum_{j=1}^{N}w_j^{(m)}\Bigr),
 \label{eq:evidence}
 \end{equation}
-enabling Bayesian model comparison via the Bayes factor $B_{10}=p(\yobs\mid\mathcal{M}_{\text{red}})/p(\yobs\mid\mathcal{M}_{\text{full}})$.
+enabling Bayesian model comparison via the Bayes factor $B_{10}=p(\yobs\mid\mathcal{M}_{\text{red}})/p(\yobs\mid\mathcal{M}_{\text{full}})$~\cite{BayesianMultimodel2025NatComm}.
 
 \subsection{Four-stage sequential decomposition}
 
@@ -583,6 +583,8 @@ The strong flow-dependent activation of Vei$\to$Pg in DH---absent in DS---implie
 While the model reproduces the DH pathogen surge qualitatively, the time-invariant $\mathbf{A}$ underestimates the terminal Pg rise; state-dependent interactions $A_{ij}(\mathrm{pH},c^*)$ or regime-switching formulations may be required.
 A Monod nutrient coupling was tested but showed negligible effect ($\Delta\mathrm{DI}<0.002$), confirming that constant $\mathbf{b}$ is adequate for quasi-steady biofilm nutrient regimes.
 
+Recent in-vivo microrheology has demonstrated that biofilm elastic moduli correlate directly with local polysaccharide distribution~\cite{Ohmura2024, BiofilmMatrixMechanics2025}, supporting the hypothesis that community composition---quantifiable via Shannon diversity~\cite{ShannonDiversityGuidelines2024}---determines macroscopic mechanical properties.
+
 The biological constraints improve identifiability: the data-to-parameter ratio increases to $30/11\approx2.7\times$ for CS, while the four-stage decomposition reduces each sub-problem to at most 6 dimensions.
 Each run requires $\sim25{,}000$ forward solves per condition; with $\sim1$\,ms per ODE integration, wall-clock times range from 40--90\,h on 12 cores.
 Compared to Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms}, the direct-ODE approach avoids surrogate approximation errors; combining their surrogate acceleration with our biological constraints is a natural extension.
@@ -610,7 +612,7 @@ Independent validation against unused pH ($R^2=0.71$), gingipain ($r=0.90$), and
 Pairwise Frobenius analysis reveals that the health-to-disease transition corresponds to a structural reorganisation of the interaction matrix ($\rho_{\text{cross}}\approx-0.15$, $\Delta_F\geq0.57$), not merely a magnitude shift.
 \end{enumerate}
 
-Future work will address state-dependent interaction matrices to capture the full terminal surge, integration with continuum PDE models for spatially resolved inference, and surrogate-accelerated TMCMC for large-scale applications.
+Future work will address state-dependent interaction matrices to capture the full terminal surge, integration with continuum PDE models for spatially resolved inference, surrogate-accelerated TMCMC with Bayesian neural operators~\cite{AlphaVIDeepONet2025} for large-scale applications, and virtual element discretisation~\cite{Klempt2024ContinuumGrowth} for conformal biofilm--implant interface meshing.
 
 %==============================================================================
 \bibliographystyle{unsrt}

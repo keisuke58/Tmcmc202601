@@ -84,6 +84,9 @@ fi
 if [ "${REPLICATE_SIGMA}" = "1" ]; then
     EXTRA_ARGS="${EXTRA_ARGS} --replicate-sigma"
     echo "  Using heteroscedastic sigma from replicates (--replicate-sigma)"
+else
+    EXTRA_ARGS="${EXTRA_ARGS} --no-replicate-sigma"
+    echo "  Using uniform sigma (--no-replicate-sigma)"
 fi
 if [ -n "${N_MUTATION_STEPS}" ]; then
     EXTRA_ARGS="${EXTRA_ARGS} --n-mutation-steps ${N_MUTATION_STEPS}"
