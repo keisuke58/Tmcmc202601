@@ -2117,6 +2117,33 @@ def run_estimation(
             logger.error(f"Failed to load DeepONet: {e}. Falling back to ODE solver.")
             deeponet_surrogate = None
 
+    # A4: Unified DeepONet (overrides condition-specific if both flags set)
+    if getattr(args, "use_unified_deeponet", False):
+        try:
+            sys.path.insert(0, str(Path(__file__).parent.parent.parent / "deeponet"))
+            from deeponet_unified import UnifiedDeepONetSurrogate
+
+            ckpt_dir = args.unified_checkpoint
+            if ckpt_dir is None:
+                ckpt_dir = str(
+                    Path(__file__).parent.parent.parent / "deeponet" / "checkpoints_unified"
+                )
+
+            ckpt_path = Path(ckpt_dir)
+            cond_key = f"{args.condition}_{args.cultivation}"
+            deeponet_surrogate = UnifiedDeepONetSurrogate(
+                str(ckpt_path / "best.eqx"),
+                str(ckpt_path / "norm_stats.npz"),
+                condition=cond_key,
+            )
+            logger.info(f"Unified DeepONet loaded from {ckpt_dir} (condition={cond_key})")
+            if not getattr(args, "use_threads", False):
+                args.use_threads = True
+                logger.info("Auto-enabled --use-threads for JAX/DeepONet compatibility")
+        except Exception as e:
+            logger.error(f"Failed to load unified DeepONet: {e}. Falling back.")
+            deeponet_surrogate = None
+
     def make_evaluator(theta_linearization=None):
         if theta_linearization is None:
             theta_linearization = theta_base
@@ -2685,6 +2712,18 @@ Examples:
         "--use-threads",
         action="store_true",
         help="Use threads instead of processes (required for JAX/DeepONet to avoid fork issues)",
+    )
+    # A4: Unified DeepONet (4 conditions → 1 model)
+    parser.add_argument(
+        "--use-unified-deeponet",
+        action="store_true",
+        help="Use unified DeepONet (single model for all 4 conditions, theta_dim=24)",
+    )
+    parser.add_argument(
+        "--unified-checkpoint",
+        type=str,
+        default=None,
+        help="Path to unified checkpoint dir (default: deeponet/checkpoints_unified)",
     )
 
     # Viscoelastic extension (SLS/Zener model)
