@@ -1,0 +1,69 @@
+# Publication-quality matplotlib style for biofilm TMCMC paper
+# Based on Nature/PNAS guidelines + Wong (2011) colorblind-safe palette
+#
+# Usage:
+#   plt.style.use("path/to/paper.mplstyle")
+#   or in code:
+#   from visualization.style import apply_paper_style
+
+# --- Font ---
+font.family: serif
+font.serif: DejaVu Serif, Times New Roman, Times, Computer Modern Roman
+font.size: 9
+mathtext.fontset: cm
+# text.usetex: True  # Enable in scripts where LaTeX is available
+
+# --- Axes ---
+axes.labelsize: 9
+axes.titlesize: 10
+axes.titleweight: bold
+axes.linewidth: 0.6
+axes.spines.top: False
+axes.spines.right: False
+axes.labelpad: 4
+axes.prop_cycle: cycler('color', ['0072B2', '009E73', 'D55E00', 'CC79A7', 'F0E442', '56B4E9', 'E69F00', '000000'])
+
+# --- Ticks ---
+xtick.labelsize: 8
+ytick.labelsize: 8
+xtick.major.width: 0.6
+ytick.major.width: 0.6
+xtick.minor.width: 0.4
+ytick.minor.width: 0.4
+xtick.major.size: 3.5
+ytick.major.size: 3.5
+xtick.minor.size: 2.0
+ytick.minor.size: 2.0
+xtick.direction: in
+ytick.direction: in
+
+# --- Lines ---
+lines.linewidth: 1.0
+lines.markersize: 4
+
+# --- Legend ---
+legend.fontsize: 8
+legend.frameon: True
+legend.framealpha: 0.8
+legend.edgecolor: 0.8
+legend.fancybox: False
+legend.borderpad: 0.4
+legend.handlelength: 1.5
+
+# --- Grid ---
+axes.grid: False
+grid.alpha: 0.3
+grid.linewidth: 0.4
+grid.linestyle: --
+
+# --- Figure ---
+figure.dpi: 150
+figure.figsize: 7.5, 5.0
+figure.constrained_layout.use: True
+
+# --- Saving ---
+savefig.dpi: 300
+savefig.bbox: tight
+savefig.pad_inches: 0.05
+pdf.fonttype: 42
+ps.fonttype: 42

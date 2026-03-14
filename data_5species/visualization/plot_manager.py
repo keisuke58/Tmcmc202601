@@ -534,6 +534,258 @@ class PlotManager:
         out_name = f"5panel_{name}.png"
         self.save_figure(out_name)
 
+    def plot_5panel_paper(
+        self,
+        t_arr: np.ndarray,
+        phibar_samples: np.ndarray,
+        active_species: List[int],
+        name: str,
+        data: Optional[np.ndarray] = None,
+        idx_sparse: Optional[np.ndarray] = None,
+        *,
+        t_days: Optional[np.ndarray] = None,
+        exp_boxplot: Optional[Dict] = None,
+        phibar_map: Optional[np.ndarray] = None,
+        phibar_mean: Optional[np.ndarray] = None,
+        phi_init: Optional[np.ndarray] = None,
+        condition_label: str = "",
+    ) -> None:
+        """Publication-quality 5-panel posterior predictive (Nature/PNAS style).
+
+        - 3×2 grid layout (5 species + RMSE summary panel)
+        - Wong (2011) colorblind-safe palette
+        - No top/right spines, serif font, 300 DPI
+        - Italic species names, panel labels (a)-(f)
+        """
+        from .style import (
+            SPECIES_COLORS,
+            SPECIES_NAMES,
+            add_panel_labels,
+            apply_paper_style,
+            savefig_paper,
+        )
+
+        apply_paper_style()
+
+        if phibar_samples.ndim != 3:
+            raise ValueError(f"phibar_samples must be 3D, got shape {phibar_samples.shape}")
+
+        # Percentile bands
+        q_2s_lo = np.nanpercentile(phibar_samples, 2.275, axis=0)
+        q_1s_lo = np.nanpercentile(phibar_samples, 15.865, axis=0)
+        q50 = np.nanpercentile(phibar_samples, 50, axis=0)
+        q_1s_hi = np.nanpercentile(phibar_samples, 84.135, axis=0)
+        q_2s_hi = np.nanpercentile(phibar_samples, 97.725, axis=0)
+
+        t_plot, t_obs_plot, xlabel, xlim = self._map_time_to_days(t_arr, t_days, idx_sparse)
+
+        n_sp = len(active_species)
+        fig, axes = plt.subplots(2, 3, figsize=(7.5, 5.0))
+        axes_flat = axes.flatten()
+
+        for i, sp in enumerate(active_species):
+            ax = axes_flat[i]
+            color = SPECIES_COLORS[sp] if sp < len(SPECIES_COLORS) else f"C{sp}"
+            sp_name = SPECIES_NAMES[sp] if sp < len(SPECIES_NAMES) else f"Species {sp+1}"
+
+            # 2σ band
+            ax.fill_between(
+                t_plot,
+                q_2s_lo[:, i],
+                q_2s_hi[:, i],
+                alpha=0.15,
+                color=color,
+                linewidth=0,
+            )
+            # 1σ band
+            ax.fill_between(
+                t_plot,
+                q_1s_lo[:, i],
+                q_1s_hi[:, i],
+                alpha=0.30,
+                color=color,
+                linewidth=0,
+            )
+            # Median
+            ax.plot(t_plot, q50[:, i], linewidth=1.2, color=color, label="Median", zorder=5)
+
+            # MAP (dashed black)
+            if phibar_map is not None:
+                ax.plot(
+                    t_plot,
+                    phibar_map[:, i],
+                    "--",
+                    color="black",
+                    linewidth=0.8,
+                    label="MAP",
+                    alpha=0.7,
+                    zorder=6,
+                )
+            # Mean (dotted gray)
+            if phibar_mean is not None:
+                ax.plot(
+                    t_plot,
+                    phibar_mean[:, i],
+                    ":",
+                    color="0.4",
+                    linewidth=0.8,
+                    label="Mean",
+                    alpha=0.7,
+                    zorder=6,
+                )
+
+            # Experimental boxplot overlay
+            if exp_boxplot is not None and sp in exp_boxplot:
+                bp = exp_boxplot[sp]
+                box_hw = 0.35
+                for j, day in enumerate(bp["days"]):
+                    med = bp["median"][j]
+                    q1 = bp["q1"][j] if "q1" in bp else med
+                    q3 = bp["q3"][j] if "q3" in bp else med
+                    lo = bp["low"][j]
+                    hi = bp["high"][j]
+                    hw = box_hw
+                    # IQR box
+                    rect = plt.Rectangle(
+                        (day - hw, q1),
+                        2 * hw,
+                        q3 - q1,
+                        linewidth=0.8,
+                        edgecolor=color,
+                        facecolor=color,
+                        alpha=0.15,
+                        zorder=7,
+                    )
+                    ax.add_patch(rect)
+                    # Median line
+                    ax.plot(
+                        [day - hw, day + hw],
+                        [med, med],
+                        color=color,
+                        linewidth=1.5,
+                        alpha=0.9,
+                        zorder=8,
+                    )
+                    # Whiskers
+                    ax.plot([day, day], [lo, q1], color=color, linewidth=0.7, alpha=0.5, zorder=7)
+                    ax.plot([day, day], [q3, hi], color=color, linewidth=0.7, alpha=0.5, zorder=7)
+                    # Caps
+                    chw = hw * 0.5
+                    ax.plot(
+                        [day - chw, day + chw],
+                        [lo, lo],
+                        color=color,
+                        linewidth=0.7,
+                        alpha=0.5,
+                        zorder=7,
+                    )
+                    ax.plot(
+                        [day - chw, day + chw],
+                        [hi, hi],
+                        color=color,
+                        linewidth=0.7,
+                        alpha=0.5,
+                        zorder=7,
+                    )
+
+            # Data scatter
+            if data is not None and t_obs_plot is not None:
+                ax.scatter(
+                    t_obs_plot,
+                    data[:, i],
+                    s=30,
+                    color=color,
+                    edgecolors="black",
+                    zorder=10,
+                    linewidth=0.6,
+                    label="Data",
+                )
+
+            # Day 1 IC marker
+            if phi_init is not None and i < len(phi_init):
+                ax.scatter(
+                    [1],
+                    [phi_init[i]],
+                    s=30,
+                    facecolors="white",
+                    edgecolors=color,
+                    zorder=11,
+                    linewidth=1.0,
+                    marker="D",
+                    label="IC (Day 1)",
+                )
+
+            ax.set_title(sp_name, fontsize=9)
+            ax.set_xlabel(xlabel)
+            if i % 3 == 0:
+                ax.set_ylabel(r"$\bar{\varphi}$")
+            ax.set_ylim(bottom=-0.02)
+            if t_days is not None:
+                ticks = sorted(set([1] + list(t_days))) if phi_init is not None else list(t_days)
+                ax.set_xticks(ticks)
+
+            # Legend only on first panel
+            if i == 0:
+                ax.legend(fontsize=7, loc="upper right", framealpha=0.8)
+
+        # 6th panel: RMSE summary bar chart
+        ax_rmse = axes_flat[5]
+        if data is not None and idx_sparse is not None:
+            from .style import SPECIES_NAMES_SHORT
+
+            # Compute per-species RMSE for median trajectory
+            pred_median = q50[idx_sparse]
+            resid = pred_median - data
+            rmse_per = np.sqrt(np.mean(resid**2, axis=0))
+            rmse_total = np.sqrt(np.mean(resid**2))
+
+            bars = ax_rmse.bar(
+                range(n_sp),
+                rmse_per,
+                color=SPECIES_COLORS[:n_sp],
+                edgecolor="black",
+                linewidth=0.5,
+                alpha=0.8,
+            )
+            ax_rmse.axhline(
+                rmse_total,
+                color="black",
+                linestyle="--",
+                linewidth=0.8,
+                label=f"Total: {rmse_total:.4f}",
+            )
+            ax_rmse.set_xticks(range(n_sp))
+            ax_rmse.set_xticklabels(SPECIES_NAMES_SHORT[:n_sp])
+            ax_rmse.set_ylabel("RMSE")
+            ax_rmse.set_title("Fit quality", fontsize=9)
+            ax_rmse.legend(fontsize=7, loc="upper right")
+
+            # Annotate bars with values
+            for bar, val in zip(bars, rmse_per):
+                ax_rmse.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 0.002,
+                    f"{val:.3f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=7,
+                )
+        else:
+            ax_rmse.set_visible(False)
+
+        # Panel labels
+        add_panel_labels(axes_flat[: n_sp + 1])
+
+        if condition_label:
+            fig.suptitle(condition_label, fontsize=11, fontweight="bold", y=1.02)
+
+        # Save in both PNG and PDF
+        out_stem = self.output_dir / f"5panel_paper_{name}"
+        savefig_paper(fig, out_stem, formats=("png", "pdf"))
+        plt.close(fig)
+        self.generated_figs.append(out_stem.with_suffix(".png"))
+        logger.info(f"Saved publication 5-panel: {out_stem}.png/.pdf")
+
     def plot_posterior_predictive_spaghetti(
         self,
         t_arr: np.ndarray,
