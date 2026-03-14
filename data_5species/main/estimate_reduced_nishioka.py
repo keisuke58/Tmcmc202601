@@ -1606,7 +1606,7 @@ def plot_correlation_matrix(corr_results: Dict[str, Any], output_dir: Path):
 # DATA LOADING
 # =============================================================================
 
-# Species color to model index mapping
+# Species color to model index mapping (legacy: species_distribution_data.csv)
 SPECIES_MAP = {
     "Blue": 0,  # S. oralis
     "Green": 1,  # A. naeslundii
@@ -1614,6 +1614,14 @@ SPECIES_MAP = {
     "Orange": 2,  # V. parvula (Dysbiotic strain of Veillonella)
     "Purple": 3,  # F. nucleatum
     "Red": 4,  # P. gingivalis
+    # fig3_species_distribution_summary.csv uses full species names
+    "S. oralis": 0,
+    "A. naeslundii": 1,
+    "V. dispar": 2,
+    "V. parvula": 2,
+    "F. nucleatum": 3,
+    "P. gingivalis_W83": 4,
+    "P. gingivalis_20709": 4,
 }
 
 # For Commensal (no Orange/V. parvula), remap Purple and Red
@@ -1623,6 +1631,13 @@ SPECIES_MAP_COMMENSAL = {
     "Yellow": 2,  # V. dispar
     "Purple": 3,  # F. nucleatum
     "Red": 4,  # P. gingivalis
+    # fig3_species_distribution_summary.csv uses full species names
+    "S. oralis": 0,
+    "A. naeslundii": 1,
+    "V. dispar": 2,
+    "F. nucleatum": 3,
+    "P. gingivalis_W83": 4,
+    "P. gingivalis_20709": 4,
 }
 
 
@@ -1672,8 +1687,10 @@ def load_experimental_data(
         mask = (boxplot_df["condition"] == condition) & (boxplot_df["cultivation"] == cultivation)
         boxplot_df = boxplot_df[mask]
 
-    # Load species distribution data
+    # Load species distribution data (prefer fig3 summary with full statistics)
     possible_species_files = [
+        data_dir / "fig3_species_distribution_summary.csv",
+        data_dir / "experiment_data" / "fig3_species_distribution_summary.csv",
         data_dir / "species_distribution_data.csv",
         data_dir / "experiment_data" / "species_distribution_data.csv",
     ]
@@ -1689,6 +1706,7 @@ def load_experimental_data(
             f"Could not find species data. Checked: {[str(f) for f in possible_species_files]}"
         )
 
+    logger.info(f"Using species distribution file: {species_file.name}")
     species_df = pd.read_csv(species_file)
 
     # Filter
@@ -1741,8 +1759,24 @@ def load_experimental_data(
         row_sums = np.where(row_sums > 0, row_sums, 1.0)  # Avoid division by zero
         data = data / row_sums
         logger.info("Data normalized to species fractions (sum=1 per timepoint)")
-        # Adjust sigma for normalized data
-        sigma_obs = sigma_obs / total_volumes.mean() if total_volumes.mean() > 0 else sigma_obs
+        # Estimate sigma from species-level IQR in the species_distribution CSV
+        # (total-volume IQR is not appropriate for composition fractions)
+        species_iqr_sigmas = []
+        if "q1" in species_df.columns and "q3" in species_df.columns:
+            for _, row in species_df.iterrows():
+                iqr_frac = (row["q3"] - row["q1"]) / 100.0  # Convert % to fraction
+                species_iqr_sigmas.append(iqr_frac / 1.35)
+        elif "iqr" in species_df.columns:
+            for _, row in species_df.iterrows():
+                iqr_frac = row["iqr"] / 100.0  # Convert % to fraction
+                species_iqr_sigmas.append(iqr_frac / 1.35)
+        if species_iqr_sigmas:
+            sigma_obs = float(np.mean(species_iqr_sigmas))
+            logger.info(f"Sigma_obs from species-level IQR: {sigma_obs:.4f}")
+        else:
+            # Fallback: scale total-volume sigma by mean total volume
+            sigma_obs = sigma_obs / total_volumes.mean() if total_volumes.mean() > 0 else sigma_obs
+            logger.info(f"Sigma_obs (fallback, scaled): {sigma_obs:.4f}")
 
     # Always use Day 1 as initial condition (even when fitting from a later day)
     phi_init_exp = data[0, :].copy()
@@ -2331,10 +2365,10 @@ def run_estimation(
     logger.info("HDI computed for all parameters")
 
     # =========================================================================
-    # IMPROVEMENT 6: Model Evidence (if requested)
+    # IMPROVEMENT 6: Model Evidence (always computed — harmonic mean is cheap)
     # =========================================================================
     evidence_results = None
-    if args.compute_evidence:
+    if True:  # Always compute evidence
         logger.info("Computing model evidence (marginal likelihood)...")
 
         # Extract beta schedule and mean logL from diagnostics if available
@@ -2392,6 +2426,7 @@ def run_estimation(
         "active_indices": active_indices,
         "prior_bounds": prior_bounds,
         "param_names": active_param_names,
+        "sigma_obs": sigma_obs,
     }
 
 
@@ -2467,7 +2502,14 @@ Examples:
     parser.add_argument(
         "--normalize-data",
         action="store_true",
-        help="Normalize data to species fractions (sum=1) instead of absolute volumes",
+        default=True,
+        help="Normalize data to species fractions (sum=1) instead of absolute volumes (default: True)",
+    )
+    parser.add_argument(
+        "--no-normalize-data",
+        action="store_false",
+        dest="normalize_data",
+        help="Use absolute volumes instead of species fractions",
     )
 
     # Estimation options
@@ -3024,6 +3066,124 @@ def main():
     save_npy(output_dir / "samples.npy", results["samples"])
     save_npy(output_dir / "logL.npy", results["logL"])
 
+    # =========================================================================
+    # COMPREHENSIVE SAVE: per-chain samples, diagnostics, sigma, priors, etc.
+    # =========================================================================
+
+    # Per-chain samples (for chain-level diagnostics / R-hat recomputation)
+    if results.get("chains"):
+        chains_dir = output_dir / "chains"
+        chains_dir.mkdir(exist_ok=True)
+        for ci, chain_data in enumerate(results["chains"]):
+            save_npy(chains_dir / f"chain_{ci}.npy", np.asarray(chain_data))
+        logger.info(f"Saved {len(results['chains'])} chain(s) to chains/")
+
+    # TMCMC diagnostics (beta_schedule, acceptance_rates, stage_summaries, etc.)
+    diag_data = results.get("diagnostics", {})
+    if diag_data:
+        diag_dir = output_dir / "tmcmc_diagnostics"
+        diag_dir.mkdir(exist_ok=True)
+
+        # Beta schedule per chain
+        if "beta_schedules" in diag_data:
+            save_json(
+                diag_dir / "beta_schedule.json",
+                {
+                    f"chain_{ci}": list(map(float, bs))
+                    for ci, bs in enumerate(diag_data["beta_schedules"])
+                },
+            )
+
+        # Acceptance rates per chain per stage
+        if "acc_rate_histories" in diag_data:
+            save_json(
+                diag_dir / "acceptance_rates.json",
+                {
+                    f"chain_{ci}": list(map(float, ar))
+                    for ci, ar in enumerate(diag_data["acc_rate_histories"])
+                },
+            )
+
+        # Stage summaries (per chain)
+        if "stage_summaries" in diag_data:
+            save_json(diag_dir / "stage_summaries.json", diag_data["stage_summaries"])
+
+        # Linearization history (theta0 per chain)
+        if "theta0_history" in diag_data:
+            try:
+                save_json(
+                    diag_dir / "linearization_history.json",
+                    {
+                        f"chain_{ci}": [list(map(float, th)) for th in hist]
+                        for ci, hist in enumerate(diag_data["theta0_history"])
+                    },
+                )
+            except Exception as e:
+                logger.warning(f"Failed to save linearization history: {e}")
+
+        # Solver health (likelihood_health per chain)
+        if "likelihood_health_histories" in diag_data:
+            save_json(diag_dir / "solver_health.json", diag_data["likelihood_health_histories"])
+
+        # Timing breakdown
+        if "timing_breakdown_s" in diag_data:
+            save_json(diag_dir / "timing_breakdown.json", diag_data["timing_breakdown_s"])
+
+        # ROM evaluation counts
+        rom_info = {}
+        if "n_rom_evaluations" in diag_data:
+            rom_info["n_rom_evaluations"] = diag_data["n_rom_evaluations"]
+        if "n_fom_evaluations" in diag_data:
+            rom_info["n_fom_evaluations"] = diag_data["n_fom_evaluations"]
+        if "rom_error_histories" in diag_data:
+            rom_info["rom_error_histories"] = diag_data["rom_error_histories"]
+        if rom_info:
+            save_json(diag_dir / "rom_info.json", rom_info)
+
+        logger.info("Saved TMCMC diagnostics to tmcmc_diagnostics/")
+
+    # Sigma matrix (the actual sigma_obs used in likelihood)
+    _sigma = results.get("sigma_obs")
+    if _sigma is not None:
+        if isinstance(_sigma, np.ndarray):
+            save_npy(output_dir / "sigma_matrix.npy", _sigma)
+            save_json(
+                output_dir / "sigma_info.json",
+                {
+                    "type": "heteroscedastic_matrix",
+                    "shape": list(_sigma.shape),
+                    "min": float(_sigma.min()),
+                    "max": float(_sigma.max()),
+                    "mean": float(_sigma.mean()),
+                },
+            )
+        else:
+            save_json(
+                output_dir / "sigma_info.json",
+                {
+                    "type": "scalar",
+                    "value": float(_sigma),
+                },
+            )
+
+    # Prior bounds
+    save_json(
+        output_dir / "prior_bounds.json",
+        {
+            "active_indices": list(results["active_indices"]),
+            "param_names": results["param_names"],
+            "bounds": [
+                {
+                    "name": results["param_names"][i],
+                    "index": int(results["active_indices"][i]),
+                    "min": float(results["prior_bounds"][results["active_indices"][i]][0]),
+                    "max": float(results["prior_bounds"][results["active_indices"][i]][1]),
+                }
+                for i in range(len(results["param_names"]))
+            ],
+        },
+    )
+
     # Extract active parameter values from full theta vectors (used in multiple places)
     active_indices = results["active_indices"]
     n_active = len(active_indices)
@@ -3419,6 +3579,25 @@ def main():
 
         phibar_samples = np.array(phibar_samples)  # (n_draws, n_time, n_species)
 
+        # Save posterior trajectories for reuse without re-simulation
+        try:
+            np.savez_compressed(
+                output_dir / "posterior_trajectories.npz",
+                phibar_samples=phibar_samples,
+                t_fit=t_fit,
+                phibar_map=phibar_map,
+                phibar_mean=phibar_mean,
+                sample_indices=indices,
+                idx_sparse=idx_sparse,
+                data=data,
+            )
+            logger.info(
+                f"Saved posterior trajectories: {phibar_samples.shape[0]} draws × "
+                f"{phibar_samples.shape[1]} timesteps × {phibar_samples.shape[2]} species"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save posterior trajectories: {e}")
+
         # Load experimental boxplot data for overlay
         try:
             from data_5species.visualization.helpers import load_exp_boxplot
@@ -3459,6 +3638,25 @@ def main():
             )
         except Exception as e:
             logger.warning(f"Failed to generate 5-panel plot: {e}")
+
+        # 5-Panel Publication Quality (3×2 layout, colorblind-safe, PDF+PNG)
+        try:
+            plot_mgr.plot_5panel_paper(
+                t_fit,
+                phibar_samples,
+                active_species,
+                f"{name_tag}",
+                data,
+                idx_sparse,
+                t_days=t_days,
+                exp_boxplot=exp_boxplot,
+                phibar_map=phibar_map,
+                phibar_mean=phibar_mean,
+                phi_init=phi_init_array,
+                condition_label=f"{args.condition} / {args.cultivation}",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to generate publication 5-panel plot: {e}")
 
         # Spaghetti Plot
         try:
@@ -3517,7 +3715,41 @@ def main():
 
         with open(output_dir / "fit_metrics.json", "w") as f:
             json.dump(fit_metrics, f, indent=2)
-        logger.info("Saved fit metrics to fit_metrics.json")
+
+        # =====================================================================
+        # RMSE AUTO-DISPLAY: clear per-species + total RMSE in log
+        # =====================================================================
+        species_names_display = ["So", "An", "Vd", "Fn", "Pg"]
+        logger.info("")
+        logger.info("=" * 72)
+        logger.info("FIT QUALITY (RMSE / MAE)")
+        logger.info("=" * 72)
+        logger.info("%-6s  %10s %10s %10s %10s", "", "MAP_RMSE", "Mean_RMSE", "MAP_MAE", "Mean_MAE")
+        logger.info("-" * 72)
+        for si, sp_name in enumerate(species_names_display):
+            logger.info(
+                "%-6s  %10.4f %10.4f %10.4f %10.4f",
+                sp_name,
+                metrics_map["rmse_per_species"][si],
+                metrics_mean["rmse_per_species"][si],
+                metrics_map["mae_per_species"][si],
+                metrics_mean["mae_per_species"][si],
+            )
+        logger.info("-" * 72)
+        logger.info(
+            "%-6s  %10.4f %10.4f %10.4f %10.4f",
+            "TOTAL",
+            metrics_map["rmse_total"],
+            metrics_mean["rmse_total"],
+            metrics_map["mae_total"],
+            metrics_mean["mae_total"],
+        )
+        logger.info(
+            "%-6s  %10.4f",
+            "MaxAbs",
+            metrics_map["max_abs"],
+        )
+        logger.info("=" * 72)
 
     except Exception as e:
         logger.warning(f"Failed to compute/save fit metrics: {e}")
@@ -3598,6 +3830,15 @@ def main():
             ess_val,
         )
 
+    # List all saved files
+    logger.info("-" * 80)
+    logger.info("SAVED FILES:")
+    saved_files = sorted(output_dir.rglob("*"))
+    for sf in saved_files:
+        if sf.is_file():
+            size_kb = sf.stat().st_size / 1024
+            rel = sf.relative_to(output_dir)
+            logger.info("  %-45s  %8.1f KB", str(rel), size_kb)
     logger.info("=" * 80)
     logger.info("Results saved to: %s", output_dir)
     logger.info("=" * 80)
