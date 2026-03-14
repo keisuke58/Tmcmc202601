@@ -48,6 +48,19 @@ from core_hamilton_2d_nutrient import (
 from solve_stress_2d import solve_2d_fem
 from material_models import compute_di, compute_E_phi_pg, E_MAX_PA, E_MIN_PA
 
+# VEM solver (optional, loaded on demand)
+_solve_2d_vem = None
+
+
+def _get_vem_solver():
+    global _solve_2d_vem
+    if _solve_2d_vem is None:
+        from solve_stress_2d_vem import solve_2d_vem
+
+        _solve_2d_vem = solve_2d_vem
+    return _solve_2d_vem
+
+
 import jax
 import jax.numpy as jnp
 
@@ -179,6 +192,7 @@ def run_staggered_coupled(
     stress_type="plane_strain",
     nutrient_bc="mixed",
     alpha_max=0.0,
+    solver="fem",
 ):
     """
     Quasi-static staggered growth-mechanics coupling (Klempt 2024 style).
@@ -292,6 +306,7 @@ def run_staggered_coupled(
         nu,
         e_model,
         stress_type,
+        solver=solver,
     )
 
     mode_str = "QUASI-STATIC" if ode_adjust_steps > 0 else "ADIABATIC"
@@ -367,6 +382,7 @@ def run_staggered_coupled(
                 nu,
                 e_model,
                 stress_type,
+                solver=solver,
             )
 
             # Update σ_vm at nodes for next step's stress modulation
@@ -424,8 +440,9 @@ def _save_snapshot(
     nu,
     e_model,
     stress_type="plane_strain",
+    solver="fem",
 ):
-    """Compute derived fields + FEM solve and store snapshot."""
+    """Compute derived fields + FEM/VEM solve and store snapshot."""
     DI = compute_di(phi_2d_np)
 
     if e_model == "phi_pg":
@@ -441,10 +458,11 @@ def _save_snapshot(
 
     eps_growth = alpha_field / 3.0
 
-    # FEM solve
+    # FEM/VEM solve
     geom_nonlin = 0.0
     if alpha_field.max() > 1e-12:
-        fem = solve_2d_fem(
+        _solver_fn = _get_vem_solver() if solver == "vem" else solve_2d_fem
+        fem = _solver_fn(
             E_field,
             nu,
             eps_growth,
@@ -679,6 +697,8 @@ def _run_single_condition_subprocess(cond_dir, args):
         args.nutrient_bc,
         "--alpha-max",
         str(args.alpha_max),
+        "--solver",
+        args.solver,
         "--outdir",
         str(args.outdir),
         "--save-npz",
@@ -899,6 +919,12 @@ def main():
         default=0.0,
         help="Logistic growth saturation limit. 0=no cap. Klempt uses ~0.3.",
     )
+    ap.add_argument(
+        "--solver",
+        choices=["fem", "vem"],
+        default="fem",
+        help="Mechanics solver: fem (Q4, default) or vem (Voronoi polygonal)",
+    )
     ap.add_argument("--outdir", default=None)
     ap.add_argument(
         "--save-npz",
@@ -964,6 +990,7 @@ def main():
             stress_type=args.stress_type,
             nutrient_bc=args.nutrient_bc,
             alpha_max=args.alpha_max,
+            solver=args.solver,
         )
 
         plot_time_evolution(

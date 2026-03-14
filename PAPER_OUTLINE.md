@@ -195,11 +195,45 @@
 - 2D PDE homogenizes species (mitigated by Hybrid approach)
 - DeepONet MAP accuracy varies: DH 11%, DS 52%, CS 62%, CH 44% → Pg params poorly resolved
 
-### 5. Conclusion
+### 5. Future Work: Virtual Element Method for Biofilm Mechanics
+
+#### 5.1 Motivation: FEM → VEM
+- Current pipeline uses structured Q4/C3D4 FEM meshes — requires mesh generation from confocal images
+  (5-step: confocal → voxel → marching cubes → tet mesh → Abaqus)
+- Virtual Element Method (VEM) accepts **arbitrary polygonal/polyhedral elements**
+  → Voronoi tessellation from confocal colony detection = **2-step pipeline** (confocal → Voronoi → VEM)
+- Each Voronoi cell maps 1:1 to a micro-colony → natural DI → E(DI) assignment per element
+- Adaptive h-refinement without re-meshing compatibility constraints (Beirao da Veiga et al. 2013)
+
+#### 5.2 Implemented Prototypes (available at github.com/keisuke58/VirtualElementMethods)
+- **2D VEM elasticity**: lowest-order P₁² on arbitrary polygons, 70 passing tests,
+  patch test + manufactured solution convergence (L² rate O(h²), H¹ rate O(h))
+- **Growth-coupled VEM**: staggered Hamilton ODE → DI → E(DI) → VEM on Voronoi mesh
+  with automatic cell division and re-meshing (Klempt 2024 style)
+- **Space-time VEM**: anisotropic (x,t) Voronoi mesh for SLS viscoelastic evolution
+  (Xu, Junker, Wriggers 2025 framework), enabling monolithic transient solve
+- **Confocal → VEM pipeline**: 5-channel fluorescence → colony detection → Voronoi → VEM
+  demonstrated on synthetic images matching Heine 2025 species distributions
+
+#### 5.3 VEM × TMCMC Integration
+- Replace `solve_2d_fem()` with `solve_2d_vem()` in staggered coupling pipeline
+- Interface: identical input (spatially-varying E, ε_growth) → identical output (u, σ_vm)
+- Advantage: Voronoi mesh matches colony geometry → per-colony stress resolution
+- Enables **image-informed Bayesian inference**: confocal image → Voronoi mesh → VEM forward model → TMCMC
+- Adaptive refinement targets stress concentrations at colony boundaries (error estimator implemented)
+
+#### 5.4 Planned Extensions
+- 3D polyhedral VEM for confocal z-stack data (prototype: vem_3d_advanced.py, 3D Voronoi)
+- Mixed (u,p) VEM for incompressible biofilm matrix (implemented, awaiting validation)
+- VEM-based DeepONet surrogate for gradient-enabled TMCMC on polygon meshes
+- External validation with Sanz-Martin 2022 (6-species, 21-day) or new confocal datasets
+
+### 6. Conclusion
 - First quantitative pipeline: experimental data → TMCMC → DI → 3D FEM stress
 - DI is the correct mechanical indicator (not φ_Pg)
 - 30× stiffness range → dysbiotic biofilm mechanically vulnerable
 - Basin sensitivity = important UQ consideration for ODE-based models
+- VEM prototypes demonstrate feasibility of image-to-mechanics pipeline on arbitrary meshes
 
 ---
 
