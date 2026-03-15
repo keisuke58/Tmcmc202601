@@ -518,12 +518,14 @@ class PlotManager:
             ax.set_xlabel(xlabel, fontsize=11)
             if i == 0:
                 ax.set_ylabel(r"$\bar{\varphi}$", fontsize=13)
+            ax.set_ylim(bottom=0)
             ax.grid(True, alpha=0.3)
             if t_days is not None:
                 # Include Day 1 in x-ticks if IC is provided
                 ticks = sorted(set([1] + list(t_days))) if phi_init is not None else list(t_days)
                 ax.set_xticks(ticks)
-            ax.legend(fontsize=7, loc="best")
+            if i == 0:
+                ax.legend(fontsize=7, loc="best", framealpha=0.8)
 
         fig.suptitle(
             f"{name} — Posterior Predictive (1σ/2σ) + Experimental Boxplot",
@@ -719,14 +721,14 @@ class PlotManager:
             ax.set_xlabel(xlabel)
             if i % 3 == 0:
                 ax.set_ylabel(r"$\bar{\varphi}$")
-            ax.set_ylim(bottom=-0.02)
+            ax.set_ylim(bottom=0)
             if t_days is not None:
                 ticks = sorted(set([1] + list(t_days))) if phi_init is not None else list(t_days)
                 ax.set_xticks(ticks)
 
             # Legend only on first panel
             if i == 0:
-                ax.legend(fontsize=7, loc="upper right", framealpha=0.8)
+                ax.legend(fontsize=6, loc="best", framealpha=0.8)
 
         # 6th panel: RMSE summary bar chart
         ax_rmse = axes_flat[5]

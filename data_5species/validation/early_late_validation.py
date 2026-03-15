@@ -126,13 +126,16 @@ def load_prior_bounds(cond_key: str, active_indices: list):
 
 
 def extract_phibar(x0: np.ndarray) -> np.ndarray:
-    """Extract phibar at observation times from state array."""
+    """Extract phibar at observation times, normalized to compositional space."""
     n_state = x0.shape[1]
     n_total = (n_state - 2) // 2
     psi_offset = n_total + 1
     phibar = np.zeros((len(IDX_SPARSE), 5))
     for i, sp in enumerate(ACTIVE_SPECIES):
         phibar[:, i] = x0[IDX_SPARSE, sp] * x0[IDX_SPARSE, psi_offset + sp]
+    row_sums = phibar.sum(axis=1, keepdims=True)
+    row_sums = np.where(np.abs(row_sums) > 1e-30, row_sums, 1.0)
+    phibar = phibar / row_sums
     return phibar
 
 
