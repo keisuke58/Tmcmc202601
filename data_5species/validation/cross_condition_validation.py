@@ -101,13 +101,16 @@ def run_forward(theta_full: np.ndarray) -> np.ndarray:
         use_numba=False,
     )
     _, x0 = solver.run_deterministic(theta_full)
-    # phibar = phi * psi (absolute volume, no normalization)
+    # phibar = phi * psi, normalized to compositional space (sum=1)
     n_state = x0.shape[1]
     n_total = (n_state - 2) // 2
     psi_offset = n_total + 1
     phibar = np.zeros((len(IDX_SPARSE), 5))
     for i, sp in enumerate(ACTIVE_SPECIES):
         phibar[:, i] = x0[IDX_SPARSE, sp] * x0[IDX_SPARSE, psi_offset + sp]
+    row_sums = phibar.sum(axis=1, keepdims=True)
+    row_sums = np.where(np.abs(row_sums) > 1e-30, row_sums, 1.0)
+    phibar = phibar / row_sums
     return phibar
 
 

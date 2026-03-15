@@ -744,6 +744,18 @@ class LogLikelihoodEvaluator:
 
             sig[:, i] = var_phibar
 
+        # Compositional normalization: FISH data measures relative species
+        # abundances (sum=1).  Normalize mu so that each observation row sums
+        # to 1, and propagate the variance through the quotient rule (delta
+        # method).  Let S = Σ_j mu_j, then mu_norm_i = mu_i / S.
+        # Var(mu_i/S) ≈ (1/S^2) * Var(mu_i)  (first-order, neglecting
+        # cross-covariance between species — conservative).
+        if not self.use_absolute_volume:
+            mu_sum = mu.sum(axis=1, keepdims=True)  # (n_obs, 1)
+            safe_sum = np.where(np.abs(mu_sum) > 1e-30, mu_sum, 1.0)
+            mu = mu / safe_sum
+            sig = sig / (safe_sum**2)
+
         # Sanity: likelihood inputs must be finite
         n_bad2 = int(np.size(mu) - np.isfinite(mu).sum()) + int(
             np.size(sig) - np.isfinite(sig).sum()

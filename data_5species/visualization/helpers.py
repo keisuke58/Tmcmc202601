@@ -36,9 +36,17 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def compute_phibar(x0: np.ndarray, active_species: List[int]) -> np.ndarray:
+def compute_phibar(
+    x0: np.ndarray,
+    active_species: List[int],
+    normalize: bool = True,
+) -> np.ndarray:
     """
-    Compute observable φ̄ = φ * ψ (living bacteria volume fraction).
+    Compute observable φ̄ = φ * ψ, optionally normalized to compositional space.
+
+    When ``normalize=True`` (default), the output is compositional:
+    φ̄_i / Σ_j φ̄_j, so that each row sums to 1.  This is the correct
+    quantity to compare against FISH data (relative species abundances).
 
     Parameters
     ----------
@@ -47,6 +55,8 @@ def compute_phibar(x0: np.ndarray, active_species: List[int]) -> np.ndarray:
         State vector: [phi_0..phi_{N-1}, phi0, psi_0..psi_{N-1}, gamma]
     active_species : List[int]
         Active species indices
+    normalize : bool, default True
+        If True, normalize each row so that species fractions sum to 1.
 
     Returns
     -------
@@ -63,6 +73,11 @@ def compute_phibar(x0: np.ndarray, active_species: List[int]) -> np.ndarray:
 
     for i, sp in enumerate(active_species):
         phibar[:, i] = x0[:, sp] * x0[:, psi_offset + sp]
+
+    if normalize:
+        row_sums = phibar.sum(axis=1, keepdims=True)
+        row_sums = np.where(np.abs(row_sums) > 1e-30, row_sums, 1.0)
+        phibar = phibar / row_sums
 
     return phibar
 

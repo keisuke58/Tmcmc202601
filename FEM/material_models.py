@@ -89,6 +89,20 @@ E_SPECIES_PA = np.array([1000.0, 800.0, 600.0, 200.0, 10.0])  # So, An, Vei, Fn,
 EPS_RATES = np.array([0.3, 0.6, 0.1, 0.4, -0.3])  # So, An, Vei, Fn, Pg
 EPS_GAMMA = 4.0  # Cross-linking synergy strength (calibrated to Pattem 10-80× range)
 
+# Mechanistic composite model (hydrogel scaling)
+# Species-specific STRUCTURAL EPS production rates rᵢ (normalized, 0-1)
+# Only matrix-contributing EPS counted; Pg capsule is cell-associated, not structural
+# Ref: Fujiwara 2000 (So gtfR glucan), Koo 2013 (insoluble glucan scaffold),
+#      Kolenbrander 2010, Fong & Yildiz 2015 (VPS not relevant for oral)
+MECH_EPS_RATES = np.array([1.0, 0.6, 0.05, 0.15, 0.0])  # So, An, Vd, Fn, Pg
+# α calibrated from actual ODE posterior outputs:
+# quality(CS)/quality(DH) ≈ 1.76, E(CS)/E(DH) ≈ 3.21
+# → α = ln(3.21)/ln(1.76) ≈ 2.07 (consistent with de Gennes 2.0-2.5 for hydrogels)
+MECH_ALPHA = 2.07  # hydrogel scaling exponent (calibrated to CS-DH range, cf. de Gennes)
+MECH_E0 = 221340.0  # reference modulus [Pa] (at quality=1, calibrated for CS≈900 Pa)
+MECH_E_CELL = 500.0  # cell modulus [Pa] (Luo 2012, AFM: 100-1000 Pa)
+MECH_PHI_CELL = 0.15  # cell volume fraction (Flemming 2010: 10-25% cells in biofilm)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # NumPy implementations
@@ -296,6 +310,84 @@ def compute_E_eps_synergy(
 
     # 4. Map to E range
     return e_min + (e_max - e_min) * np.clip(M / M_ref, 0.0, 1.0)
+
+
+def compute_E_composite(
+    phi_species: np.ndarray,
+    eps_rates: np.ndarray | None = None,
+    alpha: float = MECH_ALPHA,
+    e0: float = MECH_E0,
+    e_cell: float = MECH_E_CELL,
+    phi_cell: float = MECH_PHI_CELL,
+) -> np.ndarray:
+    """
+    Mechanistic composite model: φᵢ → φ_EPS × CrossLink → hydrogel E.
+
+    Derivation chain (each step has theoretical basis):
+      1. φ_EPS = Σ rᵢ φᵢ / Σ rᵢ   (linear mixing of EPS production rates)
+      2. CrossLink = exp(H') where H' = Shannon entropy of EPS-weighted composition
+         (Kantor & Webman 1984: diverse cross-link types → higher network rigidity;
+          Rubinstein & Colby 2003: interpenetrating networks scale super-linearly)
+      3. E_matrix = E₀ × (φ_EPS × CrossLink)^α   (hydrogel + diversity scaling)
+      4. E_eff = Mori-Tanaka(E_matrix, E_cell, φ_cell)
+
+    The key mechanistic insight: φ_EPS alone is insufficient because a monoculture
+    biofilm with high EPS still has a single cross-link type (weak network).
+    Multiple EPS types (glucan + heteropolysaccharide + eDNA + protein) create
+    an interpenetrating network that is stronger than any single-polymer gel.
+
+    Parameters:
+      eps_rates: species-specific EPS production rates rᵢ [So, An, Vd, Fn, Pg]
+      alpha: hydrogel scaling exponent (calibrated to Pattem 2018)
+      e0: reference modulus [Pa]
+      e_cell: cell elastic modulus [Pa]
+      phi_cell: cell volume fraction in biofilm
+
+    Ref: Flory 1953, de Gennes 1979, Oyen 2014, Kantor & Webman 1984,
+         Rubinstein & Colby 2003, Mori-Tanaka 1973, Milton 2002
+    """
+    phi = np.asarray(phi_species)
+    r = eps_rates if eps_rates is not None else MECH_EPS_RATES
+
+    # Normalize fractions
+    phi_sum = phi.sum(axis=-1, keepdims=True)
+    phi_sum = np.where(phi_sum > 0, phi_sum, 1.0)
+    p = phi / phi_sum
+
+    # 1. EPS volume fraction (normalized by max possible)
+    r_sum = r.sum()
+    phi_eps = np.clip((p * r).sum(axis=-1) / (r_sum + 1e-12), 0.0, 1.0)
+
+    # 2. Cross-linking diversity: Shannon evenness of EPS-producing species
+    # Weight species by EPS contribution: w_i = r_i * phi_i
+    eps_contrib = p * r  # (n, 5) per-species EPS contribution
+    eps_total = eps_contrib.sum(axis=-1, keepdims=True)
+    eps_total = np.where(eps_total > 1e-12, eps_total, 1.0)
+    q = eps_contrib / eps_total  # fractional EPS contribution per species
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        log_q = np.where(q > 1e-12, np.log(q), 0.0)
+    H = -(q * log_q).sum(axis=-1)  # Shannon entropy of EPS composition
+    # Effective number of EPS types: exp(H), max = N_producers
+    n_eff = np.exp(H)  # 1 (monoculture) to N (uniform)
+    n_max = float((r > 0).sum())  # max possible (species with r > 0)
+    cross_link = n_eff / n_max  # normalized to [0, 1]
+
+    # 3. Combined EPS quality index: amount × diversity
+    # Physical interpretation: total cross-link density ∝ φ_EPS × diversity
+    quality = phi_eps * cross_link
+
+    # 4. Hydrogel matrix modulus (power-law scaling)
+    E_matrix = e0 * np.power(np.clip(quality, 1e-8, None), alpha)
+
+    # 5. Mori-Tanaka dilute inclusion correction
+    nu_m = 0.45
+    contrast = np.where(E_matrix > 1e-6, 1.0 - e_cell / E_matrix, 0.0)
+    concentration_factor = 3.0 / (2.0 + nu_m)
+    E_eff = E_matrix * (1.0 - phi_cell * contrast * concentration_factor)
+
+    # Clamp to physical range
+    return np.clip(E_eff, E_MIN_PA, E_MAX_PA)
 
 
 def compute_E_voigt(

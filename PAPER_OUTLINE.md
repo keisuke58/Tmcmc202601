@@ -22,8 +22,8 @@
 | **Fig 14** | Klempt 2024 nutrient benchmark | `generate_paper_figures.py` | DONE |
 | **Fig 15** | Posterior → DI → E uncertainty propagation | `generate_paper_figures.py` | DONE |
 | **Fig 16** | **NEW: Basin sensitivity / multi-attractor** | `plot_basin_sensitivity.py` | DONE |
-| **Fig 17** | **NEW: 3-model comparison (DI vs φ_Pg vs Vir)** | existing `3model_comparison_3d.png` | EXISTS |
-| **Fig 18** | 3-model Bayes discrimination | `compute_3model_bayes_factor.py` | DONE |
+| **Fig 17** | **5-model comparison (DI vs Composite vs EPS vs φ_Pg vs Vir)** | `compute_3model_bayes_factor.py` | DONE |
+| **Fig 18** | **5-model Bayes discrimination (updated)** | `compute_3model_bayes_factor.py` | DONE |
 | **Fig 19** | Corner plot dh_baseline key params | `generate_corner_plot_paper.py` | DONE |
 | **Fig 20** | **E2E differentiable pipeline: 4-cond results** | `e2e_differentiable_pipeline.py` | DONE |
 | **Fig 21** | **NUTS vs HMC vs RW TMCMC comparison** | `generate_fig21_paper.py` | DONE |
@@ -66,9 +66,36 @@
   - E_commensal ≈ 900 Pa (diverse, structured ECM)
   - E_dysbiotic ≈ 30 Pa (So-dominated, weak ECM)
   - 30× ratio consistent with experiments
-- Comparison: φ_Pg model, Virulence model → fail to discriminate (φ_Pg < 0.03 all conditions)
 - **Fig 11**: E(DI) curve + experimental overlay
-- **Fig 17**: 3-model comparison
+
+#### 2.4b Mechanistic Composite Model (Alternative Derivation)
+- **First-principles derivation**: φᵢ → φ_EPS × CrossLink_diversity → hydrogel scaling → Mori-Tanaka
+- Species-specific EPS production rates: rᵢ = [1.0, 0.6, 0.05, 0.15, 0.0] (So, An, Vd, Fn, Pg)
+  - So: glucan-rich ECM (highest), An: extracellular matrix, Vd/Fn: minimal, Pg: capsule only
+- **φ_EPS** = Σ rᵢ φᵢ: effective EPS volume fraction
+- **Cross-link diversity**: Shannon entropy of EPS-weighted composition → n_eff = exp(H')
+  - quality = φ_EPS × (n_eff / n_max): combined quantity × diversity metric
+- **Hydrogel scaling**: E_matrix = E₀ × quality^α (de Gennes 1979, α≈2.0-2.5, calibrated α=2.07)
+- **Mori-Tanaka dilute inclusion**: E_composite = (1-φ_cell)E_matrix + φ_cell·E_cell
+- **Key insight**: DI serves as a proxy for φ_EPS × cross-link diversity
+  - DI high (diverse) → multiple EPS types → more cross-links → stiffer
+  - DI low (monoculture) → one dominant EPS → fewer cross-links → softer
+
+#### 2.4c 5-Model Bayes Factor Comparison
+- **5 models**: DI, Composite, EPS synergy, φ_Pg, Virulence
+- Pseudo Bayes Factor via Bhattacharyya distance between condition-specific E distributions
+- **Results** (CS-DH pair, most discriminating):
+  | Model | Bhatt(CS-DH) | Cohen's d | BF vs DI |
+  |-------|-------------|-----------|----------|
+  | **DI** | **25.45** | **—** | **1** |
+  | Composite | 17.46 | — | 2,965 |
+  | EPS synergy | 10.01 | — | 5×10⁶ |
+  | φ_Pg | 0.55 | — | >10¹⁰ |
+  | Virulence | 0.30 | — | >10¹⁰ |
+- **Conclusion**: DI is decisively best; Composite is strong 2nd (mechanistic support for DI)
+- φ_Pg and Virulence fail completely (BF > 10¹⁰)
+- **Fig 17**: 5-model comparison
+- **Fig 18**: Bayes discrimination (updated to 5 models)
 
 #### 2.5 E2E Differentiable Pipeline (DeepONet + DEM)
 - θ → DeepONet → φ(T;θ) → DI → E(DI) → DEM → u(x,y,z)
@@ -173,14 +200,17 @@
 - commensal_static is at basin boundary → fragile prediction
 - Implication: uncertainty quantification must include attractor landscape
 
-#### 4.3 Literature Comparison
+#### 4.3 Literature Comparison & 5-Model Discrimination
 - E_bio values consistent with Pattem 2018/2021 AFM data
 - Thiele modulus consistent with Klempt 2024
 - No prior work linking DI → mechanical properties quantitatively
-- **EPS synergy model**: Alternative constitutive law with species-specific EPS rates (εᵢ)
-  - 4-model posterior comparison: DI statistically strongest (BF = 3.3×10⁶ vs EPS synergy)
-  - EPS synergy provides better CS-DH separation but lower overall discrimination
-  - Recommended: DI as primary, EPS synergy in Discussion as mechanistically-motivated alternative
+- **5-model Bayes factor comparison** (Section 2.4c):
+  - DI is decisively best (Bhatt=25.45), Composite 2nd (17.46, BF=2965)
+  - **Composite model provides mechanistic justification for DI**: DI ≈ φ_EPS × cross-link diversity
+  - φ_Pg and Virulence fail completely → dysbiosis ≠ pathogen dominance
+  - **Theoretical basis**: de Gennes 1979 (hydrogel scaling), Kantor & Webman 1984 (cross-linking),
+    Rubinstein & Colby 2003 (polymer network), Mori-Tanaka (composite mechanics)
+  - Recommended: DI as primary model, Composite in Discussion as first-principles support
 
 #### 4.4 Differentiable Surrogate & Gradient Sampling
 - DeepONet+DEM surrogate enables gradient-based sampling impossible with Abaqus
@@ -196,37 +226,44 @@
 - DeepONet MAP accuracy varies: DH 11%, DS 52%, CS 62%, CH 44% → Pg params poorly resolved
 
 ### 5. Future Work: Virtual Element Method for Biofilm Mechanics
+> **Full LaTeX draft**: `VirtualElementMethods/paper_vem_section.tex`
 
 #### 5.1 Motivation: FEM → VEM
-- Current pipeline uses structured Q4/C3D4 FEM meshes — requires mesh generation from confocal images
-  (5-step: confocal → voxel → marching cubes → tet mesh → Abaqus)
-- Virtual Element Method (VEM) accepts **arbitrary polygonal/polyhedral elements**
-  → Voronoi tessellation from confocal colony detection = **2-step pipeline** (confocal → Voronoi → VEM)
-- Each Voronoi cell maps 1:1 to a micro-colony → natural DI → E(DI) assignment per element
-- Adaptive h-refinement without re-meshing compatibility constraints (Beirao da Veiga et al. 2013)
+- 5-step FEM pipeline → **2-step VEM pipeline** (confocal → Voronoi → VEM)
+- Arbitrary polygonal/polyhedral elements → colony = element (1:1 mapping)
+- Adaptive h-refinement without remeshing constraints
 
-#### 5.2 Implemented Prototypes (available at github.com/keisuke58/VirtualElementMethods)
-- **2D VEM elasticity**: lowest-order P₁² on arbitrary polygons, 70 passing tests,
-  patch test + manufactured solution convergence (L² rate O(h²), H¹ rate O(h))
-- **Growth-coupled VEM**: staggered Hamilton ODE → DI → E(DI) → VEM on Voronoi mesh
-  with automatic cell division and re-meshing (Klempt 2024 style)
-- **Space-time VEM**: anisotropic (x,t) Voronoi mesh for SLS viscoelastic evolution
-  (Xu, Junker, Wriggers 2025 framework), enabling monolithic transient solve
-- **Confocal → VEM pipeline**: 5-channel fluorescence → colony detection → Voronoi → VEM
-  demonstrated on synthetic images matching Heine 2025 species distributions
+#### 5.2 Implemented Modules (12 solvers, 120+ tests)
+- **2D VEM elasticity** (P₁): patch test 10⁻¹⁸, L² rate 2.14, H¹ rate 1.29
+- **Neo-Hookean VEM** (A1): 43% displacement difference vs linear at ε~1%
+- **Phase-field fracture** (B1): DI→G_c, catastrophic crack in dysbiotic region
+- **CZM** (B2): bilinear TSL, DI→σ_max, progressive debonding
+- **Adaptive fracture** (B3): 40→121 cells, Dörfler marking
+- **P₂ VEM** (A2): vertex+midpoint DOFs, 15-45% stress accuracy improvement
+- **VE-VEM 2D** (A3): SLS + Simo 1987, machine precision (1.3×10⁻¹⁵)
+- **VE-VEM 3D**: polyhedral SLS, machine precision (4.9×10⁻¹⁶)
+- **Growth-coupled VE-VEM**: Hamilton ODE → DI(t) → SLS params(t) → VEM
+  - CS: DI 0.38→0.23, E_inf 481→913 Pa (stiffening)
+  - DS: DI 0.40→0.49, E_inf 481→324 Pa (softening)
+- **Confocal → VEM pipeline**: 5ch fluorescence → colony → Voronoi → VEM
+- **Space-time VEM**: anisotropic (x,t) Voronoi, SLS viscoelastic
 
 #### 5.3 VEM × TMCMC Integration
-- Replace `solve_2d_fem()` with `solve_2d_vem()` in staggered coupling pipeline
-- Interface: identical input (spatially-varying E, ε_growth) → identical output (u, σ_vm)
-- Advantage: Voronoi mesh matches colony geometry → per-colony stress resolution
-- Enables **image-informed Bayesian inference**: confocal image → Voronoi mesh → VEM forward model → TMCMC
-- Adaptive refinement targets stress concentrations at colony boundaries (error estimator implemented)
+- Replace `solve_2d_fem()` with `solve_2d_vem()` in staggered coupling
+- Per-colony stress resolution (Voronoi cell = micro-colony)
+- Image-informed Bayesian inference: confocal → Voronoi → VEM → TMCMC
+- Adaptive refinement at colony boundaries (error estimator implemented)
 
-#### 5.4 Planned Extensions
-- 3D polyhedral VEM for confocal z-stack data (prototype: vem_3d_advanced.py, 3D Voronoi)
-- Mixed (u,p) VEM for incompressible biofilm matrix (implemented, awaiting validation)
+#### 5.4 Key Validation Results
+- 2D VE-VEM: confined SLS relaxation error = 1.3×10⁻¹⁵ (machine precision)
+- 3D VE-VEM: confined SLS relaxation error = 4.9×10⁻¹⁶ (machine precision)
+- Growth-coupled: CS stiffens (E↑, τ↑) vs DS softens (E↓, τ↓) — divergent evolution
+- Phase-field: dysbiotic crack at G_c=0.01 J/m², commensal survives at G_c=0.5 J/m²
+
+#### 5.5 Planned Extensions
 - VEM-based DeepONet surrogate for gradient-enabled TMCMC on polygon meshes
-- External validation with Sanz-Martin 2022 (6-species, 21-day) or new confocal datasets
+- External validation with Sanz-Martin 2022 or new confocal datasets
+- Mixed (u,p) VEM for incompressible biofilm matrix
 
 ### 6. Conclusion
 - First quantitative pipeline: experimental data → TMCMC → DI → 3D FEM stress
@@ -249,6 +286,7 @@
 - NUTS dual averaging auto-tunes step size (no manual tuning)
 - DeepONet TMCMC: ~100× speedup (12-18s vs ~1800s), 17/20 params overlap > 0.95
 - Full posterior recovery for growth parameters; Pg cross-feeding needs higher accuracy
+- 5-model BF: DI decisive (Bhatt=25.45), Composite 2nd (BF=2965), φ_Pg/Virulence fail (>10¹⁰)
 
 ---
 
