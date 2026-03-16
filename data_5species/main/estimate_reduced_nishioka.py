@@ -1057,13 +1057,9 @@ def run_single_condition_estimation(
             use_exp_init=args.use_exp_init,
         )
 
-        # Determine initial conditions
+        # Determine initial conditions (always from absolute volumes for correct phi0)
         if args.use_exp_init:
-            total_init = phi_init_exp.sum()
-            if total_init > 0 and not args.normalize_data:
-                phi_init_array = phi_init_exp / total_init
-            else:
-                phi_init_array = phi_init_exp.copy()
+            phi_init_array = phi_init_exp.copy()  # absolute volumes, phi0 = 1 - sum > 0
         else:
             phi_init_array = None
 
@@ -1751,35 +1747,121 @@ def load_experimental_data(
                 data[i, species_idx] = total_vol * percentage
 
     # Estimate observation noise from data variability
-    sigma_obs = np.mean(sigma_obs_estimates) if sigma_obs_estimates else 0.05
+    sigma_obs_total_vol = np.mean(sigma_obs_estimates) if sigma_obs_estimates else 0.05
 
-    # Optionally normalize data to species fractions
+    # Compute per-species sigma via error propagation from replicate data
+    # data[i,j] = total_vol[i] * frac[j]
+    # σ²(data_j) = frac_j² × σ²_tv + tv² × σ²_frac  (Gaussian error propagation)
+    _rep_csv_candidates = [
+        data_dir / "experiment_data" / "fig3_species_distribution_replicates.csv",
+        data_dir / "fig3_species_distribution_replicates.csv",
+    ]
+    _rep_csv = None
+    for _rc in _rep_csv_candidates:
+        if _rc.exists():
+            _rep_csv = _rc
+            break
+
+    _min_sigma_frac = 0.05  # floor in fraction space (5%)
+    if _rep_csv is not None:
+        _rep_species_map = {
+            "S. oralis": 0,
+            "A. naeslundii": 1,
+            "V. dispar": 2,
+            "V. parvula": 2,
+            "F. nucleatum": 3,
+            "P. gingivalis_20709": 4,
+            "P. gingivalis_W83": 4,
+        }
+        _rep_df = pd.read_csv(_rep_csv)
+        _rep_mask = (_rep_df["condition"] == condition) & (_rep_df["cultivation"] == cultivation)
+        _rep_dc = _rep_df[_rep_mask]
+
+        # Total volume noise per day from boxplot data
+        _bp_tv_sigma = {}
+        for _, _bp_row in boxplot_df.iterrows():
+            _d = int(_bp_row["day"])
+            _tv_iqr = float(_bp_row["q3"]) - float(_bp_row["q1"])
+            _bp_tv_sigma[_d] = _tv_iqr / 1.35
+
+        _sigma_per_species = np.full(n_species, 0.01)
+        for _sp_name, _sp_idx in _rep_species_map.items():
+            _sp_sigmas = []
+            for _day in days:
+                _vals = _rep_dc[(_rep_dc["species"] == _sp_name) & (_rep_dc["day"] == _day)][
+                    "distribution_pct"
+                ].values
+                if len(_vals) < 3:
+                    continue
+                _iqr_f = np.percentile(_vals, 75) - np.percentile(_vals, 25)
+                _sig_frac = max(_iqr_f / 1.35 / 100.0, _min_sigma_frac)
+                _frac_med = np.median(_vals) / 100.0
+
+                _tv_row = boxplot_df[boxplot_df["day"] == _day]
+                if len(_tv_row) == 0:
+                    continue
+                _tv_med = float(_tv_row["median"].values[0])
+                _sig_tv = _bp_tv_sigma.get(_day, 0.05)
+
+                # Error propagation
+                _sig_abs = np.sqrt(_frac_med**2 * _sig_tv**2 + _tv_med**2 * _sig_frac**2)
+                _sp_sigmas.append(_sig_abs)
+            if _sp_sigmas:
+                _sigma_per_species[_sp_idx] = np.mean(_sp_sigmas)
+        sigma_obs = _sigma_per_species  # shape (5,)
+        logger.info(
+            f"Per-species sigma_obs (error prop): "
+            f"{dict(zip(['So','An','Vd','Fn','Pg'], [f'{s:.4f}' for s in sigma_obs]))}"
+        )
+    else:
+        sigma_obs = sigma_obs_total_vol
+        logger.info(f"Sigma_obs from total-volume IQR (fallback): {sigma_obs:.4f}")
+
+    # Save absolute volume data for initial conditions (phi0 = 1 - sum > 0)
+    data_abs = data.copy()
+
+    # Normalize data to species fractions (sum=1) — matches model output space
     if normalize:
         row_sums = data.sum(axis=1, keepdims=True)
-        row_sums = np.where(row_sums > 0, row_sums, 1.0)  # Avoid division by zero
+        row_sums = np.where(row_sums > 0, row_sums, 1.0)
         data = data / row_sums
         logger.info("Data normalized to species fractions (sum=1 per timepoint)")
-        # Estimate sigma from species-level IQR in the species_distribution CSV
-        # (total-volume IQR is not appropriate for composition fractions)
-        species_iqr_sigmas = []
-        if "q1" in species_df.columns and "q3" in species_df.columns:
-            for _, row in species_df.iterrows():
-                iqr_frac = (row["q3"] - row["q1"]) / 100.0  # Convert % to fraction
-                species_iqr_sigmas.append(iqr_frac / 1.35)
-        elif "iqr" in species_df.columns:
-            for _, row in species_df.iterrows():
-                iqr_frac = row["iqr"] / 100.0  # Convert % to fraction
-                species_iqr_sigmas.append(iqr_frac / 1.35)
-        if species_iqr_sigmas:
-            sigma_obs = float(np.mean(species_iqr_sigmas))
-            logger.info(f"Sigma_obs from species-level IQR: {sigma_obs:.4f}")
-        else:
-            # Fallback: scale total-volume sigma by mean total volume
-            sigma_obs = sigma_obs / total_volumes.mean() if total_volumes.mean() > 0 else sigma_obs
-            logger.info(f"Sigma_obs (fallback, scaled): {sigma_obs:.4f}")
 
-    # Always use Day 1 as initial condition (even when fitting from a later day)
-    phi_init_exp = data[0, :].copy()
+        # Per-species sigma from replicate IQR in fraction space
+        if _rep_csv is not None:
+            _sigma_frac = np.full(n_species, _min_sigma_frac)
+            for _sp_name, _sp_idx in _rep_species_map.items():
+                _sp_sigs = []
+                for _day in days:
+                    _vals = _rep_dc[(_rep_dc["species"] == _sp_name) & (_rep_dc["day"] == _day)][
+                        "distribution_pct"
+                    ].values
+                    if len(_vals) >= 3:
+                        _iqr = np.percentile(_vals, 75) - np.percentile(_vals, 25)
+                        _sp_sigs.append(max(_iqr / 1.35 / 100.0, _min_sigma_frac))
+                if _sp_sigs:
+                    _sigma_frac[_sp_idx] = max(np.mean(_sp_sigs), _min_sigma_frac)
+            sigma_obs = _sigma_frac  # shape (5,)
+            logger.info(
+                f"Per-species sigma_obs (fraction): "
+                f"{dict(zip(['So','An','Vd','Fn','Pg'], [f'{s:.4f}' for s in sigma_obs]))}"
+            )
+        else:
+            # Fallback: scalar from species CSV
+            species_iqr_sigmas = []
+            if "q1" in species_df.columns and "q3" in species_df.columns:
+                for _, row in species_df.iterrows():
+                    iqr_frac = (row["q3"] - row["q1"]) / 100.0
+                    species_iqr_sigmas.append(max(iqr_frac / 1.35, _min_sigma_frac))
+            if species_iqr_sigmas:
+                sigma_obs = float(np.mean(species_iqr_sigmas))
+            else:
+                sigma_obs = 0.10
+            logger.info(f"Sigma_obs (scalar fallback): {sigma_obs:.4f}")
+
+    # Always use Day 1 as initial condition from ABSOLUTE VOLUMES (before normalization)
+    # This ensures phi0 = 1 - sum(phi_init) > 0 (void fraction is physical)
+    phi_init_exp = data_abs[0, :].copy()
 
     # Filter data to start from specified day (for likelihood evaluation only)
     if start_from_day > 1:
@@ -1816,7 +1898,9 @@ def load_experimental_data(
         "days": days,
         "n_timepoints": n_timepoints,
         "total_volumes": total_volumes.tolist(),
-        "sigma_obs_estimated": sigma_obs,
+        "sigma_obs_estimated": (
+            sigma_obs.tolist() if isinstance(sigma_obs, np.ndarray) else sigma_obs
+        ),
         "phi_init_exp": phi_init_exp.tolist(),
         "start_from_day": start_from_day,
     }
@@ -2021,22 +2105,20 @@ def run_estimation(
             # Also reset prior bounds for locked parameters to avoid confusion (though not used by TMCMC for inactive)
             prior_bounds[idx] = (0.0, 0.0)
 
-    # Sigma for likelihood (with optional scale for sensitivity analysis)
-    sigma_base = args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
+    # Sigma for likelihood
     sigma_scale = getattr(args, "sigma_scale", 1.0)
-    sigma_obs_scalar = sigma_base * sigma_scale
-    if sigma_scale != 1.0:
-        logger.info(
-            f"Sigma sensitivity: sigma_obs = {sigma_base:.6f} * {sigma_scale} = {sigma_obs_scalar:.6f}"
-        )
+    sigma_obs_estimated = metadata.get("sigma_obs_estimated", 0.05)
 
-    # Heteroscedastic sigma from replicate IQR (per-timepoint × per-species)
-    if getattr(args, "replicate_sigma", False):
+    if args.sigma_obs:
+        # Manual override: use scalar sigma from CLI
+        sigma_obs = args.sigma_obs * sigma_scale
+        logger.info(f"Using manual sigma_obs = {sigma_obs}")
+    elif getattr(args, "replicate_sigma", False):
+        # Heteroscedastic sigma from replicate IQR (per-timepoint × per-species)
         _data_dir = Path(args.data_dir)
         replicate_csv = _data_dir / "experiment_data" / "fig3_species_distribution_replicates.csv"
         if not replicate_csv.exists():
             replicate_csv = _data_dir / "fig3_species_distribution_replicates.csv"
-        # Species name → model index mapping for replicate CSV
         _rep_species_map = {
             "S. oralis": 0,
             "A. naeslundii": 1,
@@ -2055,27 +2137,23 @@ def run_estimation(
             n_species=data.shape[1],
             min_sigma=0.005,
         )
-        # Apply sigma_scale if set
         if sigma_scale != 1.0:
             sigma_obs = sigma_obs * sigma_scale
         logger.info(
             f"Using replicate-based sigma_obs matrix {sigma_obs.shape}: "
             f"range [{sigma_obs.min():.4f}, {sigma_obs.max():.4f}]"
         )
-    # Species-specific sigma (V. dispar gets higher noise to acknowledge
-    # the model's structural inability to capture nutrient depletion dynamics)
-    elif getattr(args, "species_sigma", False):
-        vd_factor = getattr(args, "vd_sigma_factor", 2.0)
-        sigma_obs = build_species_sigma(
-            sigma_obs_scalar,
-            n_species=data.shape[1],
-            vd_species_idx=2,
-            vd_factor=vd_factor,
-        )
-        logger.info(f"Using species-specific sigma_obs = {sigma_obs}")
     else:
-        sigma_obs = sigma_obs_scalar
-        logger.info(f"Using sigma_obs = {sigma_obs}")
+        # Default: per-species sigma from replicate data (computed in load_experimental_data)
+        sigma_obs = np.asarray(sigma_obs_estimated)
+        if sigma_scale != 1.0:
+            sigma_obs = sigma_obs * sigma_scale
+        if sigma_obs.ndim == 0:
+            logger.info(f"Using sigma_obs = {float(sigma_obs):.6f}")
+        else:
+            logger.info(
+                f"Using per-species sigma_obs: {dict(zip(['So','An','Vd','Fn','Pg'], [f'{s:.4f}' for s in sigma_obs]))}"
+            )
     logger.info(f"Data shape: {data.shape}")
     logger.info(f"idx_sparse: {idx_sparse}")
 
@@ -2503,13 +2581,13 @@ Examples:
         "--normalize-data",
         action="store_true",
         default=True,
-        help="Normalize data to species fractions (sum=1) instead of absolute volumes (default: True)",
+        help="Normalize data to species fractions (sum=1) — required for correct model comparison (default: True)",
     )
     parser.add_argument(
         "--no-normalize-data",
         action="store_false",
         dest="normalize_data",
-        help="Use absolute volumes instead of species fractions",
+        help="Use absolute volumes (NOT recommended: model output is always sum=1)",
     )
 
     # Estimation options
@@ -2715,8 +2793,9 @@ Examples:
     parser.add_argument(
         "--replicate-sigma",
         action="store_true",
-        default=True,
-        help="Use per-(timepoint, species) sigma from replicate IQR (heteroscedastic likelihood, default: True)",
+        default=False,
+        help="Use per-(timepoint, species) sigma from replicate IQR (heteroscedastic likelihood). "
+        "WARNING: min_sigma=0.005 causes extreme weight imbalance. Prefer default per-species sigma.",
     )
     parser.add_argument(
         "--no-replicate-sigma",
@@ -2872,15 +2951,8 @@ def main():
 
     # Determine initial conditions
     if args.use_exp_init:
-        # Use experimental data from start_from_day as initial conditions
-        # Convert to phi fractions (normalize by total if needed)
-        total_init = phi_init_exp.sum()
-        if total_init > 0 and not args.normalize_data:
-            # If not normalized, convert to fractions
-            phi_init_array = phi_init_exp / total_init
-        else:
-            # Already normalized or zero
-            phi_init_array = phi_init_exp.copy()
+        # Use experimental Day 1 as initial conditions (always absolute volumes)
+        phi_init_array = phi_init_exp.copy()  # absolute volumes, phi0 = 1 - sum > 0
         logger.info(f"Using experimental initial conditions (Day {metadata['days'][0]}):")
         logger.info(f"  Values: {phi_init_exp}")
         logger.info(f"  Normalized phi: {phi_init_array}")

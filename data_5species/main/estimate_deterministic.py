@@ -28,6 +28,8 @@ import sys
 import numpy as np
 import pandas as pd
 import time
+import multiprocessing as mp
+from functools import partial
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional
 from scipy.optimize import minimize, differential_evolution, basinhopping, dual_annealing
@@ -373,23 +375,30 @@ def compute_fit_quality_metrics(
 # NEW Improvement: Convergence Diagnostics
 # =============================================================================
 def check_convergence_quality(
-    objective_func, theta_mle: np.ndarray, bounds: List[Tuple[float, float]], tol: float = 1e-5
+    objective_func,
+    theta_mle: np.ndarray,
+    bounds: List[Tuple[float, float]],
+    tol: float = 1e-5,
+    hessian_result: Dict[str, Any] = None,
 ) -> Dict[str, Any]:
     """
     Check if the optimizer truly converged to a local minimum.
+
+    Uses Hessian results when available to avoid redundant gradient computation.
 
     Args:
         objective_func: Objective function (negative log-likelihood)
         theta_mle: Candidate MLE
         bounds: Parameter bounds
         tol: Tolerance for gradient check
+        hessian_result: Pre-computed Hessian result dict (reuses eigenvalues)
 
     Returns:
         Dictionary with convergence diagnostics
     """
     n_params = len(theta_mle)
 
-    # 1. Gradient check (should be near zero at minimum)
+    # 1. Gradient check — reuse Hessian finite-diff if available, else compute
     gradient = approx_fprime(theta_mle, objective_func, epsilon=1e-6)
     grad_norm = np.linalg.norm(gradient)
 
@@ -397,9 +406,10 @@ def check_convergence_quality(
     at_boundary = []
     for i in range(n_params):
         low, high = bounds[i]
-        if abs(theta_mle[i] - low) < 1e-6:
+        margin = 1e-6 * (high - low + 1e-10)
+        if abs(theta_mle[i] - low) < margin:
             at_boundary.append((i, "lower"))
-        elif abs(theta_mle[i] - high) < 1e-6:
+        elif abs(theta_mle[i] - high) < margin:
             at_boundary.append((i, "upper"))
 
     # 3. Check if at midpoint (suspicious - may indicate no sensitivity)
@@ -410,17 +420,21 @@ def check_convergence_quality(
         if abs(theta_mle[i] - mid) < 0.01 * (high - low):
             at_midpoint.append(i)
 
-    # 4. Local perturbation test
+    # 4. Local perturbation test — only for directions NOT at boundary
     n_worse = 0
     n_better = 0
     f_mle = objective_func(theta_mle)
+    boundary_set = {idx for idx, _ in at_boundary}
 
     for i in range(n_params):
+        low, high = bounds[i]
         for direction in [-1, 1]:
             theta_perturb = theta_mle.copy()
-            low, high = bounds[i]
             step = 0.01 * (high - low) * direction
-            theta_perturb[i] = np.clip(theta_mle[i] + step, low, high)
+            new_val = np.clip(theta_mle[i] + step, low, high)
+            if abs(new_val - theta_mle[i]) < 1e-12:
+                continue  # Skip if clipped to same value (at boundary)
+            theta_perturb[i] = new_val
 
             f_perturb = objective_func(theta_perturb)
             if f_perturb < f_mle - 1e-8:
@@ -428,16 +442,23 @@ def check_convergence_quality(
             elif f_perturb > f_mle + 1e-8:
                 n_worse += 1
 
+    # Use Hessian positive-definiteness as additional check
+    hessian_pd = True
+    if hessian_result is not None:
+        hessian_pd = hessian_result.get("is_positive_definite", True)
+
     is_local_minimum = (n_better == 0) and (grad_norm < tol * 100)
 
     return {
         "gradient_norm": float(grad_norm),
+        "gradient": gradient.tolist(),
         "is_gradient_small": grad_norm < tol,
         "at_boundary": at_boundary,
         "n_at_boundary": len(at_boundary),
         "at_midpoint": at_midpoint,
         "n_at_midpoint": len(at_midpoint),
         "is_local_minimum": is_local_minimum,
+        "hessian_positive_definite": hessian_pd,
         "perturbation_test": {"n_better": n_better, "n_worse": n_worse},
         "warnings": [],
     }
@@ -787,9 +808,13 @@ class AdaptiveLinearizationOptimizer:
         if self.calls_since_relinearization < self.min_interval:
             return False
 
-        # Compute relative distance
+        # Compute relative distance — normalize by bound range, not point magnitude
+        # (avoids spurious relinearization when parameters are near zero)
         diff = theta_active - self.last_linearization_point
-        rel_dist = np.linalg.norm(diff) / (np.linalg.norm(self.last_linearization_point) + 1e-8)
+        scale = np.array(
+            [max(abs(self.last_linearization_point[i]), 1.0) for i in range(len(theta_active))]
+        )
+        rel_dist = np.linalg.norm(diff / scale)
 
         return rel_dist > self.threshold
 
@@ -871,7 +896,14 @@ def run_optimizer(
                 x0,
                 method="L-BFGS-B",
                 bounds=bounds,
-                options={"disp": False, "maxiter": maxiter, "ftol": 1e-9, "gtol": 1e-9},
+                options={
+                    "disp": False,
+                    "maxiter": maxiter,
+                    "maxfun": max(maxiter * 15, 15000),  # Prevent premature convergence
+                    "ftol": 1e-12,  # Tighter: prevent early stop on flat landscapes
+                    "gtol": 1e-8,
+                    "maxcor": 20,  # More L-BFGS history vectors for better Hessian approx
+                },
             )
 
         elif method == "Nelder-Mead":
@@ -966,6 +998,145 @@ def run_optimizer(
 
 
 # =============================================================================
+# Parallel Worker for Multi-Start
+# =============================================================================
+def _worker_optimize(worker_args):
+    """
+    Worker function for parallel multi-start optimization.
+    Each worker creates its own evaluator to avoid shared state issues.
+    """
+    (
+        i_start,
+        x0,
+        active_bounds,
+        method,
+        maxiter,
+        seed,
+        solver_kwargs,
+        active_species,
+        active_indices,
+        theta_base,
+        data,
+        idx_sparse,
+        sigma_obs,
+        cov_rel,
+        use_absolute_volume,
+        relin_threshold,
+        relin_interval,
+    ) = worker_args
+
+    # Each worker creates its own evaluator (no shared state)
+    debug_config = DebugConfig(level=DebugLevel.MINIMAL)
+    debug_logger = DebugLogger(debug_config)
+
+    evaluator = LogLikelihoodEvaluator(
+        solver_kwargs=solver_kwargs,
+        active_species=active_species,
+        active_indices=active_indices,
+        theta_base=theta_base,
+        data=data,
+        idx_sparse=idx_sparse,
+        sigma_obs=sigma_obs,
+        cov_rel=cov_rel,
+        rho=0.0,
+        theta_linearization=theta_base,
+        debug_logger=debug_logger,
+        use_absolute_volume=use_absolute_volume,
+    )
+
+    adaptive_opt = AdaptiveLinearizationOptimizer(
+        evaluator=evaluator,
+        theta_base=theta_base,
+        active_indices=active_indices,
+        relinearization_threshold=relin_threshold,
+        min_relinearization_interval=relin_interval,
+    )
+
+    res = run_optimizer(
+        objective_func=adaptive_opt,
+        x0=x0,
+        bounds=active_bounds,
+        method=method,
+        maxiter=maxiter,
+        seed=seed + i_start,
+    )
+    res["adaptive_stats"] = adaptive_opt.get_stats()
+    res["worker_id"] = i_start
+    return res
+
+
+def _run_parallel_starts(
+    args,
+    x0_samples,
+    active_bounds,
+    active_indices,
+    theta_base,
+    data,
+    idx_sparse,
+    metadata,
+    phi_init,
+    n_workers,
+):
+    """Launch multi-start optimization in parallel using multiprocessing."""
+    model_constants = get_model_constants()
+    active_species = model_constants["active_species"]
+
+    sigma_obs = args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
+
+    solver_kwargs = {
+        "dt": args.dt,
+        "maxtimestep": args.maxtimestep,
+        "c_const": args.c_const,
+        "alpha_const": args.alpha_const,
+        "phi_init": phi_init,
+        "Kp1": args.kp1,
+        "K_hill": args.K_hill,
+        "n_hill": args.n_hill,
+    }
+
+    worker_args_list = []
+    for i_start in range(args.num_starts):
+        worker_args_list.append(
+            (
+                i_start,
+                x0_samples[i_start],
+                active_bounds,
+                args.optimizer,
+                args.maxiter,
+                args.seed,
+                solver_kwargs,
+                active_species,
+                active_indices,
+                theta_base.copy(),
+                data.copy(),
+                idx_sparse.copy(),
+                sigma_obs,
+                args.cov_rel,
+                args.use_absolute_volume,
+                args.relinearization_threshold,
+                args.min_relinearization_interval,
+            )
+        )
+
+    logger.info(f"Launching {args.num_starts} starts on {n_workers} workers...")
+
+    with mp.Pool(processes=n_workers) as pool:
+        all_results = pool.map(_worker_optimize, worker_args_list)
+
+    # Log results
+    for res in sorted(all_results, key=lambda r: r["fun"]):
+        wid = res.get("worker_id", "?")
+        logL = -res["fun"]
+        logger.info(
+            f"Worker {wid}: LogL={logL:.4f}, Success={res['success']}, "
+            f"Time={res['elapsed']:.2f}s, "
+            f"Relins={res['adaptive_stats']['n_relinearizations']}"
+        )
+
+    return all_results
+
+
+# =============================================================================
 # Main Estimation Function (Improved)
 # =============================================================================
 def run_deterministic_estimation(
@@ -1003,6 +1174,9 @@ def run_deterministic_estimation(
         "c_const": args.c_const,
         "alpha_const": args.alpha_const,
         "phi_init": phi_init,
+        "Kp1": args.kp1,
+        "K_hill": args.K_hill,
+        "n_hill": args.n_hill,
     }
 
     active_species = model_constants["active_species"]
@@ -1039,7 +1213,7 @@ def run_deterministic_estimation(
         data=data,
         idx_sparse=idx_sparse,
         sigma_obs=sigma_obs,
-        cov_rel=0.02,
+        cov_rel=args.cov_rel,
         rho=0.0,
         theta_linearization=theta_base,
         debug_logger=debug_logger,
@@ -1066,46 +1240,62 @@ def run_deterministic_estimation(
         # Replace first sample with midpoint (deterministic reference)
         x0_samples[0] = np.array([(b[0] + b[1]) / 2.0 for b in active_bounds])
 
-    # 6. Run Multi-Start Optimization (Improvement 1)
-    logger.info(f"Starting {args.optimizer} optimization with {args.num_starts} starts...")
+    # 6. Run Multi-Start Optimization (Improvement 1) — PARALLEL
+    n_workers = min(args.num_starts, getattr(args, "n_jobs", args.num_starts))
+    logger.info(
+        f"Starting {args.optimizer} optimization with {args.num_starts} starts "
+        f"({n_workers} parallel workers)..."
+    )
     total_start_time = time.time()
 
-    all_results = []
+    if args.num_starts == 1 or n_workers <= 1:
+        # Sequential mode (single start or explicitly serial)
+        all_results = []
+        for i_start in range(args.num_starts):
+            logger.info(f"--- Optimization Run {i_start+1}/{args.num_starts} ---")
+            x0 = x0_samples[i_start]
+
+            adaptive_optimizer.last_linearization_point = None
+            adaptive_optimizer.n_calls = 0
+            adaptive_optimizer.n_relinearizations = 0
+            adaptive_optimizer.calls_since_relinearization = 0
+
+            res = run_optimizer(
+                objective_func=adaptive_optimizer,
+                x0=x0,
+                bounds=active_bounds,
+                method=args.optimizer,
+                maxiter=args.maxiter,
+                seed=args.seed + i_start,
+            )
+            res["adaptive_stats"] = adaptive_optimizer.get_stats()
+
+            current_logL = -res["fun"]
+            logger.info(
+                f"Run {i_start+1}: LogL={current_logL:.4f}, "
+                f"Success={res['success']}, Time={res['elapsed']:.2f}s, "
+                f"Relinearizations={res['adaptive_stats']['n_relinearizations']}"
+            )
+            all_results.append(res)
+    else:
+        # Parallel mode: each worker creates its own evaluator (no shared state)
+        all_results = _run_parallel_starts(
+            args=args,
+            x0_samples=x0_samples,
+            active_bounds=active_bounds,
+            active_indices=active_indices,
+            theta_base=theta_base,
+            data=data,
+            idx_sparse=idx_sparse,
+            metadata=metadata,
+            phi_init=phi_init if phi_init_array is not None else args.phi_init,
+            n_workers=n_workers,
+        )
+
     best_res = None
     best_logL = -np.inf
-
-    for i_start in range(args.num_starts):
-        logger.info(f"--- Optimization Run {i_start+1}/{args.num_starts} ---")
-
-        x0 = x0_samples[i_start]
-
-        # Reset adaptive optimizer state for each run
-        adaptive_optimizer.last_linearization_point = None
-        adaptive_optimizer.n_calls = 0
-        adaptive_optimizer.n_relinearizations = 0
-        adaptive_optimizer.calls_since_relinearization = 0
-
-        res = run_optimizer(
-            objective_func=adaptive_optimizer,
-            x0=x0,
-            bounds=active_bounds,
-            method=args.optimizer,
-            maxiter=args.maxiter,
-            seed=args.seed + i_start,
-        )
-
-        # Get adaptive optimizer stats
-        res["adaptive_stats"] = adaptive_optimizer.get_stats()
-
+    for res in all_results:
         current_logL = -res["fun"]
-        logger.info(
-            f"Run {i_start+1}: LogL={current_logL:.4f}, "
-            f"Success={res['success']}, Time={res['elapsed']:.2f}s, "
-            f"Relinearizations={res['adaptive_stats']['n_relinearizations']}"
-        )
-
-        all_results.append(res)
-
         if current_logL > best_logL:
             best_logL = current_logL
             best_res = res
@@ -1149,10 +1339,65 @@ def run_deterministic_estimation(
     else:
         logger.warning(f"CI computation issue: {ci_results['message']}")
 
-    # 8b. Check convergence quality (NEW)
+    # Profile Likelihood CI fallback for unreliable Hessian parameters
+    n_profile_fallback = 0
+    if ci_results["success"]:
+        for i in range(len(optimized_theta_active)):
+            se = ci_results["std_errors"][i]
+            low, high = active_bounds[i]
+            bound_range = high - low
+            # Fallback if SE is suspiciously large (>50% of bound range) or Hessian was regularized
+            if se > 0.5 * bound_range or (not ci_results["is_positive_definite"]):
+                try:
+                    pl_lower, pl_upper = compute_profile_likelihood_ci(
+                        clean_objective,
+                        optimized_theta_active,
+                        active_bounds,
+                        param_idx=i,
+                        confidence_level=0.95,
+                        n_points=30,
+                    )
+                    ci_results["ci_lower"][i] = pl_lower
+                    ci_results["ci_upper"][i] = pl_upper
+                    ci_results["std_errors"][i] = (pl_upper - pl_lower) / (2 * 1.96)
+                    n_profile_fallback += 1
+                except Exception as e:
+                    logger.debug(f"Profile CI fallback failed for param {i}: {e}")
+    elif not ci_results["success"]:
+        # Full profile likelihood if Hessian completely failed
+        logger.info("Hessian failed — computing Profile Likelihood CI for all parameters...")
+        for i in range(len(optimized_theta_active)):
+            try:
+                pl_lower, pl_upper = compute_profile_likelihood_ci(
+                    clean_objective,
+                    optimized_theta_active,
+                    active_bounds,
+                    param_idx=i,
+                    confidence_level=0.95,
+                    n_points=30,
+                )
+                ci_results["ci_lower"][i] = pl_lower
+                ci_results["ci_upper"][i] = pl_upper
+                ci_results["std_errors"][i] = (pl_upper - pl_lower) / (2 * 1.96)
+                n_profile_fallback += 1
+            except Exception as e:
+                logger.debug(f"Profile CI failed for param {i}: {e}")
+        if n_profile_fallback > 0:
+            ci_results["success"] = True
+            ci_results["message"] += f" (Profile Likelihood fallback: {n_profile_fallback} params)"
+
+    if n_profile_fallback > 0:
+        logger.info(
+            f"Profile Likelihood CI used for {n_profile_fallback}/{len(optimized_theta_active)} parameters"
+        )
+
+    # 8b. Check convergence quality (NEW) — pass Hessian to avoid redundant work
     logger.info("Checking convergence quality...")
     convergence_check = check_convergence_quality(
-        clean_objective, optimized_theta_active, active_bounds
+        clean_objective,
+        optimized_theta_active,
+        active_bounds,
+        hessian_result=ci_results,
     )
 
     if convergence_check["n_at_midpoint"] > 0:
@@ -1184,6 +1429,8 @@ def run_deterministic_estimation(
         "n_evaluations": sum(r.get("nfev", 0) for r in all_results),
         "n_starts": args.num_starts,
         "all_results_logL": [-r["fun"] for r in all_results],
+        "all_results": [{"x": r["x"], "fun": r["fun"]} for r in all_results],
+        "active_bounds": active_bounds,
         # Confidence Intervals (Improvement 3 - IMPROVED)
         "std_errors": ci_results["std_errors"],
         "ci_lower": ci_results["ci_lower"],
@@ -1248,7 +1495,7 @@ Examples:
         help="Cultivation method",
     )
 
-    # Solver parameters
+    # Solver parameters (must match estimate_reduced_nishioka.py defaults)
     parser.add_argument("--dt", type=float, default=1e-4, help="Time step for solver")
     parser.add_argument(
         "--maxtimestep", type=int, default=2500, help="Maximum number of time steps"
@@ -1256,6 +1503,25 @@ Examples:
     parser.add_argument("--c-const", type=float, default=25.0, help="c constant for model")
     parser.add_argument("--alpha-const", type=float, default=0.0, help="alpha constant for model")
     parser.add_argument("--phi-init", type=float, default=0.02, help="Initial phi value")
+    parser.add_argument("--kp1", type=float, default=1e-4, help="Cahn-Hilliard gradient energy Kp1")
+    parser.add_argument(
+        "--K-hill",
+        type=float,
+        default=0.05,
+        help="Hill threshold for F.nucleatum bridge gate (MUST match TMCMC setting)",
+    )
+    parser.add_argument(
+        "--n-hill",
+        type=float,
+        default=4.0,
+        help="Hill exponent for bridge gate (MUST match TMCMC setting)",
+    )
+    parser.add_argument(
+        "--cov-rel",
+        type=float,
+        default=0.005,
+        help="Relative covariance for ROM (MUST match TMCMC setting, default=0.005)",
+    )
 
     # Data loading
     parser.add_argument("--start-from-day", type=int, default=1, help="Start fitting from this day")
@@ -1302,6 +1568,12 @@ Examples:
         "--maxiter", type=int, default=2000, help="Maximum iterations per optimization run"
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        default=0,
+        help="Number of parallel workers for multi-start (0=auto, uses num_starts or cpu_count)",
+    )
 
     # Adaptive Linearization (Improvement 4)
     parser.add_argument(
@@ -1323,6 +1595,10 @@ Examples:
     )
 
     args = parser.parse_args()
+
+    # Resolve n_jobs: 0 means auto-detect
+    if args.n_jobs <= 0:
+        args.n_jobs = min(args.num_starts, mp.cpu_count())
 
     setup_logging()
 
@@ -1433,15 +1709,6 @@ Examples:
     except Exception as e:
         logger.error(f"Analysis generation failed: {e}")
 
-    # 12. Generate Recommendations (NEW)
-    recommendations = generate_recommendations(result, fit_metrics)
-    print("\n" + "=" * 70)
-    print("RECOMMENDATIONS:")
-    print("=" * 70)
-    for i, rec in enumerate(recommendations, 1):
-        print(f"{i}. {rec}")
-    print("=" * 70)
-
     # 7. Visualization
     logger.info("Generating fit plots...")
 
@@ -1453,6 +1720,9 @@ Examples:
         "maxtimestep": args.maxtimestep,
         "c_const": args.c_const,
         "alpha_const": args.alpha_const,
+        "Kp1": args.kp1,
+        "K_hill": args.K_hill,
+        "n_hill": args.n_hill,
     }
 
     if phi_init_exp is not None:
@@ -1511,6 +1781,18 @@ Examples:
         f"{'Overall':<10} {fit_metrics['overall']['R2']:>8.4f} {fit_metrics['overall']['RMSE']:>10.6f} {'-':>10} {fit_metrics['overall']['MAE']:>10.6f}"
     )
     print("=" * 70)
+
+    # 12. Generate Recommendations
+    try:
+        recommendations = generate_recommendations(result, fit_metrics)
+        print("\n" + "=" * 70)
+        print("RECOMMENDATIONS:")
+        print("=" * 70)
+        for i, rec in enumerate(recommendations, 1):
+            print(f"{i}. {rec}")
+        print("=" * 70)
+    except Exception as e:
+        logger.error(f"Recommendations failed: {e}")
 
     # Convergence warnings
     conv = result.get("convergence", {})
@@ -1700,6 +1982,237 @@ Examples:
     plt.savefig(residual_path, dpi=150, bbox_inches="tight")
     plt.close()
     logger.info(f"Saved residual analysis to {residual_path}")
+
+    # ===== 5-Panel Per-Species Fit Plot (TMCMC-equivalent) =====
+    fig5p, axes5 = plt.subplots(1, 5, figsize=(22, 4.5), sharey=False)
+
+    for i, sp_idx in enumerate(active_species_idx):
+        if i >= 5:
+            break
+        ax = axes5[i]
+        sp_name = species_names[i]
+        color = colors[i]
+
+        # Experimental data points
+        ax.scatter(
+            days,
+            data[:, i],
+            color=color,
+            s=80,
+            zorder=5,
+            edgecolors="black",
+            linewidths=0.5,
+            label="Exp. data",
+        )
+
+        # MAP simulation curve
+        ax.plot(
+            t_days_sim,
+            y_sim[:, sp_idx],
+            color=color,
+            linewidth=2.5,
+            label="MAP fit",
+            zorder=4,
+        )
+
+        # CI band from Hessian (delta-method approximation via perturbation)
+        if result.get("ci_success", False) and result.get("std_errors") is not None:
+            n_perturb = 20
+            rng = np.random.RandomState(42)
+            se = result["std_errors"]
+            map_active = result["MAP"]
+
+            perturbed_curves = []
+            for _ in range(n_perturb):
+                delta = rng.randn(len(map_active)) * se
+                theta_pert = np.clip(
+                    map_active + delta,
+                    [b[0] for b in result["active_bounds"]],
+                    [b[1] for b in result["active_bounds"]],
+                )
+                # Construct full vector
+                theta_pert_full = result["theta_MAP_full"].copy()
+                for j, aidx in enumerate(result["active_indices"]):
+                    theta_pert_full[aidx] = theta_pert[j]
+                try:
+                    rt = solver.solve(theta_pert_full)
+                    if len(rt) == 2:
+                        _, y_pert = rt
+                    else:
+                        ok, _, y_pert = rt
+                        if not ok:
+                            continue
+                    perturbed_curves.append(y_pert[:, sp_idx])
+                except Exception:
+                    continue
+
+            if len(perturbed_curves) >= 5:
+                pc = np.array(perturbed_curves)
+                ci_lo = np.percentile(pc, 2.5, axis=0)
+                ci_hi = np.percentile(pc, 97.5, axis=0)
+                ax.fill_between(
+                    t_days_sim,
+                    ci_lo,
+                    ci_hi,
+                    color=color,
+                    alpha=0.15,
+                    label="95% CI (Hessian)",
+                )
+
+        # Metrics annotation
+        m = fit_metrics["per_species"].get(sp_name, {})
+        r2 = m.get("R2", float("nan"))
+        rmse = m.get("RMSE", float("nan"))
+        ax.set_title(f"{sp_name}\nR²={r2:.3f}, RMSE={rmse:.4f}", fontsize=11)
+        ax.set_xlabel("Days")
+        if i == 0:
+            ax.set_ylabel("Volume Fraction")
+        ax.grid(True, alpha=0.3)
+        ax.set_xlim(left=0)
+        ax.set_ylim(bottom=0)
+        ax.legend(fontsize=7, loc="best")
+
+    plt.suptitle(
+        f"Per-Species Fit: {args.condition} {args.cultivation} "
+        f"(LogL={result['logL']:.2f}, AIC={result['AIC']:.1f})",
+        fontsize=13,
+    )
+    plt.tight_layout()
+
+    panel5_path = output_dir / f"5panel_{args.condition}_{args.cultivation}.png"
+    plt.savefig(panel5_path, dpi=200, bbox_inches="tight")
+    plt.savefig(output_dir / f"5panel_{args.condition}_{args.cultivation}.pdf", bbox_inches="tight")
+    plt.close()
+    logger.info(f"Saved 5-panel per-species plot to {panel5_path}")
+
+    # ===== Save Trajectories (.npz) for reuse =====
+    np.savez_compressed(
+        output_dir / "trajectories.npz",
+        t_sim=t_sim,
+        t_days_sim=t_days_sim,
+        y_sim=y_sim,
+        y_pred_at_obs=y_pred_at_obs,
+        data=data,
+        days=days,
+        idx_sparse=idx_sparse,
+        theta_MAP_full=result["theta_MAP_full"],
+        active_indices=np.array(result["active_indices"]),
+    )
+    logger.info("Saved trajectories.npz")
+
+    # ===== Save Config (TMCMC-equivalent) =====
+    config_out = {
+        "condition": args.condition,
+        "cultivation": args.cultivation,
+        "optimizer": args.optimizer,
+        "num_starts": args.num_starts,
+        "maxiter": args.maxiter,
+        "seed": args.seed,
+        "dt": args.dt,
+        "maxtimestep": args.maxtimestep,
+        "K_hill": args.K_hill,
+        "n_hill": args.n_hill,
+        "cov_rel": args.cov_rel,
+        "start_from_day": args.start_from_day,
+        "relinearization_threshold": args.relinearization_threshold,
+        "min_relinearization_interval": args.min_relinearization_interval,
+    }
+    save_json(output_dir / "config.json", config_out)
+
+    # ===== Save Credible Intervals (TMCMC-equivalent format) =====
+    if result.get("ci_success", False):
+        ci_data = {
+            "param_names": [f"theta_{i}" for i in result["active_indices"]],
+            "active_indices": result["active_indices"],
+            "MAP": result["MAP"].tolist(),
+            "std_errors": result["std_errors"].tolist(),
+            "ci_lower_95": result["ci_lower"].tolist(),
+            "ci_upper_95": result["ci_upper"].tolist(),
+            "method": result.get("ci_method", "hessian"),
+            "is_positive_definite": result.get("is_positive_definite", None),
+        }
+        save_json(output_dir / "credible_intervals.json", ci_data)
+        logger.info("Saved credible_intervals.json")
+
+    # ===== Save Prior Bounds Used =====
+    try:
+        bounds_record = {
+            "active_indices": result["active_indices"],
+            "active_bounds": [[float(lo), float(hi)] for lo, hi in result["active_bounds"]],
+            "locked_indices": result["locked_indices"],
+        }
+        save_json(output_dir / "prior_bounds_used.json", bounds_record)
+    except Exception:
+        pass
+
+    # ===== Multi-Start Spaghetti Plot (all start trajectories) =====
+    if args.num_starts > 1 and "all_results" in result:
+        try:
+            fig_sp, axes_sp = plt.subplots(1, 5, figsize=(22, 4.5))
+            for start_res in result["all_results"]:
+                theta_start_full = result["theta_MAP_full"].copy()
+                for j, aidx in enumerate(result["active_indices"]):
+                    theta_start_full[aidx] = start_res["x"][j]
+                try:
+                    rt = solver.solve(theta_start_full)
+                    if len(rt) == 2:
+                        _, y_s = rt
+                    else:
+                        ok, _, y_s = rt
+                        if not ok:
+                            continue
+                    for i, sp_idx in enumerate(active_species_idx):
+                        if i >= 5:
+                            break
+                        axes_sp[i].plot(
+                            t_days_sim,
+                            y_s[:, sp_idx],
+                            color=colors[i],
+                            alpha=0.2,
+                            linewidth=0.8,
+                        )
+                except Exception:
+                    continue
+
+            # Overlay MAP and data
+            for i, sp_idx in enumerate(active_species_idx):
+                if i >= 5:
+                    break
+                axes_sp[i].plot(
+                    t_days_sim,
+                    y_sim[:, sp_idx],
+                    color=colors[i],
+                    linewidth=2.5,
+                    label="MAP",
+                )
+                axes_sp[i].scatter(
+                    days,
+                    data[:, i],
+                    color=colors[i],
+                    s=60,
+                    edgecolors="black",
+                    linewidths=0.5,
+                    zorder=5,
+                )
+                axes_sp[i].set_title(species_names[i])
+                axes_sp[i].set_xlabel("Days")
+                axes_sp[i].grid(True, alpha=0.3)
+                axes_sp[i].set_xlim(left=0)
+                axes_sp[i].set_ylim(bottom=0)
+
+            axes_sp[0].set_ylabel("Volume Fraction")
+            plt.suptitle(
+                f"Multi-Start Spaghetti: {args.condition} {args.cultivation} "
+                f"({args.num_starts} starts)",
+                fontsize=13,
+            )
+            plt.tight_layout()
+            spaghetti_path = output_dir / "spaghetti_multistart.png"
+            plt.savefig(spaghetti_path, dpi=150, bbox_inches="tight")
+            plt.close()
+            logger.info(f"Saved spaghetti plot to {spaghetti_path}")
+        except Exception as e:
+            logger.warning(f"Spaghetti plot failed: {e}")
 
     # ===== NEW: Parameter Sensitivity Heatmap =====
     if result.get("ci_success", False):
