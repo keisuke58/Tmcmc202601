@@ -964,14 +964,22 @@ def run_TMCMC(
         # B3: Adaptive step count based on previous acceptance rate
         # Target: 99% probability of at least one accepted move per particle
         # Formula: ceil(log(0.01) / log(1 - acc_rate)) (Ramancha et al.)
+        # Enhanced: Ching & Chen (2007) thresholds — reduce aggressively when acc > 0.4
         adaptive_n_steps = n_mutation_steps
         if len(acc_rate_history) > 0:
             prev_acc = float(acc_rate_history[-1])
             if prev_acc > 0.01:
-                adaptive_n_steps = min(
-                    n_mutation_steps * 3,  # cap at 3x configured steps
-                    max(1, int(np.ceil(np.log(0.01) / np.log(1.0 - prev_acc)))),
-                )
+                ramancha_steps = int(np.ceil(np.log(0.01) / np.log(1.0 - prev_acc)))
+                # Ching & Chen guidance: high acceptance → fewer steps needed
+                if prev_acc > 0.4:
+                    adaptive_n_steps = max(1, min(ramancha_steps, n_mutation_steps))
+                elif prev_acc < 0.15:
+                    # Low acceptance → allow more steps (up to 5× configured)
+                    adaptive_n_steps = min(
+                        n_mutation_steps * 5, max(n_mutation_steps + 2, ramancha_steps)
+                    )
+                else:
+                    adaptive_n_steps = min(n_mutation_steps * 3, max(1, ramancha_steps))
                 if debug_logger.config.level in (DebugLevel.MINIMAL, DebugLevel.VERBOSE):
                     debug_logger.log_info(
                         f"Adaptive mutation steps: {adaptive_n_steps} (prev_acc={prev_acc:.3f}, configured={n_mutation_steps})"
@@ -2278,16 +2286,19 @@ def run_multi_chain_TMCMC(
         if result.final_MAP is not None:
             all_MAPs.append(result.final_MAP.copy())
 
-            # Update global MAP: use the MAP with highest log-likelihood across all chains
-            # This provides the best estimate from all chains
-            if len(all_MAPs) > 0:
-                # Use the MAP from the chain with highest log-likelihood
-                # (already computed in global_MAP calculation below)
-                # For now, use the latest MAP (can be improved to select best)
-                global_MAP = all_MAPs[-1].copy()
-                logger.info(
-                    "[Chain %s] Global MAP updated from %s chains", chain_idx + 1, len(all_MAPs)
-                )
+            # Update global MAP: use the chain with highest MAP log-likelihood
+            best_map_logL = -np.inf
+            for i_m, (map_theta, logL_vals) in enumerate(zip(all_MAPs, all_logL)):
+                chain_best = np.max(logL_vals)
+                if chain_best > best_map_logL:
+                    best_map_logL = chain_best
+                    global_MAP = map_theta.copy()
+            logger.info(
+                "[Chain %s] Global MAP updated (best logL=%.4f from %s chains)",
+                chain_idx + 1,
+                best_map_logL,
+                len(all_MAPs),
+            )
 
     # Global MAP (highest log-likelihood across all chains)
     # Find the chain and sample index with the highest log-likelihood
