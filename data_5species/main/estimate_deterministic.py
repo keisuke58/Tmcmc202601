@@ -51,6 +51,7 @@ from config import (
     DebugLevel,
 )
 from core import LogLikelihoodEvaluator
+from core.evaluator import build_replicate_sigma, build_likelihood_weights
 from debug import DebugLogger
 from utils import save_json
 from improved_5species_jit import BiofilmNewtonSolver5S
@@ -942,7 +943,7 @@ def run_optimizer(
                 seed=seed,
                 polish=True,  # Use L-BFGS-B to polish final result
                 updating="deferred",
-                workers=1,
+                workers=-1,  # Use all CPU cores for DE
                 disp=False,
             )
 
@@ -1023,6 +1024,7 @@ def _worker_optimize(worker_args):
         use_absolute_volume,
         relin_threshold,
         relin_interval,
+        likelihood_weights,
     ) = worker_args
 
     # Each worker creates its own evaluator (no shared state)
@@ -1042,6 +1044,7 @@ def _worker_optimize(worker_args):
         theta_linearization=theta_base,
         debug_logger=debug_logger,
         use_absolute_volume=use_absolute_volume,
+        weights=likelihood_weights,
     )
 
     adaptive_opt = AdaptiveLinearizationOptimizer(
@@ -1081,7 +1084,11 @@ def _run_parallel_starts(
     model_constants = get_model_constants()
     active_species = model_constants["active_species"]
 
-    sigma_obs = args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
+    # Use TMCMC-consistent sigma and weights
+    sigma_obs = getattr(args, "_sigma_obs_final", None)
+    if sigma_obs is None:
+        sigma_obs = args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
+    likelihood_weights = getattr(args, "_likelihood_weights", None)
 
     solver_kwargs = {
         "dt": args.dt,
@@ -1115,6 +1122,7 @@ def _run_parallel_starts(
                 args.use_absolute_volume,
                 args.relinearization_threshold,
                 args.min_relinearization_interval,
+                likelihood_weights,
             )
         )
 
@@ -1202,8 +1210,11 @@ def run_deterministic_estimation(
     # Extract bounds for active parameters
     active_bounds = [nishioka_bounds[i] for i in active_indices]
 
-    # 3. Create Evaluator
-    sigma_obs = args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
+    # 3. Create Evaluator (use TMCMC-consistent sigma and weights)
+    sigma_obs = getattr(args, "_sigma_obs_final", None)
+    if sigma_obs is None:
+        sigma_obs = args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
+    likelihood_weights = getattr(args, "_likelihood_weights", None)
 
     evaluator = LogLikelihoodEvaluator(
         solver_kwargs=solver_kwargs,
@@ -1218,6 +1229,7 @@ def run_deterministic_estimation(
         theta_linearization=theta_base,
         debug_logger=debug_logger,
         use_absolute_volume=args.use_absolute_volume,
+        weights=likelihood_weights,
     )
 
     # 4. Create Adaptive Linearization Wrapper (Improvement 4)
@@ -1291,6 +1303,41 @@ def run_deterministic_estimation(
             phi_init=phi_init if phi_init_array is not None else args.phi_init,
             n_workers=n_workers,
         )
+
+    # --- Warm-start: refine around best candidate ---
+    if len(all_results) >= 5:
+        best_so_far = min(all_results, key=lambda r: r["fun"])
+        n_warm = 2
+        rng_warm = np.random.RandomState(args.seed + 9999)
+        bound_ranges = np.array([b[1] - b[0] for b in active_bounds])
+        logger.info(
+            f"Warm-start: {n_warm} refinement runs around best " f"(logL={-best_so_far['fun']:.4f})"
+        )
+        for i_warm in range(n_warm):
+            perturbation = rng_warm.randn(len(best_so_far["x"])) * 0.05 * bound_ranges
+            warm_x0 = np.clip(
+                best_so_far["x"] + perturbation,
+                [b[0] for b in active_bounds],
+                [b[1] for b in active_bounds],
+            )
+            adaptive_optimizer.last_linearization_point = None
+            adaptive_optimizer.n_calls = 0
+            adaptive_optimizer.n_relinearizations = 0
+            adaptive_optimizer.calls_since_relinearization = 0
+
+            res = run_optimizer(
+                objective_func=adaptive_optimizer,
+                x0=warm_x0,
+                bounds=active_bounds,
+                method=args.optimizer,
+                maxiter=args.maxiter,
+                seed=args.seed + args.num_starts + i_warm,
+            )
+            res["adaptive_stats"] = adaptive_optimizer.get_stats()
+            res["worker_id"] = f"warm_{i_warm}"
+            warm_logL = -res["fun"]
+            logger.info(f"Warm-start {i_warm}: LogL={warm_logL:.4f}")
+            all_results.append(res)
 
     best_res = None
     best_logL = -np.inf
@@ -1536,6 +1583,36 @@ Examples:
         default=None,
         help="Observation noise (auto-estimated if not provided)",
     )
+    parser.add_argument(
+        "--replicate-sigma",
+        action="store_true",
+        default=False,
+        help="Use heteroscedastic per-(timepoint,species) sigma from replicate IQR (MUST match TMCMC)",
+    )
+    parser.add_argument(
+        "--use-exp-init",
+        action="store_true",
+        default=False,
+        help="Use experimental Day 1 as initial condition (MUST match TMCMC)",
+    )
+    parser.add_argument(
+        "--lambda-pg",
+        type=float,
+        default=1.0,
+        help="Weight multiplier for P. gingivalis (TMCMC default=5.0)",
+    )
+    parser.add_argument(
+        "--lambda-late",
+        type=float,
+        default=1.0,
+        help="Weight multiplier for late timepoints (TMCMC default=3.0)",
+    )
+    parser.add_argument(
+        "--n-late",
+        type=int,
+        default=2,
+        help="Number of late timepoints to up-weight (default=2: days 15,21)",
+    )
 
     # Output
     parser.add_argument(
@@ -1606,13 +1683,80 @@ Examples:
     output_dir = DATA_5SPECIES_ROOT / args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load Data
-    data, days, sigma_obs, phi_init_exp, metadata = load_experimental_data(
+    # Load Data (use_exp_init: Day 1 as IC, exclude from likelihood)
+    data, days, sigma_obs_default, phi_init_exp, metadata = load_experimental_data(
         DATA_5SPECIES_ROOT,
         condition=args.condition,
         cultivation=args.cultivation,
         start_from_day=args.start_from_day,
+        use_exp_init=getattr(args, "use_exp_init", False),
     )
+
+    # Safety check for expIC
+    if getattr(args, "use_exp_init", False) and phi_init_exp is None:
+        logger.warning(
+            "--use-exp-init requested but no experimental IC available. "
+            "Falling back to default phi_init."
+        )
+
+    # --- Sigma: match TMCMC exactly ---
+    if args.sigma_obs:
+        sigma_obs_final = args.sigma_obs
+        logger.info(f"Using manual sigma_obs = {sigma_obs_final}")
+    elif args.replicate_sigma:
+        replicate_csv = (
+            DATA_5SPECIES_ROOT / "experiment_data" / "fig3_species_distribution_replicates.csv"
+        )
+        if not replicate_csv.exists():
+            replicate_csv = DATA_5SPECIES_ROOT / "fig3_species_distribution_replicates.csv"
+        _rep_species_map = {
+            "S. oralis": 0,
+            "A. naeslundii": 1,
+            "V. dispar": 2,
+            "V. parvula": 2,
+            "F. nucleatum": 3,
+            "P. gingivalis_20709": 4,
+            "P. gingivalis_W83": 4,
+        }
+        sigma_obs_final = build_replicate_sigma(
+            replicate_csv=str(replicate_csv),
+            condition=args.condition,
+            cultivation=args.cultivation,
+            days=metadata["days"],
+            species_map=_rep_species_map,
+            n_species=data.shape[1],
+            min_sigma=0.005,
+        )
+        logger.info(
+            f"Using replicate-based sigma_obs matrix {sigma_obs_final.shape}: "
+            f"range [{sigma_obs_final.min():.4f}, {sigma_obs_final.max():.4f}]"
+        )
+    else:
+        sigma_obs_final = np.asarray(metadata.get("sigma_obs_estimated", 0.05))
+        if sigma_obs_final.ndim == 0:
+            logger.info(f"Using sigma_obs = {float(sigma_obs_final):.6f}")
+        else:
+            logger.info(f"Using per-species sigma_obs: {sigma_obs_final}")
+
+    # --- Likelihood weights: match TMCMC ---
+    likelihood_weights = None
+    if args.lambda_pg != 1.0 or args.lambda_late != 1.0:
+        likelihood_weights = build_likelihood_weights(
+            n_obs=data.shape[0],
+            n_species=data.shape[1],
+            pg_species_idx=4,
+            n_late=args.n_late,
+            lambda_pg=args.lambda_pg,
+            lambda_late=args.lambda_late,
+        )
+        logger.info(
+            f"Weighted likelihood: lambda_pg={args.lambda_pg}, "
+            f"lambda_late={args.lambda_late}, n_late={args.n_late}"
+        )
+
+    # Store on args for downstream use
+    args._sigma_obs_final = sigma_obs_final
+    args._likelihood_weights = likelihood_weights
 
     # Time conversion
     t_model, idx_sparse = convert_days_to_model_time(days, args.dt, args.maxtimestep)
@@ -2017,7 +2161,7 @@ Examples:
 
         # CI band from Hessian (delta-method approximation via perturbation)
         if result.get("ci_success", False) and result.get("std_errors") is not None:
-            n_perturb = 20
+            n_perturb = 50
             rng = np.random.RandomState(42)
             se = result["std_errors"]
             map_active = result["MAP"]

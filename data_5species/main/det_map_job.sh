@@ -9,21 +9,15 @@
 #PBS -M nishioka@ikm.uni-hannover.de
 
 # ============================================================
-# Deterministic MAP Estimation — "最強設定"
+# Deterministic MAP Estimation — TMCMC-consistent settings
 # ============================================================
-# Strategy: DE (global) × 20 LHS multi-start × adaptive relinearization
-#
-# DE is the best choice because:
-#   - Basin sensitivity confirmed multiple attractors (CS: 49/51 jump)
-#   - 20D parameter space needs global exploration
-#   - polish=True refines with L-BFGS-B at the end
-#   - 20 multi-start LHS covers prior volume uniformly
+# Uses same sigma/weights/expIC as TMCMC for comparable logL values.
 #
 # Usage:
-#   # Single condition:
+#   # Single condition (TMCMC-consistent):
 #   qsub -l nodes=frontale03:ppn=12 -v CONDITION=Commensal,CULTIVATION=Static det_map_job.sh
 #
-#   # All 4 conditions (parallel on 4 nodes):
+#   # All 4 conditions:
 #   qsub -l nodes=frontale03:ppn=12 -v CONDITION=Commensal,CULTIVATION=Static  det_map_job.sh
 #   qsub -l nodes=frontale04:ppn=12 -v CONDITION=Commensal,CULTIVATION=HOBIC   det_map_job.sh
 #   qsub -l nodes=marinos01:ppn=12  -v CONDITION=Dysbiotic,CULTIVATION=Static  det_map_job.sh
@@ -35,11 +29,6 @@ set -euo pipefail
 # --- Defaults (override via -v) ---
 CONDITION="${CONDITION:-Dysbiotic}"
 CULTIVATION="${CULTIVATION:-HOBIC}"
-# Strategy: L-BFGS-B × 10 LHS multi-start (~5 min total)
-#   - Each L-BFGS-B converges in ~500 evals (~30s)
-#   - 10 starts from LHS covers prior volume
-#   - Best of 10 = robust MAP without DE's 300× overhead
-# For extra safety: OPTIMIZER=basinhopping, NUM_STARTS=1, MAXITER=100
 OPTIMIZER="${OPTIMIZER:-L-BFGS-B}"
 NUM_STARTS="${NUM_STARTS:-10}"
 MAXITER="${MAXITER:-2000}"
@@ -51,6 +40,9 @@ MAXTIMESTEP="${MAXTIMESTEP:-2500}"
 RELIN_THRESHOLD="${RELIN_THRESHOLD:-0.3}"
 RELIN_INTERVAL="${RELIN_INTERVAL:-30}"
 NJOBS="${NJOBS:-12}"
+# TMCMC-consistent settings (match tmcmc_job.sh defaults)
+USE_EXP_INIT="${USE_EXP_INIT:-1}"
+REPLICATE_SIGMA="${REPLICATE_SIGMA:-0}"
 
 # --- Environment ---
 cd /home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/main
@@ -72,6 +64,18 @@ echo "  Node:         $(hostname)"
 echo "  Output:       ${OUTDIR}"
 echo "  Start:        $(date)"
 echo "  PBS Job ID:   ${PBS_JOBID:-local}"
+
+EXTRA_ARGS=""
+if [ "${USE_EXP_INIT}" = "1" ]; then
+    EXTRA_ARGS="${EXTRA_ARGS} --use-exp-init"
+    echo "  ExpIC:        ON (Day 1 experimental IC)"
+fi
+if [ "${REPLICATE_SIGMA}" = "1" ]; then
+    EXTRA_ARGS="${EXTRA_ARGS} --replicate-sigma"
+    echo "  Sigma:        heteroscedastic (replicate IQR)"
+else
+    echo "  Sigma:        default (scalar)"
+fi
 echo "=============================================="
 
 $PYTHON estimate_deterministic.py \
@@ -89,7 +93,8 @@ $PYTHON estimate_deterministic.py \
     --relinearization-threshold "${RELIN_THRESHOLD}" \
     --min-relinearization-interval "${RELIN_INTERVAL}" \
     --n-jobs "${NJOBS}" \
-    --output-dir "${OUTDIR}"
+    --output-dir "${OUTDIR}" \
+    ${EXTRA_ARGS}
 
 echo "=============================================="
 echo "Deterministic MAP finished: $(date)"
