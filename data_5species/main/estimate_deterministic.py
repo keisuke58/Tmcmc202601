@@ -2030,19 +2030,25 @@ Examples:
     colors = ["#1f77b4", "#2ca02c", "#ff7f0e", "#9467bd", "#d62728"]  # Better colors
     species_names = ["S.o", "A.n", "Vei", "F.n", "P.g"]
 
-    # Calculate day scale
-    day_scale = t_model[-1] / days[-1] if days[-1] > 0 else 1.0
-    t_days_sim = t_sim / day_scale
+    # Calculate day scale — simulation starts at Day 1 (IC), not Day 0
+    start_day = getattr(args, "start_from_day", 1)
+    day_scale = t_model[-1] / (days[-1] - start_day) if days[-1] > start_day else 1.0
+    t_days_sim = t_sim / day_scale + start_day
 
     # Create figure with two subplots
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-    # ===== Plot 1: Model Fit =====
+    # ===== Plot 1: Model Fit (fraction space) =====
     ax1 = axes[0]
+    # Normalize y_sim to fraction space for fit_plot (same as 5panel)
+    _y_sim_sp = y_sim[:, active_species_idx[: min(5, len(active_species_idx))]]
+    _y_sp_sum = _y_sim_sp.sum(axis=1, keepdims=True)
+    _y_sp_sum = np.where(_y_sp_sum > 0, _y_sp_sum, 1.0)
+    _y_sim_frac_fp = _y_sim_sp / _y_sp_sum
     for i, sp_idx in enumerate(active_species_idx):
         if sp_idx >= 5:
             continue
-        # Experimental data
+        # Experimental data (fraction space when normalize=True)
         ax1.scatter(
             days,
             data[:, i],
@@ -2052,10 +2058,10 @@ Examples:
             s=50,
             alpha=0.8,
         )
-        # Simulation
+        # Simulation (fraction-normalized)
         ax1.plot(
             t_days_sim,
-            y_sim[:, sp_idx],
+            _y_sim_frac_fp[:, i],
             label=f"{species_names[sp_idx]} (Sim)",
             color=colors[sp_idx],
             linestyle="-",
@@ -2202,8 +2208,36 @@ Examples:
     plt.close()
     logger.info(f"Saved residual analysis to {residual_path}")
 
-    # ===== 5-Panel Per-Species Fit Plot (TMCMC-equivalent) =====
-    fig5p, axes5 = plt.subplots(1, 5, figsize=(22, 4.5), sharey=False)
+    # ===== 5-Panel Per-Species Fit Plot (TMCMC-equivalent, boxplot + IC) =====
+    # Load experimental replicate boxplot data
+    try:
+        sys.path.insert(0, str(DATA_5SPECIES_ROOT / "visualization"))
+        from helpers import load_exp_boxplot
+
+        exp_boxplot = load_exp_boxplot(
+            args.condition,
+            args.cultivation,
+            data_dir=DATA_5SPECIES_ROOT / "experiment_data",
+        )
+    except Exception:
+        exp_boxplot = {}
+
+    # Get Day 1 IC (normalize to fraction space for display)
+    phi_ic = phi_init_exp if phi_init_exp is not None else None
+    if phi_ic is not None:
+        phi_ic_sum = phi_ic.sum()
+        phi_ic_frac = phi_ic / phi_ic_sum if phi_ic_sum > 0 else phi_ic
+    else:
+        phi_ic_frac = None
+
+    # Normalize y_sim to fraction space (sum of 5 species = 1)
+    n_sp_total = len(active_species_idx)
+    y_sim_sp = y_sim[:, active_species_idx[:n_sp_total]]
+    y_sp_sum = y_sim_sp.sum(axis=1, keepdims=True)
+    y_sp_sum = np.where(y_sp_sum > 0, y_sp_sum, 1.0)
+    y_sim_frac = y_sim_sp / y_sp_sum
+
+    fig5p, axes5 = plt.subplots(1, 5, figsize=(24, 4.5), sharey=False)
 
     for i, sp_idx in enumerate(active_species_idx):
         if i >= 5:
@@ -2212,29 +2246,7 @@ Examples:
         sp_name = species_names[i]
         color = colors[i]
 
-        # Experimental data points
-        ax.scatter(
-            days,
-            data[:, i],
-            color=color,
-            s=80,
-            zorder=5,
-            edgecolors="black",
-            linewidths=0.5,
-            label="Exp. data",
-        )
-
-        # MAP simulation curve
-        ax.plot(
-            t_days_sim,
-            y_sim[:, sp_idx],
-            color=color,
-            linewidth=2.5,
-            label="MAP fit",
-            zorder=4,
-        )
-
-        # CI band from Hessian (delta-method approximation via perturbation)
+        # --- CI band from Hessian (draw first, behind everything) ---
         if result.get("ci_success", False) and result.get("std_errors") is not None:
             n_perturb = 50
             rng = np.random.RandomState(42)
@@ -2249,7 +2261,6 @@ Examples:
                     [b[0] for b in result["active_bounds"]],
                     [b[1] for b in result["active_bounds"]],
                 )
-                # Construct full vector
                 theta_pert_full = result["theta_MAP_full"].copy()
                 for j, aidx in enumerate(result["active_indices"]):
                     theta_pert_full[aidx] = theta_pert[j]
@@ -2261,7 +2272,12 @@ Examples:
                         ok, _, y_pert = rt
                         if not ok:
                             continue
-                    perturbed_curves.append(y_pert[:, sp_idx])
+                    # Normalize perturbed curve to fractions
+                    y_pert_sp = y_pert[:, active_species_idx[:n_sp_total]]
+                    y_pert_sum = y_pert_sp.sum(axis=1, keepdims=True)
+                    y_pert_sum = np.where(y_pert_sum > 0, y_pert_sum, 1.0)
+                    y_pert_frac = y_pert_sp / y_pert_sum
+                    perturbed_curves.append(y_pert_frac[:, i])
                 except Exception:
                     continue
 
@@ -2274,27 +2290,162 @@ Examples:
                     ci_lo,
                     ci_hi,
                     color=color,
-                    alpha=0.15,
-                    label="95% CI (Hessian)",
+                    alpha=0.12,
+                    label="95% CI",
+                    zorder=2,
                 )
+
+        # --- MAP simulation curve (fraction-normalized) ---
+        ax.plot(
+            t_days_sim,
+            y_sim_frac[:, i],
+            color=color,
+            linewidth=2.5,
+            label="MAP fit",
+            zorder=4,
+        )
+
+        # --- Experimental boxplot overlay (IQR box + whisker) ---
+        if sp_idx in exp_boxplot:
+            bp = exp_boxplot[sp_idx]
+            box_hw = 0.4
+            for j, day in enumerate(bp["days"]):
+                med = bp["median"][j]
+                q1 = bp["q1"][j] if "q1" in bp else med
+                q3 = bp["q3"][j] if "q3" in bp else med
+                lo = bp["low"][j]
+                hi = bp["high"][j]
+                hw = box_hw
+                # IQR box
+                rect = plt.Rectangle(
+                    (day - hw, q1),
+                    2 * hw,
+                    q3 - q1,
+                    linewidth=1.2,
+                    edgecolor=color,
+                    facecolor=color,
+                    alpha=0.2,
+                    zorder=5,
+                )
+                ax.add_patch(rect)
+                # Median line (thick)
+                ax.plot(
+                    [day - hw, day + hw],
+                    [med, med],
+                    color=color,
+                    linewidth=2.0,
+                    alpha=0.9,
+                    zorder=6,
+                )
+                # Whiskers
+                ax.plot(
+                    [day, day],
+                    [lo, q1],
+                    color=color,
+                    linewidth=1.0,
+                    alpha=0.5,
+                    zorder=4,
+                )
+                ax.plot(
+                    [day, day],
+                    [q3, hi],
+                    color=color,
+                    linewidth=1.0,
+                    alpha=0.5,
+                    zorder=4,
+                )
+                # Caps
+                chw = hw * 0.6
+                ax.plot(
+                    [day - chw, day + chw],
+                    [lo, lo],
+                    color=color,
+                    linewidth=1.0,
+                    alpha=0.5,
+                    zorder=4,
+                )
+                ax.plot(
+                    [day - chw, day + chw],
+                    [hi, hi],
+                    color=color,
+                    linewidth=1.0,
+                    alpha=0.5,
+                    zorder=4,
+                )
+            # Dummy handle for legend
+            ax.plot([], [], "s", color=color, alpha=0.3, markersize=8, label="Exp. IQR")
+        else:
+            # Fallback: scatter if no replicate data
+            ax.scatter(
+                days,
+                data[:, i],
+                color=color,
+                s=80,
+                zorder=5,
+                edgecolors="black",
+                linewidths=0.5,
+                label="Exp. data",
+            )
+
+        # --- Data mean points (always show on top of boxplot) ---
+        if sp_idx in exp_boxplot:
+            ax.scatter(
+                days,
+                data[:, i],
+                color=color,
+                s=50,
+                zorder=8,
+                edgecolors="black",
+                linewidths=0.8,
+                label="Data (mean)",
+            )
+
+        # --- Day 1 IC marker (open diamond, fraction-normalized) ---
+        if phi_ic_frac is not None and i < len(phi_ic_frac):
+            ax.scatter(
+                [start_day],
+                [phi_ic_frac[i]],
+                s=80,
+                facecolors="white",
+                edgecolors=color,
+                zorder=11,
+                linewidth=2.0,
+                marker="D",
+                label="IC (Day 1)",
+            )
 
         # Metrics annotation
         m = fit_metrics["per_species"].get(sp_name, {})
         r2 = m.get("R2", float("nan"))
         rmse = m.get("RMSE", float("nan"))
-        ax.set_title(f"{sp_name}\nR²={r2:.3f}, RMSE={rmse:.4f}", fontsize=11)
-        ax.set_xlabel("Days")
+        rmse_sigma = m.get("RMSE_over_sigma", float("nan"))
+        title_lines = [sp_name, f"RMSE={rmse:.4f}"]
+        if not np.isnan(rmse_sigma):
+            title_lines[-1] += f", RMSE/σ={rmse_sigma:.2f}"
+        ax.set_title("\n".join(title_lines), fontsize=10)
+        ax.set_xlabel("Days", fontsize=10)
         if i == 0:
-            ax.set_ylabel("Volume Fraction")
+            ax.set_ylabel(r"Volume Fraction ($\bar{\varphi}$)", fontsize=11)
         ax.grid(True, alpha=0.3)
-        ax.set_xlim(left=0)
-        ax.set_ylim(bottom=0)
-        ax.legend(fontsize=7, loc="best")
+        ax.set_xlim(left=max(0, start_day - 0.5))
+        # Auto y-limit: data+prediction+IC based, with minimum for near-zero species
+        y_vals = list(data[:, i])
+        y_vals.extend(y_sim_frac[:, i].tolist())
+        if phi_ic_frac is not None and i < len(phi_ic_frac):
+            y_vals.append(phi_ic_frac[i])
+        y_max_relevant = max(y_vals) if y_vals else 0.1
+        if y_max_relevant < 0.15:
+            # Near-zero species: generous room without wasting space
+            ax.set_ylim(bottom=0, top=max(0.2, y_max_relevant * 2.5))
+        else:
+            ax.set_ylim(bottom=0, top=y_max_relevant * 1.15)
+        ax.legend(fontsize=6, loc="best", framealpha=0.8)
 
     plt.suptitle(
         f"Per-Species Fit: {args.condition} {args.cultivation} "
         f"(LogL={result['logL']:.2f}, AIC={result['AIC']:.1f})",
         fontsize=13,
+        fontweight="bold",
     )
     plt.tight_layout()
 
