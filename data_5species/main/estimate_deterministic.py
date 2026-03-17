@@ -2531,12 +2531,15 @@ Examples:
                         ok, _, y_s = rt
                         if not ok:
                             continue
-                    for i, sp_idx in enumerate(active_species_idx):
-                        if i >= 5:
-                            break
+                    # Normalize to fractions
+                    y_s_sp = y_s[:, active_species_idx[:n_sp_total]]
+                    y_s_sum = y_s_sp.sum(axis=1, keepdims=True)
+                    y_s_sum = np.where(y_s_sum > 0, y_s_sum, 1.0)
+                    y_s_frac = y_s_sp / y_s_sum
+                    for i in range(min(5, n_sp_total)):
                         axes_sp[i].plot(
                             t_days_sim,
-                            y_s[:, sp_idx],
+                            y_s_frac[:, i],
                             color=colors[i],
                             alpha=0.2,
                             linewidth=0.8,
@@ -2545,12 +2548,10 @@ Examples:
                     continue
 
             # Overlay MAP and data
-            for i, sp_idx in enumerate(active_species_idx):
-                if i >= 5:
-                    break
+            for i in range(min(5, n_sp_total)):
                 axes_sp[i].plot(
                     t_days_sim,
-                    y_sim[:, sp_idx],
+                    y_sim_frac[:, i],
                     color=colors[i],
                     linewidth=2.5,
                     label="MAP",
@@ -2567,7 +2568,7 @@ Examples:
                 axes_sp[i].set_title(species_names[i])
                 axes_sp[i].set_xlabel("Days")
                 axes_sp[i].grid(True, alpha=0.3)
-                axes_sp[i].set_xlim(left=0)
+                axes_sp[i].set_xlim(left=max(0, start_day - 0.5))
                 axes_sp[i].set_ylim(bottom=0)
 
             axes_sp[0].set_ylabel("Volume Fraction")
