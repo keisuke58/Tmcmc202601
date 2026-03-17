@@ -298,7 +298,10 @@ def compute_model_selection_metrics(
 # NEW Improvement: Fit Quality Metrics (R², RMSE, NRMSE)
 # =============================================================================
 def compute_fit_quality_metrics(
-    y_obs: np.ndarray, y_pred: np.ndarray, species_names: List[str] = None
+    y_obs: np.ndarray,
+    y_pred: np.ndarray,
+    species_names: List[str] = None,
+    sigma_obs: np.ndarray = None,
 ) -> Dict[str, Any]:
     """
     Compute comprehensive fit quality metrics.
@@ -307,6 +310,7 @@ def compute_fit_quality_metrics(
         y_obs: Observed data (n_timepoints, n_species)
         y_pred: Predicted data (n_timepoints, n_species)
         species_names: Names for each species
+        sigma_obs: Per-species sigma (n_species,) for weighted metrics. Optional.
 
     Returns:
         Dictionary with R², RMSE, NRMSE, MAE per species and overall
@@ -342,7 +346,7 @@ def compute_fit_quality_metrics(
         # Max absolute error
         max_error = np.max(np.abs(residuals))
 
-        metrics["per_species"][species_names[i]] = {
+        sp_metrics = {
             "R2": float(r2),
             "RMSE": float(rmse),
             "NRMSE": float(nrmse),
@@ -351,6 +355,11 @@ def compute_fit_quality_metrics(
             "mean_obs": float(np.mean(obs)),
             "mean_pred": float(np.mean(pred)),
         }
+        # Normalized RMSE by sigma (meaningful for minor species)
+        if sigma_obs is not None:
+            sig_i = sigma_obs[i] if sigma_obs.ndim >= 1 else float(sigma_obs)
+            sp_metrics["RMSE_over_sigma"] = float(rmse / sig_i) if sig_i > 0 else float("inf")
+        metrics["per_species"][species_names[i]] = sp_metrics
 
         all_residuals.extend(residuals.tolist())
 
@@ -870,6 +879,7 @@ def run_optimizer(
     method: str = "L-BFGS-B",
     maxiter: int = 2000,
     seed: int = 42,
+    de_popsize: int = 30,
 ) -> Dict[str, Any]:
     """
     Run optimization with specified method.
@@ -881,6 +891,7 @@ def run_optimizer(
         method: One of 'L-BFGS-B', 'Nelder-Mead', 'Powell', 'DE', 'basinhopping', 'dual_annealing'
         maxiter: Maximum iterations
         seed: Random seed for stochastic methods
+        de_popsize: Population size multiplier for DE (default: 30×n_params)
 
     Returns:
         Dictionary with optimization result
@@ -941,6 +952,7 @@ def run_optimizer(
                 x0=x0,
                 maxiter=maxiter,
                 seed=seed,
+                popsize=de_popsize,  # 30×n_params (default scipy=15)
                 polish=True,  # Use L-BFGS-B to polish final result
                 updating="deferred",
                 workers=-1,  # Use all CPU cores for DE
@@ -1025,6 +1037,7 @@ def _worker_optimize(worker_args):
         relin_threshold,
         relin_interval,
         likelihood_weights,
+        de_popsize,
     ) = worker_args
 
     # Each worker creates its own evaluator (no shared state)
@@ -1062,6 +1075,7 @@ def _worker_optimize(worker_args):
         method=method,
         maxiter=maxiter,
         seed=seed + i_start,
+        de_popsize=de_popsize,
     )
     res["adaptive_stats"] = adaptive_opt.get_stats()
     res["worker_id"] = i_start
@@ -1123,6 +1137,7 @@ def _run_parallel_starts(
                 args.relinearization_threshold,
                 args.min_relinearization_interval,
                 likelihood_weights,
+                getattr(args, "de_popsize", 30),
             )
         )
 
@@ -1279,6 +1294,7 @@ def run_deterministic_estimation(
                 method=args.optimizer,
                 maxiter=args.maxiter,
                 seed=args.seed + i_start,
+                de_popsize=getattr(args, "de_popsize", 30),
             )
             res["adaptive_stats"] = adaptive_optimizer.get_stats()
 
@@ -1329,14 +1345,44 @@ def run_deterministic_estimation(
                 objective_func=adaptive_optimizer,
                 x0=warm_x0,
                 bounds=active_bounds,
-                method=args.optimizer,
+                method="L-BFGS-B",  # Always L-BFGS-B for warm-start polish
                 maxiter=args.maxiter,
                 seed=args.seed + args.num_starts + i_warm,
+                de_popsize=getattr(args, "de_popsize", 30),
             )
             res["adaptive_stats"] = adaptive_optimizer.get_stats()
             res["worker_id"] = f"warm_{i_warm}"
             warm_logL = -res["fun"]
             logger.info(f"Warm-start {i_warm}: LogL={warm_logL:.4f}")
+            all_results.append(res)
+
+    # --- Hybrid DE→L-BFGS-B: polish top-5 DE results with L-BFGS-B ---
+    if getattr(args, "hybrid", False) and args.optimizer in ("DE", "differential_evolution"):
+        sorted_results = sorted(all_results, key=lambda r: r["fun"])
+        n_polish = min(5, len(sorted_results))
+        logger.info(f"Hybrid mode: polishing top-{n_polish} DE results with L-BFGS-B...")
+        for i_pol in range(n_polish):
+            de_x = sorted_results[i_pol]["x"]
+            de_logL = -sorted_results[i_pol]["fun"]
+            adaptive_optimizer.last_linearization_point = None
+            adaptive_optimizer.n_calls = 0
+            adaptive_optimizer.n_relinearizations = 0
+            adaptive_optimizer.calls_since_relinearization = 0
+
+            res = run_optimizer(
+                objective_func=adaptive_optimizer,
+                x0=de_x,
+                bounds=active_bounds,
+                method="L-BFGS-B",
+                maxiter=args.maxiter,
+                seed=args.seed + 5000 + i_pol,
+            )
+            res["adaptive_stats"] = adaptive_optimizer.get_stats()
+            res["worker_id"] = f"hybrid_polish_{i_pol}"
+            polish_logL = -res["fun"]
+            logger.info(
+                f"Hybrid polish {i_pol}: DE logL={de_logL:.4f} → L-BFGS-B logL={polish_logL:.4f}"
+            )
             all_results.append(res)
 
     best_res = None
@@ -1646,6 +1692,17 @@ Examples:
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument(
+        "--de-popsize",
+        type=int,
+        default=30,
+        help="DE population size multiplier (default: 30, scipy default=15). popsize×n_params individuals.",
+    )
+    parser.add_argument(
+        "--hybrid",
+        action="store_true",
+        help="Hybrid DE→L-BFGS-B: run DE first, then polish top-5 with L-BFGS-B multi-start",
+    )
+    parser.add_argument(
         "--n-jobs",
         type=int,
         default=0,
@@ -1689,6 +1746,7 @@ Examples:
         condition=args.condition,
         cultivation=args.cultivation,
         start_from_day=args.start_from_day,
+        normalize=True,  # MUST match TMCMC: model output is always sum=1
         use_exp_init=getattr(args, "use_exp_init", False),
     )
 
@@ -1732,11 +1790,16 @@ Examples:
             f"range [{sigma_obs_final.min():.4f}, {sigma_obs_final.max():.4f}]"
         )
     else:
-        sigma_obs_final = np.asarray(metadata.get("sigma_obs_estimated", 0.05))
+        # Use sigma_obs_default directly from load_experimental_data (fraction-space IQR)
+        # This is the same value TMCMC uses in its default path
+        sigma_obs_final = np.asarray(sigma_obs_default)
         if sigma_obs_final.ndim == 0:
             logger.info(f"Using sigma_obs = {float(sigma_obs_final):.6f}")
         else:
-            logger.info(f"Using per-species sigma_obs: {sigma_obs_final}")
+            logger.info(
+                f"Using per-species sigma_obs (fraction IQR, TMCMC-consistent): "
+                f"{dict(zip(['So','An','Vd','Fn','Pg'], [f'{s:.4f}' for s in sigma_obs_final]))}"
+            )
 
     # --- Likelihood weights: match TMCMC ---
     likelihood_weights = None
@@ -1903,7 +1966,12 @@ Examples:
         if idx < len(y_sim):
             y_pred_at_obs[i, :] = y_sim[idx, active_species_idx]
 
-    fit_metrics = compute_fit_quality_metrics(data, y_pred_at_obs, species_names)
+    fit_metrics = compute_fit_quality_metrics(
+        data,
+        y_pred_at_obs,
+        species_names,
+        sigma_obs=np.asarray(sigma_obs_final) if hasattr(sigma_obs_final, "__len__") else None,
+    )
 
     # Save fit metrics
     save_json(output_dir / "fit_quality_metrics.json", fit_metrics)
@@ -1912,14 +1980,21 @@ Examples:
     print("\n" + "-" * 70)
     print("FIT QUALITY METRICS:")
     print("-" * 70)
-    print(f"{'Species':<10} {'R²':>8} {'RMSE':>10} {'NRMSE':>10} {'MAE':>10}")
+    has_sigma_metric = any(
+        "RMSE_over_sigma" in fit_metrics["per_species"].get(sp, {}) for sp in species_names
+    )
+    hdr = f"{'Species':<10} {'R²':>8} {'RMSE':>10} {'NRMSE':>10} {'MAE':>10}"
+    if has_sigma_metric:
+        hdr += f" {'RMSE/σ':>8}"
+    print(hdr)
     print("-" * 70)
     for sp_name in species_names:
         if sp_name in fit_metrics["per_species"]:
             m = fit_metrics["per_species"][sp_name]
-            print(
-                f"{sp_name:<10} {m['R2']:>8.4f} {m['RMSE']:>10.6f} {m['NRMSE']:>10.4f} {m['MAE']:>10.6f}"
-            )
+            line = f"{sp_name:<10} {m['R2']:>8.4f} {m['RMSE']:>10.6f} {m['NRMSE']:>10.4f} {m['MAE']:>10.6f}"
+            if has_sigma_metric and "RMSE_over_sigma" in m:
+                line += f" {m['RMSE_over_sigma']:>8.2f}"
+            print(line)
     print("-" * 70)
     print(
         f"{'Overall':<10} {fit_metrics['overall']['R2']:>8.4f} {fit_metrics['overall']['RMSE']:>10.6f} {'-':>10} {fit_metrics['overall']['MAE']:>10.6f}"

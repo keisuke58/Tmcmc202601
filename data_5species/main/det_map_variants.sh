@@ -45,6 +45,7 @@ case "${VARIANT}" in
             --optimizer basinhopping --num-starts 1 --maxiter 500 \
             --seed "${SEED}" --K-hill 0.05 --n-hill 4.0 --cov-rel 0.005 \
             --relinearization-threshold 0.3 --min-relinearization-interval 30 \
+            --use-exp-init \
             --output-dir "${OUTDIR}"
         ;;
     powell)
@@ -55,6 +56,7 @@ case "${VARIANT}" in
             --optimizer Powell --num-starts 10 --maxiter 2000 \
             --seed "${SEED}" --K-hill 0.05 --n-hill 4.0 --cov-rel 0.005 \
             --relinearization-threshold 0.3 --min-relinearization-interval 30 \
+            --use-exp-init \
             --output-dir "${OUTDIR}"
         ;;
     dual_annealing)
@@ -65,6 +67,7 @@ case "${VARIANT}" in
             --optimizer dual_annealing --num-starts 1 --maxiter 1000 \
             --seed "${SEED}" --K-hill 0.05 --n-hill 4.0 --cov-rel 0.005 \
             --relinearization-threshold 0.3 --min-relinearization-interval 30 \
+            --use-exp-init \
             --output-dir "${OUTDIR}"
         ;;
     *)

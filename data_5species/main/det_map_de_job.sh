@@ -1,7 +1,7 @@
 #!/bin/bash
-#PBS -N det_map
+#PBS -N det_de
 #PBS -l nodes=1:ppn=12
-#PBS -l walltime=24:00:00
+#PBS -l walltime=10:00:00
 #PBS -q default
 #PBS -j oe
 #PBS -o ${PBS_JOBNAME}_${PBS_JOBID}.log
@@ -9,28 +9,23 @@
 #PBS -M nishioka@ikm.uni-hannover.de
 
 # ============================================================
-# Deterministic MAP Estimation — TMCMC-consistent settings
+# Deterministic MAP — DE (global) overnight run
 # ============================================================
-# Uses same sigma/weights/expIC as TMCMC for comparable logL values.
+# DE = Differential Evolution: population-based global optimizer
+# - popsize=15*n_params (scipy default), workers=-1 (all cores)
+# - 20 multi-start LHS for robustness
+# - Expected runtime: 2-8 hours per condition
 #
 # Usage:
-#   # Single condition (TMCMC-consistent):
-#   qsub -l nodes=frontale03:ppn=12 -v CONDITION=Commensal,CULTIVATION=Static det_map_job.sh
-#
-#   # All 4 conditions:
-#   qsub -l nodes=frontale03:ppn=12 -v CONDITION=Commensal,CULTIVATION=Static  det_map_job.sh
-#   qsub -l nodes=frontale04:ppn=12 -v CONDITION=Commensal,CULTIVATION=HOBIC   det_map_job.sh
-#   qsub -l nodes=marinos01:ppn=12  -v CONDITION=Dysbiotic,CULTIVATION=Static  det_map_job.sh
-#   qsub -l nodes=marinos03:ppn=12  -v CONDITION=Dysbiotic,CULTIVATION=HOBIC   det_map_job.sh
+#   qsub -l nodes=frontale02:ppn=12 -v CONDITION=Commensal,CULTIVATION=Static det_map_de_job.sh
 # ============================================================
 
 set -euo pipefail
 
-# --- Defaults (override via -v) ---
 CONDITION="${CONDITION:-Dysbiotic}"
 CULTIVATION="${CULTIVATION:-HOBIC}"
-OPTIMIZER="${OPTIMIZER:-L-BFGS-B}"
-NUM_STARTS="${NUM_STARTS:-10}"
+OPTIMIZER="${OPTIMIZER:-DE}"
+NUM_STARTS="${NUM_STARTS:-1}"
 MAXITER="${MAXITER:-2000}"
 SEED="${SEED:-42}"
 START_DAY="${START_DAY:-1}"
@@ -40,25 +35,23 @@ MAXTIMESTEP="${MAXTIMESTEP:-2500}"
 RELIN_THRESHOLD="${RELIN_THRESHOLD:-0.3}"
 RELIN_INTERVAL="${RELIN_INTERVAL:-30}"
 NJOBS="${NJOBS:-12}"
-# TMCMC-consistent settings (match tmcmc_job.sh defaults)
+DE_POPSIZE="${DE_POPSIZE:-30}"
+HYBRID="${HYBRID:-1}"
 USE_EXP_INIT="${USE_EXP_INIT:-1}"
 REPLICATE_SIGMA="${REPLICATE_SIGMA:-0}"
 
-# --- Environment ---
 cd /home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/main
 PYTHON=python3
 
-# --- Output directory ---
 TS=$(date +%Y%m%d_%H%M%S)
 SHORT="${CONDITION:0:1}${CULTIVATION:0:1}"
 OUTDIR="deterministic_results/${SHORT}_${OPTIMIZER}_${NUM_STARTS}starts_${TS}"
 
 echo "=============================================="
-echo "Deterministic MAP: ${CONDITION} ${CULTIVATION}"
+echo "Deterministic MAP (DE overnight): ${CONDITION} ${CULTIVATION}"
 echo "  Optimizer:    ${OPTIMIZER}"
 echo "  Multi-start:  ${NUM_STARTS} (LHS)"
 echo "  Max iter:     ${MAXITER}"
-echo "  Relin thresh: ${RELIN_THRESHOLD}"
 echo "  Parallel:     ${NJOBS} workers"
 echo "  Node:         $(hostname)"
 echo "  Output:       ${OUTDIR}"
@@ -68,14 +61,19 @@ echo "  PBS Job ID:   ${PBS_JOBID:-local}"
 EXTRA_ARGS=""
 if [ "${USE_EXP_INIT}" = "1" ]; then
     EXTRA_ARGS="${EXTRA_ARGS} --use-exp-init"
-    echo "  ExpIC:        ON (Day 1 experimental IC)"
+    echo "  ExpIC:        ON"
 fi
 if [ "${REPLICATE_SIGMA}" = "1" ]; then
     EXTRA_ARGS="${EXTRA_ARGS} --replicate-sigma"
-    echo "  Sigma:        heteroscedastic (replicate IQR)"
+    echo "  Sigma:        heteroscedastic"
 else
     echo "  Sigma:        default (scalar)"
 fi
+if [ "${HYBRID}" = "1" ]; then
+    EXTRA_ARGS="${EXTRA_ARGS} --hybrid"
+    echo "  Hybrid:       DE→L-BFGS-B (top-5 polish)"
+fi
+echo "  DE popsize:   ${DE_POPSIZE}×n_params"
 echo "=============================================="
 
 $PYTHON estimate_deterministic.py \
@@ -90,6 +88,7 @@ $PYTHON estimate_deterministic.py \
     --K-hill "${K_HILL}" \
     --n-hill "${N_HILL}" \
     --cov-rel 0.005 \
+    --de-popsize "${DE_POPSIZE}" \
     --relinearization-threshold "${RELIN_THRESHOLD}" \
     --min-relinearization-interval "${RELIN_INTERVAL}" \
     --n-jobs "${NJOBS}" \
@@ -97,6 +96,6 @@ $PYTHON estimate_deterministic.py \
     ${EXTRA_ARGS}
 
 echo "=============================================="
-echo "Deterministic MAP finished: $(date)"
+echo "Deterministic MAP (DE) finished: $(date)"
 echo "Results: ${OUTDIR}"
 echo "=============================================="
