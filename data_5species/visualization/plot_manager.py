@@ -176,14 +176,16 @@ class PlotManager:
                     color=color,
                 )
 
-        # Plot Day 1 initial condition as diamond markers
+        # Plot Day 1 initial condition as diamond markers (normalize to fraction space)
         if phi_init_exp is not None and t_days is not None and t_days.min() > 1:
+            _ic_sum = phi_init_exp.sum()
+            _ic_frac = phi_init_exp / _ic_sum if _ic_sum > 0 else phi_init_exp
             for i, sp in enumerate(active_species):
-                if i < len(phi_init_exp):
+                if i < len(_ic_frac):
                     color = self.COLORS[sp] if sp < len(self.COLORS) else f"C{sp}"
                     plt.scatter(
                         [1],
-                        [phi_init_exp[i]],
+                        [_ic_frac[i]],
                         s=80,
                         marker="D",
                         edgecolor="k",
@@ -377,6 +379,10 @@ class PlotManager:
         phi_init: Optional[np.ndarray] = None,
     ) -> None:
         """5-panel per-species posterior predictive + experimental boxplot."""
+        # Normalize phi_init to fraction space for consistent plotting
+        if phi_init is not None:
+            _ic_sum = phi_init.sum()
+            phi_init = phi_init / _ic_sum if _ic_sum > 0 else phi_init
         if phibar_samples.ndim != 3:
             raise ValueError(f"phibar_samples must be 3D, got shape {phibar_samples.shape}")
 
@@ -518,7 +524,26 @@ class PlotManager:
             ax.set_xlabel(xlabel, fontsize=11)
             if i == 0:
                 ax.set_ylabel(r"$\bar{\varphi}$", fontsize=13)
-            ax.set_ylim(bottom=0)
+            # Adaptive y-axis: zoom into near-zero species
+            _yvals = []
+            if data is not None:
+                _yvals.extend(data[:, i].tolist())
+            if phi_init is not None and i < len(phi_init):
+                _yvals.append(phi_init[i])
+            if phibar_map is not None:
+                _yvals.extend(phibar_map[:, i].tolist())
+            if phibar_mean is not None:
+                _yvals.extend(phibar_mean[:, i].tolist())
+            _yvals.extend(q_2s_hi[:, i].tolist())
+            if _yvals:
+                _ymax = max(_yvals)
+                if _ymax < 0.15:
+                    # Near-zero species: zoom in with floor
+                    ax.set_ylim(bottom=0, top=max(0.2, _ymax * 2.5))
+                else:
+                    ax.set_ylim(bottom=0, top=_ymax * 1.15)
+            else:
+                ax.set_ylim(bottom=0)
             ax.grid(True, alpha=0.3)
             if t_days is not None:
                 # Include Day 1 in x-ticks if IC is provided
@@ -568,6 +593,11 @@ class PlotManager:
         )
 
         apply_paper_style()
+
+        # Normalize phi_init to fraction space for consistent plotting
+        if phi_init is not None:
+            _ic_sum = phi_init.sum()
+            phi_init = phi_init / _ic_sum if _ic_sum > 0 else phi_init
 
         if phibar_samples.ndim != 3:
             raise ValueError(f"phibar_samples must be 3D, got shape {phibar_samples.shape}")
@@ -721,7 +751,25 @@ class PlotManager:
             ax.set_xlabel(xlabel)
             if i % 3 == 0:
                 ax.set_ylabel(r"$\bar{\varphi}$")
-            ax.set_ylim(bottom=0)
+            # Adaptive y-axis: zoom into near-zero species
+            _yvals = []
+            if data is not None:
+                _yvals.extend(data[:, i].tolist())
+            if phi_init is not None and i < len(phi_init):
+                _yvals.append(phi_init[i])
+            if phibar_map is not None:
+                _yvals.extend(phibar_map[:, i].tolist())
+            if phibar_mean is not None:
+                _yvals.extend(phibar_mean[:, i].tolist())
+            _yvals.extend(q_2s_hi[:, i].tolist())
+            if _yvals:
+                _ymax = max(_yvals)
+                if _ymax < 0.15:
+                    ax.set_ylim(bottom=0, top=max(0.2, _ymax * 2.5))
+                else:
+                    ax.set_ylim(bottom=0, top=_ymax * 1.15)
+            else:
+                ax.set_ylim(bottom=0)
             if t_days is not None:
                 ticks = sorted(set([1] + list(t_days))) if phi_init is not None else list(t_days)
                 ax.set_xticks(ticks)
