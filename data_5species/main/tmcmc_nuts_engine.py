@@ -32,6 +32,7 @@ def _compute_hamiltonian(logp, p):
 
 
 def nuts_step(key, theta, log_prob_and_grad, step_size, bounds_lo, bounds_hi, max_depth=6):
+    """Original Python-loop NUTS (for CPU / debugging)."""
     d = theta.shape[0]
     logp0, grad0 = log_prob_and_grad(theta)
     key, k_mom = jr.split(key)
@@ -91,6 +92,156 @@ def nuts_step(key, theta, log_prob_and_grad, step_size, bounds_lo, bounds_hi, ma
 
     accepted = not jnp.array_equal(q_propose, theta)
     return q_propose, accepted, float(logp_propose), n_leapfrog_total
+
+
+# ── Pure-JAX NUTS (vmappable, fixed max_depth unroll) ──
+
+
+def _leapfrog_jax(q, p, grad_fn, step_size, bounds_lo, bounds_hi):
+    """Single leapfrog step, pure JAX."""
+    _, grad_q = grad_fn(q)
+    p = p + 0.5 * step_size * grad_q
+    q = q + step_size * p
+    q = jnp.clip(q, bounds_lo, bounds_hi)
+    logp_new, grad_new = grad_fn(q)
+    p = p + 0.5 * step_size * grad_new
+    return q, p, logp_new, grad_new
+
+
+def _build_subtree_jax(
+    q, p, direction, depth, grad_fn, step_size, bounds_lo, bounds_hi, H0, log_u, key
+):
+    """
+    Build a NUTS binary tree of given depth using lax.fori_loop.
+    Returns (q_new, p_new, q_candidate, logp_candidate, n_valid, diverged, key).
+    """
+    n_steps = jnp.int32(2**depth)
+
+    # State: (q, p, q_cand, logp_cand, n_valid, diverged, key)
+    init_state = (q, p, q, jnp.float64(-1e30), jnp.int32(0), jnp.bool_(False), key)
+
+    def body_fn(i, state):
+        q_cur, p_cur, q_cand, logp_cand, n_valid, diverged, key_s = state
+
+        # Leapfrog in direction
+        q_new, p_new, logp_new, _ = _leapfrog_jax(
+            q_cur, direction * p_cur, grad_fn, step_size, bounds_lo, bounds_hi
+        )
+        p_new = direction * p_new
+
+        H_new = -logp_new + 0.5 * jnp.sum(p_new**2)
+        is_diverged = (H_new - H0) > 1000.0
+        is_valid = (-H_new > log_u) & ~is_diverged & ~diverged
+
+        n_valid_new = jnp.where(is_valid, n_valid + 1, n_valid)
+        key_s, k_acc = jr.split(key_s)
+        # Multinomial selection: accept with prob 1/n_valid_new
+        accept = is_valid & (
+            jr.uniform(k_acc) < (1.0 / jnp.maximum(n_valid_new, 1).astype(jnp.float32))
+        )
+        q_cand_new = jnp.where(accept, q_new, q_cand)
+        logp_cand_new = jnp.where(accept, logp_new, logp_cand)
+        diverged_new = diverged | is_diverged
+
+        return (q_new, p_new, q_cand_new, logp_cand_new, n_valid_new, diverged_new, key_s)
+
+    final = jax.lax.fori_loop(0, n_steps, body_fn, init_state)
+    q_end, p_end, q_cand, logp_cand, n_valid, diverged, key_out = final
+    return q_end, p_end, q_cand, logp_cand, n_valid, diverged, key_out
+
+
+def nuts_step_jax(key, theta, log_prob_and_grad, step_size, bounds_lo, bounds_hi, max_depth=6):
+    """
+    Pure-JAX NUTS step (vmappable). Fixed max_depth unroll with masking.
+    """
+    d = theta.shape[0]
+    logp0, _ = log_prob_and_grad(theta)
+    key, k_mom = jr.split(key)
+    p0 = jr.normal(k_mom, (d,), dtype=jnp.float64)
+    H0 = _compute_hamiltonian(logp0, p0)
+    key, k_slice = jr.split(key)
+    log_u = jnp.log(jr.uniform(k_slice)) + logp0 - 0.5 * jnp.sum(p0**2)
+
+    # State: (q_minus, p_minus, q_plus, p_plus, q_propose, logp_propose,
+    #         n_valid, keep_going, key, depth)
+    init_state = (
+        theta,
+        p0,  # q_minus, p_minus
+        theta,
+        p0,  # q_plus, p_plus
+        theta,
+        logp0,  # q_propose, logp_propose
+        jnp.int32(1),  # n_valid
+        jnp.bool_(True),  # keep_going
+        key,
+    )
+
+    def depth_body(depth_i, state):
+        q_minus, p_minus, q_plus, p_plus, q_propose, logp_propose, n_valid, keep_going, key_s = (
+            state
+        )
+
+        key_s, k_dir = jr.split(key_s)
+        go_right = jr.bernoulli(k_dir)
+        direction = jnp.where(go_right, 1.0, -1.0)
+
+        # Select starting point based on direction
+        q_inner = jnp.where(go_right, q_plus, q_minus)
+        p_inner = jnp.where(go_right, p_plus, p_minus)
+
+        # Build subtree
+        q_end, p_end, q_cand, logp_cand, n_valid_sub, diverged, key_s = _build_subtree_jax(
+            q_inner,
+            p_inner,
+            direction,
+            depth_i,
+            log_prob_and_grad,
+            step_size,
+            bounds_lo,
+            bounds_hi,
+            H0,
+            log_u,
+            key_s,
+        )
+
+        # Update tree endpoints
+        q_minus_new = jnp.where(go_right, q_minus, q_end)
+        p_minus_new = jnp.where(go_right, p_minus, p_end)
+        q_plus_new = jnp.where(go_right, q_end, q_plus)
+        p_plus_new = jnp.where(go_right, p_end, p_plus)
+
+        # Accept candidate from subtree
+        key_s, k_sub = jr.split(key_s)
+        n_total = jnp.maximum(n_valid + n_valid_sub, 1)
+        accept_sub = (n_valid_sub > 0) & (
+            jr.uniform(k_sub) < (n_valid_sub / n_total).astype(jnp.float32)
+        )
+        q_propose_new = jnp.where(accept_sub & keep_going, q_cand, q_propose)
+        logp_propose_new = jnp.where(accept_sub & keep_going, logp_cand, logp_propose)
+        n_valid_new = n_valid + n_valid_sub
+
+        # U-turn check
+        dq = q_plus_new - q_minus_new
+        uturn = (jnp.sum(dq * p_minus_new) < 0) | (jnp.sum(dq * p_plus_new) < 0)
+        keep_going_new = keep_going & ~diverged & ~uturn
+
+        return (
+            q_minus_new,
+            p_minus_new,
+            q_plus_new,
+            p_plus_new,
+            q_propose_new,
+            logp_propose_new,
+            n_valid_new,
+            keep_going_new,
+            key_s,
+        )
+
+    final_state = jax.lax.fori_loop(0, max_depth, depth_body, init_state)
+    q_propose = final_state[4]
+    logp_propose = final_state[5]
+    accepted = jnp.any(q_propose != theta)
+    return q_propose, logp_propose, accepted
 
 
 def dual_averaging_init(
@@ -257,60 +408,111 @@ def tmcmc_engine(
         )
 
         if mutation == "rw":
+            # --- Batched RW mutation (vmap) ---
             cov = np.cov(particles[:, free_dims].T)
             cov = np.atleast_2d(cov) if d_free == 1 else cov
             cov = cov * 0.04
-            for i in range(n_particles):
-                proposal = particles[i].copy()
-                proposal[free_dims] += rng.multivariate_normal(np.zeros(d_free), cov)
-                if all(
-                    prior_bounds[dim, 0] <= proposal[dim] <= prior_bounds[dim, 1]
-                    for dim in free_dims
-                ):
-                    logL_new = float(logL_jit(jnp.array(proposal)))
-                    log_alpha = beta_new * (logL_new - logL[i])
-                    if np.log(rng.random()) < log_alpha:
-                        particles[i], logL[i], n_accept = proposal, logL_new, n_accept + 1
+            # Generate all proposals at once
+            perturbations = rng.multivariate_normal(np.zeros(d_free), cov, size=n_particles)
+            proposals = particles.copy()
+            proposals[:, free_dims] += perturbations
+            # Bounds check (vectorized)
+            in_bounds = np.all(
+                (proposals[:, free_dims] >= prior_bounds[free_dims, 0])
+                & (proposals[:, free_dims] <= prior_bounds[free_dims, 1]),
+                axis=1,
+            )
+            # Batch logL evaluation for valid proposals using vmap
+            valid_idx = np.where(in_bounds)[0]
+            if len(valid_idx) > 0:
+                proposals_jax = jnp.array(proposals[valid_idx])
+                logL_proposals = np.array(logL_vmap(proposals_jax))
+                log_alpha = beta_new * (logL_proposals - logL[valid_idx])
+                u = np.log(rng.random(len(valid_idx)))
+                accept_mask = u < log_alpha
+                for j, vi in enumerate(valid_idx):
+                    if accept_mask[j]:
+                        particles[vi] = proposals[vi]
+                        logL[vi] = logL_proposals[j]
+                        n_accept += 1
 
         elif mutation == "hmc":
+            # --- Batched HMC mutation ---
+            # Generate all momenta at once
+            keys = jr.split(key, n_particles)
+            momenta = jr.normal(keys[0], (n_particles, d))
+            particles_jax = jnp.array(particles)
+
+            # Batch logL + grad for all particles
+            logp_all, grad_all = jax.vmap(tempered_vg)(particles_jax)
+
+            # Leapfrog integration (batched across particles)
+            q_all = particles_jax
+            p_all = momenta
+            H_current = -logp_all + 0.5 * jnp.sum(p_all**2, axis=1)
+
+            # Half step momentum
+            p_all = p_all + 0.5 * current_eps * grad_all
+
+            for _lf in range(hmc_n_leapfrog - 1):
+                q_all = q_all + current_eps * p_all
+                q_all = jnp.clip(q_all, bounds_lo, bounds_hi)
+                _, grad_all = jax.vmap(tempered_vg)(q_all)
+                p_all = p_all + current_eps * grad_all
+
+            q_all = q_all + current_eps * p_all
+            q_all = jnp.clip(q_all, bounds_lo, bounds_hi)
+            logp_proposed, grad_proposed = jax.vmap(tempered_vg)(q_all)
+            p_all = p_all + 0.5 * current_eps * grad_proposed
+            p_all = -p_all
+
+            H_proposed = -logp_proposed + 0.5 * jnp.sum(p_all**2, axis=1)
+            log_alpha = H_current - H_proposed
+            u = jnp.log(jr.uniform(jr.split(key, 1)[0], (n_particles,)))
+            accepted_mask = u < log_alpha
+
+            n_leapfrog_stage += n_particles * hmc_n_leapfrog
             for i in range(n_particles):
-                k_i = jr.fold_in(key, i)
-                new_theta, accepted, new_logp = hmc_step(
-                    k_i,
-                    jnp.array(particles[i]),
-                    tempered_vg,
-                    current_eps,
-                    hmc_n_leapfrog,
-                    bounds_lo,
-                    bounds_hi,
-                )
-                n_leapfrog_stage += hmc_n_leapfrog
-                if bool(accepted):
-                    particles[i] = np.array(new_theta)
-                    logL[i] = float(new_logp) / beta_new
+                if bool(accepted_mask[i]):
+                    particles[i] = np.array(q_all[i])
+                    logL[i] = float(logp_proposed[i]) / beta_new
                     n_accept += 1
 
         elif mutation == "nuts":
-            accept_probs = []
-            for i in range(n_particles):
-                k_i = jr.fold_in(key, i)
-                new_theta, accepted, new_logp, n_lf = nuts_step(
-                    k_i,
-                    jnp.array(particles[i]),
+            # --- Fully vmapped NUTS ---
+            particles_jax = jnp.array(particles, dtype=jnp.float64)
+            keys = jr.split(key, n_particles)
+
+            def _single_nuts(key_i, theta_i):
+                return nuts_step_jax(
+                    key_i,
+                    theta_i,
                     tempered_vg,
                     current_eps,
-                    bounds_lo,
-                    bounds_hi,
+                    bounds_lo.astype(jnp.float64),
+                    bounds_hi.astype(jnp.float64),
                     max_depth=nuts_max_depth,
                 )
-                n_leapfrog_stage += n_lf
-                accept_probs.append(1.0 if accepted else 0.0)
-                if accepted:
-                    particles[i] = np.array(new_theta)
-                    logL[i] = float(new_logp) / beta_new
+
+            nuts_vmap = jax.vmap(_single_nuts)
+            new_thetas, new_logps, accepted_arr = nuts_vmap(keys, particles_jax)
+
+            # Update particles
+            new_thetas_np = np.array(new_thetas)
+            accepted_np = np.array(accepted_arr)
+            for i in range(n_particles):
+                if accepted_np[i]:
+                    particles[i] = new_thetas_np[i]
                     n_accept += 1
+
+            # Batch re-evaluate logL for all particles (vmap)
+            particles_jax = jnp.array(particles)
+            logL = np.array(logL_vmap(particles_jax))
+
             if stage <= warmup_stages:
-                da_state = dual_averaging_update(da_state, np.mean(accept_probs))
+                da_state = dual_averaging_update(
+                    da_state, float(jnp.mean(accepted_arr.astype(jnp.float32)))
+                )
 
         beta = beta_new
         betas.append(beta)

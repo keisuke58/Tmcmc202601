@@ -72,6 +72,7 @@ from hamilton_ode_jax import simulate_0d
 from estimate_reduced_nishioka import (
     convert_days_to_model_time,
     load_experimental_data,
+    load_multichannel_data,
 )
 from core.nishioka_model import get_condition_bounds
 
@@ -92,14 +93,32 @@ def make_log_likelihood_jax_ode(
     lambda_pg: float = 1.0,
     lambda_late: float = 1.0,
     n_late: int = 2,
+    # Multi-channel arguments
+    data_total: np.ndarray | None = None,
+    sigma_obs_total: float | np.ndarray | None = None,
+    data_viability: np.ndarray | None = None,
+    sigma_obs_viability: float = 0.10,
+    data_pH: np.ndarray | None = None,
+    idx_pH: np.ndarray | None = None,
+    sigma_obs_pH: float = 0.15,
+    lambda_ch: dict | None = None,
 ):
     """
     Build JAX-differentiable log-likelihood using Hamilton ODE.
+
+    Supports multi-channel likelihood:
+      Ch1: viable species (φ·ψ) — primary
+      Ch2: total species (φ) — qRT-PCR without PMA
+      Ch3: membrane integrity (viability) — LIVE/DEAD
+      Ch5: pH time series — HOBIC only
 
     Returns
     -------
     log_likelihood : callable(theta) -> scalar
     """
+    if lambda_ch is None:
+        lambda_ch = {1: 1.0, 2: 0.5, 3: 2.0, 5: 0.3}
+
     obs = jnp.array(data, dtype=jnp.float64)
     phi_init_jax = jnp.array(phi_init, dtype=jnp.float64)
     idx = jnp.array(idx_sparse, dtype=jnp.int32)
@@ -112,24 +131,101 @@ def make_log_likelihood_jax_ode(
         late_slice = slice(-n_late, None)
         weights = weights.at[late_slice, :].set(weights[late_slice, :] * lambda_late)
 
-    def log_likelihood(theta):
-        phi_traj = simulate_0d(
-            theta,
-            n_steps=n_steps,
-            dt=dt,
-            phi_init=phi_init_jax,
-            K_hill=K_hill,
-            n_hill=n_hill,
-            c_const=c_const,
+    # Pre-convert multichannel data to JAX arrays
+    _has_total = data_total is not None
+    _has_viab = data_viability is not None
+    _has_pH = data_pH is not None and idx_pH is not None
+
+    if _has_total:
+        obs_total = jnp.array(data_total, dtype=jnp.float64)
+        if sigma_obs_total is None:
+            sigma_obs_total = 0.08
+        sig_total = (
+            jnp.array(sigma_obs_total, dtype=jnp.float64)
+            if hasattr(sigma_obs_total, "__len__")
+            else jnp.float64(sigma_obs_total)
         )
+    if _has_viab:
+        obs_viab = jnp.array(data_viability, dtype=jnp.float64)
+        sig_viab = jnp.float64(sigma_obs_viability)
+    if _has_pH:
+        obs_pH = jnp.array(data_pH, dtype=jnp.float64)
+        idx_ph = jnp.array(idx_pH, dtype=jnp.int32)
+        sig_pH = jnp.float64(sigma_obs_pH)
+
+    lw1 = lambda_ch.get(1, 1.0)
+    lw2 = lambda_ch.get(2, 0.5)
+    lw3 = lambda_ch.get(3, 2.0)
+    lw5 = lambda_ch.get(5, 0.3)
+
+    # Use full state solver when viability/pH channels are needed
+    _need_full = _has_viab or _has_pH
+
+    def log_likelihood(theta):
+        if _need_full:
+            from hamilton_ode_jax import simulate_0d_full
+
+            g_traj = simulate_0d_full(
+                theta,
+                n_steps=n_steps,
+                dt=dt,
+                phi_init=phi_init_jax,
+                K_hill=K_hill,
+                n_hill=n_hill,
+                c_const=c_const,
+            )
+            phi_traj = g_traj[:, 0:5]
+        else:
+            phi_traj = simulate_0d(
+                theta,
+                n_steps=n_steps,
+                dt=dt,
+                phi_init=phi_init_jax,
+                K_hill=K_hill,
+                n_hill=n_hill,
+                c_const=c_const,
+            )
+
         # Sample at observation indices
         phi_pred = phi_traj[idx, :]  # (n_obs, 5)
         phi_pred = jnp.clip(phi_pred, 1e-10, 1.0 - 1e-10)
         # Normalize to fractions
         phi_sum = jnp.sum(phi_pred, axis=1, keepdims=True)
         phi_pred = phi_pred / jnp.maximum(phi_sum, 1e-12)
+
+        # Ch1: viable species (primary)
         residual = obs - phi_pred
-        logL = -0.5 * jnp.sum(weights * (residual / sigma_obs) ** 2)
+        logL = lw1 * (-0.5 * jnp.sum(weights * (residual / sigma_obs) ** 2))
+
+        # Ch2: total species distribution (φ without ψ weighting)
+        if _has_total:
+            residual_total = obs_total - phi_pred
+            logL_total = -0.5 * jnp.sum((residual_total / sig_total) ** 2)
+            logL = logL + lw2 * logL_total
+
+        # Ch3: membrane integrity / viability
+        if _has_viab:
+            phi_at_obs = g_traj[idx, 0:5]
+            psi_at_obs = g_traj[idx, 6:11]
+            phi_psi = phi_at_obs * psi_at_obs
+            viab_pred = jnp.sum(phi_psi, axis=1) / jnp.maximum(jnp.sum(phi_at_obs, axis=1), 1e-12)
+            residual_viab = obs_viab - viab_pred
+            logL_viab = -0.5 * jnp.sum((residual_viab / sig_viab) ** 2)
+            logL = logL + lw3 * logL_viab
+
+        # Ch5: pH (HOBIC only)
+        if _has_pH:
+            phi_at_pH = g_traj[idx_ph, 0:5]
+            psi_at_pH = g_traj[idx_ph, 6:11]
+            phibar = phi_at_pH * psi_at_pH
+            phibar_sum = jnp.maximum(jnp.sum(phibar, axis=1), 1e-12)
+            phi_bar_So = phibar[:, 0] / phibar_sum
+            phi_bar_Vd = phibar[:, 2] / phibar_sum
+            pH_pred = 7.5 - 0.74 * phi_bar_So - 0.48 * phi_bar_Vd
+            residual_pH = obs_pH - pH_pred
+            logL_pH = -0.5 * jnp.sum((residual_pH / sig_pH) ** 2)
+            logL = logL + lw5 * logL_pH
+
         return logL
 
     return log_likelihood
@@ -171,6 +267,16 @@ def main():
         default="auto",
         help="Device: auto (use GPU if available), cpu, gpu",
     )
+    # Multi-channel likelihood
+    parser.add_argument(
+        "--multichannel",
+        action="store_true",
+        help="Enable multi-channel likelihood: viable + total + viability + pH",
+    )
+    parser.add_argument("--lambda-ch1", type=float, default=1.0, help="Weight for viable channel")
+    parser.add_argument("--lambda-ch2", type=float, default=0.5, help="Weight for total species")
+    parser.add_argument("--lambda-ch3", type=float, default=2.0, help="Weight for viability")
+    parser.add_argument("--lambda-ch5", type=float, default=0.3, help="Weight for pH (HOBIC only)")
     args = parser.parse_args()
 
     if args.quick:
@@ -217,6 +323,42 @@ def main():
             phi_init = phi_init / total
         phi_init = np.clip(phi_init, 0.01, 0.99)
 
+    # Multi-channel data loading
+    mc_kwargs = {}
+    if getattr(args, "multichannel", False):
+        mc_data = load_multichannel_data(
+            data_dir=DATA_DIR / "experiment_data",
+            condition=args.condition,
+            cultivation=args.cultivation,
+            days_filter=t_days.tolist(),
+        )
+        lambda_ch = {
+            1: args.lambda_ch1,
+            2: args.lambda_ch2,
+            3: args.lambda_ch3,
+            5: args.lambda_ch5,
+        }
+        mc_kwargs = {
+            "data_total": mc_data.get("data_total"),
+            "sigma_obs_total": mc_data.get("sigma_obs_total"),
+            "data_viability": mc_data.get("data_viability"),
+            "sigma_obs_viability": mc_data.get("sigma_obs_viability", 0.10),
+            "lambda_ch": lambda_ch,
+        }
+        # pH channel (HOBIC only)
+        if mc_data.get("data_pH") is not None:
+            t_pH_days = mc_data["t_pH_days"]
+            _, idx_pH = convert_days_to_model_time(t_pH_days, args.dt, args.n_steps, day_scale=None)
+            idx_pH = np.clip(idx_pH, 0, args.n_steps)
+            mc_kwargs["data_pH"] = mc_data["data_pH"]
+            mc_kwargs["idx_pH"] = idx_pH
+            mc_kwargs["sigma_obs_pH"] = mc_data.get("sigma_obs_pH", 0.15)
+        logger.info(
+            f"Multi-channel: total={'yes' if mc_data.get('data_total') is not None else 'no'}, "
+            f"viability={'yes' if mc_data.get('data_viability') is not None else 'no'}, "
+            f"pH={'yes' if mc_data.get('data_pH') is not None else 'no'}"
+        )
+
     log_likelihood = make_log_likelihood_jax_ode(
         data=data,
         t_days=t_days,
@@ -229,6 +371,7 @@ def main():
         n_hill=args.n_hill,
         lambda_pg=args.lambda_pg,
         lambda_late=args.lambda_late,
+        **mc_kwargs,
     )
 
     prior_bounds = load_prior_bounds(args.condition, args.cultivation)
@@ -277,6 +420,14 @@ def main():
                 "n_particles": args.n_particles,
                 "mutation": args.mutation,
                 "sigma_obs": sigma_obs,
+                "device": str(jax.devices()[0]),
+                "multichannel": getattr(args, "multichannel", False),
+                "lambda_ch": {
+                    "1": getattr(args, "lambda_ch1", 1.0),
+                    "2": getattr(args, "lambda_ch2", 0.5),
+                    "3": getattr(args, "lambda_ch3", 2.0),
+                    "5": getattr(args, "lambda_ch5", 0.3),
+                },
             },
             f,
             indent=2,
