@@ -138,14 +138,23 @@ def build_replicate_sigma(
     days: list,
     species_map: dict,
     n_species: int = 5,
-    min_sigma: float = 0.005,
+    min_sigma: float = 0.05,
+    rare_threshold: float = 0.05,
+    max_info_ratio: float = 10.0,
 ) -> np.ndarray:
     """
     Build per-(timepoint, species) observation noise matrix from replicate data.
 
-    Computes sigma_ik = IQR / 1.35 for each (day, species) from
-    fig3_species_distribution_replicates.csv.  Values are in volume-fraction
-    space (0-1), matching the normalised data used by the likelihood.
+    Computes sigma_ik = max(IQR/1.35, min_sigma) for each (day, species)
+    from fig3_species_distribution_replicates.csv.
+
+    After computing raw sigma, applies max_info_ratio cap: no species can
+    have > max_info_ratio × the information of the median species (per timepoint).
+    Information = 1/sigma^2, so this effectively sets a lower bound on sigma
+    relative to the median sigma of that timepoint.
+
+    This prevents An in CS/CH from dominating logL (54-59%) due to very
+    low experimental IQR.
 
     Parameters
     ----------
@@ -160,7 +169,14 @@ def build_replicate_sigma(
     n_species : int
         Number of species (default 5).
     min_sigma : float
-        Floor value to avoid zero variance (default 0.005 = 0.5%).
+        Absolute floor value (default 0.05 = 5%).
+    rare_threshold : float
+        Species with mean fraction < rare_threshold use min_sigma floor.
+    max_info_ratio : float
+        Maximum allowed ratio of max-to-median information content per
+        timepoint.  info = 1/sigma^2, so sigma_min_allowed =
+        median_sigma / sqrt(max_info_ratio).  Default 10.0 caps the
+        most-precise species at 10× the median information.
 
     Returns
     -------
@@ -181,8 +197,17 @@ def build_replicate_sigma(
             vals = dc[(dc["species"] == sp_name) & (dc["day"] == day)]["distribution_pct"].values
             if len(vals) >= 3:
                 iqr = np.percentile(vals, 75) - np.percentile(vals, 25)
-                sigma_pct = max(iqr / 1.35, min_sigma * 100.0)
-                sigma_mat[i, sp_idx] = sigma_pct / 100.0  # fraction space
+                sigma_iqr = iqr / 1.35 / 100.0
+                sigma_val = max(sigma_iqr, min_sigma)
+                sigma_mat[i, sp_idx] = sigma_val
+
+    # Cap information imbalance per timepoint:
+    # sigma_min >= median_sigma / sqrt(max_info_ratio)
+    if max_info_ratio > 0:
+        for i in range(n_t):
+            median_sig = np.median(sigma_mat[i, :])
+            sigma_floor_info = median_sig / np.sqrt(max_info_ratio)
+            sigma_mat[i, :] = np.maximum(sigma_mat[i, :], sigma_floor_info)
 
     return sigma_mat
 

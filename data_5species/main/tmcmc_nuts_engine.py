@@ -4,6 +4,12 @@ tmcmc_nuts_engine.py — Standalone TMCMC engine with NUTS/HMC/RW.
 
 Extracted from deeponet/gradient_tmcmc_nuts.py for use with JAX ODE.
 No DeepONet dependency.
+
+References:
+  - Ching & Chen 2007: TMCMC with evidence estimation
+  - Betz et al. 2016: Weighted covariance for RW proposals
+  - ter Braak 2006: Differential Evolution MCMC
+  - Kitagawa 1996: Systematic resampling
 """
 
 from __future__ import annotations
@@ -109,14 +115,13 @@ def _leapfrog_jax(q, p, grad_fn, step_size, bounds_lo, bounds_hi):
 
 
 def _build_subtree_jax(
-    q, p, direction, depth, grad_fn, step_size, bounds_lo, bounds_hi, H0, log_u, key
+    q, p, direction, n_steps, grad_fn, step_size, bounds_lo, bounds_hi, H0, log_u, key
 ):
     """
-    Build a NUTS binary tree of given depth using lax.fori_loop.
+    Build a NUTS binary tree with STATIC n_steps using lax.fori_loop.
+    n_steps must be a Python int (not jnp traced value) for fast JIT.
     Returns (q_new, p_new, q_candidate, logp_candidate, n_valid, diverged, key).
     """
-    n_steps = jnp.int32(2**depth)
-
     # State: (q, p, q_cand, logp_cand, n_valid, diverged, key)
     init_state = (q, p, q, jnp.float64(-1e30), jnp.int32(0), jnp.bool_(False), key)
 
@@ -152,7 +157,8 @@ def _build_subtree_jax(
 
 def nuts_step_jax(key, theta, log_prob_and_grad, step_size, bounds_lo, bounds_hi, max_depth=6):
     """
-    Pure-JAX NUTS step (vmappable). Fixed max_depth unroll with masking.
+    Pure-JAX NUTS step. Depth loop is Python-unrolled so each _build_subtree_jax
+    gets a static n_steps (1, 2, 4, 8, ...), enabling fast JIT compilation.
     """
     d = theta.shape[0]
     logp0, _ = log_prob_and_grad(theta)
@@ -162,84 +168,59 @@ def nuts_step_jax(key, theta, log_prob_and_grad, step_size, bounds_lo, bounds_hi
     key, k_slice = jr.split(key)
     log_u = jnp.log(jr.uniform(k_slice)) + logp0 - 0.5 * jnp.sum(p0**2)
 
-    # State: (q_minus, p_minus, q_plus, p_plus, q_propose, logp_propose,
-    #         n_valid, keep_going, key, depth)
-    init_state = (
-        theta,
-        p0,  # q_minus, p_minus
-        theta,
-        p0,  # q_plus, p_plus
-        theta,
-        logp0,  # q_propose, logp_propose
-        jnp.int32(1),  # n_valid
-        jnp.bool_(True),  # keep_going
-        key,
-    )
+    # Initialize tree state
+    q_minus, p_minus = theta, p0
+    q_plus, p_plus = theta, p0
+    q_propose, logp_propose = theta, logp0
+    n_valid = jnp.int32(1)
+    keep_going = jnp.bool_(True)
 
-    def depth_body(depth_i, state):
-        q_minus, p_minus, q_plus, p_plus, q_propose, logp_propose, n_valid, keep_going, key_s = (
-            state
-        )
+    # Python-unrolled depth loop (static n_steps per depth)
+    for depth_i in range(max_depth):
+        n_steps_depth = 2**depth_i  # Python int, static!
 
-        key_s, k_dir = jr.split(key_s)
+        key, k_dir = jr.split(key)
         go_right = jr.bernoulli(k_dir)
         direction = jnp.where(go_right, 1.0, -1.0)
 
-        # Select starting point based on direction
         q_inner = jnp.where(go_right, q_plus, q_minus)
         p_inner = jnp.where(go_right, p_plus, p_minus)
 
-        # Build subtree
-        q_end, p_end, q_cand, logp_cand, n_valid_sub, diverged, key_s = _build_subtree_jax(
+        q_end, p_end, q_cand, logp_cand, n_valid_sub, diverged, key = _build_subtree_jax(
             q_inner,
             p_inner,
             direction,
-            depth_i,
+            n_steps_depth,
             log_prob_and_grad,
             step_size,
             bounds_lo,
             bounds_hi,
             H0,
             log_u,
-            key_s,
+            key,
         )
 
         # Update tree endpoints
-        q_minus_new = jnp.where(go_right, q_minus, q_end)
-        p_minus_new = jnp.where(go_right, p_minus, p_end)
-        q_plus_new = jnp.where(go_right, q_end, q_plus)
-        p_plus_new = jnp.where(go_right, p_end, p_plus)
+        q_minus = jnp.where(go_right, q_minus, q_end)
+        p_minus = jnp.where(go_right, p_minus, p_end)
+        q_plus = jnp.where(go_right, q_end, q_plus)
+        p_plus = jnp.where(go_right, p_end, p_plus)
 
         # Accept candidate from subtree
-        key_s, k_sub = jr.split(key_s)
+        key, k_sub = jr.split(key)
         n_total = jnp.maximum(n_valid + n_valid_sub, 1)
         accept_sub = (n_valid_sub > 0) & (
             jr.uniform(k_sub) < (n_valid_sub / n_total).astype(jnp.float32)
         )
-        q_propose_new = jnp.where(accept_sub & keep_going, q_cand, q_propose)
-        logp_propose_new = jnp.where(accept_sub & keep_going, logp_cand, logp_propose)
-        n_valid_new = n_valid + n_valid_sub
+        q_propose = jnp.where(accept_sub & keep_going, q_cand, q_propose)
+        logp_propose = jnp.where(accept_sub & keep_going, logp_cand, logp_propose)
+        n_valid = n_valid + n_valid_sub
 
         # U-turn check
-        dq = q_plus_new - q_minus_new
-        uturn = (jnp.sum(dq * p_minus_new) < 0) | (jnp.sum(dq * p_plus_new) < 0)
-        keep_going_new = keep_going & ~diverged & ~uturn
+        dq = q_plus - q_minus
+        uturn = (jnp.sum(dq * p_minus) < 0) | (jnp.sum(dq * p_plus) < 0)
+        keep_going = keep_going & ~diverged & ~uturn
 
-        return (
-            q_minus_new,
-            p_minus_new,
-            q_plus_new,
-            p_plus_new,
-            q_propose_new,
-            logp_propose_new,
-            n_valid_new,
-            keep_going_new,
-            key_s,
-        )
-
-    final_state = jax.lax.fori_loop(0, max_depth, depth_body, init_state)
-    q_propose = final_state[4]
-    logp_propose = final_state[5]
     accepted = jnp.any(q_propose != theta)
     return q_propose, logp_propose, accepted
 
@@ -299,6 +280,85 @@ def hmc_step(key, theta, log_prob_and_grad, step_size, n_leapfrog, bounds_lo, bo
     return new_theta, accepted, new_logp
 
 
+def _systematic_resample(weights: np.ndarray, rng: np.random.Generator) -> np.ndarray:
+    """Systematic resampling — lower variance than multinomial (Kitagawa 1996)."""
+    n = len(weights)
+    cumw = np.cumsum(weights)
+    cumw /= cumw[-1]  # normalize
+    u0 = rng.random() / n
+    positions = u0 + np.arange(n) / n
+    indices = np.searchsorted(cumw, positions)
+    return np.clip(indices, 0, n - 1)
+
+
+def _de_mc_proposal(
+    particles: np.ndarray,
+    free_dims: np.ndarray,
+    rng: np.random.Generator,
+    gamma: float = 2.38,
+    b_small: float = 1e-4,
+) -> np.ndarray:
+    """
+    Differential Evolution MCMC proposal (ter Braak 2006).
+
+    For each particle i, pick two distinct others r1, r2 and propose:
+        theta_new = theta_i + gamma/sqrt(2*d) * (theta_r1 - theta_r2) + b*N(0,1)
+
+    Much more efficient than independent RW for correlated posteriors.
+    """
+    n, d_full = particles.shape
+    d_free = len(free_dims)
+    proposals = particles.copy()
+
+    # Scale factor
+    scale = gamma / np.sqrt(2 * max(d_free, 1))
+
+    # Pick pairs r1, r2 for each particle — Fisher-Yates style (correct)
+    r1 = np.empty(n, dtype=int)
+    r2 = np.empty(n, dtype=int)
+    for i in range(n):
+        # Draw r1 != i
+        candidates = np.arange(n)
+        candidates = candidates[candidates != i]
+        r1[i] = rng.choice(candidates)
+        # Draw r2 != i and != r1
+        candidates2 = candidates[candidates != r1[i]]
+        r2[i] = rng.choice(candidates2)
+
+    diff = particles[r1][:, free_dims] - particles[r2][:, free_dims]
+    noise = rng.normal(0, b_small, size=(n, d_free))
+    proposals[:, free_dims] += scale * diff + noise
+
+    return proposals
+
+
+def _weighted_covariance(
+    particles: np.ndarray,
+    weights: np.ndarray,
+    free_dims: np.ndarray,
+) -> np.ndarray:
+    """
+    Compute weighted sample covariance (Betz et al. 2016).
+
+    Uses importance weights from the current stage instead of equal weights.
+    This better captures the shape of the tempered posterior.
+    """
+    x = particles[:, free_dims]  # (n, d_free)
+    w = weights / weights.sum()  # normalize
+    # Weighted mean
+    mean = np.average(x, weights=w, axis=0)
+    # Weighted covariance
+    dx = x - mean
+    cov = (dx * w[:, np.newaxis]).T @ dx
+    # Bessel-like correction for effective sample size
+    w2 = np.sum(w**2)
+    correction = 1.0 / (1.0 - w2 + 1e-12)
+    cov *= correction
+    # Regularize: add small diagonal to prevent singularity
+    cov += np.eye(len(free_dims)) * 1e-8
+    return cov
+
+
 def tmcmc_engine(
     log_likelihood: Callable,
     prior_bounds: np.ndarray,
@@ -314,20 +374,30 @@ def tmcmc_engine(
     label: Optional[str] = None,
     verbose: bool = True,
     log_prior_fn: Optional[Callable] = None,
+    n_mutation_steps: int = 1,
+    use_de_mc: bool = False,
+    de_mc_gamma: float = 2.38,
+    resample_method: str = "systematic",
 ) -> dict:
-    """TMCMC with RW / HMC / NUTS mutation. No DeepONet dependency."""
+    """
+    TMCMC with RW / HMC / NUTS mutation.
+
+    Returns dict with samples, log_likelihoods, theta_MAP, log_evidence, etc.
+    Log evidence is computed via Ching & Chen 2007: sum(log(mean(w_j))) at each stage.
+    """
     if label is None:
         label = f"{mutation.upper()}-TMCMC"
 
     rng = np.random.default_rng(seed)
     d = prior_bounds.shape[0]
-    bounds_lo = jnp.array(prior_bounds[:, 0], dtype=jnp.float32)
-    bounds_hi = jnp.array(prior_bounds[:, 1], dtype=jnp.float32)
+    # Use float64 consistently (matching JAX ODE and likelihood)
+    bounds_lo = jnp.array(prior_bounds[:, 0], dtype=jnp.float64)
+    bounds_hi = jnp.array(prior_bounds[:, 1], dtype=jnp.float64)
     free_mask = np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12
     free_dims = np.where(free_mask)[0]
     d_free = len(free_dims)
 
-    particles = np.zeros((n_particles, d), dtype=np.float32)
+    particles = np.zeros((n_particles, d), dtype=np.float64)
     for i in range(d):
         lo, hi = prior_bounds[i]
         particles[:, i] = lo if abs(hi - lo) < 1e-12 else rng.uniform(lo, hi, n_particles)
@@ -366,14 +436,19 @@ def tmcmc_engine(
     beta, betas = 0.0, [0.0]
     stage_times, accept_rates, ess_history = [], [], []
     n_leapfrog_history, eps_history = [], []
+    cv_weights_history = []  # Convergence diagnostic
+    log_evidence = 0.0  # Ching & Chen 2007: cumulative log evidence
     stage = 0
+    _last_resampling_weights = np.ones(n_particles) / n_particles  # for weighted cov
 
     while beta < 1.0 and stage < max_stages:
         stage += 1
         t_stage = time.time()
 
         def compute_ess(db):
-            w = np.exp(np.clip(db * logL - logL.max(), -500, 500))
+            lw = db * logL
+            lw_shifted = lw - lw.max()
+            w = np.exp(np.clip(lw_shifted, -500, 500))
             return (np.sum(w) ** 2) / np.sum(w**2)
 
         db_lo_b, db_hi_b = 0.0, 1.0 - beta
@@ -389,10 +464,29 @@ def tmcmc_engine(
         delta_beta = min(delta_beta, 1.0 - beta)
         beta_new = min(beta + delta_beta, 1.0)
 
-        w = np.exp(np.clip((beta_new - beta) * logL - np.max((beta_new - beta) * logL), -500, 500))
+        # Importance weights for this stage
+        lw_raw = (beta_new - beta) * logL
+        lw_shifted = lw_raw - np.max(lw_raw)
+        w = np.exp(np.clip(lw_shifted, -500, 500))
+
+        # Log evidence accumulation (Ching & Chen 2007, Eq. 17):
+        # log Z = sum_j log(1/N * sum_i w_i^j)
+        log_evidence += np.log(np.mean(w) + 1e-300)
+
         ess_val = (np.sum(w) ** 2) / np.sum(w**2)
-        w = w / w.sum()
-        idx = rng.choice(n_particles, size=n_particles, p=w)
+        w_normalized = w / w.sum()
+
+        # Convergence diagnostic: CV of weights (lower = better mixing)
+        cv_w = np.std(w_normalized) / (np.mean(w_normalized) + 1e-12)
+        cv_weights_history.append(cv_w)
+
+        # Save weights for weighted covariance before resampling
+        _last_resampling_weights = w_normalized.copy()
+
+        if resample_method == "systematic":
+            idx = _systematic_resample(w_normalized, rng)
+        else:
+            idx = rng.choice(n_particles, size=n_particles, p=w_normalized)
         particles, logL = particles[idx].copy(), logL[idx].copy()
 
         def tempered_vg(theta):
@@ -408,39 +502,71 @@ def tmcmc_engine(
         )
 
         if mutation == "rw":
-            # --- Batched RW mutation (vmap) ---
-            cov = np.cov(particles[:, free_dims].T)
-            cov = np.atleast_2d(cov) if d_free == 1 else cov
-            cov = cov * 0.04
-            # Generate all proposals at once
-            perturbations = rng.multivariate_normal(np.zeros(d_free), cov, size=n_particles)
-            proposals = particles.copy()
-            proposals[:, free_dims] += perturbations
-            # Bounds check (vectorized)
-            in_bounds = np.all(
-                (proposals[:, free_dims] >= prior_bounds[free_dims, 0])
-                & (proposals[:, free_dims] <= prior_bounds[free_dims, 1]),
-                axis=1,
-            )
-            # Batch logL evaluation for valid proposals using vmap
-            valid_idx = np.where(in_bounds)[0]
-            if len(valid_idx) > 0:
-                proposals_jax = jnp.array(proposals[valid_idx])
-                logL_proposals = np.array(logL_vmap(proposals_jax))
-                log_alpha = beta_new * (logL_proposals - logL[valid_idx])
-                u = np.log(rng.random(len(valid_idx)))
-                accept_mask = u < log_alpha
-                for j, vi in enumerate(valid_idx):
-                    if accept_mask[j]:
-                        particles[vi] = proposals[vi]
-                        logL[vi] = logL_proposals[j]
-                        n_accept += 1
+            # --- Batched RW + optional DE-MC mutation (vmap) with adaptive scale ---
+            _n_mut = n_mutation_steps
+
+            # Weighted covariance (Betz et al. 2016): use importance weights
+            # from this stage to better capture the tempered posterior shape
+            cov_base = _weighted_covariance(particles, _last_resampling_weights, free_dims)
+            # Adaptive scale: start at 2.38^2/d (optimal for Gaussian targets)
+            _scale = (2.38**2) / max(d_free, 1)
+            _adapt_factor = 1.0
+            cov = cov_base * _scale * _adapt_factor
+            for _mut_step in range(_n_mut):
+                # Alternate RW and DE-MC every other step (if enabled)
+                _use_demc = use_de_mc and (_mut_step % 2 == 1) and n_particles >= 10
+                if _use_demc:
+                    proposals = _de_mc_proposal(particles, free_dims, rng, gamma=de_mc_gamma)
+                else:
+                    perturbations = rng.multivariate_normal(np.zeros(d_free), cov, size=n_particles)
+                    proposals = particles.copy()
+                    proposals[:, free_dims] += perturbations
+                in_bounds = np.all(
+                    (proposals[:, free_dims] >= prior_bounds[free_dims, 0])
+                    & (proposals[:, free_dims] <= prior_bounds[free_dims, 1]),
+                    axis=1,
+                )
+                valid_idx = np.where(in_bounds)[0]
+                n_acc_step = 0
+                if len(valid_idx) > 0:
+                    proposals_jax = jnp.array(proposals[valid_idx])
+                    logL_proposals = np.array(logL_vmap(proposals_jax))
+                    log_alpha = beta_new * (logL_proposals - logL[valid_idx])
+                    # GNN prior correction (if available)
+                    if has_gnn_prior:
+                        for j, vi in enumerate(valid_idx):
+                            lp_new = float(log_prior_jit(jnp.array(proposals[vi])))
+                            lp_old = float(log_prior_jit(jnp.array(particles[vi])))
+                            log_alpha[j] += lp_new - lp_old
+                    # Vectorized accept/reject (no Python loop)
+                    u = np.log(rng.random(len(valid_idx)))
+                    accept_mask = u < log_alpha
+                    accepted_idx = valid_idx[accept_mask]
+                    accepted_j = np.where(accept_mask)[0]
+                    particles[accepted_idx] = proposals[accepted_idx]
+                    logL[accepted_idx] = logL_proposals[accepted_j]
+                    n_acc_step = int(accept_mask.sum())
+                    n_accept += n_acc_step
+                # Adaptive scale: target ~23% acceptance for RW
+                acc_rate = n_acc_step / max(n_particles, 1)
+                if not _use_demc:
+                    if acc_rate < 0.15:
+                        _adapt_factor *= 0.8
+                    elif acc_rate > 0.35:
+                        _adapt_factor *= 1.2
+                    _adapt_factor = np.clip(_adapt_factor, 0.01, 10.0)
+                # Update cov every few steps using current particles
+                if _mut_step % 3 == 2 and _n_mut > 3:
+                    cov_base = np.cov(particles[:, free_dims].T)
+                    cov_base = np.atleast_2d(cov_base) if d_free == 1 else cov_base
+                    cov_base += np.eye(d_free) * 1e-8
+                cov = cov_base * _scale * _adapt_factor
 
         elif mutation == "hmc":
             # --- Batched HMC mutation ---
-            # Generate all momenta at once
-            keys = jr.split(key, n_particles)
-            momenta = jr.normal(keys[0], (n_particles, d))
+            keys = jr.split(key, n_particles + 1)
+            # Fix: each particle gets its own key for momentum
+            momenta = jax.vmap(lambda k: jr.normal(k, (d,)))(keys[1:])
             particles_jax = jnp.array(particles)
 
             # Batch logL + grad for all particles
@@ -468,64 +594,69 @@ def tmcmc_engine(
 
             H_proposed = -logp_proposed + 0.5 * jnp.sum(p_all**2, axis=1)
             log_alpha = H_current - H_proposed
-            u = jnp.log(jr.uniform(jr.split(key, 1)[0], (n_particles,)))
-            accepted_mask = u < log_alpha
+            u = jnp.log(jr.uniform(keys[0], (n_particles,)))
+            accepted_mask = np.array(u < log_alpha)
 
             n_leapfrog_stage += n_particles * hmc_n_leapfrog
-            for i in range(n_particles):
-                if bool(accepted_mask[i]):
-                    particles[i] = np.array(q_all[i])
-                    logL[i] = float(logp_proposed[i]) / beta_new
-                    n_accept += 1
+            # Vectorized accept
+            q_np = np.array(q_all)
+            logp_np = np.array(logp_proposed)
+            acc_idx = np.where(accepted_mask)[0]
+            particles[acc_idx] = q_np[acc_idx]
+            logL[acc_idx] = logp_np[acc_idx] / beta_new
+            n_accept = int(accepted_mask.sum())
 
         elif mutation == "nuts":
-            # --- Fully vmapped NUTS ---
+            # --- NUTS: JIT per-particle + vmap logL ---
+            # Note: vmap(nuts_step_jax) causes extremely long JIT compile
+            # due to nested lax.fori_loop with dynamic trip count.
+            # Instead: JIT a single nuts_step, call per particle, vmap logL.
             particles_jax = jnp.array(particles, dtype=jnp.float64)
             keys = jr.split(key, n_particles)
+            _blo = jnp.array(bounds_lo, dtype=jnp.float64)
+            _bhi = jnp.array(bounds_hi, dtype=jnp.float64)
 
-            def _single_nuts(key_i, theta_i):
+            @jax.jit
+            def _jit_nuts(key_i, theta_i):
                 return nuts_step_jax(
                     key_i,
                     theta_i,
                     tempered_vg,
                     current_eps,
-                    bounds_lo.astype(jnp.float64),
-                    bounds_hi.astype(jnp.float64),
+                    _blo,
+                    _bhi,
                     max_depth=nuts_max_depth,
                 )
 
-            nuts_vmap = jax.vmap(_single_nuts)
-            new_thetas, new_logps, accepted_arr = nuts_vmap(keys, particles_jax)
-
-            # Update particles
-            new_thetas_np = np.array(new_thetas)
-            accepted_np = np.array(accepted_arr)
+            accepted_list = []
             for i in range(n_particles):
-                if accepted_np[i]:
-                    particles[i] = new_thetas_np[i]
+                new_th, new_lp, acc = _jit_nuts(keys[i], particles_jax[i])
+                if bool(acc):
+                    particles[i] = np.array(new_th)
                     n_accept += 1
+                accepted_list.append(bool(acc))
 
             # Batch re-evaluate logL for all particles (vmap)
             particles_jax = jnp.array(particles)
             logL = np.array(logL_vmap(particles_jax))
 
             if stage <= warmup_stages:
-                da_state = dual_averaging_update(
-                    da_state, float(jnp.mean(accepted_arr.astype(jnp.float32)))
-                )
+                da_state = dual_averaging_update(da_state, float(np.mean(accepted_list)))
 
         beta = beta_new
         betas.append(beta)
         stage_times.append(time.time() - t_stage)
-        accept_rates.append(n_accept / n_particles)
+        _n_total_proposals = n_particles * (n_mutation_steps if mutation == "rw" else 1)
+        accept_rates.append(n_accept / _n_total_proposals)
         ess_history.append(ess_val)
         n_leapfrog_history.append(n_leapfrog_stage)
         eps_history.append(current_eps)
 
         if verbose:
             extra = f", eps={current_eps:.4f}" if mutation == "nuts" else ""
+            acc_display = n_accept / _n_total_proposals
             print(
-                f"  Stage {stage:2d}: beta={beta:.4f}, accept={n_accept/n_particles:.2f}, "
+                f"  Stage {stage:2d}: beta={beta:.4f}, accept={acc_display:.2f}, "
                 f"ESS={ess_val:.0f}, logL=[{logL.min():.1f},{logL.max():.1f}], "
                 f"{stage_times[-1]:.1f}s{extra}"
             )
@@ -548,4 +679,7 @@ def tmcmc_engine(
         "n_leapfrog_history": n_leapfrog_history,
         "eps_history": eps_history,
         "final_eps": final_eps,
+        # New: evidence and diagnostics
+        "log_evidence": log_evidence,
+        "cv_weights": cv_weights_history,
     }

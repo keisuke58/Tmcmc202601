@@ -18,21 +18,34 @@ jax.config.update("jax_enable_x64", True)
 
 def _solve_linear_pure_jax(A, b):
     """
-    Solve A @ x = b using Gaussian elimination (no pivoting).
+    Solve A @ x = b using Gaussian elimination with partial pivoting.
     Pure JAX implementation to avoid cuSOLVER (gpusolverDnCreate failures on some GPUs).
-    For the 12x12 Newton Jacobian this is numerically adequate.
+
+    Partial pivoting selects the largest absolute value in the column as pivot,
+    improving numerical stability near bifurcation points in the ODE.
     """
     n = A.shape[0]
     Ab = jnp.concatenate([A, b[:, jnp.newaxis]], axis=1)
 
     def elim_step(carry, k):
         Ab_curr = carry
+        # Partial pivoting: find row with max |value| in column k (rows k..n-1)
+        col_k = jnp.abs(Ab_curr[:, k])
+        # Mask out rows above k
+        col_k = jnp.where(jnp.arange(n) >= k, col_k, -1.0)
+        pivot_row = jnp.argmax(col_k)
+        # Swap rows k and pivot_row
+        row_k = Ab_curr[k, :]
+        row_p = Ab_curr[pivot_row, :]
+        Ab_curr = Ab_curr.at[k, :].set(row_p)
+        Ab_curr = Ab_curr.at[pivot_row, :].set(row_k)
+        # Eliminate
         pivot = Ab_curr[k, k]
         pivot_safe = jnp.where(jnp.abs(pivot) > 1e-14, pivot, 1.0)
-        row_k = Ab_curr[k, :]
+        row_k_new = Ab_curr[k, :]
         scale = Ab_curr[:, k] / pivot_safe
         scale = jnp.where(jnp.arange(n) > k, scale, 0.0)
-        Ab_new = Ab_curr - scale[:, jnp.newaxis] * row_k
+        Ab_new = Ab_curr - scale[:, jnp.newaxis] * row_k_new
         return Ab_new, None
 
     Ab_final, _ = jax.lax.scan(elim_step, Ab, jnp.arange(n - 1))
@@ -179,24 +192,37 @@ def residual(g_new, g_prev, params):
 
 
 def newton_step(g_prev, params):
-    """One implicit Euler step."""
+    """One implicit Euler step with adaptive Newton iteration.
+
+    Uses 12 iterations (up from 6) with early termination when residual
+    is sufficiently small. The extra iterations are critical for stiff
+    parameter regimes where 6 iterations may not converge.
+    """
     active_mask = params["active_mask"]
-    n_steps = 6
+    n_steps = 12  # Increased from 6 for better convergence
+    tol_sq = 1e-20  # Convergence tolerance (squared L2 norm of residual)
 
     def body(carry, _):
-        g = clip_state(carry, active_mask)
+        g, converged = carry
+        g = clip_state(g, active_mask)
 
         def F(gg):
             return residual(gg, g_prev, params)
 
         Q = F(g)
+        # Skip Newton update if already converged (but still run for scan shape)
+        res_norm_sq = jnp.sum(Q**2)
+        is_converged = converged | (res_norm_sq < tol_sq)
+
         J = jax.jacfwd(F)(g)
         delta = _solve_linear_pure_jax(J, -Q)
-        g_next = clip_state(g + delta, active_mask)
-        return g_next, None
+        g_updated = clip_state(g + delta, active_mask)
+        # If converged, keep current g (avoid unnecessary perturbation)
+        g_next = jnp.where(is_converged, g, g_updated)
+        return (g_next, is_converged), None
 
     g0 = clip_state(g_prev, active_mask)
-    g_final, _ = jax.lax.scan(body, g0, jnp.arange(n_steps))
+    (g_final, _), _ = jax.lax.scan(body, (g0, jnp.bool_(False)), jnp.arange(n_steps))
     return g_final
 
 
