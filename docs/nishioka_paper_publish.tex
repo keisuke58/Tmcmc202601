@@ -50,8 +50,9 @@ Philipp Junker
 
 \begin{abstract}
 We present a Bayesian framework for inferring interaction parameters of a five-species oral biofilm model derived from the extended Hamilton principle.
-The $5\times5$ symmetric interaction matrix and decay vector yield 20 constitutive parameters.
-By encoding experimentally established absent interactions as hard constraints, the effective parameter space is reduced from 20 to 15 dimensions, improving identifiability and biological interpretability.
+The $5\times5$ symmetric interaction matrix and decay vector yield 20 constitutive parameters in the general model.
+Since the experimental conditions involve no antibiotic agents, the decay channel is inactive ($\alpha^*=0$) and the five decay parameters are excluded, leaving the 15 independent entries of the symmetric interaction matrix.
+By additionally encoding experimentally established absent interactions as hard constraints, the effective parameter space is further reduced to 10 dimensions, improving identifiability and biological interpretability.
 Inference is performed via Transitional Markov Chain Monte Carlo (TMCMC) with an adaptive tempering schedule, combined with a four-stage sequential estimation strategy that aligns parameter groups with the ecological succession of species colonization.
 The method is validated against in-vitro time-course data under four experimental conditions spanning commensal and dysbiotic community states in static and flow (HOBIC) environments.
 The inferred interaction matrices reveal condition-specific shifts: commensal biofilms are governed by early-colonizer self-regulation, whereas dysbiotic states require cooperative cross-feeding between \textit{Veillonella} and \textit{Porphyromonas~gingivalis} to reproduce the experimentally observed pathogen surge.
@@ -74,15 +75,15 @@ peri-implantitis
 
 Multi-species biofilms on dental implant surfaces are a primary cause of peri-implantitis~\cite{Kolenbrander2010OralMultispecies, Marsh2003Dental}, and recent in-vivo characterisation confirms that these communities are complex, patient-specific, and temporally dynamic~\cite{EarlyImplantBiofilm2024, PeriImplantitisDysbiosis2025}.
 Heine et al.~\cite{Heine2025PeriImplant} characterised the in-vitro dynamics of five key oral species---\textit{Streptococcus oralis} (So), \textit{Actinomyces naeslundii} (An), \textit{Veillonella} spp.\ (Vei), \textit{Fusobacterium nucleatum} (Fn), and \textit{Porphyromonas gingivalis} (Pg)---under four combinations of community state (commensal/dysbiotic) and cultivation mode (static/HOBIC flow).
-Building on the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamilton}, Klempt et al.~\cite{Klempt2025ContinuumBiofilm} formulated a continuum model in which a symmetric interaction matrix~$\mathbf{A}$ and a decay vector~$\mathbf{b}$ govern species growth.
+Building on the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamilton}, Klempt et al.~\cite{Klempt2025ContinuumBiofilm} formulated a continuum model in which a symmetric interaction matrix~$\mathbf{A}$ governs species growth, with an optional decay vector~$\mathbf{b}$ for antibiotic effects.
 Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms} subsequently introduced Bayesian updating with surrogate models for biofilm parameter estimation under hybrid uncertainties.
 
-Despite these advances, estimating all 20 parameters of the five-species model from limited time-course data remains challenging.
-Three difficulties arise: (i) poor identifiability when data are sparse relative to the parameter dimension---with $N_t=6$ time points and 5 species, one has at most 30 observations for 20 unknowns---and (ii) biologically implausible posterior modes that exploit mathematical redundancies in the absence of structural constraints.
+Despite these advances, estimating all 15 entries of the interaction matrix from limited time-course data remains challenging.
+Three difficulties arise: (i) poor identifiability when data are sparse relative to the parameter dimension---with $N_t=6$ time points and 5 species, one has at most 30 observations for 15 unknowns---and (ii) biologically implausible posterior modes that exploit mathematical redundancies in the absence of structural constraints.
 These issues are amplified by the multimodal nature of the posterior landscape, which renders standard MCMC methods inefficient~\cite{RobertCasella2004MonteCarlo}.
 
 In this work we address these challenges through two complementary strategies.
-First, we incorporate experimental evidence from the species interaction network~\cite{Heine2025PeriImplant} to fix five interaction coefficients at zero, reducing the effective parameter space from $\Real^{20}$ to $\Real^{15}$.
+First, we incorporate experimental evidence from the species interaction network~\cite{Heine2025PeriImplant} to fix five interaction coefficients at zero, reducing the effective parameter space from $\Real^{15}$ to $\Real^{10}$.
 Second, we decompose the estimation into four sequential stages, each targeting a biologically coherent parameter group, and solve each sub-problem with TMCMC~\cite{ChingChen2007TMCMC, Betz2016TMCMC}.
 The framework is validated against all four experimental conditions of Heine et al., demonstrating quantitative reproduction of commensal homeostasis as well as the non-linear pathogen surge characteristic of dysbiotic HOBIC biofilms.
 
@@ -91,58 +92,112 @@ The framework is validated against all four experimental conditions of Heine et 
 \label{sec:model}
 %==============================================================================
 
-\subsection{Governing equations}
+\subsection{State variables and kinematics}
 
-The dynamics of bacterial volume fractions $\phi_i$ and viability fractions $\psi_i$ ($i=0,\dots,4$) follow a coupled ODE system derived from the variational framework of Klempt et al.~\cite{Klempt2025ContinuumBiofilm, Klempt2024ContinuumGrowth}.
-Defining the living volume fraction $u_i = \phi_i\psi_i$, the evolution equation for species~$i$ reads
+Following Klempt et al.~\cite{Klempt2025ContinuumBiofilm, Klempt2024ContinuumGrowth}, the biofilm is described at a material point by two sets of internal variables: the volume fraction $\phi_i \in [0,1]$ occupied by species~$i$ ($i=1,\dots,n$; here $n=5$), and the viability fraction $\psi_i \in [0,1]$ representing the proportion of living cells within species~$i$.
+The living volume fraction is then
 \begin{equation}
-\frac{du_i}{dt}
-= \Bigl(A_{ii} + \sum_{j\neq i} A_{ij}\,u_j\Bigr)\,u_i - b_i\,u_i,
-\qquad i=0,\dots,4,
-\label{eq:ode}
+\bar{\phi}_i := \phi_i\,\psi_i,
+\qquad i=1,\dots,n.
+\label{eq:living}
 \end{equation}
-where $A_{ii}$ is the self-regulation coefficient, $A_{ij}$ ($j\neq i$) encodes the effect of species~$j$ on species~$i$, and $b_i$ is the decay rate.
-This system is a generalised Lotka--Volterra model with symmetric interactions arising naturally from the variational structure.
-The void fraction $\phi_{\mathrm{void}}$ closes the system via the holonomic constraint
+An additional void fraction~$\phi_0$ closes the system via the holonomic constraint
 \begin{equation}
-\sum_{i=0}^{4}\phi_i(t) + \phi_{\mathrm{void}}(t) = 1
-\quad\forall\,t.
+\sum_{l=0}^{n}\phi_l(t) = 1 \quad\forall\,t.
 \label{eq:constraint}
 \end{equation}
 
-In the original formulation, the growth matrix is scaled by a nutrient variable~$c^*$ and antibiotic effects enter through a sensitivity matrix~$\mathbf{B}$.
-Here we absorb $c^*$ into the entries of~$\mathbf{A}$ and subsume antibiotic-induced killing into~$\mathbf{b}$, so that the inferred parameters represent effective coefficients under the given experimental condition.
-The viscosity matrix $\boldsymbol{\eta}=\mathrm{diag}(\eta_1,\dots,\eta_5)$ of the original dissipation functional is treated as a fixed hyperparameter.
+\subsection{Variational formulation}
 
-\subsection{Variational origin}
+The evolution equations are derived from the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic}
+\begin{equation}
+\mathcal{H} = \int_\tau \bigl(G + C + D\bigr)\,\mathrm{d}t \to \mathrm{stat}_{\boldsymbol{\xi},\gamma}\,,
+\label{eq:hamilton}
+\end{equation}
+comprising the Helmholtz free energy~$G$, the constraint functional~$C$, and the dissipation~$D$.
+The free energy density encodes nutrient-driven growth and antibiotic-induced killing:
+\begin{equation}
+\Psi = -\tfrac{1}{2}\,c^*\,\bar{\bphi}^T \mathbf{A}\,\bar{\bphi}
+      + \tfrac{1}{2}\,\alpha^*\,\bpsi^T \mathbf{B}\,\bpsi,
+\label{eq:psi}
+\end{equation}
+where $c^*$ is the nutrient concentration, $\alpha^*$ the antibiotic concentration, $\mathbf{A}\in\Real^{n\times n}$ the symmetric growth coefficient matrix, and $\mathbf{B}=\mathrm{diag}(b_1,\dots,b_n)$ the antibiotic sensitivity matrix.
+The volume constraint~\eqref{eq:constraint} enters through a Lagrange multiplier~$\gamma$:
+\begin{equation}
+C = \gamma\Bigl(\sum_{l=0}^{n}\phi_l - 1\Bigr).
+\label{eq:cfunc}
+\end{equation}
+Dissipation is modelled via the rate-dependent potential~\cite{Klempt2025ContinuumBiofilm}
+\begin{equation}
+\Delta_s = \tfrac{1}{2}\,\dot{\bar{\bphi}}^T\boldsymbol{\eta}\,\dot{\bar{\bphi}}
+          + \tfrac{1}{2}\,\dot{\bphi}^T\boldsymbol{\eta}\,\dot{\bphi},
+\label{eq:dissipation}
+\end{equation}
+with the diagonal viscosity matrix $\boldsymbol{\eta}=\mathrm{diag}(\eta_1,\dots,\eta_n)$.
+The first term couples $\dot\phi_i$ and $\dot\psi_i$ through $\dot{\bar\phi}_i = \dot\phi_i\psi_i + \phi_i\dot\psi_i$, giving rise to non-linear dissipative interactions; the second term regularises the system to full rank.
+A logarithmic barrier with penalty $K_p = \eta_i\times10^{-4}$ enforces the box constraints $\phi_i,\psi_i\in(0,1)$~\cite{Klempt2025ContinuumBiofilm}.
 
-The ODE system~\eqref{eq:ode} is derived from the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic}: the stationarity condition $\delta\Pi=0$ of the total energy functional $\Pi=\Psi+\Delta+W_{\mathrm{ext}}$ (free energy, dissipation, external work) yields the evolution equations together with the symmetry constraint $A_{ij}=A_{ji}$.
-This variational structure ensures thermodynamic consistency and the interaction symmetry is a consequence of the energetic formulation rather than an empirical assumption.
+\subsection{Governing equations}
+
+Evaluating $\delta\mathcal{H}=0$ with respect to variations $\delta\phi_i$, $\delta\psi_i$, and $\delta\gamma$ yields the coupled evolution equations~\cite{Klempt2025ContinuumBiofilm}:
+
+\medskip\noindent
+\textit{Volume fraction} ($i=1,\dots,n$):
+\begin{equation}
+0 = -c^*\,\psi_i\,\bigl(\mathbf{A}\bar{\bphi}\bigr)_i
+    + \eta_i\bigl(\dot\phi_i\,\psi_i^2 + \bar\phi_i\,\dot\psi_i + \dot\phi_i\bigr)
+    + \gamma
+    + \frac{\partial \Psi_{\mathrm{bar}}}{\partial\phi_i},
+\label{eq:phi}
+\end{equation}
+
+\noindent\textit{Viability fraction} ($i=1,\dots,n$):
+\begin{equation}
+0 = -c^*\,\phi_i\,\bigl(\mathbf{A}\bar{\bphi}\bigr)_i
+    + \alpha^*\,b_i\,\psi_i
+    + \eta_i\bigl(\dot\psi_i\,\phi_i^2 + \bar\phi_i\,\dot\phi_i\bigr)
+    + \frac{\partial \Psi_{\mathrm{bar}}}{\partial\psi_i},
+\label{eq:psi_evol}
+\end{equation}
+
+\noindent\textit{Void fraction}:
+\begin{equation}
+0 = \gamma + \dot\phi_0 + \frac{\partial\Psi_{\mathrm{bar}}}{\partial\phi_0},
+\label{eq:phi0}
+\end{equation}
+
+\noindent\textit{Volume constraint}:
+\begin{equation}
+0 = \sum_{l=0}^{n}\phi_l - 1,
+\label{eq:constraint_eq}
+\end{equation}
+where $\Psi_{\mathrm{bar}}(\phi_i)=K_p(2-4\phi_i)/[(\phi_i-1)^3\phi_i^3]$ is the barrier penalty derivative.
+The system~\eqref{eq:phi}--\eqref{eq:constraint_eq} constitutes $2n+2$ coupled non-linear equations for the unknowns $(\phi_1,\dots,\phi_n,\phi_0,\psi_1,\dots,\psi_n,\gamma)$, solved at each time step via Newton's method with an implicit Euler discretisation ($\Delta t = 10^{-4}$).
+
+The variational derivation automatically ensures symmetry $A_{ij}=A_{ji}$ and thermodynamic consistency~\cite{JunkerBalzani2021ExtendedHamilton}.
+Since $c^*$ enters the evolution equations only through the product $c^*A_{ij}$, its absolute value is non-identifiable; we fix $c^*=25$ so that the inferred $A_{ij}$ remain $\mathcal{O}(1)$.
+The Heine et al.\ experiments do not involve antibiotic agents, so we set $\alpha^*=0$, which eliminates the decay term $\alpha^*b_i\psi_i$ from Eq.~\eqref{eq:psi_evol}.
+Consequently, the decay vector $\mathbf{b}$ does not affect the forward model and is excluded from estimation.
+The inferred parameter vector reduces to the 15 independent entries of the symmetric interaction matrix~$\mathbf{A}$.
 
 \subsection{Symmetric interaction matrix}
 
-The interaction matrix $\mathbf{A}\in\Real^{5\times5}$ is symmetric:
+The symmetry $A_{ij}=A_{ji}$ arises automatically from the quadratic form of the free energy~\eqref{eq:psi}, reducing the off-diagonal degrees of freedom from 20 to~10.
+Together with the 5 diagonal entries, the interaction parameter vector is
 \begin{equation}
-A_{ij} = A_{ji}
-\quad\forall\;i,j\in\{0,\dots,4\},
-\label{eq:symmetry}
-\end{equation}
-reducing the off-diagonal degrees of freedom from 20 to~10.
-Together with the 5 diagonal entries and 5 decay rates, the full parameter vector is
-\begin{equation}
-\btheta = (\theta_0,\dots,\theta_{19})^T \in \Real^{20},
+\btheta = (\theta_0,\dots,\theta_{14})^T \in \Real^{15},
 \label{eq:theta}
 \end{equation}
-organised into five biologically motivated blocks:
+organised into four biologically motivated blocks:
 \begin{equation}
 \btheta =
-\underbrace{(a_{11},a_{12},a_{22},b_1,b_2)}_{\text{So--An}}
+\underbrace{(a_{11},a_{12},a_{22})}_{\text{So--An}}
 \oplus
-\underbrace{(a_{33},a_{34},a_{44},b_3,b_4)}_{\text{Vei--Fn}}
+\underbrace{(a_{33},a_{34},a_{44})}_{\text{Vei--Fn}}
 \oplus
 \underbrace{(a_{13},a_{14},a_{23},a_{24})}_{\text{cross}}
 \oplus
-\underbrace{(a_{55},b_5)}_{\text{Pg}}
+\underbrace{(a_{55})}_{\text{Pg}}
 \oplus
 \underbrace{(a_{15},a_{25},a_{35},a_{45})}_{\text{Pg cross}}.
 \label{eq:blocks}
@@ -212,7 +267,7 @@ Fn--Pg & Peptide supply & Bidirectional\\
 \label{fig:network}
 \end{figure}
 
-The block symbols $a_{ij}$ follow the 1-based notation of Klempt et al.~\cite{Klempt2025ContinuumBiofilm}; the matrix entries $A_{ij}$ use 0-based indexing consistent with Eq.~\eqref{eq:ode}.
+The block symbols $a_{ij}$ follow the 1-based notation of Klempt et al.~\cite{Klempt2025ContinuumBiofilm}; the matrix entries $A_{ij}$ use 0-based indexing consistent with Eqs.~\eqref{eq:phi}--\eqref{eq:psi_evol}.
 The locked set~$\mathcal{L}$ removes 5 off-diagonal entries, and the bounds for $\theta_{18}$ (Vei$\to$Pg) are condition-specific (Section~\ref{sec:conditions}).
 
 %==============================================================================
@@ -320,7 +375,7 @@ enabling Bayesian model comparison via the Bayes factor $B_{10}=p(\yobs\mid\math
 
 \subsection{Four-stage sequential decomposition}
 
-Rather than estimating all 15 free parameters simultaneously, we decompose the inference into four stages $s=1,\dots,4$, each targeting a biologically coherent subset $\mathcal{P}_s$ (Table~\ref{tab:stages}).
+Rather than estimating all 10 free parameters simultaneously, we decompose the inference into four stages $s=1,\dots,4$, each targeting a biologically coherent subset $\mathcal{P}_s$ (Table~\ref{tab:stages}).
 At stage~$s$, the active index set is $\mathcal{A}_s=\mathcal{P}_s\setminus\mathcal{L}$ and all previously estimated parameters are fixed at their MAP values.
 
 \begin{table}[t]
@@ -329,18 +384,18 @@ At stage~$s$, the active index set is $\mathcal{A}_s=\mathcal{P}_s\setminus\math
 \toprule
 \textbf{Stage} & \textbf{Group} & \textbf{$|\mathcal{A}_s|$} & \textbf{Parameters}\\
 \midrule
-1 & Early colonizers (So--An) & 5 & $a_{11},a_{12},a_{22},b_1,b_2$\\
-2 & Bridge organisms (Vei--Fn) & $\leq5$ & $a_{33},a_{34},a_{44},b_3,b_4$\\
-3 & Cross-block + Pg self & $\leq6$ & $a_{13},a_{14},a_{23},a_{24},a_{55},b_5$\\
+1 & Early colonizers (So--An) & 3 & $a_{11},a_{12},a_{22}$\\
+2 & Bridge organisms (Vei--Fn) & $\leq3$ & $a_{33},a_{34},a_{44}$\\
+3 & Cross-block + Pg self & $\leq5$ & $a_{13},a_{14},a_{23},a_{24},a_{55}$\\
 4 & Pg cross-interactions & $\leq4$ & $a_{15},a_{25},a_{35},a_{45}$\\
 \bottomrule
 \end{tabular}
-\caption{Four-stage sequential estimation. The number of active parameters $|\mathcal{A}_s|$ depends on the condition-specific locked set. The grouping mirrors the temporal succession of colonization.}
+\caption{Four-stage sequential estimation of the 15 interaction matrix entries (with $\alpha^*=0$, decay parameters $b_i$ are excluded). The number of active parameters $|\mathcal{A}_s|$ depends on the condition-specific locked set; the grouping mirrors the temporal succession of colonization.}
 \label{tab:stages}
 \end{table}
 
 The stage likelihood evaluates the full model with active indices replaced: $p_s(\yobs\mid\btheta_{\mathcal{A}_s}) = p(\yobs\mid\btheta_{\mathrm{base}}\oplus_{\mathcal{A}_s}\btheta_{\mathcal{A}_s})$.
-Each sub-problem has dimension $|\mathcal{A}_s|\leq 6$, and the estimation order mirrors ecological succession, aligning the conditioning with the causal structure.
+Each sub-problem has dimension $|\mathcal{A}_s|\leq 5$, and the estimation order mirrors ecological succession, aligning the conditioning with the causal structure.
 
 \subsection{Algorithm summary}
 
@@ -384,13 +439,13 @@ Species distribution data (volume fractions at Days~1, 3, 7, 10, 15, 21) were di
 \toprule
 \textbf{Condition} & \textbf{Cultivation} & $N_{\text{locked}}$ & $N_{\text{est}}$ & \textbf{Rationale}\\
 \midrule
-Commensal Static (CS)  & Static & 9 & 11 & Pg, Fn below detection\\
-Commensal HOBIC (CH)   & Flow   & 8 & 12 & Blue bloom, Pg suppressed\\
-Dysbiotic Static (DS)  & Static & 5 & 15 & Pathogen interactions active\\
-Dysbiotic HOBIC (DH)   & Flow   & 0 & 20 & Full unlock for surge\\
+Commensal Static (CS)  & Static & 9 & 6 & Pg, Fn below detection\\
+Commensal HOBIC (CH)   & Flow   & 6 & 9 & Blue bloom, Pg suppressed\\
+Dysbiotic Static (DS)  & Static & 5 & 10 & Pathogen interactions active\\
+Dysbiotic HOBIC (DH)   & Flow   & 0 & 15 & Full unlock for surge\\
 \bottomrule
 \end{tabular}
-\caption{Condition-specific parameter locking. CS and CH apply additional locks on pathogen-related parameters beyond the structural set~$\mathcal{L}$, as qPCR data show Pg and Fn are undetectable~\cite{Heine2025PeriImplant}. DH releases all locks to enable discovery of surge-driving interactions.}
+\caption{Condition-specific parameter locking. With $\alpha^*=0$ the decay parameters $b_i$ are excluded, leaving 15 interaction matrix entries. CS and CH apply additional locks on pathogen-related entries beyond the structural set~$\mathcal{L}$, as qPCR data show Pg and Fn are undetectable~\cite{Heine2025PeriImplant}. DH releases all locks to enable discovery of surge-driving interactions.}
 \label{tab:locking}
 \end{table}
 
@@ -403,7 +458,7 @@ The posterior recovers near-zero values for most structurally locked parameters 
 %==============================================================================
 
 All experiments use $N=1000$ particles, $\delta_{\mathrm{target}}=1.0$, $\gamma^2=0.04$, and species-specific noise levels derived from replicate variability.
-Initial conditions $\phi_i(t_0)$ are fixed to the experimentally measured species composition at Day~1, and the likelihood is evaluated from Day~3 onward (Days 3, 7, 10, 15, 21); while joint estimation of initial conditions is possible in principle \cite{Villaverde2022BayesianSysBio}, fixing them avoids exacerbating the identifiability challenges inherent in a 20-parameter model.
+Initial conditions $\phi_i(t_0)$ are fixed to the experimentally measured species composition at Day~1, and the likelihood is evaluated from Day~3 onward (Days 3, 7, 10, 15, 21); while joint estimation of initial conditions is possible in principle \cite{Villaverde2022BayesianSysBio}, fixing them avoids exacerbating the identifiability challenges inherent in a 15-parameter model.
 The total wall-clock time per condition ranges from approximately 40\,h (CS) to 90\,h (DH).
 
 \subsection{Quantitative fit metrics}
@@ -581,11 +636,11 @@ The structural similarity within health states ($\rho\approx0.46$, Table~\ref{ta
 The strong flow-dependent activation of Vei$\to$Pg in DH---absent in DS---implies cultivation-specific surge dynamics, justifying the condition-specific estimation strategy.
 
 While the model reproduces the DH pathogen surge qualitatively, the time-invariant $\mathbf{A}$ underestimates the terminal Pg rise; state-dependent interactions $A_{ij}(\mathrm{pH},c^*)$ or regime-switching formulations may be required.
-A Monod nutrient coupling was tested but showed negligible effect ($\Delta\mathrm{DI}<0.002$), confirming that constant $\mathbf{b}$ is adequate for quasi-steady biofilm nutrient regimes.
+A Monod nutrient coupling was tested but showed negligible effect ($\Delta\mathrm{DI}<0.002$), confirming that constant interaction coefficients are adequate for quasi-steady biofilm nutrient regimes.
 
 Recent in-vivo microrheology has demonstrated that biofilm elastic moduli correlate directly with local polysaccharide distribution~\cite{Ohmura2024, BiofilmMatrixMechanics2025}, supporting the hypothesis that community composition---quantifiable via Shannon diversity~\cite{ShannonDiversityGuidelines2024}---determines macroscopic mechanical properties.
 
-The biological constraints improve identifiability: the data-to-parameter ratio increases to $30/11\approx2.7\times$ for CS, while the four-stage decomposition reduces each sub-problem to at most 6 dimensions.
+The biological constraints improve identifiability: the data-to-parameter ratio increases to $30/6=5.0$ for CS, while the four-stage decomposition reduces each sub-problem to at most 5 dimensions.
 Each run requires $\sim25{,}000$ forward solves per condition; with $\sim1$\,ms per ODE integration, wall-clock times range from 40--90\,h on 12 cores.
 Compared to Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms}, the direct-ODE approach avoids surrogate approximation errors; combining their surrogate acceleration with our biological constraints is a natural extension.
 
@@ -599,10 +654,10 @@ The key contributions are:
 
 \begin{enumerate}[nosep,leftmargin=*]
 \item \textbf{Constrained prior formulation.}
-Encoding experimentally absent interactions as Dirac-delta priors reduces the parameter space from 20 to 15 dimensions, improving identifiability without loss of biological fidelity.
+Setting $\alpha^*=0$ (no antibiotics) eliminates the five decay parameters, and encoding experimentally absent interactions as Dirac-delta priors further reduces the parameter space from 15 to 10 dimensions, improving identifiability without loss of biological fidelity.
 
 \item \textbf{Sequential TMCMC.}
-A four-stage estimation strategy aligned with ecological succession decomposes the 15-dimensional problem into sub-problems of dimension $\leq6$, enabling efficient sampling and biologically interpretable conditioning.
+A four-stage estimation strategy aligned with ecological succession decomposes the 10-dimensional problem into sub-problems of dimension $\leq5$, enabling efficient sampling and biologically interpretable conditioning.
 
 \item \textbf{Condition-specific and independent validation.}
 The framework is validated across four experimental conditions, correctly reproducing commensal homeostasis (CS, CH), moderate dysbiosis (DS), and the non-linear pathogen surge (DH).

@@ -22,13 +22,13 @@
 #   # On specific node:
 #   qsub -l nodes=frontale04:ppn=12 -v CONDITION=Commensal,CULTIVATION=Static,NPART=1000 tmcmc_job.sh
 #
-#   # With expIC + heteroscedastic sigma:
-#   qsub -v CONDITION=Dysbiotic,CULTIVATION=HOBIC,NPART=1000,USE_EXP_INIT=1,REPLICATE_SIGMA=1 tmcmc_job.sh
+#   # With expIC (recommended):
+#   qsub -v CONDITION=Dysbiotic,CULTIVATION=HOBIC,NPART=1000,USE_EXP_INIT=1 tmcmc_job.sh
 #
-#   # All 4 conditions at once:
+#   # All 4 conditions at once (REPLICATE_SIGMA=0 is default and correct):
 #   for c in "Commensal,Static" "Commensal,HOBIC" "Dysbiotic,Static" "Dysbiotic,HOBIC"; do
 #     IFS=',' read -r COND CULT <<< "$c"
-#     qsub -v CONDITION=$COND,CULTIVATION=$CULT,NPART=1000,USE_EXP_INIT=1,REPLICATE_SIGMA=1 tmcmc_job.sh
+#     qsub -v CONDITION=$COND,CULTIVATION=$CULT,NPART=500,USE_EXP_INIT=1 tmcmc_job.sh
 #   done
 # ============================================================
 

@@ -395,6 +395,14 @@ class LogLikelihoodEvaluator:
         debug_logger: Optional[DebugLogger] = None,
         use_absolute_volume: bool = False,
         weights: Optional[np.ndarray] = None,
+        data_total: Optional[np.ndarray] = None,
+        sigma_obs_total: Optional[float] = None,
+        data_viability: Optional[np.ndarray] = None,
+        sigma_obs_viability: float = 0.10,
+        data_pH: Optional[np.ndarray] = None,
+        idx_pH: Optional[np.ndarray] = None,
+        sigma_obs_pH: float = 0.15,
+        lambda_ch: Optional[Dict[int, float]] = None,
     ):
         """
         Initialize likelihood evaluator with linearization support.
@@ -417,6 +425,28 @@ class LogLikelihoodEvaluator:
         weights : np.ndarray, optional
             Per-(time, species) likelihood weights, shape (n_obs, n_species).
             Built by ``build_likelihood_weights()``.  None = uniform.
+        data_total : np.ndarray, optional
+            Total species distribution (qRT-PCR without PMA), shape (n_obs, n_species).
+            Compared against phi_i / sum(phi_j) from model. None = disabled.
+        sigma_obs_total : float or np.ndarray, optional
+            Observation noise for total species data. Default: same as sigma_obs.
+        data_viability : np.ndarray, optional
+            Membrane integrity (%) at each observation time, shape (n_obs,).
+            Compared against sum(phi_i * psi_i) / sum(phi_i) from model. None = disabled.
+        sigma_obs_viability : float, optional
+            Observation noise for viability data (fraction, e.g. 0.10). Default: 0.10.
+        data_pH : np.ndarray, optional
+            pH time series (Fig 4A), shape (n_pH_obs,). HOBIC only.
+            Predicted via linear regression: pH = pH0 - c_So * phi_bar_So - c_Vd * phi_bar_Vd.
+        idx_pH : np.ndarray, optional
+            Time indices into solver output for pH observations, shape (n_pH_obs,).
+        sigma_obs_pH : float, optional
+            Observation noise for pH data. Default: 0.15.
+        lambda_ch : dict, optional
+            Per-channel likelihood weights {channel_id: weight}.
+            Default: {1: 1.0, 2: 0.5, 3: 2.0, 5: 0.3}.
+            Ch1=viable (primary), Ch2=total (redundant with Ch1→0.5),
+            Ch3=viability (unique ψ constraint→2.0), Ch5=pH (model R²=0.71→0.3).
         """
         self.active_species = list(active_species)
         self.active_indices = list(active_indices)
@@ -431,6 +461,40 @@ class LogLikelihoodEvaluator:
         self.debug_logger = debug_logger or DebugLogger(DebugConfig(level=DebugLevel.OFF))
         self.use_absolute_volume = use_absolute_volume
         self.weights = weights  # (n_obs, n_species) or None
+
+        # Multi-channel data (φ/ψ separation)
+        self.data_total = data_total  # (n_obs, n_species) total species % or None
+        self.sigma_obs_total = sigma_obs_total if sigma_obs_total is not None else sigma_obs
+        self.data_viability = data_viability  # (n_obs,) membrane integrity fraction or None
+        self.sigma_obs_viability = sigma_obs_viability
+        # pH time series channel (Fig 4A, HOBIC only)
+        self.data_pH = data_pH  # (n_pH_obs,) or None
+        self.idx_pH = idx_pH  # (n_pH_obs,) time indices into solver output
+        self.sigma_obs_pH = sigma_obs_pH
+        # pH prediction model: pH = 7.5 - 0.74 * φ̄_So - 0.48 * φ̄_Vd
+        # Coefficients from post-hoc regression on Heine 2025 validation (R²=0.71)
+        self.pH_intercept = 7.5
+        self.pH_coeff_So = 0.74  # S. oralis (species index 0)
+        self.pH_coeff_Vd = 0.48  # V. dispar/parvula (species index 2)
+
+        # Channel weights: logL = λ₁·logL_viable + λ₂·logL_total + λ₃·logL_viab + λ₅·logL_pH
+        default_lambda = {1: 1.0, 2: 0.5, 3: 2.0, 5: 0.3}
+        self.lambda_ch = lambda_ch if lambda_ch is not None else default_lambda
+
+        if data_total is not None:
+            logger.info(
+                "Multi-channel likelihood: total species distribution enabled (%d obs)",
+                data_total.shape[0],
+            )
+        if data_viability is not None:
+            logger.info(
+                "Multi-channel likelihood: membrane integrity enabled (%d obs)",
+                data_viability.shape[0],
+            )
+        if data_pH is not None:
+            logger.info(
+                "Multi-channel likelihood: pH time series enabled (%d obs)", data_pH.shape[0]
+            )
 
         # Tracking
         self.call_count = 0  # Number of ROM (TSM) evaluations
@@ -766,7 +830,7 @@ class LogLikelihoodEvaluator:
 
         # Evaluate log-likelihood + increment per-entry variance health counters
         var_health: Dict[str, int] = {}
-        logL = log_likelihood_sparse(
+        logL_viable = log_likelihood_sparse(
             mu,
             sig,
             self.data,
@@ -778,6 +842,108 @@ class LogLikelihoodEvaluator:
         self.health.n_var_raw_negative += int(var_health.get("n_var_raw_negative", 0))
         self.health.n_var_raw_nonfinite += int(var_health.get("n_var_raw_nonfinite", 0))
         self.health.n_var_total_clipped += int(var_health.get("n_var_total_clipped", 0))
+        logL = self.lambda_ch.get(1, 1.0) * logL_viable
+
+        # ── Multi-channel likelihood: total species distribution (Fig S1) ──
+        if self.data_total is not None and not self.use_absolute_volume:
+            n_state = x0.shape[1]
+            n_total_species = (n_state - 2) // 2
+            idx = self.idx_sparse
+
+            # φ_i (raw volume fraction, NOT multiplied by ψ)
+            mu_total = np.zeros((len(idx), self.n_species))
+            sig_total = np.zeros((len(idx), self.n_species))
+            for i, sp in enumerate(self.active_species):
+                mu_total[:, i] = x0[idx, sp]
+                sig_total[:, i] = sig2[idx, sp]
+
+            # Normalize to relative abundance: φ_i / Σ φ_j
+            phi_sum = mu_total.sum(axis=1, keepdims=True)
+            safe_sum = np.where(np.abs(phi_sum) > 1e-30, phi_sum, 1.0)
+            mu_total = mu_total / safe_sum
+            sig_total = sig_total / (safe_sum**2)
+
+            logL_total = log_likelihood_sparse(
+                mu_total,
+                sig_total,
+                self.data_total,
+                self.sigma_obs_total,
+                rho=0.0,
+                health=None,
+                weights=None,
+            )
+            logL += self.lambda_ch.get(2, 0.5) * logL_total
+
+        # ── Multi-channel likelihood: membrane integrity / viability (Fig 2B) ──
+        if self.data_viability is not None and not self.use_absolute_volume:
+            n_state = x0.shape[1]
+            n_total_species = (n_state - 2) // 2
+            psi_offset = n_total_species + 1
+            idx = self.idx_sparse
+
+            # Weighted average viability: Σ(φ_i · ψ_i) / Σ(φ_i)
+            phi_arr = np.zeros((len(idx), self.n_species))
+            phibar_arr = np.zeros((len(idx), self.n_species))
+            for i, sp in enumerate(self.active_species):
+                phi_arr[:, i] = x0[idx, sp]
+                phibar_arr[:, i] = x0[idx, sp] * x0[idx, psi_offset + sp]
+
+            phi_sum = phi_arr.sum(axis=1)
+            phibar_sum = phibar_arr.sum(axis=1)
+            safe_phi_sum = np.where(np.abs(phi_sum) > 1e-30, phi_sum, 1.0)
+            viab_pred = phibar_sum / safe_phi_sum  # predicted viability [0, 1]
+
+            # Simple Gaussian likelihood per observation time
+            sigma_v = self.sigma_obs_viability
+            lw3 = self.lambda_ch.get(3, 2.0)
+            for t_idx in range(len(idx)):
+                residual_v = self.data_viability[t_idx] - viab_pred[t_idx]
+                logL -= lw3 * 0.5 * np.log(2 * np.pi * sigma_v**2)
+                logL -= lw3 * 0.5 * (residual_v**2) / (sigma_v**2)
+
+        # ── Multi-channel likelihood: pH time series (Fig 4A, HOBIC only) ──
+        if self.data_pH is not None and self.idx_pH is not None and not self.use_absolute_volume:
+            n_state = x0.shape[1]
+            n_total_species = (n_state - 2) // 2
+            psi_offset = n_total_species + 1
+            idx_ph = self.idx_pH
+
+            # Compute φ̄_So and φ̄_Vd at pH observation times
+            # Species 0 = S. oralis, Species 2 = V. dispar/parvula
+            so_idx = self.active_species.index(0) if 0 in self.active_species else None
+            vd_idx = self.active_species.index(2) if 2 in self.active_species else None
+
+            if so_idx is not None and vd_idx is not None:
+                sp_so = self.active_species[so_idx]
+                sp_vd = self.active_species[vd_idx]
+
+                # φ̄ = φ·ψ (viable volume fraction)
+                phibar_so = x0[idx_ph, sp_so] * x0[idx_ph, psi_offset + sp_so]
+                phibar_vd = x0[idx_ph, sp_vd] * x0[idx_ph, psi_offset + sp_vd]
+
+                # Normalize to relative abundance
+                phibar_all = np.zeros((len(idx_ph), self.n_species))
+                for i, sp in enumerate(self.active_species):
+                    phibar_all[:, i] = x0[idx_ph, sp] * x0[idx_ph, psi_offset + sp]
+                phibar_sum = phibar_all.sum(axis=1)
+                safe_sum = np.where(np.abs(phibar_sum) > 1e-30, phibar_sum, 1.0)
+                phi_bar_So_rel = phibar_so / safe_sum
+                phi_bar_Vd_rel = phibar_vd / safe_sum
+
+                # pH prediction
+                pH_pred = (
+                    self.pH_intercept
+                    - self.pH_coeff_So * phi_bar_So_rel
+                    - self.pH_coeff_Vd * phi_bar_Vd_rel
+                )
+
+                # Gaussian likelihood
+                sigma_pH = self.sigma_obs_pH
+                lw5 = self.lambda_ch.get(5, 0.3)
+                for t_idx in range(len(idx_ph)):
+                    residual_pH = self.data_pH[t_idx] - pH_pred[t_idx]
+                    logL -= lw5 * 0.5 * np.log(2 * np.pi * sigma_pH**2)
+                    logL -= lw5 * 0.5 * (residual_pH**2) / (sigma_pH**2)
 
         # Add viscoelastic prior penalty if configured
         if self.ve_prior is not None:

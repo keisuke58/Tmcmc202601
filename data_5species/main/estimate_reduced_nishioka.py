@@ -1908,6 +1908,176 @@ def load_experimental_data(
     return data, np.array(days), sigma_obs, phi_init_exp, metadata
 
 
+def load_multichannel_data(
+    data_dir: Path,
+    condition: str,
+    cultivation: str,
+    days_filter: list,
+    normalize: bool = False,
+) -> Dict[str, Any]:
+    """
+    Load additional data channels for multi-channel likelihood.
+
+    Returns dict with keys:
+        'data_total': (n_obs, 5) total species distribution (Fig S1) or None
+        'sigma_obs_total': float or (5,) noise for total species
+        'data_viability': (n_obs,) membrane integrity fraction or None
+        'sigma_obs_viability': float noise for viability
+    """
+    result = {
+        "data_total": None,
+        "sigma_obs_total": None,
+        "data_viability": None,
+        "sigma_obs_viability": 0.10,
+    }
+
+    n_species = 5
+    species_map_commensal = {"Blue": 0, "Green": 1, "Yellow": 2, "Purple": 3, "Red": 4}
+    species_map_dysbiotic = {"Blue": 0, "Green": 1, "Orange": 2, "Purple": 3, "Red": 4}
+    species_name_map = {
+        "S. oralis": 0,
+        "A. naeslundii": 1,
+        "V. dispar": 2,
+        "V. parvula": 2,
+        "F. nucleatum": 3,
+        "P. gingivalis_20709": 4,
+        "P. gingivalis_W83": 4,
+    }
+
+    # ── 1. Total species distribution (Fig S1, qRT-PCR without PMA) ──
+    total_files = [
+        data_dir / "figS1_total_species_distribution_summary.csv",
+        data_dir / "experiment_data" / "figS1_total_species_distribution_summary.csv",
+    ]
+    total_file = None
+    for f in total_files:
+        if f.exists():
+            total_file = f
+            break
+
+    if total_file is not None:
+        df_total = pd.read_csv(total_file)
+        mask = (df_total["condition"] == condition) & (df_total["cultivation"] == cultivation)
+        df_total = df_total[mask]
+
+        if len(df_total) > 0:
+            data_total = np.zeros((len(days_filter), n_species))
+            sigma_total = np.full(n_species, 0.08)  # default
+
+            for i, day in enumerate(days_filter):
+                day_data = df_total[df_total["day"] == day]
+                for _, row in day_data.iterrows():
+                    sp_name = row["species"]
+                    if sp_name in species_name_map:
+                        sp_idx = species_name_map[sp_name]
+                        data_total[i, sp_idx] = row["median"] / 100.0  # % → fraction
+
+            # Normalize to sum=1
+            row_sums = data_total.sum(axis=1, keepdims=True)
+            row_sums = np.where(row_sums > 0, row_sums, 1.0)
+            data_total = data_total / row_sums
+
+            # Estimate sigma from IQR if available
+            total_rep_files = [
+                data_dir / "figS1_total_species_distribution_replicates.csv",
+                data_dir / "experiment_data" / "figS1_total_species_distribution_replicates.csv",
+            ]
+            for f in total_rep_files:
+                if f.exists():
+                    df_rep = pd.read_csv(f)
+                    mask_rep = (df_rep["condition"] == condition) & (
+                        df_rep["cultivation"] == cultivation
+                    )
+                    df_rep = df_rep[mask_rep]
+                    for sp_name, sp_idx in species_name_map.items():
+                        sigs = []
+                        for day in days_filter:
+                            vals = df_rep[(df_rep["species"] == sp_name) & (df_rep["day"] == day)][
+                                "distribution_pct"
+                            ].values
+                            if len(vals) >= 3:
+                                iqr = np.percentile(vals, 75) - np.percentile(vals, 25)
+                                sigs.append(max(iqr / 1.35 / 100.0, 0.05))
+                        if sigs:
+                            sigma_total[sp_idx] = max(np.mean(sigs), 0.05)
+                    break
+
+            result["data_total"] = data_total
+            result["sigma_obs_total"] = sigma_total
+            logger.info(f"Loaded total species distribution: {data_total.shape}")
+
+    # ── 2. Membrane integrity / viability (Fig 2B) ──
+    viab_files = [
+        data_dir / "fig2_membrane_distribution.csv",
+        data_dir / "experiment_data" / "fig2_membrane_distribution.csv",
+    ]
+    viab_file = None
+    for f in viab_files:
+        if f.exists():
+            viab_file = f
+            break
+
+    if viab_file is not None:
+        df_viab = pd.read_csv(viab_file)
+        mask = (df_viab["condition"] == condition) & (df_viab["cultivation"] == cultivation)
+        df_viab = df_viab[mask]
+
+        if len(df_viab) > 0:
+            data_viab = np.zeros(len(days_filter))
+            sigma_viab_arr = []
+
+            for i, day in enumerate(days_filter):
+                day_data = df_viab[df_viab["day"] == day]
+                if len(day_data) > 0:
+                    data_viab[i] = day_data["intact_membrane_pct"].values[0] / 100.0
+                    err_pct = day_data["error_pct"].values[0]
+                    sigma_viab_arr.append(err_pct / 100.0)
+
+            result["data_viability"] = data_viab
+            result["sigma_obs_viability"] = (
+                float(np.mean(sigma_viab_arr)) if sigma_viab_arr else 0.10
+            )
+            logger.info(
+                f"Loaded viability data: {data_viab.shape}, "
+                f"σ_viab={result['sigma_obs_viability']:.3f}"
+            )
+
+    # ── 3. pH time series (Fig 4A, HOBIC only) ──
+    if cultivation.upper() == "HOBIC":
+        pH_files = [
+            data_dir / "fig4A_pH_timeseries.csv",
+            data_dir / "experiment_data" / "fig4A_pH_timeseries.csv",
+        ]
+        pH_file = None
+        for f in pH_files:
+            if f.exists():
+                pH_file = f
+                break
+
+        if pH_file is not None:
+            df_pH = pd.read_csv(pH_file)
+            pH_col = "pH_commensal" if condition.lower().startswith("commensal") else "pH_dysbiotic"
+
+            if pH_col in df_pH.columns:
+                t_pH_days = df_pH["time_days"].values
+                pH_values = df_pH[pH_col].values
+
+                # Filter out NaN
+                valid = np.isfinite(pH_values)
+                t_pH_days = t_pH_days[valid]
+                pH_values = pH_values[valid]
+
+                result["data_pH"] = pH_values
+                result["t_pH_days"] = t_pH_days  # raw days for index conversion later
+                result["sigma_obs_pH"] = 0.15  # ~0.15 pH unit noise (sensor precision)
+                logger.info(
+                    f"Loaded pH time series: {pH_values.shape[0]} observations, "
+                    f"pH range [{pH_values.min():.3f}, {pH_values.max():.3f}]"
+                )
+
+    return result
+
+
 def convert_days_to_model_time(
     t_days: np.ndarray, dt: float, maxtimestep: int, day_scale: float = None
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -2256,6 +2426,52 @@ def run_estimation(
             logger.error(f"Failed to load unified DeepONet: {e}. Falling back.")
             deeponet_surrogate = None
 
+    # ── Load multi-channel data (total species + viability) ──
+    multichannel_data = {}
+    if getattr(args, "multichannel", False):
+        data_dir_path = (
+            Path(args.data_dir) if hasattr(args, "data_dir") else Path(__file__).parent.parent
+        )
+        multichannel_data = load_multichannel_data(
+            data_dir=data_dir_path / "experiment_data",
+            condition=args.condition,
+            cultivation=args.cultivation,
+            days_filter=metadata["days"],
+            normalize=True,
+        )
+        if multichannel_data.get("data_total") is not None:
+            logger.info(
+                f"Multi-channel: total species data loaded ({multichannel_data['data_total'].shape})"
+            )
+        if multichannel_data.get("data_viability") is not None:
+            logger.info(
+                f"Multi-channel: viability data loaded ({multichannel_data['data_viability'].shape})"
+            )
+        if multichannel_data.get("data_pH") is not None:
+            logger.info(
+                f"Multi-channel: pH time series loaded ({multichannel_data['data_pH'].shape[0]} obs)"
+            )
+        logger.info(
+            f"Channel weights: λ₁={args.lambda_ch1:.2f} λ₂={args.lambda_ch2:.2f} "
+            f"λ₃={args.lambda_ch3:.2f} λ₅={args.lambda_ch5:.2f}"
+        )
+        # Convert pH time_days to model time indices
+        if (
+            multichannel_data.get("data_pH") is not None
+            and multichannel_data.get("t_pH_days") is not None
+        ):
+            t_pH_days = multichannel_data["t_pH_days"]
+            maxtimestep = getattr(args, "maxtimestep", 2500)
+            dt = getattr(args, "dt", 0.01)
+            t_max_model = maxtimestep * dt
+            t_max_days = float(metadata["days"][-1])
+            day_scale_pH = (t_max_model * 0.95) / t_max_days
+            idx_pH = np.round(t_pH_days * day_scale_pH / dt).astype(int)
+            idx_pH = np.clip(idx_pH, 0, maxtimestep - 1)
+            multichannel_data["idx_pH"] = idx_pH
+    else:
+        logger.info("Multi-channel likelihood disabled (use --multichannel to enable)")
+
     def make_evaluator(theta_linearization=None):
         if theta_linearization is None:
             theta_linearization = theta_base
@@ -2302,6 +2518,19 @@ def run_estimation(
             debug_logger=debug_logger,
             use_absolute_volume=args.use_absolute_volume,
             weights=likelihood_weights,
+            data_total=multichannel_data.get("data_total"),
+            sigma_obs_total=multichannel_data.get("sigma_obs_total"),
+            data_viability=multichannel_data.get("data_viability"),
+            sigma_obs_viability=multichannel_data.get("sigma_obs_viability", 0.10),
+            data_pH=multichannel_data.get("data_pH"),
+            idx_pH=multichannel_data.get("idx_pH"),
+            sigma_obs_pH=multichannel_data.get("sigma_obs_pH", 0.15),
+            lambda_ch={
+                1: getattr(args, "lambda_ch1", 1.0),
+                2: getattr(args, "lambda_ch2", 0.5),
+                3: getattr(args, "lambda_ch3", 2.0),
+                5: getattr(args, "lambda_ch5", 0.3),
+            },
         )
 
         # Attach VE prior if enabled
@@ -2541,7 +2770,12 @@ Examples:
     # Model options
     parser.add_argument("--dt", type=float, default=1e-4, help="Time step")
     parser.add_argument("--maxtimestep", type=int, default=2500, help="Max time steps")
-    parser.add_argument("--c-const", type=float, default=25.0, help="c constant")
+    parser.add_argument(
+        "--c-const",
+        type=float,
+        default=25.0,
+        help="Interaction scaling c* (default: 25, non-identifiable with A_ij)",
+    )
     parser.add_argument(
         "--kp1", type=float, default=1e-4, help="Cahn-Hilliard gradient energy Kp1 (default: 1e-4)"
     )
@@ -2552,7 +2786,12 @@ Examples:
         help="Hill threshold for F.nucleatum bridge gate (0=disabled)",
     )
     parser.add_argument("--n-hill", type=float, default=2.0, help="Hill exponent for bridge gate")
-    parser.add_argument("--alpha-const", type=float, default=0.0, help="alpha constant")
+    parser.add_argument(
+        "--alpha-const",
+        type=float,
+        default=0.0,
+        help="Natural death scaling alpha* (0 = no antibiotic decay)",
+    )
     parser.add_argument(
         "--phi-init", type=float, default=0.02, help="Initial phi (ignored if --use-exp-init)"
     )
@@ -2608,6 +2847,37 @@ Examples:
         "--use-absolute-volume",
         action="store_true",
         help="Use absolute volume (phi*gamma) for likelihood",
+    )
+    parser.add_argument(
+        "--multichannel",
+        action="store_true",
+        help="Enable multi-channel likelihood: viable (Fig 3A) + total (Fig S1) + viability (Fig 2B) + pH (Fig 4A, HOBIC only)",
+    )
+
+    # Multi-channel weights (λ per channel)
+    parser.add_argument(
+        "--lambda-ch1",
+        type=float,
+        default=1.0,
+        help="Channel 1 weight (viable species, Fig 3A). Default: 1.0",
+    )
+    parser.add_argument(
+        "--lambda-ch2",
+        type=float,
+        default=0.5,
+        help="Channel 2 weight (total species, Fig S1). Default: 0.5 (redundant with Ch1)",
+    )
+    parser.add_argument(
+        "--lambda-ch3",
+        type=float,
+        default=2.0,
+        help="Channel 3 weight (viability, Fig 2B). Default: 2.0 (unique ψ constraint)",
+    )
+    parser.add_argument(
+        "--lambda-ch5",
+        type=float,
+        default=0.3,
+        help="Channel 5 weight (pH, Fig 4A, HOBIC only). Default: 0.3 (model R²=0.71)",
     )
 
     # Weighted likelihood options (P. gingivalis late-stage emphasis)
