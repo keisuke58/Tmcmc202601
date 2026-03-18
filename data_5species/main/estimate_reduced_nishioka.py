@@ -2305,7 +2305,7 @@ def run_estimation(
             days=metadata["days"],
             species_map=_rep_species_map,
             n_species=data.shape[1],
-            min_sigma=0.005,
+            min_sigma=0.05,
         )
         if sigma_scale != 1.0:
             sigma_obs = sigma_obs * sigma_scale

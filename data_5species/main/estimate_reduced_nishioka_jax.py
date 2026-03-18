@@ -102,6 +102,12 @@ def make_log_likelihood_jax_ode(
     idx_pH: np.ndarray | None = None,
     sigma_obs_pH: float = 0.15,
     lambda_ch: dict | None = None,
+    # Robust likelihood
+    use_student_t: bool = False,
+    student_t_nu: float = 5.0,
+    # Rare species downweighting
+    lambda_rare: float = 1.0,
+    rare_threshold: float = 0.05,
 ):
     """
     Build JAX-differentiable log-likelihood using Hamilton ODE.
@@ -130,6 +136,12 @@ def make_log_likelihood_jax_ode(
     if n_late > 0:
         late_slice = slice(-n_late, None)
         weights = weights.at[late_slice, :].set(weights[late_slice, :] * lambda_late)
+    # Downweight rare species: if mean abundance < rare_threshold, apply lambda_rare
+    if lambda_rare < 1.0:
+        mean_abundance = jnp.mean(obs, axis=0)  # (n_species,)
+        rare_mask = (mean_abundance < rare_threshold).astype(jnp.float64)
+        rare_weight = rare_mask * lambda_rare + (1.0 - rare_mask) * 1.0
+        weights = weights * rare_weight[jnp.newaxis, :]
 
     # Pre-convert multichannel data to JAX arrays
     _has_total = data_total is not None
@@ -157,6 +169,15 @@ def make_log_likelihood_jax_ode(
     lw2 = lambda_ch.get(2, 0.5)
     lw3 = lambda_ch.get(3, 2.0)
     lw5 = lambda_ch.get(5, 0.3)
+
+    # Student-t log-density: log p(x | mu, sigma, nu)
+    # More robust to outliers than Gaussian (heavier tails)
+    _use_t = use_student_t
+    _nu = jnp.float64(student_t_nu)
+
+    def _log_student_t(residual_scaled_sq):
+        """Log-density of Student-t (up to constant), given (r/sigma)^2."""
+        return -0.5 * (_nu + 1) * jnp.log(1.0 + residual_scaled_sq / _nu)
 
     # Use full state solver when viability/pH channels are needed
     _need_full = _has_viab or _has_pH
@@ -195,7 +216,13 @@ def make_log_likelihood_jax_ode(
 
         # Ch1: viable species (primary)
         residual = obs - phi_pred
-        logL = lw1 * (-0.5 * jnp.sum(weights * (residual / sigma_obs) ** 2))
+        r_sq = (residual / sigma_obs) ** 2
+        if _use_t:
+            # Student-t: weights multiply the log-density, NOT the argument
+            # (multiplying the argument changes effective nu per observation)
+            logL = lw1 * jnp.sum(weights * _log_student_t(r_sq))
+        else:
+            logL = lw1 * (-0.5 * jnp.sum(weights * r_sq))
 
         # Ch2: total species distribution (φ without ψ weighting)
         if _has_total:
@@ -248,9 +275,20 @@ def main():
     parser.add_argument("--start-from-day", type=int, default=1)
     parser.add_argument("--lambda-pg", type=float, default=5.0)
     parser.add_argument("--lambda-late", type=float, default=3.0)
+    parser.add_argument(
+        "--lambda-rare",
+        type=float,
+        default=0.1,
+        help="Weight for rare species (mean < 5%%). Default 0.1 = downweight 10x",
+    )
     parser.add_argument("--sigma-scale", type=float, default=1.0)
+    parser.add_argument(
+        "--replicate-sigma",
+        action="store_true",
+        help="Use per-timepoint×per-species replicate sigma matrix (matches CPU)",
+    )
     parser.add_argument("--K-hill", type=float, default=0.05)
-    parser.add_argument("--n-hill", type=float, default=2.0)
+    parser.add_argument("--n-hill", type=float, default=4.0)
     parser.add_argument("--dt", type=float, default=1e-4)
     parser.add_argument("--n-steps", type=int, default=2500)
     parser.add_argument("--output-dir", type=str, default=None)
@@ -277,6 +315,40 @@ def main():
     parser.add_argument("--lambda-ch2", type=float, default=0.5, help="Weight for total species")
     parser.add_argument("--lambda-ch3", type=float, default=2.0, help="Weight for viability")
     parser.add_argument("--lambda-ch5", type=float, default=0.3, help="Weight for pH (HOBIC only)")
+    parser.add_argument(
+        "--n-mutation-steps", type=int, default=1, help="RW mutation steps per stage"
+    )
+    # Accuracy improvements
+    parser.add_argument(
+        "--use-de-mc", action="store_true", help="Enable DE-MC proposals (alternating with RW)"
+    )
+    parser.add_argument(
+        "--de-mc-gamma",
+        type=float,
+        default=2.38,
+        help="DE-MC scale factor (default 2.38, ter Braak 2006)",
+    )
+    parser.add_argument(
+        "--use-student-t", action="store_true", help="Use Student-t likelihood (robust to outliers)"
+    )
+    parser.add_argument(
+        "--student-t-nu",
+        type=float,
+        default=5.0,
+        help="Student-t degrees of freedom (lower = heavier tails, default 5)",
+    )
+    parser.add_argument(
+        "--resample-method",
+        default="systematic",
+        choices=["systematic", "multinomial"],
+        help="Resampling method (systematic = lower variance)",
+    )
+    parser.add_argument(
+        "--max-info-ratio",
+        type=float,
+        default=10.0,
+        help="Max information ratio for replicate sigma (caps An dominance, default 10)",
+    )
     args = parser.parse_args()
 
     if args.quick:
@@ -309,8 +381,40 @@ def main():
         args.start_from_day,
         normalize=True,
     )
-    sigma_obs = sigma_obs_est * args.sigma_scale
-    logger.info(f"Data: {data.shape}, sigma_obs={sigma_obs:.4f}")
+    if args.replicate_sigma:
+        from estimate_reduced_nishioka import build_replicate_sigma
+
+        replicate_csv = DATA_DIR / "fig3_species_distribution_replicates.csv"
+        if not replicate_csv.exists():
+            replicate_csv = (
+                DATA_DIR.parent / "experiment_data" / "fig3_species_distribution_replicates.csv"
+            )
+        _rep_species_map = {
+            "S. oralis": 0,
+            "A. naeslundii": 1,
+            "V. dispar": 2,
+            "V. parvula": 2,
+            "F. nucleatum": 3,
+            "P. gingivalis_20709": 4,
+            "P. gingivalis_W83": 4,
+        }
+        sigma_obs = (
+            build_replicate_sigma(
+                replicate_csv=str(replicate_csv),
+                condition=args.condition,
+                cultivation=args.cultivation,
+                days=metadata["days"],
+                species_map=_rep_species_map,
+                n_species=data.shape[1],
+                min_sigma=0.05,
+                max_info_ratio=getattr(args, "max_info_ratio", 10.0),
+            )
+            * args.sigma_scale
+        )
+        logger.info(f"Replicate sigma: shape={sigma_obs.shape}, mean={np.mean(sigma_obs):.4f}")
+    else:
+        sigma_obs = sigma_obs_est * args.sigma_scale
+    logger.info(f"Data: {data.shape}, sigma_obs mean={np.mean(sigma_obs):.4f}")
 
     t_model, idx_sparse = convert_days_to_model_time(t_days, args.dt, args.n_steps, day_scale=None)
     idx_sparse = np.clip(idx_sparse, 0, args.n_steps)
@@ -321,23 +425,39 @@ def main():
         total = phi_init.sum()
         if total > 0:
             phi_init = phi_init / total
-        phi_init = np.clip(phi_init, 0.01, 0.99)
+        phi_init = np.clip(phi_init, 0.001, 0.99)
 
     # Multi-channel data loading
     mc_kwargs = {}
-    if getattr(args, "multichannel", False):
+    if args.multichannel:
         mc_data = load_multichannel_data(
             data_dir=DATA_DIR / "experiment_data",
             condition=args.condition,
             cultivation=args.cultivation,
             days_filter=t_days.tolist(),
         )
+        # Adaptive channel weights: DH needs stronger viability signal for Pg
+        # HOBIC uses pH channel; Static doesn't have pH data
         lambda_ch = {
             1: args.lambda_ch1,
             2: args.lambda_ch2,
             3: args.lambda_ch3,
             5: args.lambda_ch5,
         }
+        # Auto-tune: Dysbiotic HOBIC benefits from higher viability weight
+        # (Pg viability drops significantly, key diagnostic signal)
+        if args.condition == "Dysbiotic" and args.cultivation == "HOBIC":
+            if args.lambda_ch3 == 2.0:  # only if user didn't override
+                lambda_ch[3] = 3.0
+                logger.info("Auto-tuned: lambda_ch3=3.0 for DH (Pg viability signal)")
+        # Commensal conditions: rare Pg/Fn have minimal viability signal,
+        # reduce Ch3 weight to avoid noise amplification
+        if args.condition == "Commensal":
+            if args.lambda_ch3 == 2.0:  # only if user didn't override
+                lambda_ch[3] = 1.5
+                logger.info(
+                    f"Auto-tuned: lambda_ch3=1.5 for {args.condition} (less Pg/Fn viability info)"
+                )
         mc_kwargs = {
             "data_total": mc_data.get("data_total"),
             "sigma_obs_total": mc_data.get("sigma_obs_total"),
@@ -371,18 +491,21 @@ def main():
         n_hill=args.n_hill,
         lambda_pg=args.lambda_pg,
         lambda_late=args.lambda_late,
+        use_student_t=args.use_student_t,
+        student_t_nu=args.student_t_nu,
+        lambda_rare=args.lambda_rare,
         **mc_kwargs,
     )
 
     prior_bounds = load_prior_bounds(args.condition, args.cultivation)
-    prior_bounds = np.array(prior_bounds, dtype=np.float32)
+    prior_bounds = np.array(prior_bounds, dtype=np.float64)  # float64 for consistency
 
     logger.info("JIT warmup...")
     _ = jax.jit(log_likelihood)(jnp.zeros(20, dtype=jnp.float64))
     _ = jax.jit(jax.value_and_grad(log_likelihood))(jnp.zeros(20, dtype=jnp.float64))
     logger.info("Warmup OK")
 
-    logger.info(f"Running NUTS-TMCMC ({args.n_particles} particles)...")
+    logger.info(f"Running {args.mutation.upper()}-TMCMC ({args.n_particles} particles)...")
     result = tmcmc_engine(
         log_likelihood,
         prior_bounds,
@@ -391,14 +514,44 @@ def main():
         max_stages=args.max_stages,
         seed=args.seed,
         nuts_max_depth=6,
+        n_mutation_steps=args.n_mutation_steps,
+        use_de_mc=args.use_de_mc,
+        de_mc_gamma=args.de_mc_gamma,
+        resample_method=args.resample_method,
     )
 
     theta_MAP = result["theta_MAP"]
+    log_evidence = result.get("log_evidence", None)
     logger.info(
         f"Done: {result['n_stages']} stages, "
         f"total_time={result['total_time']:.1f}s, "
         f"accept={np.mean(result['accept_rates']):.2f}, "
         f"max logL={result['log_likelihoods'].max():.1f}"
+        + (f", log_evidence={log_evidence:.2f}" if log_evidence is not None else "")
+    )
+
+    # Compute RMSE for MAP estimate
+    theta_MAP_jax = jnp.array(theta_MAP, dtype=jnp.float64)
+    phi_traj_map = simulate_0d(
+        theta_MAP_jax,
+        n_steps=args.n_steps,
+        dt=args.dt,
+        phi_init=jnp.array(phi_init, dtype=jnp.float64),
+        K_hill=args.K_hill,
+        n_hill=args.n_hill,
+    )
+    phi_pred_map = np.array(phi_traj_map[idx_sparse, :])
+    phi_pred_map = np.clip(phi_pred_map, 1e-10, 1.0 - 1e-10)
+    phi_pred_map = phi_pred_map / phi_pred_map.sum(axis=1, keepdims=True)
+    rmse = np.sqrt(np.mean((data - phi_pred_map) ** 2))
+    mae = np.mean(np.abs(data - phi_pred_map))
+    r2_vals = []
+    for sp in range(data.shape[1]):
+        ss_res = np.sum((data[:, sp] - phi_pred_map[:, sp]) ** 2)
+        ss_tot = np.sum((data[:, sp] - np.mean(data[:, sp])) ** 2)
+        r2_vals.append(1.0 - ss_res / max(ss_tot, 1e-12))
+    logger.info(
+        f"MAP RMSE={rmse:.4f}, MAE={mae:.4f}, R²={np.mean(r2_vals):.3f} (per-species: {[f'{v:.3f}' for v in r2_vals]})"
     )
 
     from datetime import datetime
@@ -418,16 +571,40 @@ def main():
                 "condition": args.condition,
                 "cultivation": args.cultivation,
                 "n_particles": args.n_particles,
+                "n_mutation_steps": args.n_mutation_steps,
                 "mutation": args.mutation,
-                "sigma_obs": sigma_obs,
+                "sigma_obs": (
+                    float(np.mean(sigma_obs)) if hasattr(sigma_obs, "__len__") else float(sigma_obs)
+                ),
                 "device": str(jax.devices()[0]),
-                "multichannel": getattr(args, "multichannel", False),
+                "multichannel": args.multichannel,
+                "use_de_mc": args.use_de_mc,
+                "use_student_t": args.use_student_t,
+                "student_t_nu": args.student_t_nu,
+                "resample_method": args.resample_method,
+                "n_hill": args.n_hill,
+                "K_hill": args.K_hill,
+                "replicate_sigma": args.replicate_sigma,
+                "max_info_ratio": args.max_info_ratio,
+                "lambda_rare": args.lambda_rare,
                 "lambda_ch": {
-                    "1": getattr(args, "lambda_ch1", 1.0),
-                    "2": getattr(args, "lambda_ch2", 0.5),
-                    "3": getattr(args, "lambda_ch3", 2.0),
-                    "5": getattr(args, "lambda_ch5", 0.3),
+                    "1": args.lambda_ch1,
+                    "2": args.lambda_ch2,
+                    "3": args.lambda_ch3,
+                    "5": args.lambda_ch5,
                 },
+                "n_stages": result["n_stages"],
+                "total_time_s": result["total_time"],
+                "mean_accept": float(np.mean(result["accept_rates"])),
+                "max_logL": float(result["log_likelihoods"].max()),
+                "log_evidence": float(log_evidence) if log_evidence is not None else None,
+                "cv_weights_final": (
+                    float(result["cv_weights"][-1]) if result.get("cv_weights") else None
+                ),
+                "rmse": float(rmse),
+                "mae": float(mae),
+                "r2_mean": float(np.mean(r2_vals)),
+                "r2_per_species": [float(v) for v in r2_vals],
             },
             f,
             indent=2,
