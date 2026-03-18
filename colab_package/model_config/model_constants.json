@@ -1,0 +1,25 @@
+{
+  "description": "General constants for the 5-species biofilm model.",
+  "active_species": [0, 1, 2, 3, 4],
+  "active_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+  "param_names": [
+    "a11", "a12", "a22", "b1", "b2",
+    "a33", "a34", "a44", "b3", "b4",
+    "a13", "a14", "a23", "a24",
+    "a55", "b5",
+    "a15", "a25", "a35", "a45"
+  ],
+  "species_info": [
+    {"id": 0, "name": "Streptococcus oralis", "short": "S.o", "color": "blue"},
+    {"id": 1, "name": "Actinomyces naeslundii", "short": "A.n", "color": "green"},
+    {"id": 2, "name": "Veillonella spp.", "short": "Vei", "color": "yellow"},
+    {"id": 3, "name": "Fusobacterium nucleatum", "short": "F.n", "color": "purple"},
+    {"id": 4, "name": "Porphyromonas gingivalis", "short": "P.g", "color": "red"}
+  ],
+  "default_solver_params": {
+    "dt": 1e-4,
+    "maxtimestep": 2500,
+    "c_const": 25.0,
+    "alpha_const": 0.0
+  }
+}
