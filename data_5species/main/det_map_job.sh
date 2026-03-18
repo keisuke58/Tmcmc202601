@@ -44,6 +44,7 @@ NJOBS="${NJOBS:-12}"
 USE_EXP_INIT="${USE_EXP_INIT:-1}"
 REPLICATE_SIGMA="${REPLICATE_SIGMA:-0}"
 MULTICHANNEL="${MULTICHANNEL:-0}"
+HYBRID="${HYBRID:-0}"
 
 # --- Environment ---
 cd /home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/main
@@ -80,6 +81,10 @@ fi
 if [ "${MULTICHANNEL}" = "1" ]; then
     EXTRA_ARGS="${EXTRA_ARGS} --multichannel"
     echo "  Multi-channel: ON"
+fi
+if [ "${HYBRID}" = "1" ]; then
+    EXTRA_ARGS="${EXTRA_ARGS} --hybrid"
+    echo "  Hybrid:        DE→L-BFGS-B"
 fi
 echo "=============================================="
 
