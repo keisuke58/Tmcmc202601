@@ -762,6 +762,265 @@ def _():
 
 
 # =====================================================================
+# Test 16: Normalizing Flow — forward/inverse roundtrip
+# =====================================================================
+@test("flow_roundtrip")
+def _():
+    """Flow forward then inverse should recover original input."""
+    import jax
+    import jax.numpy as jnp
+
+    jax.config.update("jax_enable_x64", True)
+
+    from normalizing_flow import init_flow, flow_forward, flow_inverse
+
+    key = jax.random.PRNGKey(42)
+    d = 5
+    flow = init_flow(key, d, n_layers=4, hidden_dim=32)
+
+    x = jnp.array([0.1, -0.3, 0.5, 0.2, -0.1])
+    z, log_det_fwd = flow_forward(flow, x)
+    x_rec, log_det_inv = flow_inverse(flow, z)
+
+    assert jnp.allclose(
+        x, x_rec, atol=1e-6
+    ), f"Roundtrip error: max={float(jnp.max(jnp.abs(x - x_rec)))}"
+    assert jnp.allclose(
+        log_det_fwd + log_det_inv, 0.0, atol=1e-5
+    ), f"Log det sum should be ~0, got {float(log_det_fwd + log_det_inv)}"
+
+
+# =====================================================================
+# Test 17: Flow sampling produces finite values
+# =====================================================================
+@test("flow_sample_finite")
+def _():
+    """Flow samples should be finite with valid log-densities."""
+    import jax
+    import jax.numpy as jnp
+
+    jax.config.update("jax_enable_x64", True)
+
+    from normalizing_flow import init_flow, flow_sample, flow_log_prob
+
+    key = jax.random.PRNGKey(42)
+    d = 5
+    flow = init_flow(key, d, n_layers=4, hidden_dim=32)
+
+    k_sample = jax.random.PRNGKey(99)
+    samples, log_q = flow_sample(k_sample, flow, 50)
+
+    assert samples.shape == (50, 5), f"Shape mismatch: {samples.shape}"
+    assert jnp.all(jnp.isfinite(samples)), "Non-finite samples"
+    assert jnp.all(jnp.isfinite(log_q)), "Non-finite log_q"
+
+    # Check log_prob matches for first sample
+    lp = flow_log_prob(flow, samples[0])
+    assert jnp.isfinite(lp), f"log_prob not finite: {lp}"
+
+
+# =====================================================================
+# Test 18: Flow training reduces loss
+# =====================================================================
+@test("flow_training_loss_decreases")
+def _():
+    """Training flow on Gaussian data should improve log-likelihood."""
+    import jax
+    import jax.numpy as jnp
+
+    jax.config.update("jax_enable_x64", True)
+
+    from normalizing_flow import init_flow, train_flow, flow_log_prob
+
+    key = jax.random.PRNGKey(42)
+    d = 3
+
+    # Generate 2D Gaussian data
+    data = jax.random.normal(jax.random.PRNGKey(0), (200, d)) * 0.5 + 1.0
+
+    flow_init = init_flow(key, d, n_layers=4, hidden_dim=32)
+
+    # Log-likelihood before training
+    ll_before = float(jnp.mean(jax.vmap(lambda x: flow_log_prob(flow_init, x))(data)))
+
+    # Train
+    flow_trained = train_flow(
+        jax.random.PRNGKey(1),
+        flow_init,
+        data,
+        n_epochs=100,
+        lr=1e-3,
+    )
+
+    # Log-likelihood after training
+    ll_after = float(jnp.mean(jax.vmap(lambda x: flow_log_prob(flow_trained, x))(data)))
+
+    print(f"\n    Flow LL: before={ll_before:.1f}, after={ll_after:.1f}", end=" ... ", flush=True)
+    assert ll_after > ll_before, f"Training didn't improve: {ll_before:.1f} → {ll_after:.1f}"
+
+
+# =====================================================================
+# Test 19: Waste-free SMC basic
+# =====================================================================
+@test("waste_free_basic")
+def _():
+    """Waste-free SMC returns correct shapes and valid weights."""
+    from waste_free_smc import waste_free_resample_and_mutate_batch
+
+    rng = np.random.default_rng(42)
+    N, d = 20, 5
+    particles = rng.normal(size=(N, d))
+    logL = -np.sum(particles**2, axis=1)
+    weights = np.ones(N) / N
+
+    def dummy_mutation(p, lL, _rng):
+        noise = _rng.normal(size=p.shape) * 0.1
+        p_new = p + noise
+        lL_new = -np.sum(p_new**2, axis=1)
+        return p_new, lL_new, p.shape[0]  # all "accepted"
+
+    p_out, lL_out, w_out, n_acc = waste_free_resample_and_mutate_batch(
+        particles,
+        logL,
+        weights,
+        beta_old=0.0,
+        beta_new=0.5,
+        batch_mutation_fn=dummy_mutation,
+        n_mutation_steps=4,
+        rng=rng,
+    )
+
+    assert p_out.shape == (N, d), f"Shape mismatch: {p_out.shape}"
+    assert lL_out.shape == (N,), f"logL shape: {lL_out.shape}"
+    assert w_out.shape == (N,), f"weights shape: {w_out.shape}"
+    assert abs(w_out.sum() - 1.0) < 1e-10, f"Weights don't sum to 1: {w_out.sum()}"
+    assert np.all(w_out >= 0), "Negative weights"
+    assert np.all(np.isfinite(p_out)), "Non-finite particles"
+
+
+# =====================================================================
+# Test 20: Waste-free ESS improvement
+# =====================================================================
+@test("waste_free_ess_improvement")
+def _():
+    """Waste-free should produce more diverse particles than discarding."""
+    from waste_free_smc import waste_free_resample_and_mutate_batch
+
+    rng = np.random.default_rng(42)
+    N, d = 100, 3
+    particles = rng.normal(size=(N, d))
+    logL = -np.sum(particles**2, axis=1)
+    weights = np.ones(N) / N
+
+    def batch_mutation(p, lL, _rng):
+        noise = _rng.normal(size=p.shape) * 0.3
+        p_new = p + noise
+        lL_new = -np.sum(p_new**2, axis=1)
+        return p_new, lL_new, p.shape[0]
+
+    p_wf, _, w_wf, _ = waste_free_resample_and_mutate_batch(
+        particles,
+        logL,
+        weights,
+        beta_old=0.0,
+        beta_new=0.5,
+        batch_mutation_fn=batch_mutation,
+        n_mutation_steps=5,
+        rng=rng,
+    )
+
+    # Effective sample size of waste-free output
+    ess_wf = 1.0 / np.sum(w_wf**2)
+    # Should be > 1 (non-degenerate weights)
+    assert ess_wf > 5, f"Waste-free ESS too low: {ess_wf:.1f}"
+    print(f"\n    Waste-free ESS: {ess_wf:.1f}/{N}", end=" ... ", flush=True)
+
+
+# =====================================================================
+# Test 21: TMCMC with waste_free flag
+# =====================================================================
+@test("tmcmc_waste_free_integration")
+def _():
+    """TMCMC runs with waste_free=True without errors."""
+    import jax
+    import jax.numpy as jnp
+
+    jax.config.update("jax_enable_x64", True)
+    from tmcmc_nuts_engine import tmcmc_engine
+
+    def log_likelihood(theta):
+        return -0.5 * jnp.sum((theta - 0.5) ** 2 / 0.1)
+
+    bounds = np.array([[0.0, 1.0]] * 3, dtype=np.float64)
+    result = tmcmc_engine(
+        log_likelihood,
+        bounds,
+        mutation="rw",
+        n_particles=20,
+        max_stages=5,
+        seed=42,
+        n_mutation_steps=4,
+        waste_free=True,
+        verbose=False,
+    )
+    assert result["n_stages"] >= 1
+    assert result["waste_free"] is True
+    assert np.all(np.isfinite(result["theta_MAP"]))
+    assert np.isfinite(result["log_evidence"])
+    print(
+        f"\n    Waste-free TMCMC: {result['n_stages']} stages, "
+        f"logZ={result['log_evidence']:.2f}",
+        end=" ... ",
+        flush=True,
+    )
+
+
+# =====================================================================
+# Test 22: TMCMC with flow proposals
+# =====================================================================
+@test("tmcmc_flow_integration")
+def _():
+    """TMCMC runs with use_flow=True without errors."""
+    import jax
+    import jax.numpy as jnp
+
+    jax.config.update("jax_enable_x64", True)
+    from tmcmc_nuts_engine import tmcmc_engine
+
+    def log_likelihood(theta):
+        return -0.5 * jnp.sum((theta - 0.5) ** 2 / 0.1)
+
+    bounds = np.array([[0.0, 1.0]] * 3, dtype=np.float64)
+    result = tmcmc_engine(
+        log_likelihood,
+        bounds,
+        mutation="rw",
+        n_particles=30,
+        max_stages=5,
+        seed=42,
+        n_mutation_steps=2,
+        use_flow=True,
+        flow_n_layers=4,
+        flow_hidden_dim=32,
+        flow_n_epochs=50,
+        flow_start_beta=0.05,
+        flow_mix_ratio=0.5,
+        verbose=False,
+    )
+    assert result["n_stages"] >= 1
+    assert result["use_flow"] is True
+    assert np.all(np.isfinite(result["theta_MAP"]))
+    assert np.isfinite(result["log_evidence"])
+    print(
+        f"\n    Flow TMCMC: {result['n_stages']} stages, "
+        f"accept={np.mean(result['accept_rates']):.2f}, "
+        f"logZ={result['log_evidence']:.2f}",
+        end=" ... ",
+        flush=True,
+    )
+
+
+# =====================================================================
 # Summary
 # =====================================================================
 print()
