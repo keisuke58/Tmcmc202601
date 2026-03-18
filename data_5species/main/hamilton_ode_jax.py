@@ -366,3 +366,53 @@ def simulate_0d(
     phi_first = g0[0:5][jnp.newaxis, :]
     phi_traj = jnp.concatenate([phi_first, phi_traj], axis=0)
     return phi_traj
+
+
+def simulate_0d_full(
+    theta,
+    n_steps=2500,
+    dt=1e-4,
+    phi_init=None,
+    K_hill=0.05,
+    n_hill=2.0,
+    c_const=25.0,
+    alpha_const=0.0,
+):
+    """
+    Run 0D Hamilton ODE. Returns full state trajectory (n_steps+1, 12).
+
+    State vector g = [phi(5), phi0(1), psi(5), gamma(1)].
+    Use g[:, 0:5] for phi, g[:, 6:11] for psi (viability).
+
+    Returns
+    -------
+    g_traj : (n_steps+1, 12)
+    """
+    A, b_diag = theta_to_matrices(theta)
+    active_mask = jnp.ones(5, dtype=jnp.int64)
+
+    if phi_init is None:
+        phi_init = jnp.full(5, 0.2)
+    g0 = make_initial_state(phi_init, active_mask)
+
+    params = {
+        "dt_h": dt,
+        "Kp1": 1e-4,
+        "Eta": jnp.ones(5, dtype=jnp.float64),
+        "EtaPhi": jnp.ones(5, dtype=jnp.float64),
+        "c": c_const,
+        "alpha": alpha_const,
+        "K_hill": jnp.array(K_hill, dtype=jnp.float64),
+        "n_hill": jnp.array(n_hill, dtype=jnp.float64),
+        "A": A,
+        "b_diag": b_diag,
+        "active_mask": active_mask,
+    }
+
+    def body(g, _):
+        g_next = newton_step(g, params)
+        return g_next, g_next
+
+    _, g_traj = jax.lax.scan(body, g0, jnp.arange(n_steps))
+    g_traj = jnp.concatenate([g0[jnp.newaxis, :], g_traj], axis=0)
+    return g_traj
