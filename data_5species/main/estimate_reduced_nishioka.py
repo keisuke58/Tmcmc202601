@@ -3279,6 +3279,13 @@ def main():
         "seed": args.seed,
         "hdi_credibility": args.hdi_credibility,
         "compute_evidence": args.compute_evidence,
+        "multichannel": getattr(args, "multichannel", False),
+        "lambda_ch": {
+            "1": getattr(args, "lambda_ch1", 1.0),
+            "2": getattr(args, "lambda_ch2", 0.5),
+            "3": getattr(args, "lambda_ch3", 2.0),
+            "5": getattr(args, "lambda_ch5", 0.3),
+        },
         "metadata": metadata,
     }
     save_json(output_dir / "config.json", config)

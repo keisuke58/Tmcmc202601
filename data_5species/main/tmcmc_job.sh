@@ -48,6 +48,7 @@ N_HILL="${N_HILL:-4}"
 CHECKPOINT="${CHECKPOINT:-5}"
 USE_EXP_INIT="${USE_EXP_INIT:-0}"
 REPLICATE_SIGMA="${REPLICATE_SIGMA:-0}"
+MULTICHANNEL="${MULTICHANNEL:-0}"
 N_MUTATION_STEPS="${N_MUTATION_STEPS:-}"
 
 # --- Environment ---
@@ -57,15 +58,11 @@ PYTHON=python3
 # --- Output directory ---
 TS=$(date +%Y%m%d_%H%M%S)
 SHORT="${CONDITION:0:1}${CULTIVATION:0:1}"
-if [ "${USE_EXP_INIT}" = "1" ] && [ "${REPLICATE_SIGMA}" = "1" ]; then
-    OUTDIR="_runs/${SHORT}_${NPART}p_expIC_repSigma_${TS}"
-elif [ "${USE_EXP_INIT}" = "1" ]; then
-    OUTDIR="_runs/${SHORT}_${NPART}p_expIC_${TS}"
-elif [ "${REPLICATE_SIGMA}" = "1" ]; then
-    OUTDIR="_runs/${SHORT}_${NPART}p_repSigma_${TS}"
-else
-    OUTDIR="_runs/${SHORT}_${NPART}p_${NCHAINS}ch_${TS}"
-fi
+SUFFIX="${NPART}p"
+[ "${USE_EXP_INIT}" = "1" ] && SUFFIX="${SUFFIX}_expIC"
+[ "${REPLICATE_SIGMA}" = "1" ] && SUFFIX="${SUFFIX}_repSigma"
+[ "${MULTICHANNEL}" = "1" ] && SUFFIX="${SUFFIX}_mc"
+OUTDIR="_runs/${SHORT}_${SUFFIX}_${NCHAINS}ch_${TS}"
 
 echo "=============================================="
 echo "TMCMC Job: ${CONDITION} ${CULTIVATION}"
@@ -87,6 +84,10 @@ if [ "${REPLICATE_SIGMA}" = "1" ]; then
 else
     EXTRA_ARGS="${EXTRA_ARGS} --no-replicate-sigma"
     echo "  Using uniform sigma (--no-replicate-sigma)"
+fi
+if [ "${MULTICHANNEL}" = "1" ]; then
+    EXTRA_ARGS="${EXTRA_ARGS} --multichannel"
+    echo "  Multi-channel likelihood enabled"
 fi
 if [ -n "${N_MUTATION_STEPS}" ]; then
     EXTRA_ARGS="${EXTRA_ARGS} --n-mutation-steps ${N_MUTATION_STEPS}"
