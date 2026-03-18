@@ -62,7 +62,11 @@ except ImportError:
     from core.nishioka_model import get_condition_bounds, get_model_constants
 
 # Reuse data loading from existing script
-from estimate_reduced_nishioka import load_experimental_data, convert_days_to_model_time
+from estimate_reduced_nishioka import (
+    load_experimental_data,
+    convert_days_to_model_time,
+    load_multichannel_data,
+)
 
 import logging
 
@@ -1038,6 +1042,8 @@ def _worker_optimize(worker_args):
         relin_interval,
         likelihood_weights,
         de_popsize,
+        mc_data,
+        lambda_ch,
     ) = worker_args
 
     # Each worker creates its own evaluator (no shared state)
@@ -1058,6 +1064,14 @@ def _worker_optimize(worker_args):
         debug_logger=debug_logger,
         use_absolute_volume=use_absolute_volume,
         weights=likelihood_weights,
+        data_total=mc_data.get("data_total"),
+        sigma_obs_total=mc_data.get("sigma_obs_total"),
+        data_viability=mc_data.get("data_viability"),
+        sigma_obs_viability=mc_data.get("sigma_obs_viability", 0.10),
+        data_pH=mc_data.get("data_pH"),
+        idx_pH=mc_data.get("idx_pH"),
+        sigma_obs_pH=mc_data.get("sigma_obs_pH", 0.15),
+        lambda_ch=lambda_ch,
     )
 
     adaptive_opt = AdaptiveLinearizationOptimizer(
@@ -1115,6 +1129,14 @@ def _run_parallel_starts(
         "n_hill": args.n_hill,
     }
 
+    mc_data = getattr(args, "_multichannel_data", {})
+    lambda_ch = {
+        1: getattr(args, "lambda_ch1", 1.0),
+        2: getattr(args, "lambda_ch2", 0.5),
+        3: getattr(args, "lambda_ch3", 2.0),
+        5: getattr(args, "lambda_ch5", 0.3),
+    }
+
     worker_args_list = []
     for i_start in range(args.num_starts):
         worker_args_list.append(
@@ -1138,6 +1160,8 @@ def _run_parallel_starts(
                 args.min_relinearization_interval,
                 likelihood_weights,
                 getattr(args, "de_popsize", 30),
+                mc_data,
+                lambda_ch,
             )
         )
 
@@ -1231,6 +1255,7 @@ def run_deterministic_estimation(
         sigma_obs = args.sigma_obs if args.sigma_obs else metadata.get("sigma_obs_estimated", 0.05)
     likelihood_weights = getattr(args, "_likelihood_weights", None)
 
+    mc_data = getattr(args, "_multichannel_data", {})
     evaluator = LogLikelihoodEvaluator(
         solver_kwargs=solver_kwargs,
         active_species=active_species,
@@ -1245,6 +1270,19 @@ def run_deterministic_estimation(
         debug_logger=debug_logger,
         use_absolute_volume=args.use_absolute_volume,
         weights=likelihood_weights,
+        data_total=mc_data.get("data_total"),
+        sigma_obs_total=mc_data.get("sigma_obs_total"),
+        data_viability=mc_data.get("data_viability"),
+        sigma_obs_viability=mc_data.get("sigma_obs_viability", 0.10),
+        data_pH=mc_data.get("data_pH"),
+        idx_pH=mc_data.get("idx_pH"),
+        sigma_obs_pH=mc_data.get("sigma_obs_pH", 0.15),
+        lambda_ch={
+            1: getattr(args, "lambda_ch1", 1.0),
+            2: getattr(args, "lambda_ch2", 0.5),
+            3: getattr(args, "lambda_ch3", 2.0),
+            5: getattr(args, "lambda_ch5", 0.3),
+        },
     )
 
     # 4. Create Adaptive Linearization Wrapper (Improvement 4)
@@ -1723,6 +1761,17 @@ Examples:
         help="Minimum calls between relinearizations",
     )
 
+    # Multi-channel likelihood
+    parser.add_argument(
+        "--multichannel",
+        action="store_true",
+        help="Enable multi-channel likelihood: viable + total + viability + pH",
+    )
+    parser.add_argument("--lambda-ch1", type=float, default=1.0, help="Weight for viable channel")
+    parser.add_argument("--lambda-ch2", type=float, default=0.5, help="Weight for total species")
+    parser.add_argument("--lambda-ch3", type=float, default=2.0, help="Weight for viability")
+    parser.add_argument("--lambda-ch5", type=float, default=0.3, help="Weight for pH (HOBIC only)")
+
     # Legacy (kept for compatibility)
     parser.add_argument(
         "--random-init", action="store_true", help="[Deprecated] Use --num-starts > 1 instead"
@@ -1820,6 +1869,35 @@ Examples:
     # Store on args for downstream use
     args._sigma_obs_final = sigma_obs_final
     args._likelihood_weights = likelihood_weights
+
+    # Multi-channel data loading
+    args._multichannel_data = {}
+    if getattr(args, "multichannel", False):
+        mc_data = load_multichannel_data(
+            data_dir=DATA_5SPECIES_ROOT / "experiment_data",
+            condition=args.condition,
+            cultivation=args.cultivation,
+            days_filter=metadata["days"],
+            normalize=True,
+        )
+        if mc_data.get("data_total") is not None:
+            logger.info(f"Multi-channel: total species data loaded ({mc_data['data_total'].shape})")
+        if mc_data.get("data_viability") is not None:
+            logger.info(f"Multi-channel: viability data loaded ({mc_data['data_viability'].shape})")
+        if mc_data.get("data_pH") is not None:
+            logger.info(f"Multi-channel: pH time series loaded ({mc_data['data_pH'].shape[0]} obs)")
+        # Convert pH time indices
+        if mc_data.get("data_pH") is not None and mc_data.get("t_pH_days") is not None:
+            t_pH_days = mc_data["t_pH_days"]
+            t_max_model = args.maxtimestep * args.dt
+            t_max_days = float(metadata["days"][-1])
+            day_scale_pH = (t_max_model * 0.95) / t_max_days
+            idx_pH = np.round(t_pH_days * day_scale_pH / args.dt).astype(int)
+            idx_pH = np.clip(idx_pH, 0, args.maxtimestep - 1)
+            mc_data["idx_pH"] = idx_pH
+        args._multichannel_data = mc_data
+    else:
+        logger.info("Multi-channel likelihood disabled (use --multichannel to enable)")
 
     # Time conversion
     t_model, idx_sparse = convert_days_to_model_time(days, args.dt, args.maxtimestep)

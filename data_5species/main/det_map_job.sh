@@ -43,6 +43,7 @@ NJOBS="${NJOBS:-12}"
 # TMCMC-consistent settings (match tmcmc_job.sh defaults)
 USE_EXP_INIT="${USE_EXP_INIT:-1}"
 REPLICATE_SIGMA="${REPLICATE_SIGMA:-0}"
+MULTICHANNEL="${MULTICHANNEL:-0}"
 
 # --- Environment ---
 cd /home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/main
@@ -75,6 +76,10 @@ if [ "${REPLICATE_SIGMA}" = "1" ]; then
     echo "  Sigma:        heteroscedastic (replicate IQR)"
 else
     echo "  Sigma:        default (scalar)"
+fi
+if [ "${MULTICHANNEL}" = "1" ]; then
+    EXTRA_ARGS="${EXTRA_ARGS} --multichannel"
+    echo "  Multi-channel: ON"
 fi
 echo "=============================================="
 
