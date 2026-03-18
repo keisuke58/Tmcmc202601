@@ -28,6 +28,7 @@
 | **Fig 20** | **E2E differentiable pipeline: 4-cond results** | `e2e_differentiable_pipeline.py` | DONE |
 | **Fig 21** | **NUTS vs HMC vs RW TMCMC comparison** | `generate_fig21_paper.py` | DONE |
 | **Fig 22** | **DeepONet vs ODE posterior comparison** | `generate_fig22_posterior_comparison.py` | DONE |
+| **Fig 31** | **Joint 4-cond posterior corner + fit comparison** | `analyze_joint_results.py` | **Pending (200p run)** |
 
 ---
 
@@ -180,6 +181,23 @@
 - **Fig 15**: CI bands
 - **Fig 16**: Basin sensitivity
 
+#### 3.8 Joint 4-Condition TMCMC (shared θ across conditions)
+- **Motivation**: Individual condition estimation treats A_ij independently → shared params (e.g., a11, a12) get different posteriors per condition. Joint estimation enforces consistency.
+- **Formulation**: logL_joint(θ) = Σ_c w_c · logL_c(θ_c), where θ_c is condition-specific subset of θ_joint (15 A_ij params)
+  - CS uses 6 of 15 params (a11, a12, a22, a33, a13, a23)
+  - CH uses 10 of 15
+  - DS, DH use all 15
+- **Results (50p×10s×3m, 3 chains, ~2.3h/chain)**:
+  - R-hat max = 1.008, ESS min = 106, Converged = True
+  - logL decomposition: CS=-749 (51%), CH=-552 (38%), DS=-109 (7%), DH=-52 (4%)
+  - CS dominates due to more data points → joint MAP is commensal-like
+  - Well-constrained: a34 (width 1.9), a15 (2.7), a25 (2.8)
+  - Poorly constrained: a35 (20.7), a45 (10.4), a55 (6.0) — Pg interactions
+- **Joint MAP → FEM**: DI=0.26, E=997 Pa (commensal regime, CS-dominated)
+- **200p×20s×5m, 4 chains running** — tightened DH a35/a45 priors based on 1000p individual posteriors
+- **Fig 31**: Joint posterior corner plot (15 params) + per-condition fit comparison
+- **Key finding**: CS data dominance means joint posterior reflects commensal biology; need condition-weighted likelihood or hierarchical model for balanced inference
+
 ### 4. Discussion
 
 #### 4.1 DI as Mechanical Indicator — Partially Supported Constitutive Law
@@ -220,7 +238,7 @@
 
 #### 4.5 Limitations
 - E(DI) mapping: partially supported but not experimentally calibrated for this 5-species system
-- ODE TMCMC: 150 particles × 2 chains → 300 samples (1000p runs pending)
+- ODE TMCMC: 1000p individual + 200p×4chain joint (joint ESS ~400, minimum viable for 15D)
 - Linear elastic FEM (nonlinear needed for ε > 5%)
 - 2D PDE homogenizes species (mitigated by Hybrid approach)
 - DeepONet MAP accuracy varies: DH 11%, DS 52%, CS 62%, CH 44% → Pg params poorly resolved

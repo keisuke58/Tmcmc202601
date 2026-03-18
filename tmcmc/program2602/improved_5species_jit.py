@@ -40,7 +40,7 @@ except Exception:
 
 if HAS_NUMBA:
 
-    @njit(cache=False, fastmath=True)
+    @njit(cache=False, fastmath=True, nogil=True)
     def _compute_Q_vector_numba_5s(
         phi_new,
         phi0_new,
@@ -126,7 +126,7 @@ if HAS_NUMBA:
         Q[11] = np.sum(phi_new) + phi0_new - 1.0
         return Q
 
-    @njit(cache=False, fastmath=True)
+    @njit(cache=False, fastmath=True, nogil=True)
     def _compute_jacobian_numba_5s(
         phi_new,
         phi0_new,
@@ -288,7 +288,7 @@ if HAS_NUMBA:
 
         return K
 
-    @njit(cache=False, fastmath=True)
+    @njit(cache=False, fastmath=True, nogil=True)
     def _newton_step_jit_5s(
         g_prev,
         dt,
@@ -470,7 +470,7 @@ class BiofilmNewtonSolver5S:
         eta_vec=None,
         eta_phi_vec=None,
         c_const=100.0,
-        alpha_const=100.0,
+        alpha_const=0.0,
         alpha_schedule=None,
         phi_init=0.2,
         active_species=None,
@@ -834,7 +834,7 @@ def _compute_Q_vector_numpy_5s(
 
 if HAS_NUMBA:
 
-    @njit(cache=False, fastmath=True)
+    @njit(cache=False, fastmath=True, nogil=True)
     def _run_deterministic_jit_5s(
         g_prev,
         dt,

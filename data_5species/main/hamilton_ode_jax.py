@@ -221,7 +221,7 @@ def simulate_0d_nutrient(
     K_hill=0.05,
     n_hill=2.0,
     c_const=25.0,
-    alpha_const=100.0,
+    alpha_const=0.0,
     S_init=1.0,
     K_S=0.5,
     g_consumption=None,
@@ -318,7 +318,7 @@ def simulate_0d(
     K_hill=0.05,
     n_hill=2.0,
     c_const=25.0,
-    alpha_const=100.0,
+    alpha_const=0.0,
 ):
     """
     Run 0D Hamilton ODE. Returns phi trajectory (n_steps+1, 5).
