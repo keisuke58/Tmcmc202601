@@ -378,9 +378,27 @@ def tmcmc_engine(
     use_de_mc: bool = False,
     de_mc_gamma: float = 2.38,
     resample_method: str = "systematic",
+    # --- Flow-enhanced SMC (Gabrie et al. 2022) ---
+    use_flow: bool = False,
+    flow_n_layers: int = 6,
+    flow_hidden_dim: int = 64,
+    flow_n_epochs: int = 200,
+    flow_lr: float = 1e-3,
+    flow_start_beta: float = 0.1,
+    flow_mix_ratio: float = 0.8,
+    # --- Waste-free SMC (Dau & Chopin 2022) ---
+    waste_free: bool = False,
 ) -> dict:
     """
     TMCMC with RW / HMC / NUTS mutation.
+
+    Optionally enhanced with:
+      - Normalizing Flow proposals (use_flow=True): learns transport map
+        from particle distribution, achieving near-100% acceptance.
+        Ref: Gabrie et al. 2022, Arbel et al. 2021.
+      - Waste-free SMC (waste_free=True): keeps all MCMC proposals
+        (not just accepted), effectively doubling ESS for same compute.
+        Ref: Dau & Chopin 2022, JRSS-B.
 
     Returns dict with samples, log_likelihoods, theta_MAP, log_evidence, etc.
     Log evidence is computed via Ching & Chen 2007: sum(log(mean(w_j))) at each stage.
@@ -441,6 +459,32 @@ def tmcmc_engine(
     stage = 0
     _last_resampling_weights = np.ones(n_particles) / n_particles  # for weighted cov
 
+    # --- Flow initialization (lazy: created on first use) ---
+    flow_params = None
+    if use_flow:
+        try:
+            from normalizing_flow import init_flow, train_flow, flow_proposal_mh
+
+            flow_key = jr.PRNGKey(seed + 9999)
+            flow_params = init_flow(
+                flow_key, d_free, n_layers=flow_n_layers, hidden_dim=flow_hidden_dim
+            )
+            if verbose:
+                print(f"  Flow initialized: {flow_n_layers} layers, hidden={flow_hidden_dim}")
+        except ImportError:
+            if verbose:
+                print("  WARNING: normalizing_flow.py not found, disabling flow")
+            use_flow = False
+
+    # --- Waste-free SMC setup ---
+    if waste_free:
+        try:
+            from waste_free_smc import waste_free_resample_and_mutate_batch
+        except ImportError:
+            if verbose:
+                print("  WARNING: waste_free_smc.py not found, disabling waste-free")
+            waste_free = False
+
     while beta < 1.0 and stage < max_stages:
         stage += 1
         t_stage = time.time()
@@ -483,17 +527,67 @@ def tmcmc_engine(
         # Save weights for weighted covariance before resampling
         _last_resampling_weights = w_normalized.copy()
 
-        if resample_method == "systematic":
-            idx = _systematic_resample(w_normalized, rng)
+        # --- Waste-free SMC path (Dau & Chopin 2022) ---
+        if waste_free and mutation == "rw" and n_mutation_steps > 1:
+
+            def _batch_rw_mutation(p_batch, lL_batch, _rng):
+                """Single RW mutation step for waste-free SMC."""
+                n_b = p_batch.shape[0]
+                cov_wf = _weighted_covariance(p_batch, np.ones(n_b) / n_b, free_dims)
+                _sc = (2.38**2) / max(d_free, 1)
+                cov_wf = cov_wf * _sc
+                pert = _rng.multivariate_normal(np.zeros(d_free), cov_wf, size=n_b)
+                props = p_batch.copy()
+                props[:, free_dims] += pert
+                ib = np.all(
+                    (props[:, free_dims] >= prior_bounds[free_dims, 0])
+                    & (props[:, free_dims] <= prior_bounds[free_dims, 1]),
+                    axis=1,
+                )
+                vi = np.where(ib)[0]
+                n_acc = 0
+                if len(vi) > 0:
+                    pj = jnp.array(props[vi])
+                    lL_p = np.array(logL_vmap(pj))
+                    la = beta_new * (lL_p - lL_batch[vi])
+                    u = np.log(_rng.random(len(vi)))
+                    am = u < la
+                    ai = vi[am]
+                    aj = np.where(am)[0]
+                    p_batch[ai] = props[ai]
+                    lL_batch[ai] = lL_p[aj]
+                    n_acc = int(am.sum())
+                return p_batch, lL_batch, n_acc
+
+            particles, logL, _last_resampling_weights, n_accept = (
+                waste_free_resample_and_mutate_batch(
+                    particles,
+                    logL,
+                    w_normalized,
+                    beta,
+                    beta_new,
+                    _batch_rw_mutation,
+                    n_mutation_steps=n_mutation_steps,
+                    rng=rng,
+                )
+            )
+            n_leapfrog_stage = 0
         else:
-            idx = rng.choice(n_particles, size=n_particles, p=w_normalized)
-        particles, logL = particles[idx].copy(), logL[idx].copy()
+            # --- Standard resample ---
+            if resample_method == "systematic":
+                idx = _systematic_resample(w_normalized, rng)
+            else:
+                idx = rng.choice(n_particles, size=n_particles, p=w_normalized)
+            particles, logL = particles[idx].copy(), logL[idx].copy()
 
         def tempered_vg(theta):
             val, grad = grad_jit(theta)
             return beta_new * val, beta_new * grad
 
-        n_accept, n_leapfrog_stage = 0, 0
+        # Only reset counters if waste-free didn't already handle mutation
+        _skip_mutation = waste_free and mutation == "rw" and n_mutation_steps > 1
+        if not _skip_mutation:
+            n_accept, n_leapfrog_stage = 0, 0
         key = jr.PRNGKey(seed + stage * 1000)
         current_eps = (
             np.exp(da_state["log_eps"])
@@ -501,9 +595,28 @@ def tmcmc_engine(
             else hmc_step_size * np.mean(param_scales[free_mask])
         )
 
-        if mutation == "rw":
+        if mutation == "rw" and not _skip_mutation:
             # --- Batched RW + optional DE-MC mutation (vmap) with adaptive scale ---
             _n_mut = n_mutation_steps
+
+            # --- Flow-enhanced proposals (Gabrie et al. 2022) ---
+            _use_flow_this_stage = (
+                use_flow and flow_params is not None and beta_new >= flow_start_beta
+            )
+            if _use_flow_this_stage:
+                # Train flow on current (resampled) particles
+                flow_key, key = jr.split(key)
+                particles_free = jnp.array(particles[:, free_dims])
+                flow_params = train_flow(
+                    flow_key,
+                    flow_params,
+                    particles_free,
+                    weights=jnp.array(_last_resampling_weights),
+                    n_epochs=flow_n_epochs,
+                    lr=flow_lr,
+                )
+                if verbose:
+                    print(f"    Flow trained (beta={beta_new:.3f})")
 
             # Weighted covariance (Betz et al. 2016): use importance weights
             # from this stage to better capture the tempered posterior shape
@@ -513,43 +626,109 @@ def tmcmc_engine(
             _adapt_factor = 1.0
             cov = cov_base * _scale * _adapt_factor
             for _mut_step in range(_n_mut):
-                # Alternate RW and DE-MC every other step (if enabled)
-                _use_demc = use_de_mc and (_mut_step % 2 == 1) and n_particles >= 10
-                if _use_demc:
+                # Decide proposal method: flow, DE-MC, or RW
+                _use_flow_step = _use_flow_this_stage and rng.random() < flow_mix_ratio
+                _use_demc = (
+                    not _use_flow_step and use_de_mc and (_mut_step % 2 == 1) and n_particles >= 10
+                )
+
+                if _use_flow_step:
+                    # --- Flow proposal with MH correction ---
+                    flow_key, key = jr.split(key)
+                    from normalizing_flow import flow_sample, flow_log_prob
+
+                    # Sample in free-dim space
+                    props_free, log_q_props = flow_sample(flow_key, flow_params, n_particles)
+                    # Map back to full space
+                    proposals = particles.copy()
+                    proposals[:, free_dims] = np.array(props_free)
+                    # Bounds check
+                    in_bounds = np.all(
+                        (proposals[:, free_dims] >= prior_bounds[free_dims, 0])
+                        & (proposals[:, free_dims] <= prior_bounds[free_dims, 1]),
+                        axis=1,
+                    )
+                    valid_idx = np.where(in_bounds)[0]
+                    n_acc_step = 0
+                    if len(valid_idx) > 0:
+                        proposals_jax = jnp.array(proposals[valid_idx])
+                        logL_proposals = np.array(logL_vmap(proposals_jax))
+                        # MH ratio for independent proposal:
+                        # log alpha = beta * (logL_new - logL_old) + (log_q_old - log_q_new)
+                        log_q_old = np.array(
+                            jax.vmap(lambda x: flow_log_prob(flow_params, x))(
+                                jnp.array(particles[valid_idx][:, free_dims])
+                            )
+                        )
+                        log_q_new = np.array(log_q_props)[valid_idx]
+                        log_alpha = beta_new * (logL_proposals - logL[valid_idx]) + (
+                            log_q_old - log_q_new
+                        )
+                        u = np.log(rng.random(len(valid_idx)))
+                        accept_mask = u < log_alpha
+                        accepted_idx = valid_idx[accept_mask]
+                        accepted_j = np.where(accept_mask)[0]
+                        particles[accepted_idx] = proposals[accepted_idx]
+                        logL[accepted_idx] = logL_proposals[accepted_j]
+                        n_acc_step = int(accept_mask.sum())
+                        n_accept += n_acc_step
+                elif _use_demc:
                     proposals = _de_mc_proposal(particles, free_dims, rng, gamma=de_mc_gamma)
+                    in_bounds = np.all(
+                        (proposals[:, free_dims] >= prior_bounds[free_dims, 0])
+                        & (proposals[:, free_dims] <= prior_bounds[free_dims, 1]),
+                        axis=1,
+                    )
+                    valid_idx = np.where(in_bounds)[0]
+                    n_acc_step = 0
+                    if len(valid_idx) > 0:
+                        proposals_jax = jnp.array(proposals[valid_idx])
+                        logL_proposals = np.array(logL_vmap(proposals_jax))
+                        log_alpha = beta_new * (logL_proposals - logL[valid_idx])
+                        if has_gnn_prior:
+                            for j, vi in enumerate(valid_idx):
+                                lp_new = float(log_prior_jit(jnp.array(proposals[vi])))
+                                lp_old = float(log_prior_jit(jnp.array(particles[vi])))
+                                log_alpha[j] += lp_new - lp_old
+                        u = np.log(rng.random(len(valid_idx)))
+                        accept_mask = u < log_alpha
+                        accepted_idx = valid_idx[accept_mask]
+                        accepted_j = np.where(accept_mask)[0]
+                        particles[accepted_idx] = proposals[accepted_idx]
+                        logL[accepted_idx] = logL_proposals[accepted_j]
+                        n_acc_step = int(accept_mask.sum())
+                        n_accept += n_acc_step
                 else:
                     perturbations = rng.multivariate_normal(np.zeros(d_free), cov, size=n_particles)
                     proposals = particles.copy()
                     proposals[:, free_dims] += perturbations
-                in_bounds = np.all(
-                    (proposals[:, free_dims] >= prior_bounds[free_dims, 0])
-                    & (proposals[:, free_dims] <= prior_bounds[free_dims, 1]),
-                    axis=1,
-                )
-                valid_idx = np.where(in_bounds)[0]
-                n_acc_step = 0
-                if len(valid_idx) > 0:
-                    proposals_jax = jnp.array(proposals[valid_idx])
-                    logL_proposals = np.array(logL_vmap(proposals_jax))
-                    log_alpha = beta_new * (logL_proposals - logL[valid_idx])
-                    # GNN prior correction (if available)
-                    if has_gnn_prior:
-                        for j, vi in enumerate(valid_idx):
-                            lp_new = float(log_prior_jit(jnp.array(proposals[vi])))
-                            lp_old = float(log_prior_jit(jnp.array(particles[vi])))
-                            log_alpha[j] += lp_new - lp_old
-                    # Vectorized accept/reject (no Python loop)
-                    u = np.log(rng.random(len(valid_idx)))
-                    accept_mask = u < log_alpha
-                    accepted_idx = valid_idx[accept_mask]
-                    accepted_j = np.where(accept_mask)[0]
-                    particles[accepted_idx] = proposals[accepted_idx]
-                    logL[accepted_idx] = logL_proposals[accepted_j]
-                    n_acc_step = int(accept_mask.sum())
-                    n_accept += n_acc_step
+                    in_bounds = np.all(
+                        (proposals[:, free_dims] >= prior_bounds[free_dims, 0])
+                        & (proposals[:, free_dims] <= prior_bounds[free_dims, 1]),
+                        axis=1,
+                    )
+                    valid_idx = np.where(in_bounds)[0]
+                    n_acc_step = 0
+                    if len(valid_idx) > 0:
+                        proposals_jax = jnp.array(proposals[valid_idx])
+                        logL_proposals = np.array(logL_vmap(proposals_jax))
+                        log_alpha = beta_new * (logL_proposals - logL[valid_idx])
+                        if has_gnn_prior:
+                            for j, vi in enumerate(valid_idx):
+                                lp_new = float(log_prior_jit(jnp.array(proposals[vi])))
+                                lp_old = float(log_prior_jit(jnp.array(particles[vi])))
+                                log_alpha[j] += lp_new - lp_old
+                        u = np.log(rng.random(len(valid_idx)))
+                        accept_mask = u < log_alpha
+                        accepted_idx = valid_idx[accept_mask]
+                        accepted_j = np.where(accept_mask)[0]
+                        particles[accepted_idx] = proposals[accepted_idx]
+                        logL[accepted_idx] = logL_proposals[accepted_j]
+                        n_acc_step = int(accept_mask.sum())
+                        n_accept += n_acc_step
                 # Adaptive scale: target ~23% acceptance for RW
                 acc_rate = n_acc_step / max(n_particles, 1)
-                if not _use_demc:
+                if not _use_demc and not _use_flow_step:
                     if acc_rate < 0.15:
                         _adapt_factor *= 0.8
                     elif acc_rate > 0.35:
@@ -654,7 +833,11 @@ def tmcmc_engine(
 
         if verbose:
             extra = f", eps={current_eps:.4f}" if mutation == "nuts" else ""
-            acc_display = n_accept / _n_total_proposals
+            if use_flow and beta >= flow_start_beta:
+                extra += " [flow]"
+            if waste_free and mutation == "rw" and n_mutation_steps > 1:
+                extra += " [waste-free]"
+            acc_display = n_accept / max(_n_total_proposals, 1)
             print(
                 f"  Stage {stage:2d}: beta={beta:.4f}, accept={acc_display:.2f}, "
                 f"ESS={ess_val:.0f}, logL=[{logL.min():.1f},{logL.max():.1f}], "
@@ -682,4 +865,7 @@ def tmcmc_engine(
         # New: evidence and diagnostics
         "log_evidence": log_evidence,
         "cv_weights": cv_weights_history,
+        # Flow + waste-free flags
+        "use_flow": use_flow,
+        "waste_free": waste_free,
     }
