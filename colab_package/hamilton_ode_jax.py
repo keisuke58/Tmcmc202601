@@ -1,0 +1,444 @@
+# -*- coding: utf-8 -*-
+"""
+hamilton_ode_jax.py — Pure JAX 0D Hamilton ODE for TMCMC.
+
+Provides θ → φ(t;θ) with jax.grad support for NUTS/HMC.
+Uses the same physics as improved_5species_jit.py (NumPy+Numba) but in JAX.
+
+Based on FEM/JAXFEM/core_hamilton_1d.py, simplified for 0D (single node, no diffusion).
+"""
+
+from __future__ import annotations
+
+import jax
+import jax.numpy as jnp
+
+jax.config.update("jax_enable_x64", True)
+
+
+def _solve_linear_pure_jax(A, b):
+    """
+    Solve A @ x = b using Gaussian elimination with partial pivoting.
+    Pure JAX implementation to avoid cuSOLVER (gpusolverDnCreate failures on some GPUs).
+
+    Partial pivoting selects the largest absolute value in the column as pivot,
+    improving numerical stability near bifurcation points in the ODE.
+    """
+    n = A.shape[0]
+    Ab = jnp.concatenate([A, b[:, jnp.newaxis]], axis=1)
+
+    def elim_step(carry, k):
+        Ab_curr = carry
+        # Partial pivoting: find row with max |value| in column k (rows k..n-1)
+        col_k = jnp.abs(Ab_curr[:, k])
+        # Mask out rows above k
+        col_k = jnp.where(jnp.arange(n) >= k, col_k, -1.0)
+        pivot_row = jnp.argmax(col_k)
+        # Swap rows k and pivot_row
+        row_k = Ab_curr[k, :]
+        row_p = Ab_curr[pivot_row, :]
+        Ab_curr = Ab_curr.at[k, :].set(row_p)
+        Ab_curr = Ab_curr.at[pivot_row, :].set(row_k)
+        # Eliminate
+        pivot = Ab_curr[k, k]
+        pivot_safe = jnp.where(jnp.abs(pivot) > 1e-14, pivot, 1.0)
+        row_k_new = Ab_curr[k, :]
+        scale = Ab_curr[:, k] / pivot_safe
+        scale = jnp.where(jnp.arange(n) > k, scale, 0.0)
+        Ab_new = Ab_curr - scale[:, jnp.newaxis] * row_k_new
+        return Ab_new, None
+
+    Ab_final, _ = jax.lax.scan(elim_step, Ab, jnp.arange(n - 1))
+    # Back substitution (unrolled for n=12)
+    x = jnp.zeros(n)
+    for i in range(n - 1, -1, -1):
+        row = Ab_final[i, :]
+        known = jnp.dot(row[i + 1 : n], x[i + 1 : n])
+        diag = jnp.where(jnp.abs(row[i]) > 1e-14, row[i], 1.0)
+        x_i = (row[n] - known) / diag
+        x = x.at[i].set(x_i)
+    return x
+
+
+def theta_to_matrices(theta):
+    """Map 20 params to A(5,5) and b(5). Same layout as improved_5species_jit."""
+    A = jnp.zeros((5, 5))
+    b = jnp.zeros(5)
+    A = A.at[0, 0].set(theta[0])
+    A = A.at[0, 1].set(theta[1])
+    A = A.at[1, 0].set(theta[1])
+    A = A.at[1, 1].set(theta[2])
+    b = b.at[0].set(theta[3])
+    b = b.at[1].set(theta[4])
+    A = A.at[2, 2].set(theta[5])
+    A = A.at[2, 3].set(theta[6])
+    A = A.at[3, 2].set(theta[6])
+    A = A.at[3, 3].set(theta[7])
+    b = b.at[2].set(theta[8])
+    b = b.at[3].set(theta[9])
+    A = A.at[0, 2].set(theta[10])
+    A = A.at[2, 0].set(theta[10])
+    A = A.at[0, 3].set(theta[11])
+    A = A.at[3, 0].set(theta[11])
+    A = A.at[1, 2].set(theta[12])
+    A = A.at[2, 1].set(theta[12])
+    A = A.at[1, 3].set(theta[13])
+    A = A.at[3, 1].set(theta[13])
+    A = A.at[4, 4].set(theta[14])
+    b = b.at[4].set(theta[15])
+    A = A.at[0, 4].set(theta[16])
+    A = A.at[4, 0].set(theta[16])
+    A = A.at[1, 4].set(theta[17])
+    A = A.at[4, 1].set(theta[17])
+    A = A.at[2, 4].set(theta[18])
+    A = A.at[4, 2].set(theta[18])
+    A = A.at[3, 4].set(theta[19])
+    A = A.at[4, 3].set(theta[19])
+    return A, b
+
+
+def clip_state(g, active_mask):
+    """Clip state to valid range."""
+    eps = 1e-10
+    phi = jnp.clip(g[0:5], eps, 1.0 - eps)
+    phi0 = jnp.clip(g[5], eps, 1.0 - eps)
+    psi = jnp.clip(g[6:11], eps, 1.0 - eps)
+    gamma = jnp.clip(g[11], -1e6, 1e6)
+    mask = active_mask.astype(jnp.float64)
+    phi = mask * phi
+    psi = mask * psi
+    return jnp.concatenate([phi, phi0[jnp.newaxis], psi, gamma[jnp.newaxis]])
+
+
+def residual(g_new, g_prev, params):
+    """Hamilton residual Q(g_new, g_prev)."""
+    dt = params["dt_h"]
+    Kp1 = params["Kp1"]
+    Eta = params["Eta"]
+    EtaPhi = params["EtaPhi"]
+    c = params["c"]
+    alpha = params["alpha"]
+    K_hill = params["K_hill"]
+    n_hill = params["n_hill"]
+    A = params["A"]
+    b_diag = params["b_diag"]
+    active_mask = params["active_mask"]
+    eps = 1e-12
+
+    phi_new = g_new[0:5]
+    phi0_new = g_new[5]
+    psi_new = g_new[6:11]
+    gamma_new = g_new[11]
+    phi_old = g_prev[0:5]
+    phi0_old = g_prev[5]
+    psi_old = g_prev[6:11]
+
+    phidot = (phi_new - phi_old) / dt
+    phi0dot = (phi0_new - phi0_old) / dt
+    psidot = (psi_new - psi_old) / dt
+
+    Ia = A @ (phi_new * psi_new)
+    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (active_mask[4] == 1).astype(jnp.float64)
+    fn = jnp.maximum(phi_new[3] * psi_new[3], 0.0)
+    num = fn**n_hill
+    den = K_hill**n_hill + num
+    factor = jnp.where(den > eps, num / den, 0.0) * hill_mask
+    Ia = Ia.at[4].set(Ia[4] * factor)
+
+    Q = jnp.zeros(12, dtype=jnp.float64)
+    for i in range(5):
+        active = active_mask[i] == 1
+
+        def active_phi():
+            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / ((phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3)
+            t2 = (1.0 / Eta[i]) * (
+                gamma_new
+                + (EtaPhi[i] + Eta[i] * psi_new[i] ** 2) * phidot[i]
+                + Eta[i] * phi_new[i] * psi_new[i] * psidot[i]
+            )
+            t3 = (c / Eta[i]) * psi_new[i] * Ia[i]
+            return t1 + t2 - t3
+
+        def inactive_phi():
+            return phi_new[i]
+
+        val = jax.lax.cond(active, active_phi, inactive_phi)
+        Q = Q.at[i].set(val)
+
+    Q = Q.at[5].set(
+        gamma_new + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new**3) + phi0dot
+    )
+
+    for i in range(5):
+        active = active_mask[i] == 1
+
+        def active_psi():
+            t1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3) - (2.0 * Kp1) / (
+                (psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2
+            )
+            t2 = (b_diag[i] * alpha / Eta[i]) * psi_new[i]
+            t3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i] ** 2 * psidot[i]
+            t4 = (c / Eta[i]) * phi_new[i] * Ia[i]
+            return t1 + t2 + t3 - t4
+
+        def inactive_psi():
+            return psi_new[i]
+
+        val = jax.lax.cond(active, active_psi, inactive_psi)
+        Q = Q.at[6 + i].set(val)
+
+    Q = Q.at[11].set(jnp.sum(phi_new) + phi0_new - 1.0)
+    return Q
+
+
+def newton_step(g_prev, params):
+    """One implicit Euler step with adaptive Newton iteration.
+
+    Uses 12 iterations (up from 6) with early termination when residual
+    is sufficiently small. The extra iterations are critical for stiff
+    parameter regimes where 6 iterations may not converge.
+    """
+    active_mask = params["active_mask"]
+    n_steps = 12  # Increased from 6 for better convergence
+    tol_sq = 1e-20  # Convergence tolerance (squared L2 norm of residual)
+
+    def body(carry, _):
+        g, converged = carry
+        g = clip_state(g, active_mask)
+
+        def F(gg):
+            return residual(gg, g_prev, params)
+
+        Q = F(g)
+        # Skip Newton update if already converged (but still run for scan shape)
+        res_norm_sq = jnp.sum(Q**2)
+        is_converged = converged | (res_norm_sq < tol_sq)
+
+        J = jax.jacfwd(F)(g)
+        delta = _solve_linear_pure_jax(J, -Q)
+        g_updated = clip_state(g + delta, active_mask)
+        # If converged, keep current g (avoid unnecessary perturbation)
+        g_next = jnp.where(is_converged, g, g_updated)
+        return (g_next, is_converged), None
+
+    g0 = clip_state(g_prev, active_mask)
+    (g_final, _), _ = jax.lax.scan(body, (g0, jnp.bool_(False)), jnp.arange(n_steps))
+    return g_final
+
+
+def make_initial_state(phi_init, active_mask):
+    """Build g0 from phi_init (5,) or scalar."""
+    phi = jnp.asarray(phi_init, dtype=jnp.float64)
+    if phi.ndim == 0 or phi.size == 1:
+        phi = jnp.full(5, float(phi.flat[0]))
+    phi = jnp.where(active_mask == 1, phi, 0.0)
+    phi_sum = jnp.minimum(jnp.sum(phi), 0.999999)
+    phi = phi * (0.999999 / phi_sum)
+    phi0 = 1.0 - jnp.sum(phi)
+    psi = jnp.where(active_mask == 1, 0.999, 0.0)
+    return jnp.concatenate([phi, phi0[jnp.newaxis], psi, jnp.array([0.0])])
+
+
+def simulate_0d_nutrient(
+    theta,
+    n_steps=2500,
+    dt=1e-4,
+    phi_init=None,
+    K_hill=0.05,
+    n_hill=2.0,
+    c_const=25.0,
+    alpha_const=0.0,
+    S_init=1.0,
+    K_S=0.5,
+    g_consumption=None,
+    supply_rate=0.1,
+    S_ext=1.0,
+):
+    """
+    Run 0D Hamilton ODE with Monod nutrient coupling.
+
+    b_eff_i(t) = b_i * S(t) / (K_S + S(t))  where S(t) is well-mixed nutrient.
+
+    Nutrient ODE:
+        dS/dt = -sum_i g_i * phi_i * S/(K_S + S) + supply_rate * (S_ext - S)
+
+    Parameters
+    ----------
+    theta : (20,) JAX array
+    S_init : float, initial nutrient concentration [0, 1]
+    K_S : float, Monod half-saturation constant
+    g_consumption : (5,) array, per-species consumption rates.
+        Default: [1.0, 0.8, 0.3, 0.5, 0.3] (So > An > Fn > Vei = Pg)
+    supply_rate : float, GCF nutrient influx rate (0 = closed, >0 = open)
+    S_ext : float, external nutrient concentration
+
+    Returns
+    -------
+    phi_traj : (n_steps+1, 5), species volume fractions
+    S_traj : (n_steps+1,), nutrient concentration trajectory
+    """
+    A, b_diag = theta_to_matrices(theta)
+    active_mask = jnp.ones(5, dtype=jnp.int64)
+
+    if phi_init is None:
+        phi_init = jnp.full(5, 0.2)
+    g0 = make_initial_state(phi_init, active_mask)
+
+    if g_consumption is None:
+        g_consumption = jnp.array([1.0, 0.8, 0.3, 0.5, 0.3])
+    else:
+        g_consumption = jnp.asarray(g_consumption, dtype=jnp.float64)
+
+    S_init = jnp.float64(S_init)
+    K_S = jnp.float64(K_S)
+    supply_rate = jnp.float64(supply_rate)
+    S_ext = jnp.float64(S_ext)
+
+    base_params = {
+        "dt_h": dt,
+        "Kp1": 1e-4,
+        "Eta": jnp.ones(5, dtype=jnp.float64),
+        "EtaPhi": jnp.ones(5, dtype=jnp.float64),
+        "c": c_const,
+        "alpha": alpha_const,
+        "K_hill": jnp.array(K_hill, dtype=jnp.float64),
+        "n_hill": jnp.array(n_hill, dtype=jnp.float64),
+        "A": A,
+        "b_diag": b_diag,
+        "active_mask": active_mask,
+    }
+
+    def body(carry, _):
+        g, S = carry
+
+        # Monod modulation of b
+        monod = S / (K_S + S + 1e-12)
+        b_eff = b_diag * monod
+
+        # Update params with effective b
+        params = {**base_params, "b_diag": b_eff}
+        g_next = newton_step(g, params)
+
+        # Nutrient consumption (explicit Euler)
+        phi = g_next[0:5]
+        consumption = jnp.sum(g_consumption * phi * S / (K_S + S + 1e-12))
+        influx = supply_rate * (S_ext - S)
+        S_next = S - dt * consumption + dt * influx
+        S_next = jnp.clip(S_next, 0.0, S_ext)
+
+        return (g_next, S_next), (g_next, S_next)
+
+    _, (g_traj, S_traj) = jax.lax.scan(body, (g0, S_init), jnp.arange(n_steps))
+    phi_traj = g_traj[:, 0:5]
+    phi_first = g0[0:5][jnp.newaxis, :]
+    phi_traj = jnp.concatenate([phi_first, phi_traj], axis=0)
+    S_traj = jnp.concatenate([S_init[jnp.newaxis], S_traj], axis=0)
+    return phi_traj, S_traj
+
+
+def simulate_0d(
+    theta,
+    n_steps=2500,
+    dt=1e-4,
+    phi_init=None,
+    K_hill=0.05,
+    n_hill=2.0,
+    c_const=25.0,
+    alpha_const=0.0,
+):
+    """
+    Run 0D Hamilton ODE. Returns phi trajectory (n_steps+1, 5).
+
+    Parameters
+    ----------
+    theta : (20,) JAX array
+    n_steps : int
+    dt : float
+    phi_init : (5,) or scalar, optional. Default: uniform 0.2
+    K_hill, n_hill : Hill gate params
+    c_const, alpha_const : Hamilton model constants
+
+    Returns
+    -------
+    phi_traj : (n_steps+1, 5)
+    """
+    A, b_diag = theta_to_matrices(theta)
+    active_mask = jnp.ones(5, dtype=jnp.int64)
+
+    if phi_init is None:
+        phi_init = jnp.full(5, 0.2)
+    g0 = make_initial_state(phi_init, active_mask)
+
+    params = {
+        "dt_h": dt,
+        "Kp1": 1e-4,
+        "Eta": jnp.ones(5, dtype=jnp.float64),
+        "EtaPhi": jnp.ones(5, dtype=jnp.float64),
+        "c": c_const,
+        "alpha": alpha_const,
+        "K_hill": jnp.array(K_hill, dtype=jnp.float64),
+        "n_hill": jnp.array(n_hill, dtype=jnp.float64),
+        "A": A,
+        "b_diag": b_diag,
+        "active_mask": active_mask,
+    }
+
+    def body(g, _):
+        g_next = newton_step(g, params)
+        return g_next, g_next
+
+    _, g_traj = jax.lax.scan(body, g0, jnp.arange(n_steps))
+    phi_traj = g_traj[:, 0:5]
+    phi_first = g0[0:5][jnp.newaxis, :]
+    phi_traj = jnp.concatenate([phi_first, phi_traj], axis=0)
+    return phi_traj
+
+
+def simulate_0d_full(
+    theta,
+    n_steps=2500,
+    dt=1e-4,
+    phi_init=None,
+    K_hill=0.05,
+    n_hill=2.0,
+    c_const=25.0,
+    alpha_const=0.0,
+):
+    """
+    Run 0D Hamilton ODE. Returns full state trajectory (n_steps+1, 12).
+
+    State vector g = [phi(5), phi0(1), psi(5), gamma(1)].
+    Use g[:, 0:5] for phi, g[:, 6:11] for psi (viability).
+
+    Returns
+    -------
+    g_traj : (n_steps+1, 12)
+    """
+    A, b_diag = theta_to_matrices(theta)
+    active_mask = jnp.ones(5, dtype=jnp.int64)
+
+    if phi_init is None:
+        phi_init = jnp.full(5, 0.2)
+    g0 = make_initial_state(phi_init, active_mask)
+
+    params = {
+        "dt_h": dt,
+        "Kp1": 1e-4,
+        "Eta": jnp.ones(5, dtype=jnp.float64),
+        "EtaPhi": jnp.ones(5, dtype=jnp.float64),
+        "c": c_const,
+        "alpha": alpha_const,
+        "K_hill": jnp.array(K_hill, dtype=jnp.float64),
+        "n_hill": jnp.array(n_hill, dtype=jnp.float64),
+        "A": A,
+        "b_diag": b_diag,
+        "active_mask": active_mask,
+    }
+
+    def body(g, _):
+        g_next = newton_step(g, params)
+        return g_next, g_next
+
+    _, g_traj = jax.lax.scan(body, g0, jnp.arange(n_steps))
+    g_traj = jnp.concatenate([g0[jnp.newaxis, :], g_traj], axis=0)
+    return g_traj
