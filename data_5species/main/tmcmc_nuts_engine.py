@@ -597,7 +597,8 @@ def tmcmc_engine(
 
         if mutation == "rw" and not _skip_mutation:
             # --- Batched RW + optional DE-MC mutation (vmap) with adaptive scale ---
-            _n_mut = n_mutation_steps
+            # Adaptive mutation steps: fewer at low beta, more at high beta
+            _n_mut = max(3, int(n_mutation_steps * max(0.3, beta_new)))
 
             # --- Flow-enhanced proposals (Gabrie et al. 2022) ---
             _use_flow_this_stage = (
@@ -726,14 +727,18 @@ def tmcmc_engine(
                         logL[accepted_idx] = logL_proposals[accepted_j]
                         n_acc_step = int(accept_mask.sum())
                         n_accept += n_acc_step
-                # Adaptive scale: target ~23% acceptance for RW
+                # Adaptive scale: target ~23% acceptance (Roberts et al. 1997)
                 acc_rate = n_acc_step / max(n_particles, 1)
                 if not _use_demc and not _use_flow_step:
-                    if acc_rate < 0.15:
+                    if acc_rate < 0.10:
+                        _adapt_factor *= 0.5  # aggressive shrink for very low accept
+                    elif acc_rate < 0.18:
                         _adapt_factor *= 0.8
                     elif acc_rate > 0.35:
-                        _adapt_factor *= 1.2
-                    _adapt_factor = np.clip(_adapt_factor, 0.01, 10.0)
+                        _adapt_factor *= 1.3
+                    elif acc_rate > 0.50:
+                        _adapt_factor *= 1.5  # aggressive grow for very high accept
+                    _adapt_factor = np.clip(_adapt_factor, 0.001, 50.0)
                 # Update cov every few steps using current particles
                 if _mut_step % 3 == 2 and _n_mut > 3:
                     cov_base = np.cov(particles[:, free_dims].T)

@@ -349,6 +349,16 @@ def main():
         default=10.0,
         help="Max information ratio for replicate sigma (caps An dominance, default 10)",
     )
+    # Flow-enhanced SMC (Gabrie et al. 2022)
+    parser.add_argument("--use-flow", action="store_true", help="Enable NF proposal (RealNVP)")
+    parser.add_argument("--flow-n-layers", type=int, default=6)
+    parser.add_argument("--flow-hidden-dim", type=int, default=64)
+    parser.add_argument("--flow-n-epochs", type=int, default=200)
+    parser.add_argument("--flow-lr", type=float, default=1e-3)
+    parser.add_argument("--flow-start-beta", type=float, default=0.1)
+    parser.add_argument("--flow-mix-ratio", type=float, default=0.8)
+    # Waste-free SMC (Dau & Chopin 2022)
+    parser.add_argument("--waste-free", action="store_true", help="Enable waste-free SMC")
     args = parser.parse_args()
 
     if args.quick:
@@ -518,6 +528,14 @@ def main():
         use_de_mc=args.use_de_mc,
         de_mc_gamma=args.de_mc_gamma,
         resample_method=args.resample_method,
+        use_flow=args.use_flow,
+        flow_n_layers=args.flow_n_layers,
+        flow_hidden_dim=args.flow_hidden_dim,
+        flow_n_epochs=args.flow_n_epochs,
+        flow_lr=args.flow_lr,
+        flow_start_beta=args.flow_start_beta,
+        flow_mix_ratio=args.flow_mix_ratio,
+        waste_free=args.waste_free,
     )
 
     theta_MAP = result["theta_MAP"]
@@ -530,16 +548,31 @@ def main():
         + (f", log_evidence={log_evidence:.2f}" if log_evidence is not None else "")
     )
 
-    # Compute RMSE for MAP estimate
+    # Compute RMSE for MAP estimate (multichannel-aware)
     theta_MAP_jax = jnp.array(theta_MAP, dtype=jnp.float64)
-    phi_traj_map = simulate_0d(
-        theta_MAP_jax,
-        n_steps=args.n_steps,
-        dt=args.dt,
-        phi_init=jnp.array(phi_init, dtype=jnp.float64),
-        K_hill=args.K_hill,
-        n_hill=args.n_hill,
-    )
+    mc_rmse = {}
+    if args.multichannel:
+        from hamilton_ode_jax import simulate_0d_full
+
+        g_traj_map = simulate_0d_full(
+            theta_MAP_jax,
+            n_steps=args.n_steps,
+            dt=args.dt,
+            phi_init=jnp.array(phi_init, dtype=jnp.float64),
+            K_hill=args.K_hill,
+            n_hill=args.n_hill,
+        )
+        phi_traj_map = g_traj_map[:, 0:5]
+    else:
+        phi_traj_map = simulate_0d(
+            theta_MAP_jax,
+            n_steps=args.n_steps,
+            dt=args.dt,
+            phi_init=jnp.array(phi_init, dtype=jnp.float64),
+            K_hill=args.K_hill,
+            n_hill=args.n_hill,
+        )
+        g_traj_map = None
     phi_pred_map = np.array(phi_traj_map[idx_sparse, :])
     phi_pred_map = np.clip(phi_pred_map, 1e-10, 1.0 - 1e-10)
     phi_pred_map = phi_pred_map / phi_pred_map.sum(axis=1, keepdims=True)
@@ -550,9 +583,54 @@ def main():
         ss_res = np.sum((data[:, sp] - phi_pred_map[:, sp]) ** 2)
         ss_tot = np.sum((data[:, sp] - np.mean(data[:, sp])) ** 2)
         r2_vals.append(1.0 - ss_res / max(ss_tot, 1e-12))
+    mc_rmse["ch1_species"] = {
+        "rmse": float(rmse),
+        "mae": float(mae),
+        "r2": [float(v) for v in r2_vals],
+    }
     logger.info(
-        f"MAP RMSE={rmse:.4f}, MAE={mae:.4f}, R²={np.mean(r2_vals):.3f} (per-species: {[f'{v:.3f}' for v in r2_vals]})"
+        f"Ch1 (species): RMSE={rmse:.4f}, MAE={mae:.4f}, R²={np.mean(r2_vals):.3f} "
+        f"(per-sp: {[f'{v:.3f}' for v in r2_vals]})"
     )
+    # Ch2: total species (φ without viability weighting)
+    if args.multichannel and mc_kwargs.get("data_total") is not None and g_traj_map is not None:
+        phi_at_obs = np.array(g_traj_map[idx_sparse, 0:5])
+        phi_total_pred = phi_at_obs / np.maximum(phi_at_obs.sum(axis=1, keepdims=True), 1e-12)
+        data_total = mc_kwargs["data_total"]
+        rmse_total = np.sqrt(np.mean((data_total - phi_total_pred) ** 2))
+        mc_rmse["ch2_total"] = {"rmse": float(rmse_total)}
+        logger.info(f"Ch2 (total species): RMSE={rmse_total:.4f}")
+    # Ch3: viability
+    if args.multichannel and mc_kwargs.get("data_viability") is not None and g_traj_map is not None:
+        g_at_obs = np.array(g_traj_map[idx_sparse, :])
+        phi_at = g_at_obs[:, 0:5]
+        psi_at = g_at_obs[:, 6:11]
+        viab_pred = np.sum(phi_at * psi_at, axis=1) / np.maximum(np.sum(phi_at, axis=1), 1e-12)
+        data_viab = mc_kwargs["data_viability"]
+        rmse_viab = np.sqrt(np.mean((data_viab - viab_pred) ** 2))
+        r2_viab = 1.0 - np.sum((data_viab - viab_pred) ** 2) / max(
+            np.sum((data_viab - np.mean(data_viab)) ** 2), 1e-12
+        )
+        mc_rmse["ch3_viability"] = {"rmse": float(rmse_viab), "r2": float(r2_viab)}
+        logger.info(f"Ch3 (viability): RMSE={rmse_viab:.4f}, R²={r2_viab:.3f}")
+    # Ch5: pH
+    if args.multichannel and mc_kwargs.get("data_pH") is not None and g_traj_map is not None:
+        idx_ph = mc_kwargs["idx_pH"]
+        g_pH = np.array(g_traj_map[idx_ph, :])
+        phi_pH = g_pH[:, 0:5]
+        psi_pH = g_pH[:, 6:11]
+        phibar = phi_pH * psi_pH
+        phibar_sum = np.maximum(np.sum(phibar, axis=1), 1e-12)
+        phi_So = phibar[:, 0] / phibar_sum
+        phi_Vd = phibar[:, 2] / phibar_sum
+        pH_pred = 7.5 - 0.74 * phi_So - 0.48 * phi_Vd
+        data_pH = mc_kwargs["data_pH"]
+        rmse_pH = np.sqrt(np.mean((data_pH - pH_pred) ** 2))
+        r2_pH = 1.0 - np.sum((data_pH - pH_pred) ** 2) / max(
+            np.sum((data_pH - np.mean(data_pH)) ** 2), 1e-12
+        )
+        mc_rmse["ch5_pH"] = {"rmse": float(rmse_pH), "r2": float(r2_pH)}
+        logger.info(f"Ch5 (pH): RMSE={rmse_pH:.4f}, R²={r2_pH:.3f}")
 
     from datetime import datetime
 
@@ -605,6 +683,7 @@ def main():
                 "mae": float(mae),
                 "r2_mean": float(np.mean(r2_vals)),
                 "r2_per_species": [float(v) for v in r2_vals],
+                "multichannel_rmse": mc_rmse,
             },
             f,
             indent=2,
