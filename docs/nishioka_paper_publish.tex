@@ -470,10 +470,10 @@ The RMSE increase from Phase~1 to Phase~2 ($\Delta$RMSE$\leq0.03$) confirms that
 \cmidrule(lr){2-6}\cmidrule(lr){7-11}
 \textbf{Cond.} & \textbf{RMSE} & \textbf{MAE} & $\bar{\alpha}$ & $\max\ln\mathcal{L}$ & $\ln\hat{Z}$ & \textbf{RMSE} & \textbf{MAE} & $\bar{\alpha}$ & $\max\ln\mathcal{L}$ & $\ln\hat{Z}$\\
 \midrule
-CS  & .119 & .077 & .14 & $-6.3$ & $-2.6$ & .119 & .075 & .12 & $-21.6$ & $-3.3$\\
-CH  & .071 & .053 & .17 & $-3.6$ & $-1.3$ & .104 & .088 & .07 & $-112.3$ & $-8.5$\\
-DS  & .020 & .025 & .11 & $-1.2$ & $-3.8$ & .033 & .024 & .13 & $-93.4$ & $-2.8$\\
-DH  & .067 & .045 & .10 & $-6.6$ & $-9.6$ & .087 & .060 & .07 & $-170.4$ & $-11.9$\\
+CS  & 0.119 & 0.077 & 0.14 & $-6.3$ & $-2.6$ & 0.119 & 0.075 & 0.12 & $-21.6$ & $-3.3$\\
+CH  & 0.071 & 0.053 & 0.17 & $-3.6$ & $-1.3$ & 0.104 & 0.088 & 0.07 & $-112.3$ & $-8.5$\\
+DS  & 0.020 & 0.025 & 0.11 & $-1.2$ & $-3.8$ & 0.033 & 0.024 & 0.13 & $-93.4$ & $-2.8$\\
+DH  & 0.067 & 0.045 & 0.10 & $-6.6$ & $-9.6$ & 0.087 & 0.060 & 0.07 & $-170.4$ & $-11.9$\\
 \bottomrule
 \end{tabular}
 \caption{Two-phase estimation results.
@@ -500,10 +500,10 @@ So also exhibits the highest replicate variability ($\sigma_{\mathrm{So}}\approx
 \cmidrule(lr){2-6}\cmidrule(lr){7-11}
 \textbf{Cond.} & So & An & Vd & Fn & Pg & So & An & Vd & Fn & Pg\\
 \midrule
-CS  & $-.39$ & $.80$ & $-3.2$ & $-$ & $-$ & $-.36$ & $\mathbf{.91}$ & $-3.7$ & $-$ & $-$\\
-CH  & $.55$  & $.70$ & $.59$  & $-$ & $-$ & $.40$  & $-.22$ & $-.14$ & $-$ & $-$\\
-DS  & $-.87$ & $.76$ & $\mathbf{.93}$ & $.54$ & $\mathbf{.85}$ & $-.86$ & $.73$ & $\mathbf{.91}$ & $.66$ & $\mathbf{.85}$\\
-DH  & $-.47$ & $\mathbf{.83}$ & $\mathbf{.83}$ & $.60$ & $\mathbf{.92}$ & $-.21$ & $\mathbf{.86}$ & $.63$ & $.06$ & $\mathbf{.90}$\\
+CS  & $-0.39$ & $0.80$ & $-3.2$ & $-$ & $-$ & $-0.36$ & $\mathbf{0.91}$ & $-3.7$ & $-$ & $-$\\
+CH  & $0.55$  & $0.70$ & $0.59$  & $-$ & $-$ & $0.40$  & $-0.22$ & $-0.14$ & $-$ & $-$\\
+DS  & $-0.87$ & $0.76$ & $\mathbf{0.93}$ & $0.54$ & $\mathbf{0.85}$ & $-0.86$ & $0.73$ & $\mathbf{0.91}$ & $0.66$ & $\mathbf{0.85}$\\
+DH  & $-0.47$ & $\mathbf{0.83}$ & $\mathbf{0.83}$ & $0.60$ & $\mathbf{0.92}$ & $-0.21$ & $\mathbf{0.86}$ & $0.63$ & $0.06$ & $\mathbf{0.90}$\\
 \bottomrule
 \end{tabular}
 \caption{Per-species $R^2$ for Phase~1 (fix-$\psi$) and Phase~2 (free $\psi$, $N_p=10{,}000$).
@@ -597,13 +597,14 @@ Commensal Static & Dysbiotic Static  & $-0.27$ & $1.36$\\
 \label{tab:pairwise}
 \end{table}
 
-The results (Table~\ref{tab:pairwise}) show that matrices within the same health state share a common backbone ($\rho_{\text{CH--CS}}=+0.26$, $\rho_{\text{DH--DS}}=+0.40$), whereas cross-state comparisons yield negative correlations ($\rho_{\text{DH--CS}}=-0.49$, $\rho_{\text{CS--DS}}=-0.27$) and large Frobenius distances ($\Delta_F\geq0.88$).
-This quantifies the transition from health to disease as a structural reorganisation of the interaction landscape, not merely a rescaling of existing coefficients.
+The results (Table~\ref{tab:pairwise}) show that matrices within the same health state share a common backbone ($\rho_{\text{CH--CS}}=+0.26$, $\rho_{\text{DH--DS}}=+0.40$), whereas most cross-state comparisons yield negative correlations ($\rho_{\text{DH--CS}}=-0.49$, $\rho_{\text{CS--DS}}=-0.27$) and large Frobenius distances ($\Delta_F\geq0.88$).
+The exception is the CH--DH pair ($\rho=+0.24$), which share the HOBIC cultivation mode; the positive correlation suggests that flow-induced shear partially preserves the interaction topology across health states.
+Overall, the transition from health to disease corresponds to a structural reorganisation of the interaction landscape, not merely a rescaling of existing coefficients.
 
 \subsection{Independent validation}
 \label{sec:validation}
 
-We validate the inferred parameters against four measurements from Heine et al.~\cite{Heine2025PeriImplant} that were \emph{not} used in calibration.
+We validate the Phase~2 MAP parameters against four measurements from Heine et al.~\cite{Heine2025PeriImplant} that were \emph{not} used in calibration.
 
 \textit{pH prediction} ($R^2=0.71$):
 a post-hoc linear regression $\mathrm{pH}(t) = 6.95 - 0.74\,\phi_{\mathrm{So}} - 0.48\,\phi_{\mathrm{Vd}}$, fitted to HOBIC pH data (Fig.~4A in~\cite{Heine2025PeriImplant}) using the MAP-predicted species trajectories as regressors, yields Pearson $r=0.84$ over $N=12$ time points.
@@ -632,10 +633,10 @@ Cross-state transfers (DS$\to$CS: 0.273, CS$\to$DH: 0.244) degrade sharply, conf
 \toprule
 Source $\backslash$ Target & CS & CH & DS & DH \\
 \midrule
-CS & \textbf{.273} & .135 & .111 & .244 \\
-CH & .229 & \textbf{.168} & .127 & .233 \\
-DS & .273 & .130 & \textbf{.062} & .252 \\
-DH & .301 & .129 & .044 & \textbf{.262} \\
+CS & \textbf{0.273} & 0.135 & 0.111 & 0.244 \\
+CH & 0.229 & \textbf{0.168} & 0.127 & 0.233 \\
+DS & 0.273 & 0.130 & \textbf{0.062} & 0.252 \\
+DH & 0.301 & 0.129 & 0.044 & \textbf{0.262} \\
 \bottomrule
 \end{tabular}
 \caption{Cross-condition prediction RMSE. Diagonal (bold): self-prediction. DH$\to$DS (0.044) outperforms DS self (0.062), confirming a shared dysbiotic backbone.}
