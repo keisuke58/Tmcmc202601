@@ -108,6 +108,8 @@ def make_log_likelihood_jax_ode(
     # Rare species downweighting
     lambda_rare: float = 1.0,
     rare_threshold: float = 0.05,
+    # Fix ψ to experimental viability
+    psi_fixed: np.ndarray | None = None,
 ):
     """
     Build JAX-differentiable log-likelihood using Hamilton ODE.
@@ -170,6 +172,14 @@ def make_log_likelihood_jax_ode(
     lw3 = lambda_ch.get(3, 2.0)
     lw5 = lambda_ch.get(5, 0.3)
 
+    # Fixed ψ mode: interpolate experimental viability to ODE timesteps
+    _fix_psi = psi_fixed is not None
+    if _fix_psi:
+        _psi_at_obs = jnp.array(psi_fixed, dtype=jnp.float64)  # (n_obs,)
+        # Disable viability and pH channels (need g_traj which requires full solver)
+        _has_viab = False
+        _has_pH = False
+
     # Student-t log-density: log p(x | mu, sigma, nu)
     # More robust to outliers than Gaussian (heavier tails)
     _use_t = use_student_t
@@ -180,7 +190,7 @@ def make_log_likelihood_jax_ode(
         return -0.5 * (_nu + 1) * jnp.log(1.0 + residual_scaled_sq / _nu)
 
     # Use full state solver when viability/pH channels are needed
-    _need_full = _has_viab or _has_pH
+    _need_full = (_has_viab or _has_pH) and not _fix_psi
 
     def log_likelihood(theta):
         if _need_full:
@@ -210,6 +220,12 @@ def make_log_likelihood_jax_ode(
         # Sample at observation indices
         phi_pred = phi_traj[idx, :]  # (n_obs, 5)
         phi_pred = jnp.clip(phi_pred, 1e-10, 1.0 - 1e-10)
+
+        if _fix_psi:
+            # φ̄ = φ × ψ_exp (ψ is uniform across species, from experiment)
+            psi_broadcast = _psi_at_obs[:, jnp.newaxis]  # (n_obs, 1)
+            phi_pred = phi_pred * psi_broadcast
+
         # Normalize to fractions
         phi_sum = jnp.sum(phi_pred, axis=1, keepdims=True)
         phi_pred = phi_pred / jnp.maximum(phi_sum, 1e-12)
@@ -359,6 +375,33 @@ def main():
     parser.add_argument("--flow-mix-ratio", type=float, default=0.8)
     # Waste-free SMC (Dau & Chopin 2022)
     parser.add_argument("--waste-free", action="store_true", help="Enable waste-free SMC")
+    # Warm-start from previous run
+    parser.add_argument(
+        "--init-from-dir",
+        type=str,
+        default=None,
+        help="Directory of previous run to warm-start from (loads MAP + samples)",
+    )
+    parser.add_argument(
+        "--posterior-prior-nsigma",
+        type=float,
+        default=None,
+        help="Auto-narrow bounds to MAP ± N*σ from previous posterior (requires --init-from-dir)",
+    )
+    parser.add_argument(
+        "--override-bounds",
+        type=str,
+        default=None,
+        help="Override prior bounds: 'idx:lo:hi,idx:lo:hi,...' (e.g. '18:0.5:1.5,19:0.5:2.0')",
+    )
+    # Fix ψ to experimental viability (focus on A matrix estimation)
+    parser.add_argument(
+        "--fix-psi",
+        action="store_true",
+        help="Fix ψ_i to experimental viability data (uniform across species). "
+        "Disables viability channel (Ch3) and uses φ-only ODE (faster). "
+        "Goal: focus likelihood on A matrix estimation.",
+    )
     args = parser.parse_args()
 
     if args.quick:
@@ -390,6 +433,7 @@ def main():
         args.cultivation,
         args.start_from_day,
         normalize=True,
+        use_exp_init=args.use_exp_init,
     )
     if args.replicate_sigma:
         from estimate_reduced_nishioka import build_replicate_sigma
@@ -489,6 +533,32 @@ def main():
             f"pH={'yes' if mc_data.get('data_pH') is not None else 'no'}"
         )
 
+    # --fix-psi: load experimental viability and fix ψ_i = viab(t) for all species
+    psi_fixed_arr = None
+    if args.fix_psi:
+        import pandas as pd
+
+        viab_file = DATA_DIR / "experiment_data" / "fig2_membrane_distribution.csv"
+        viab_df = pd.read_csv(viab_file)
+        viab_cond = viab_df[
+            (viab_df["condition"] == args.condition) & (viab_df["cultivation"] == args.cultivation)
+        ].sort_values("day")
+        viab_days = viab_cond["day"].values.astype(float)
+        viab_intact = viab_cond["intact_membrane_pct"].values / 100.0
+
+        # Interpolate viability to observation days (t_days)
+        psi_fixed_arr = np.interp(t_days, viab_days, viab_intact)
+        psi_fixed_arr = np.clip(psi_fixed_arr, 0.01, 0.99)
+        logger.info(
+            f"[fix-psi] ψ fixed to exp viability: {dict(zip(t_days, psi_fixed_arr.round(3)))}"
+        )
+        # Disable viability channel (redundant when ψ is fixed)
+        mc_kwargs.pop("data_viability", None)
+        mc_kwargs.pop("sigma_obs_viability", None)
+        mc_kwargs["lambda_ch"] = mc_kwargs.get("lambda_ch", {})
+        if mc_kwargs["lambda_ch"]:
+            mc_kwargs["lambda_ch"][3] = 0.0
+
     log_likelihood = make_log_likelihood_jax_ode(
         data=data,
         t_days=t_days,
@@ -504,11 +574,92 @@ def main():
         use_student_t=args.use_student_t,
         student_t_nu=args.student_t_nu,
         lambda_rare=args.lambda_rare,
+        psi_fixed=psi_fixed_arr,
         **mc_kwargs,
     )
 
     prior_bounds = load_prior_bounds(args.condition, args.cultivation)
     prior_bounds = np.array(prior_bounds, dtype=np.float64)  # float64 for consistency
+
+    # --- Override bounds (from CLI) ---
+    if args.override_bounds:
+        free_mask_ovr = np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12
+        for spec in args.override_bounds.split(","):
+            idx_s, lo_s, hi_s = spec.split(":")
+            idx_o = int(idx_s)
+            if not free_mask_ovr[idx_o]:
+                logger.warning(f"Cannot override locked index {idx_o}, skipping")
+                continue
+            prior_bounds[idx_o] = [float(lo_s), float(hi_s)]
+            logger.info(f"Override bound [{idx_o}] -> [{lo_s}, {hi_s}]")
+
+    # --- Warm-start from previous run ---
+    init_particles = None
+    if args.init_from_dir:
+        prev_dir = Path(args.init_from_dir)
+        prev_samples = np.load(prev_dir / "samples.npy")
+        prev_map_file = prev_dir / "theta_MAP.json"
+        prev_map = None
+        if prev_map_file.exists():
+            _mj = json.load(open(prev_map_file))
+            prev_map = np.array([_mj[str(i)] for i in range(20)])
+        logger.info(f"Warm-start: loaded {prev_samples.shape[0]} samples from {prev_dir.name}")
+
+        # Posterior-informed prior narrowing
+        if args.posterior_prior_nsigma is not None and prev_samples.shape[0] > 10:
+            nsig = args.posterior_prior_nsigma
+            post_mean = prev_samples.mean(axis=0)
+            post_std = prev_samples.std(axis=0)
+            free_mask_pp = np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12
+            n_narrowed = 0
+            for i in range(20):
+                if not free_mask_pp[i] or post_std[i] < 1e-10:
+                    continue
+                new_lo = max(prior_bounds[i, 0], post_mean[i] - nsig * post_std[i])
+                new_hi = min(prior_bounds[i, 1], post_mean[i] + nsig * post_std[i])
+                if new_hi - new_lo > 0.01:  # safety: don't collapse
+                    old_w = prior_bounds[i, 1] - prior_bounds[i, 0]
+                    prior_bounds[i] = [new_lo, new_hi]
+                    n_narrowed += 1
+                    logger.info(
+                        f"  [{i}] {old_w:.3f} -> {new_hi - new_lo:.3f} "
+                        f"(μ={post_mean[i]:.3f}, σ={post_std[i]:.3f})"
+                    )
+            logger.info(f"Posterior prior: narrowed {n_narrowed} params to MAP ± {nsig}σ")
+
+        # Build init_particles: 50% from MAP neighborhood, 50% from prior
+        rng_init = np.random.default_rng(args.seed + 1000)
+        init_particles = np.zeros((args.n_particles, 20), dtype=np.float64)
+        n_warm = args.n_particles // 2
+        free_mask_w = np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12
+
+        if prev_map is not None and prev_samples.shape[0] >= 10:
+            # Sample from previous posterior with small perturbation
+            post_cov = np.cov(prev_samples.T)
+            post_cov = np.atleast_2d(post_cov)
+            # Shrink covariance for tighter initialization
+            post_cov *= 0.25  # 0.5σ perturbation
+            post_cov += np.eye(20) * 1e-10
+            warm_samples = rng_init.multivariate_normal(prev_map, post_cov, size=n_warm)
+        else:
+            # Fallback: resample from prev_samples
+            idx_resample = rng_init.choice(len(prev_samples), n_warm, replace=True)
+            warm_samples = prev_samples[idx_resample]
+
+        init_particles[:n_warm] = warm_samples
+        # Remaining from prior
+        for i in range(20):
+            lo, hi = prior_bounds[i]
+            if abs(hi - lo) < 1e-12:
+                init_particles[:, i] = lo
+            else:
+                init_particles[n_warm:, i] = rng_init.uniform(lo, hi, args.n_particles - n_warm)
+        # Clamp all to bounds
+        for i in range(20):
+            init_particles[:, i] = np.clip(
+                init_particles[:, i], prior_bounds[i, 0], prior_bounds[i, 1]
+            )
+        logger.info(f"Init particles: {n_warm} warm-start + {args.n_particles - n_warm} prior")
 
     logger.info("JIT warmup...")
     _ = jax.jit(log_likelihood)(jnp.zeros(20, dtype=jnp.float64))
@@ -536,6 +687,7 @@ def main():
         flow_start_beta=args.flow_start_beta,
         flow_mix_ratio=args.flow_mix_ratio,
         waste_free=args.waste_free,
+        init_particles=init_particles,
     )
 
     theta_MAP = result["theta_MAP"]

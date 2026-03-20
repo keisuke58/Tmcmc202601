@@ -388,6 +388,9 @@ def tmcmc_engine(
     flow_mix_ratio: float = 0.8,
     # --- Waste-free SMC (Dau & Chopin 2022) ---
     waste_free: bool = False,
+    # --- Warm-start from previous run ---
+    init_particles: Optional[np.ndarray] = None,
+    init_logL: Optional[np.ndarray] = None,
 ) -> dict:
     """
     TMCMC with RW / HMC / NUTS mutation.
@@ -415,10 +418,24 @@ def tmcmc_engine(
     free_dims = np.where(free_mask)[0]
     d_free = len(free_dims)
 
-    particles = np.zeros((n_particles, d), dtype=np.float64)
-    for i in range(d):
-        lo, hi = prior_bounds[i]
-        particles[:, i] = lo if abs(hi - lo) < 1e-12 else rng.uniform(lo, hi, n_particles)
+    # --- Initialize particles: warm-start or from prior ---
+    if init_particles is not None:
+        # Warm-start: use provided particles (e.g. from previous run)
+        assert init_particles.shape == (
+            n_particles,
+            d,
+        ), f"init_particles shape {init_particles.shape} != ({n_particles}, {d})"
+        particles = init_particles.copy().astype(np.float64)
+        # Clamp to bounds
+        for i in range(d):
+            particles[:, i] = np.clip(particles[:, i], prior_bounds[i, 0], prior_bounds[i, 1])
+        if verbose:
+            print(f"  Warm-start: {n_particles} particles from previous run")
+    else:
+        particles = np.zeros((n_particles, d), dtype=np.float64)
+        for i in range(d):
+            lo, hi = prior_bounds[i]
+            particles[:, i] = lo if abs(hi - lo) < 1e-12 else rng.uniform(lo, hi, n_particles)
 
     has_gnn_prior = log_prior_fn is not None
     if has_gnn_prior:
