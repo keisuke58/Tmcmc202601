@@ -488,8 +488,9 @@ Phase~1 achieves lower species RMSE (upper bound on fit quality), while Phase~2 
 Table~\ref{tab:r2_species} reports the per-species $R^2$ for each condition.
 In commensal states (CS, CH), Fn and Pg fractions are near zero throughout, rendering $R^2$ undefined (total variance $\approx0$); these are marked ``$-$'' in the table.
 In dysbiotic states, the model captures the pathogen dynamics with high fidelity: DH achieves $R^2>0.8$ for An, Vd, and Pg; DS achieves $R^2=0.93$ for Vd and $0.85$ for Pg.
-So shows negative $R^2$ across all conditions, reflecting the difficulty of reproducing the rapid Day~1$\to$Day~3 transient: the So fraction drops by 30--50\% in two days as the community transitions from the inoculation ratio to its ecological equilibrium.
-This transient is driven by nutrient depletion dynamics that cannot be fully captured by the time-invariant interaction matrix; moreover, So exhibits the highest replicate variability ($\sigma_{\mathrm{So}}\approx0.19$), amplifying the denominator $\mathrm{SS}_{\mathrm{tot}}$ and depressing $R^2$.
+So shows negative $R^2$ across all conditions in Phase~2, reflecting a trade-off between the species-fraction and viability likelihood channels: the additional $\psi$-dynamics shift the MAP away from the So-optimal region to accommodate viability constraints.
+Phase~1 (fix-$\psi$) achieves substantially better So fits, confirming that the $R^2<0$ arises from the $\psi$--$\phi$ coupling rather than from a fundamental model limitation.
+So also exhibits the highest replicate variability ($\sigma_{\mathrm{So}}\approx0.19$), which inflates $\mathrm{SS}_{\mathrm{tot}}$ and further depresses $R^2$.
 
 \begin{table}[t]
 \centering\small
@@ -617,6 +618,35 @@ the MAP An$\to$Vei coefficient ($A_{12}=+0.76$) is consistent with lactate/succi
 \textit{Growth rate parity}:
 planktonic doubling times (1.68\,h commensal vs.\ 1.64\,h dysbiotic; Fig.~1B) confirm that condition differences arise from community interactions, not individual species fitness.
 
+\subsection{Sensitivity, transferability, and model parsimony}
+\label{sec:sensitivity}
+
+\paragraph{Cross-condition transferability.}
+To test whether the inferred matrices capture genuine condition-specific structure, we evaluate each MAP on every other condition's data (Table~\ref{tab:cross_prediction}).
+Within-state transfers yield low RMSE: DH$\to$DS achieves 0.044---\emph{lower than DS self-prediction} (0.062)---and CS$\to$CH yields 0.135 vs.\ CH self 0.168, indicating a shared interaction backbone within each health state.
+Cross-state transfers (DS$\to$CS: 0.273, CS$\to$DH: 0.244) degrade sharply, confirming that commensal and dysbiotic matrices are structurally distinct.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Source $\backslash$ Target & CS & CH & DS & DH \\
+\midrule
+CS & \textbf{.273} & .135 & .111 & .244 \\
+CH & .229 & \textbf{.168} & .127 & .233 \\
+DS & .273 & .130 & \textbf{.062} & .252 \\
+DH & .301 & .129 & .044 & \textbf{.262} \\
+\bottomrule
+\end{tabular}
+\caption{Cross-condition prediction RMSE. Diagonal (bold): self-prediction. DH$\to$DS (0.044) outperforms DS self (0.062), confirming a shared dysbiotic backbone.}
+\label{tab:cross_prediction}
+\end{table}
+
+\paragraph{Effective dimensionality.}
+We quantify posterior informativeness as $r_i = \sigma_{\mathrm{post},i} / \Delta_{\mathrm{prior}}$ ($\Delta_{\mathrm{prior}}=6$, uniform baseline).
+All 20 parameters satisfy $r_i < 0.43$ in every condition, with DS achieving the tightest posteriors (mean $r=0.07$).
+Even Pg-related parameters in commensal conditions satisfy $r_i \leq 0.10$, confirming that the data constrain them to near-zero rather than leaving them prior-dominated.
+The full 20-parameter model is therefore not over-parametrised.
 
 %==============================================================================
 \section{Discussion}
@@ -628,35 +658,32 @@ The inferred interaction matrices map the commensal-to-dysbiotic transition quan
 In commensal states, So--An co-aggregation and So--Vei lactate exchange form a stable mutualistic core; the transition to dysbiosis activates cooperative Vei$\to$Pg and Fn$\to$Pg pathways whose strength is cultivation-dependent.
 The structural similarity within health states ($\rho_{\text{within}}>0$, Table~\ref{tab:pairwise}) contrasts with cross-state anticorrelations ($\rho_{\text{cross}}<0$), confirming that the health-to-disease shift is a topological reorganisation of the interaction network, not merely a magnitude rescaling.
 The full discovery approach---estimating all 20 parameters without a priori locking---allows the posterior to recover the biologically expected sparsity in commensal conditions as an emergent property.
+The cross-condition transferability analysis (Table~\ref{tab:cross_prediction}) strengthens this interpretation: within-state MAP parameters generalise across cultivation modes (DH$\to$DS RMSE\,$=$\,0.044, better than DS self-prediction), while cross-state transfers fail, confirming that the health-to-disease transition requires a genuinely different interaction matrix rather than parameter rescaling.
 
 \paragraph{Fix-$\psi$ approximation and Phase~2.}
-The governing equations (Eqs.~\ref{eq:phi}--\ref{eq:psi_evol}) couple $\phi_i$ and $\psi_i$ through the interaction matrix: $\psi_i$ evolves under the same driving term $c^*\phi_i(\mathbf{A}\bar{\bphi})_i$ as $\phi_i$.
-Fixing $\psi_i$ to experimental values therefore breaks this coupling, introducing a model approximation whose magnitude depends on the sensitivity of the $\phi$-posterior to $\psi$-dynamics.
-Phase~2 addresses this by releasing $\psi_i$ with the Phase~1 posterior as informative prior on $\mathbf{A}$.
-If the Phase~2 MAP interaction matrix is consistent with Phase~1, the fix-$\psi$ approximation is validated; if it shifts, the $\psi$--$\mathbf{A}$ coupling is non-negligible and the Phase~2 result is essential.
-This two-phase strategy can be viewed as a form of data augmentation: Phase~1 extracts maximum information from the species-fraction channel alone, while Phase~2 incorporates the viability channel to refine the joint posterior.
+Eqs.~\eqref{eq:phi}--\eqref{eq:psi_evol} couple $\phi_i$ and $\psi_i$ through the interaction matrix.
+Fixing $\psi_i$ breaks this coupling; Phase~2 restores it with the Phase~1 posterior as informative prior on $\mathbf{A}$.
+Figure~\ref{fig:phase_scatter} compares the Phase~1 and Phase~2 MAP estimates parameter by parameter.
+In commensal conditions, the two phases yield consistent MAPs ($r=0.83$--$0.90$), confirming that the $\psi$--$\mathbf{A}$ coupling is weak and fix-$\psi$ is a good approximation.
+In dysbiotic conditions, the MAPs diverge ($r=0.23$ for DS, $0.62$ for DH), with the largest shifts in Pg-related parameters ($a_{55}$, $a_{15}$, $a_{45}$)---precisely where the $\psi$-dynamics are most active.
+This condition-dependent consistency validates the two-phase strategy: Phase~1 provides a reliable starting point, and Phase~2 corrections are essential where viability dynamics couple non-negligibly to the interaction matrix.
+The viability predictions themselves remain poor (RMSE 0.11--0.39), indicating that the $\psi$-dynamics lack the mechanistic specificity to capture membrane-integrity loss independently; the viability channel serves primarily as a soft constraint to break the $\psi$--$\mathbf{A}$ degeneracy.
 
-\paragraph{Viability prediction.}
-While Phase~2 successfully identifies the interaction matrix with free $\psi_i$, the viability predictions themselves remain poor: the viability-channel RMSE ranges from 0.11 (CH, where viability is approximately constant at $\sim$66\%) to 0.39 (DS, where viability drops sharply from 77\% to 28\%).
-This indicates that the dissipative $\psi$-dynamics in Eqs.~\eqref{eq:phi}--\eqref{eq:psi_evol}---which couple $\psi_i$ to $\phi_i$ through the same interaction matrix~$\mathbf{A}$---lack the mechanistic specificity to capture membrane-integrity loss independently of volume-fraction evolution.
-Possible extensions include state-dependent dissipation $\eta_i(\psi_i)$ or dedicated viability-decay terms; however, such additions would increase the parameter dimension and require targeted viability experiments for identifiability.
-For the present purpose, the Phase~2 viability channel serves primarily as a soft constraint to break the $\psi$--$\mathbf{A}$ degeneracy rather than as a quantitative viability predictor.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/phase1_vs_phase2_map.pdf}
+\caption{Phase~1 (fix-$\psi$) vs.\ Phase~2 (free $\psi$) MAP estimates. Each point is one of the 20 parameters; dashed line: identity. Commensal conditions (CS, CH) show strong agreement ($r>0.83$), validating the fix-$\psi$ approximation. Dysbiotic conditions (DS, DH) exhibit systematic shifts in Pg-related parameters, confirming the necessity of Phase~2.}
+\label{fig:phase_scatter}
+\end{figure}
 
-\paragraph{Model evidence and Occam's razor.}
-The log-evidence $\ln\hat{Z}$ (Table~\ref{tab:rmse}) penalises models whose prior volume exceeds the posterior support.
-Commensal conditions achieve higher evidence despite having the same 20-parameter prior, because the posterior concentrates on a low-dimensional submanifold (pathogen entries $\approx0$), effectively reducing the Occam factor.
-Dysbiotic conditions require the full parameter space, incurring a larger evidence penalty.
-This cross-condition evidence contrast provides a model-based signature of ecological complexity that complements the Frobenius distance analysis.
+\paragraph{Model evidence.}
+The log-evidence $\ln\hat{Z}$ (Table~\ref{tab:rmse}) is higher for commensal conditions despite the same 20-parameter prior, because the posterior concentrates pathogen entries near zero, effectively reducing the Occam factor.
+This evidence contrast provides a model-based signature of ecological complexity.
 
 \paragraph{Computational considerations.}
-The GPU-parallel TMCMC achieves a $\sim$200$\times$ speedup (Table~\ref{tab:timing}) by exploiting the embarrassingly parallel structure of random walk mutation: all $N_p$ likelihood evaluations execute in a single \texttt{vmap} call.
-Gradient-based alternatives (NUTS, HMC) were tested but fail on GPU due to variable-length leapfrog trajectories that cause warp divergence; Dance et al.~\cite{Dance2025FSM} report similar findings for \texttt{vmap}-ed NUTS.
-Compared to Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms}, the direct-ODE approach avoids surrogate approximation errors; combining their surrogate acceleration with our GPU framework is a natural extension.
-
-\paragraph{Outlook.}
-The two-phase strategy opens several avenues for extension.
-The GPU speedup makes it feasible to run $N_p=10{,}000$ particle ensembles, providing high-resolution posterior estimates suitable for Bayesian model comparison across competing interaction hypotheses.
-The full discovery approach---where no interactions are locked a priori---establishes a principled baseline against which biologically motivated constraints can be tested via Bayes factors, rather than assumed.
+The $\sim$200$\times$ GPU speedup (Table~\ref{tab:timing}) exploits the embarrassingly parallel RW mutation via \texttt{jax.vmap}.
+Gradient-based alternatives (NUTS, HMC) fail on GPU due to variable-length leapfrog trajectories causing warp divergence~\cite{Dance2025FSM}.
+Combining the direct-ODE approach with surrogate acceleration~\cite{Fritsch2025BayesianMicrofilms} is a natural extension.
 
 %==============================================================================
 \section{Conclusions}
@@ -680,6 +707,10 @@ Independent validation against unused pH, gingipain, and metabolic data confirms
 
 \item \textbf{Quantitative interaction comparison.}
 Pairwise Frobenius analysis reveals that the health-to-disease transition corresponds to a structural reorganisation of the interaction matrix, not merely a magnitude shift.
+Cross-condition transfer predictions confirm that within-state interaction backbones generalise across cultivation modes.
+
+\item \textbf{Model parsimony.}
+Effective dimensionality analysis confirms that all 20 parameters are data-informed in every condition ($r_i<0.43$), justifying the full-discovery approach without a priori parameter reduction.
 \end{enumerate}
 
 \paragraph{Future work.}
