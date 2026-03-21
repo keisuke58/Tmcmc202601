@@ -18,34 +18,21 @@ jax.config.update("jax_enable_x64", True)
 
 def _solve_linear_pure_jax(A, b):
     """
-    Solve A @ x = b using Gaussian elimination with partial pivoting.
+    Solve A @ x = b using Gaussian elimination (no pivoting).
     Pure JAX implementation to avoid cuSOLVER (gpusolverDnCreate failures on some GPUs).
-
-    Partial pivoting selects the largest absolute value in the column as pivot,
-    improving numerical stability near bifurcation points in the ODE.
+    For the 12x12 Newton Jacobian this is numerically adequate.
     """
     n = A.shape[0]
     Ab = jnp.concatenate([A, b[:, jnp.newaxis]], axis=1)
 
     def elim_step(carry, k):
         Ab_curr = carry
-        # Partial pivoting: find row with max |value| in column k (rows k..n-1)
-        col_k = jnp.abs(Ab_curr[:, k])
-        # Mask out rows above k
-        col_k = jnp.where(jnp.arange(n) >= k, col_k, -1.0)
-        pivot_row = jnp.argmax(col_k)
-        # Swap rows k and pivot_row
-        row_k = Ab_curr[k, :]
-        row_p = Ab_curr[pivot_row, :]
-        Ab_curr = Ab_curr.at[k, :].set(row_p)
-        Ab_curr = Ab_curr.at[pivot_row, :].set(row_k)
-        # Eliminate
         pivot = Ab_curr[k, k]
         pivot_safe = jnp.where(jnp.abs(pivot) > 1e-14, pivot, 1.0)
-        row_k_new = Ab_curr[k, :]
+        row_k = Ab_curr[k, :]
         scale = Ab_curr[:, k] / pivot_safe
         scale = jnp.where(jnp.arange(n) > k, scale, 0.0)
-        Ab_new = Ab_curr - scale[:, jnp.newaxis] * row_k_new
+        Ab_new = Ab_curr - scale[:, jnp.newaxis] * row_k
         return Ab_new, None
 
     Ab_final, _ = jax.lax.scan(elim_step, Ab, jnp.arange(n - 1))
@@ -192,37 +179,24 @@ def residual(g_new, g_prev, params):
 
 
 def newton_step(g_prev, params):
-    """One implicit Euler step with adaptive Newton iteration.
-
-    Uses 12 iterations (up from 6) with early termination when residual
-    is sufficiently small. The extra iterations are critical for stiff
-    parameter regimes where 6 iterations may not converge.
-    """
+    """One implicit Euler step."""
     active_mask = params["active_mask"]
-    n_steps = 12  # Increased from 6 for better convergence
-    tol_sq = 1e-20  # Convergence tolerance (squared L2 norm of residual)
+    n_steps = 6
 
     def body(carry, _):
-        g, converged = carry
-        g = clip_state(g, active_mask)
+        g = clip_state(carry, active_mask)
 
         def F(gg):
             return residual(gg, g_prev, params)
 
         Q = F(g)
-        # Skip Newton update if already converged (but still run for scan shape)
-        res_norm_sq = jnp.sum(Q**2)
-        is_converged = converged | (res_norm_sq < tol_sq)
-
         J = jax.jacfwd(F)(g)
         delta = _solve_linear_pure_jax(J, -Q)
-        g_updated = clip_state(g + delta, active_mask)
-        # If converged, keep current g (avoid unnecessary perturbation)
-        g_next = jnp.where(is_converged, g, g_updated)
-        return (g_next, is_converged), None
+        g_next = clip_state(g + delta, active_mask)
+        return g_next, None
 
     g0 = clip_state(g_prev, active_mask)
-    (g_final, _), _ = jax.lax.scan(body, (g0, jnp.bool_(False)), jnp.arange(n_steps))
+    g_final, _ = jax.lax.scan(body, g0, jnp.arange(n_steps))
     return g_final
 
 
@@ -247,7 +221,7 @@ def simulate_0d_nutrient(
     K_hill=0.05,
     n_hill=2.0,
     c_const=25.0,
-    alpha_const=0.0,
+    alpha_const=100.0,
     S_init=1.0,
     K_S=0.5,
     g_consumption=None,
@@ -329,11 +303,16 @@ def simulate_0d_nutrient(
         return (g_next, S_next), (g_next, S_next)
 
     _, (g_traj, S_traj) = jax.lax.scan(body, (g0, S_init), jnp.arange(n_steps))
-    phi_traj = g_traj[:, 0:5]
-    phi_first = g0[0:5][jnp.newaxis, :]
-    phi_traj = jnp.concatenate([phi_first, phi_traj], axis=0)
+    # Observable: phibar = phi * psi
+    phi = g_traj[:, 0:5]
+    psi = g_traj[:, 6:11]
+    phibar = phi * psi
+    phi0 = g0[0:5]
+    psi0 = g0[6:11]
+    phibar0 = (phi0 * psi0)[jnp.newaxis, :]
+    phibar_traj = jnp.concatenate([phibar0, phibar], axis=0)
     S_traj = jnp.concatenate([S_init[jnp.newaxis], S_traj], axis=0)
-    return phi_traj, S_traj
+    return phibar_traj, S_traj
 
 
 def simulate_0d(
@@ -344,7 +323,7 @@ def simulate_0d(
     K_hill=0.05,
     n_hill=2.0,
     c_const=25.0,
-    alpha_const=0.0,
+    alpha_const=100.0,
 ):
     """
     Run 0D Hamilton ODE. Returns phi trajectory (n_steps+1, 5).
@@ -388,57 +367,13 @@ def simulate_0d(
         return g_next, g_next
 
     _, g_traj = jax.lax.scan(body, g0, jnp.arange(n_steps))
-    phi_traj = g_traj[:, 0:5]
-    phi_first = g0[0:5][jnp.newaxis, :]
-    phi_traj = jnp.concatenate([phi_first, phi_traj], axis=0)
-    return phi_traj
-
-
-def simulate_0d_full(
-    theta,
-    n_steps=2500,
-    dt=1e-4,
-    phi_init=None,
-    K_hill=0.05,
-    n_hill=2.0,
-    c_const=25.0,
-    alpha_const=0.0,
-):
-    """
-    Run 0D Hamilton ODE. Returns full state trajectory (n_steps+1, 12).
-
-    State vector g = [phi(5), phi0(1), psi(5), gamma(1)].
-    Use g[:, 0:5] for phi, g[:, 6:11] for psi (viability).
-
-    Returns
-    -------
-    g_traj : (n_steps+1, 12)
-    """
-    A, b_diag = theta_to_matrices(theta)
-    active_mask = jnp.ones(5, dtype=jnp.int64)
-
-    if phi_init is None:
-        phi_init = jnp.full(5, 0.2)
-    g0 = make_initial_state(phi_init, active_mask)
-
-    params = {
-        "dt_h": dt,
-        "Kp1": 1e-4,
-        "Eta": jnp.ones(5, dtype=jnp.float64),
-        "EtaPhi": jnp.ones(5, dtype=jnp.float64),
-        "c": c_const,
-        "alpha": alpha_const,
-        "K_hill": jnp.array(K_hill, dtype=jnp.float64),
-        "n_hill": jnp.array(n_hill, dtype=jnp.float64),
-        "A": A,
-        "b_diag": b_diag,
-        "active_mask": active_mask,
-    }
-
-    def body(g, _):
-        g_next = newton_step(g, params)
-        return g_next, g_next
-
-    _, g_traj = jax.lax.scan(body, g0, jnp.arange(n_steps))
-    g_traj = jnp.concatenate([g0[jnp.newaxis, :], g_traj], axis=0)
-    return g_traj
+    # Observable: phibar = phi * psi (species abundance fraction)
+    phi = g_traj[:, 0:5]
+    psi = g_traj[:, 6:11]
+    phibar = phi * psi
+    # First timepoint
+    phi0 = g0[0:5]
+    psi0 = g0[6:11]
+    phibar0 = (phi0 * psi0)[jnp.newaxis, :]
+    phibar_traj = jnp.concatenate([phibar0, phibar], axis=0)
+    return phibar_traj

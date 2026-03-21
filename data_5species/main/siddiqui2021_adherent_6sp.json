@@ -1,0 +1,144 @@
+{
+  "description": "Siddiqui 2021 adherent on polished cpTi, 6 species (original, no exclusion)",
+  "source": "Siddiqui et al. 2021, Dental Materials, DOI:10.1016/j.dental.2021.12.021, PMC8828709",
+  "species_6": [
+    "S. oralis",
+    "A. naeslundii",
+    "A. actinomycetemcomitans",
+    "V. parvula",
+    "F. nucleatum",
+    "P. gingivalis"
+  ],
+  "species_abbrev": [
+    "So",
+    "An",
+    "Aa",
+    "Vp",
+    "Fn",
+    "Pg"
+  ],
+  "groups": {
+    "early": [
+      "So",
+      "An",
+      "Aa"
+    ],
+    "secondary": [
+      "Vp",
+      "Fn"
+    ],
+    "late": [
+      "Pg"
+    ]
+  },
+  "t_days": [
+    0.25,
+    1.0,
+    3.0,
+    7.0,
+    14.0,
+    21.0
+  ],
+  "sigma_obs": 0.05,
+  "data_pct": [
+    [
+      82,
+      1,
+      9,
+      0,
+      8,
+      0
+    ],
+    [
+      58,
+      4,
+      8,
+      5,
+      25,
+      0
+    ],
+    [
+      28,
+      4,
+      8,
+      15,
+      45,
+      0
+    ],
+    [
+      58,
+      4,
+      8,
+      10,
+      20,
+      0
+    ],
+    [
+      48,
+      4,
+      8,
+      10,
+      15,
+      15
+    ],
+    [
+      22,
+      5,
+      6,
+      10,
+      24,
+      33
+    ]
+  ],
+  "data_frac": [
+    [
+      0.82,
+      0.01,
+      0.09,
+      0.0,
+      0.08,
+      0.0
+    ],
+    [
+      0.58,
+      0.04,
+      0.08,
+      0.05,
+      0.25,
+      0.0
+    ],
+    [
+      0.28,
+      0.04,
+      0.08,
+      0.15,
+      0.45,
+      0.0
+    ],
+    [
+      0.58,
+      0.04,
+      0.08,
+      0.1,
+      0.2,
+      0.0
+    ],
+    [
+      0.48,
+      0.04,
+      0.08,
+      0.1,
+      0.15,
+      0.15
+    ],
+    [
+      0.22,
+      0.05,
+      0.06,
+      0.1,
+      0.24,
+      0.33
+    ]
+  ],
+  "notes": "Digitized from Fig 1/2 stacked bar charts + text group percentages. ~\u00b13% precision."
+}
