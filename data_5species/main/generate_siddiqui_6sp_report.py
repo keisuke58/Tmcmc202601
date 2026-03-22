@@ -267,9 +267,8 @@ def load_run(run_dir):
         theta = np.array([raw[str(i)] for i in range(n_p)])
     else:
         theta = np.array([raw[f"theta_{i}"] for i in range(n_p)])
-    # Pad to N_PARAMS if needed (old 27-param runs get K_hill=0.15 default)
-    if len(theta) < N_PARAMS:
-        theta = np.concatenate([theta, np.array([0.15] * (N_PARAMS - len(theta)))])
+    # Don't pad — keep original param count for correct labeling
+    # simulate_0d_6sp handles both 27 and 28 params (K_hill kwarg fallback)
     samples = np.load(run_dir / "samples.npy")
     logL = np.load(run_dir / "logL.npy")
     return theta, samples, logL
@@ -385,7 +384,10 @@ def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=2500):
     axes_flat[0].legend(
         handles=handles, loc="upper right", fontsize=8, handlelength=1.2, borderpad=0.4
     )
-    fig.suptitle(f"{label} (6 species, {N_PARAMS} params)", fontsize=10, fontweight="bold", y=1.04)
+    n_p_actual = len(theta)
+    fig.suptitle(
+        f"{label} (6 species, {n_p_actual} params)", fontsize=10, fontweight="bold", y=1.04
+    )
     fig.tight_layout(w_pad=0.2)
     tag = label.lower().replace(" ", "_")
     fig.savefig(fig_dir / f"fig_6panel_{tag}.pdf")
