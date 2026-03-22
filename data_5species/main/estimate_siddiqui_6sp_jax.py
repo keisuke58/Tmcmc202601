@@ -294,7 +294,7 @@ def main():
     parser.add_argument(
         "--dataset", default="planktonic", choices=["planktonic", "adherent", "both"]
     )
-    parser.add_argument("--n-particles", type=int, default=2000)
+    parser.add_argument("--n-particles", type=int, default=5000)
     parser.add_argument("--max-stages", type=int, default=50)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n-mutation-steps", type=int, default=20)
