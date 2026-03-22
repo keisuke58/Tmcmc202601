@@ -103,12 +103,12 @@ PARAM_NAMES = [
     "a(Vp-Pg)",
     "a(Fn-Pg)",
     "a(Pg-Pg)",
-    "b(So)",
-    "b(An)",
-    "b(Aa)",
-    "b(Vp)",
-    "b(Fn)",
-    "b(Pg)",
+    "μ(So)",
+    "μ(An)",
+    "μ(Aa)",
+    "μ(Vp)",
+    "μ(Fn)",
+    "μ(Pg)",
 ]
 PARAM_TEX = [
     r"$a_{11}$",
@@ -885,11 +885,11 @@ consistent with the Hill-gated bridging mechanism.}
 \caption{Posterior growth rates. Star = MAP.}
 \end{figure}
 
-\section{Stacked Composition}
-\begin{figure}[H]\centering
-\includegraphics[width=\textwidth]{figures/fig_stacked_6sp.pdf}
-\caption{Stacked area: observed (left) vs predicted (right).}
-\end{figure}
+%% \section{Stacked Composition}
+%% \begin{figure}[H]\centering
+%% \includegraphics[width=\textwidth]{figures/fig_stacked_6sp.pdf}
+%% \caption{Stacked area: observed (left) vs predicted (right).}
+%% \end{figure}
 
 \section{DI and Young's Modulus}
 \begin{figure}[H]\centering
