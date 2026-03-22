@@ -1066,6 +1066,20 @@ fundamentally alters early-colonizer interactions.
 weakly interactive in planktonic but moderately mutualistic with An/Vp in adherent.}
 \end{figure}
 
+\section{Interaction Parameter Posteriors ($a_{ij}$)}
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth]{figures/fig_A_violin_6sp.pdf}
+\caption{Posterior distributions of all 21 interaction parameters $a_{ij}$.
+P = Planktonic, A = Adherent. Star = MAP estimate.
+Top row: So--An--Aa block (early colonizer self- and cross-interactions).
+Middle: Vp--Fn cross-interactions (secondary colonizer coupling with all species).
+Bottom: Pg interactions (late colonizer).
+The Fn--Pg coupling ($a_{56}$) is consistently positive and tightly constrained
+in both conditions, supporting the Hill-gated bridging hypothesis.
+Several parameters show bimodal or wide posteriors (e.g., $a_{14}$, $a_{25}$),
+indicating partial non-identifiability in these interaction channels.}
+\end{figure}
+
 \section{Growth Rates $\mu_i$}
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth]{figures/fig_mu_violin_6sp.pdf}
@@ -1078,27 +1092,6 @@ to achieve dominance --- particularly \textit{P.\ gingivalis} which requires
 the Fn-mediated Hill gate to proliferate.
 \textit{A.\ actinomycetemcomitans} shows near-zero $\mu$ in planktonic
 but positive in adherent, reflecting its surface-adhesion advantage.}
-\end{figure}
-
-%% \section{Stacked Composition}
-%% \begin{figure}[H]\centering
-%% \includegraphics[width=\textwidth]{figures/fig_stacked_6sp.pdf}
-%% \caption{Stacked area: observed (left) vs predicted (right).}
-%% \end{figure}
-
-%% \section{DI and Young's Modulus}
-%% \begin{figure}[H]\centering
-%% \includegraphics[width=\textwidth]{figures/fig_di_E_6sp.pdf}
-%% \caption{DI and $E(\text{DI})$ trajectories.}
-%% \end{figure}
-
-\section{Interaction Parameter Posteriors ($a_{ij}$)}
-\begin{figure}[H]\centering
-\includegraphics[width=\textwidth]{figures/fig_A_violin_6sp.pdf}
-\caption{Posterior distributions of all 21 interaction parameters $a_{ij}$.
-P = Planktonic, A = Adherent. Star = MAP estimate.
-Top row: So--An--Aa block. Middle: Vp--Fn cross-interactions.
-Bottom: Pg interactions. Note strong Fn--Pg coupling ($a_{56}$) in both conditions.}
 \end{figure}
 
 \section{Observed vs Predicted}
