@@ -444,6 +444,125 @@ def fig_A_matrix(theta_plan, theta_adh, fig_dir):
     plt.close(fig)
 
 
+def fig_A_violin(samples_plan, samples_adh, theta_plan, theta_adh, fig_dir):
+    """Violin plots for all 21 interaction params (a_ij), 3 rows x 7 cols."""
+    # A param indices: 0-20
+    A_IDX = list(range(21))
+    A_LABELS = [
+        r"$a_{11}$",
+        r"$a_{12}$",
+        r"$a_{22}$",
+        r"$a_{13}$",
+        r"$a_{23}$",
+        r"$a_{33}$",
+        r"$a_{14}$",
+        r"$a_{24}$",
+        r"$a_{34}$",
+        r"$a_{44}$",
+        r"$a_{15}$",
+        r"$a_{25}$",
+        r"$a_{35}$",
+        r"$a_{45}$",
+        r"$a_{55}$",
+        r"$a_{16}$",
+        r"$a_{26}$",
+        r"$a_{36}$",
+        r"$a_{46}$",
+        r"$a_{56}$",
+        r"$a_{66}$",
+    ]
+    groups = [
+        ("So--An--Aa", A_IDX[0:6], A_LABELS[0:6]),
+        ("Vp--Fn cross", A_IDX[6:15], A_LABELS[6:15]),
+        ("Pg cross + self", A_IDX[15:21], A_LABELS[15:21]),
+    ]
+
+    fig, axes = plt.subplots(3, 9, figsize=(14.0, 7.0))
+    # Hide unused axes
+    for row in range(3):
+        for col in range(9):
+            axes[row, col].set_visible(False)
+
+    for grp_idx, (grp_label, pidxs, plabels) in enumerate(groups):
+        for col_idx, (pidx, plabel) in enumerate(zip(pidxs, plabels)):
+            ax = axes[grp_idx, col_idx]
+            ax.set_visible(True)
+            # Trim samples to min of both (adherent may have 27 cols)
+            d_plan = (
+                samples_plan[:, pidx]
+                if pidx < samples_plan.shape[1]
+                else np.zeros(len(samples_plan))
+            )
+            d_adh = (
+                samples_adh[:, pidx] if pidx < samples_adh.shape[1] else np.zeros(len(samples_adh))
+            )
+            data = [d_plan, d_adh]
+            parts = ax.violinplot(
+                data, positions=[0, 1], showmeans=False, showextrema=False, widths=0.7
+            )
+            for i, pc in enumerate(parts["bodies"]):
+                pc.set_facecolor(COND_COLORS["plan"] if i == 0 else COND_COLORS["adh"])
+                pc.set_edgecolor("k")
+                pc.set_linewidth(0.4)
+                pc.set_alpha(0.7)
+            ax.scatter(
+                0,
+                theta_plan[pidx],
+                marker="*",
+                s=40,
+                color=COND_COLORS["plan"],
+                edgecolors="k",
+                linewidths=0.3,
+                zorder=5,
+            )
+            ax.scatter(
+                1,
+                theta_adh[pidx],
+                marker="*",
+                s=40,
+                color=COND_COLORS["adh"],
+                edgecolors="k",
+                linewidths=0.3,
+                zorder=5,
+            )
+            ax.set_title(plabel, fontsize=9)
+            ax.set_xticks([0, 1])
+            ax.set_xticklabels(["P", "A"], fontsize=7)
+            ax.axhline(0, color="k", lw=0.3, ls="--", alpha=0.4)
+            ax.grid(True, axis="y")
+            if col_idx == 0:
+                ax.set_ylabel(grp_label, fontsize=8)
+
+    handles = [
+        Patch(facecolor=COND_COLORS["plan"], edgecolor="k", alpha=0.7, label="Planktonic"),
+        Patch(facecolor=COND_COLORS["adh"], edgecolor="k", alpha=0.7, label="Adherent"),
+        Line2D(
+            [0],
+            [0],
+            marker="*",
+            color="w",
+            markerfacecolor="gray",
+            markeredgecolor="k",
+            markersize=10,
+            label="MAP",
+        ),
+    ]
+    fig.legend(
+        handles=handles,
+        loc="upper center",
+        ncol=3,
+        bbox_to_anchor=(0.5, 1.02),
+        frameon=True,
+        edgecolor="0.8",
+        fontsize=9,
+    )
+
+    fig.tight_layout(h_pad=0.5, w_pad=0.3)
+    fig.savefig(fig_dir / "fig_A_violin_6sp.pdf")
+    fig.savefig(fig_dir / "fig_A_violin_6sp.png")
+    plt.close(fig)
+
+
 def fig_mu_violin(samples_plan, samples_adh, theta_plan, theta_adh, fig_dir):
     fig, axes = plt.subplots(1, N_SP, figsize=(12.0, 3.0), sharey=True)
     for sp_idx in range(N_SP):
@@ -909,28 +1028,56 @@ Adherent   & """
 \section{6-Panel Posterior Predictive}
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth]{figures/fig_6panel_planktonic.pdf}
-\caption{Planktonic: MAP (line), 50\%/80\% CI (shaded), data (dots). 6 species.}
+\caption{Planktonic posterior predictive fit (RMSE """
+        + f"= {m_plan['rmse']:.3f}"
+        + r""").
+MAP trajectory (line), 50\%/80\% credible intervals (shaded), digitized data (circles),
+and initial condition (diamond at Day~0.25).
+The model captures the So$\to$Fn$\to$Pg succession pattern.
+\textit{F.\ nucleatum} peaks at Day~3 ($\sim$74\% observed, $\sim$55\% MAP) before
+declining as \textit{P.\ gingivalis} rises via the Hill-gated mechanism ($K_\mathrm{hill}=0.115$).
+The main residual is the Fn peak underestimation; the CI bands cover most data points.}
 \end{figure}
+
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth]{figures/fig_6panel_adherent.pdf}
-\caption{Adherent on polished cpTi.}
+\caption{Adherent posterior predictive fit (RMSE """
+        + f"= {m_adh['rmse']:.3f}"
+        + r""").
+The adherent biofilm shows slower dynamics than planktonic.
+\textit{S.\ oralis} dominates longer (Day~7 recovery visible in data),
+and \textit{P.\ gingivalis} emergence is delayed relative to planktonic.
+The model reproduces the monotonic So decline and gradual Pg increase well.
+\textit{F.\ nucleatum} and \textit{V.\ parvula} remain at low levels ($<15$\%),
+consistent with surface-attached biofilm being spatially structured.}
 \end{figure}
 
 \clearpage
 \section{Interaction Matrix $A$ (6$\times$6)}
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth]{figures/fig_A_matrix_6sp.pdf}
-\caption{MAP interaction matrices $A_{ij}$ for planktonic (left) and adherent (right).
-Red = mutualistic ($A_{ij}>0$), blue = competitive ($A_{ij}<0$).
-Notable: Fn--Pg coupling is strongly positive in both conditions
-(planktonic $a_{56}=4.69$, adherent $a_{56}=4.40$),
-consistent with the Hill-gated bridging mechanism.}
+\caption{MAP interaction matrices. Red = mutualistic ($A_{ij}>0$), blue = competitive ($A_{ij}<0$).
+Both conditions share strong Fn--Pg mutualism ($a_{56} \approx 4$--$6$), reflecting the
+well-documented physical coaggregation between these species.
+Planktonic shows stronger So--An mutualism ($a_{12}=3.65$) and So--Vp competition ($a_{14}=-3.70$),
+while adherent exhibits So--An competition ($a_{12}=-1.54$) --- suggesting surface attachment
+fundamentally alters early-colonizer interactions.
+\textit{A.\ actinomycetemcomitans} (Aa) shows condition-dependent behavior:
+weakly interactive in planktonic but moderately mutualistic with An/Vp in adherent.}
 \end{figure}
 
 \section{Growth Rates $\mu_i$}
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth]{figures/fig_mu_violin_6sp.pdf}
-\caption{Posterior growth rates. Star = MAP.}
+\caption{Posterior growth rate distributions ($\mu_i$). Star = MAP.
+Both conditions assign high $\mu$ to \textit{S.\ oralis} and \textit{V.\ parvula},
+consistent with their role as fast-growing early/secondary colonizers.
+\textit{F.\ nucleatum} and \textit{P.\ gingivalis} have lower $\mu$ values,
+relying on interaction terms ($A_{ij}$) rather than intrinsic growth
+to achieve dominance --- particularly \textit{P.\ gingivalis} which requires
+the Fn-mediated Hill gate to proliferate.
+\textit{A.\ actinomycetemcomitans} shows near-zero $\mu$ in planktonic
+but positive in adherent, reflecting its surface-adhesion advantage.}
 \end{figure}
 
 %% \section{Stacked Composition}
@@ -939,22 +1086,41 @@ consistent with the Hill-gated bridging mechanism.}
 %% \caption{Stacked area: observed (left) vs predicted (right).}
 %% \end{figure}
 
-\section{DI and Young's Modulus}
+%% \section{DI and Young's Modulus}
+%% \begin{figure}[H]\centering
+%% \includegraphics[width=\textwidth]{figures/fig_di_E_6sp.pdf}
+%% \caption{DI and $E(\text{DI})$ trajectories.}
+%% \end{figure}
+
+\section{Interaction Parameter Posteriors ($a_{ij}$)}
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth]{figures/fig_di_E_6sp.pdf}
-\caption{DI and $E(\text{DI})$ trajectories.}
+\includegraphics[width=\textwidth]{figures/fig_A_violin_6sp.pdf}
+\caption{Posterior distributions of all 21 interaction parameters $a_{ij}$.
+P = Planktonic, A = Adherent. Star = MAP estimate.
+Top row: So--An--Aa block. Middle: Vp--Fn cross-interactions.
+Bottom: Pg interactions. Note strong Fn--Pg coupling ($a_{56}$) in both conditions.}
 \end{figure}
 
-\section{Scatter + Day 21}
+\section{Observed vs Predicted}
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth]{figures/fig_scatter_day21_6sp.pdf}
-\caption{Obs vs pred scatter + Day 21 composition bar chart.}
+\caption{Left/center: observed vs predicted scatter for planktonic and adherent.
+Points near the diagonal indicate good fit; deviation above/below indicates
+over-/under-prediction. Adherent shows tighter clustering around the diagonal.
+Right: Day~21 equilibrium composition. Planktonic is Pg-dominated ($\sim$60\%),
+while adherent reaches a more balanced three-way split (So/Fn/Pg each $\sim$25--33\%).
+The model captures this qualitative difference between the two environments.}
 \end{figure}
 
-\section{Residuals}
+\section{Residual Analysis}
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth]{figures/fig_residuals_6sp.pdf}
-\caption{Per-species residuals.}
+\caption{Per-species residuals (pred $-$ obs) over time.
+Planktonic: largest residual is Fn at Day~3 ($-0.19$, underestimation of the Fn peak)
+and Pg at Day~14 ($-0.18$, delayed Pg prediction).
+Adherent: residuals are smaller and more uniform, with the largest at Day~3
+for So ($+0.11$, overestimation due to the Day~7 reversal that the ODE cannot
+fully capture). All residuals are within $\pm 0.2$ for both conditions.}
 \end{figure}
 
 \section{MAP Parameters (27)}
@@ -1032,6 +1198,8 @@ def main():
 
     print("Fig: A matrix...")
     fig_A_matrix(theta_plan, theta_adh, FIG_DIR)
+    print("Fig: A violin...")
+    fig_A_violin(samples_plan, samples_adh, theta_plan, theta_adh, FIG_DIR)
     print("Fig: μ violin...")
     fig_mu_violin(samples_plan, samples_adh, theta_plan, theta_adh, FIG_DIR)
     print("Fig: scatter + day21...")
