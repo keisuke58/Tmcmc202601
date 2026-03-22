@@ -848,11 +848,31 @@ in species composition is larger than the qPCR error bars suggest.
 We account for this by using a relatively wide observation noise
 ($\sigma_\text{obs} = 0.15$) in the TMCMC likelihood.
 
+\subsection{Observable: $\bar{\varphi}_i = \varphi_i \cdot \psi_i$}
+
+The Hamilton ODE evolves two sets of internal variables per species:
+the volume fraction $\varphi_i$ and the fitness variable $\psi_i$.
+Neither is directly measurable. The experimentally observable quantity
+is the species abundance fraction, which corresponds to the product
+$\bar{\varphi}_i = \varphi_i \cdot \psi_i$ (normalized to sum to unity).
+This is what qPCR measures: the relative DNA copy number proportional
+to each species' biomass.
+
+Separating $\varphi_i$ and $\psi_i$ from data would require independent
+measurements---e.g., FISH/confocal microscopy for spatial volume fractions
+and metabolic activity assays (CTC staining, RNA-based methods) for fitness.
+Neither was performed in the Siddiqui study, nor in Heine 2025.
+Consequently, the interaction matrix $A_{ij}$ and growth rates $\mu_i$
+are inferred through the composite observable $\bar{\varphi}_i$ only.
+The Hamilton variational structure constrains the $\varphi$--$\psi$ relationship,
+preventing complete non-identifiability, but some parameter trade-offs
+between $A_{ij}$ and $\mu_i$ are expected in the posterior.
+
 \section{Results}
 
 \begin{table}[H]
 \centering
-\caption{Fit quality (10,000 particles, RW $\times$ 20 steps, 5,000 ODE steps)}
+\caption{Fit quality (TMCMC with vmap-GPU RW mutation)}
 \begin{tabular}{lcccc}
 \toprule
 Dataset & RMSE & Cosine & Spearman $\rho$ & max $\log L$ \\
