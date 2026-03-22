@@ -66,7 +66,7 @@ plt.rcParams.update(STYLE)
 # CONSTANTS (6 species)
 # ═══════════════════════════════════════════════════════════════
 N_SP = 6
-N_PARAMS = 27
+N_PARAMS = 28  # 27 + K_hill
 SPECIES = ["So", "An", "Aa", "Vp", "Fn", "Pg"]
 SPECIES_ITALIC = [
     r"$\it{S.\ oralis}$",
@@ -109,6 +109,7 @@ PARAM_NAMES = [
     "μ(Vp)",
     "μ(Fn)",
     "μ(Pg)",
+    "K_hill",
 ]
 PARAM_TEX = [
     r"$a_{11}$",
@@ -138,6 +139,7 @@ PARAM_TEX = [
     r"$\mu_4$",
     r"$\mu_5$",
     r"$\mu_6$",
+    r"$K_\mathrm{hill}$",
 ]
 MU_IDX = [21, 22, 23, 24, 25, 26]
 MU_LABELS = [
@@ -170,7 +172,7 @@ if not HAS_NUMBA:
     from hamilton_ode_jax_6sp import simulate_0d_6sp
 
 
-def run_ode_6sp(theta, ic, n_steps=5000, dt=1e-4):
+def run_ode_6sp(theta, ic, n_steps=2500, dt=1e-4):
     """Run 6sp ODE. Try JAX first, fail gracefully."""
     ic_safe = np.clip(ic, 0.005, 0.99).astype(np.float64)
     ic_safe = ic_safe / ic_safe.sum() * 0.999
@@ -260,17 +262,20 @@ def load_data(json_path):
 def load_run(run_dir):
     with open(run_dir / "theta_MAP.json") as f:
         raw = json.load(f)
-    # Handle both "0" and "theta_0" key formats
+    n_p = len(raw)
     if "0" in raw:
-        theta = np.array([raw[str(i)] for i in range(N_PARAMS)])
+        theta = np.array([raw[str(i)] for i in range(n_p)])
     else:
-        theta = np.array([raw[f"theta_{i}"] for i in range(N_PARAMS)])
+        theta = np.array([raw[f"theta_{i}"] for i in range(n_p)])
+    # Pad to N_PARAMS if needed (old 27-param runs get K_hill=0.15 default)
+    if len(theta) < N_PARAMS:
+        theta = np.concatenate([theta, np.array([0.15] * (N_PARAMS - len(theta)))])
     samples = np.load(run_dir / "samples.npy")
     logL = np.load(run_dir / "logL.npy")
     return theta, samples, logL
 
 
-def get_idx_sparse(n_steps=5000):
+def get_idx_sparse(n_steps=2500):
     t_max = n_steps * 1e-4
     scale = (t_max * 0.95) / SM_DAYS.max()
     idx = np.round(SM_DAYS * scale / 1e-4).astype(int)
@@ -282,7 +287,7 @@ def get_idx_sparse(n_steps=5000):
 # ═══════════════════════════════════════════════════════════════
 
 
-def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=5000):
+def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=2500):
     """6-panel posterior predictive (one per species)."""
     # ODE t=0 corresponds to Day 0.25 (IC). Map to real days.
     # convert_days_to_idx maps t_days to idx with scale = (n_steps*dt*0.95)/t_days.max()
@@ -975,9 +980,15 @@ Idx & TeX & Name & Planktonic & Adherent \\
 # ═══════════════════════════════════════════════════════════════
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--plan-dir", type=str, default="_runs/siddiqui_6sp_planktonic_10000p_best")
-    parser.add_argument("--adh-dir", type=str, default="_runs/siddiqui_6sp_adherent_10000p_best")
-    parser.add_argument("--n-steps", type=int, default=5000)
+    parser.add_argument("--plan-dir", type=str, default="_runs/siddiqui_6sp_plan_28p_kfree")
+    parser.add_argument("--adh-dir", type=str, default="_runs/siddiqui_6sp_adherent_2000p_best")
+    parser.add_argument("--n-steps", type=int, default=2500)
+    parser.add_argument(
+        "--n-steps-adh",
+        type=int,
+        default=None,
+        help="Override n_steps for adherent (default: same as --n-steps)",
+    )
     parser.add_argument("--n-posterior", type=int, default=50, help="Posterior trajectories for CI")
     args = parser.parse_args()
 
@@ -1003,13 +1014,15 @@ def main():
         with open(cfg_path) as f:
             config_plan = json.load(f)
 
+    n_steps_adh = args.n_steps_adh if args.n_steps_adh else args.n_steps
+
     print("Fig: 6-panel planktonic...")
     m_plan, pred_plan = fig_6panel(
         theta_plan, samples_plan, obs_plan, obs_plan[0], "Planktonic", FIG_DIR, args.n_steps
     )
     print("Fig: 6-panel adherent...")
     m_adh, pred_adh = fig_6panel(
-        theta_adh, samples_adh, obs_adh, obs_adh[0], "Adherent", FIG_DIR, args.n_steps
+        theta_adh, samples_adh, obs_adh, obs_adh[0], "Adherent", FIG_DIR, n_steps_adh
     )
 
     print(f"  Planktonic: RMSE={m_plan['rmse']:.4f}, Cos={m_plan['cosine']:.4f}")
