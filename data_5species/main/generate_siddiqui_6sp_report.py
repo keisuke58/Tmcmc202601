@@ -816,6 +816,16 @@ salivary pellicle formation, host cell interactions, and oxygen gradients
 characteristic of the supragingival environment. These factors should be
 considered when interpreting the inferred interaction parameters.
 
+\textbf{Replication}: The study used ``one sample of each type of surface-treated
+cpTi or ZrO$_2$ disk'' per well, with qPCR run in ``technical duplicates.''
+No explicit biological replicates (independent culture experiments) are reported.
+The error bars in Figures~1--2 therefore likely reflect technical qPCR variance
+($n=2$), not biological variability. This means our digitized mean values
+represent a \textbf{single experimental realization}, and the true uncertainty
+in species composition is larger than the qPCR error bars suggest.
+We account for this by using a relatively wide observation noise
+($\sigma_\text{obs} = 0.15$) in the TMCMC likelihood.
+
 \section{Results}
 
 \begin{table}[H]
