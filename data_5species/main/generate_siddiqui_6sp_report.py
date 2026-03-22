@@ -406,10 +406,11 @@ def fig_A_matrix(theta_plan, theta_adh, fig_dir):
         ax.set_yticklabels(SPECIES, fontsize=11)
         ax.set_title(title, fontweight="bold", color=color)
 
-    cbar = fig.colorbar(im, ax=axes, shrink=0.8, aspect=20, pad=0.04)
+    fig.subplots_adjust(wspace=0.5, right=0.85)
+    cbar_ax = fig.add_axes([0.88, 0.15, 0.025, 0.7])
+    cbar = fig.colorbar(im, cax=cbar_ax)
     cbar.set_label(r"$A_{ij}$ (interaction strength)", fontsize=12)
     cbar.ax.tick_params(labelsize=10)
-    fig.tight_layout()
     fig.savefig(fig_dir / "fig_A_matrix_6sp.pdf")
     fig.savefig(fig_dir / "fig_A_matrix_6sp.png")
     plt.close(fig)
