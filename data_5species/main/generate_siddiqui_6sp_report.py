@@ -284,7 +284,14 @@ def get_idx_sparse(n_steps=5000):
 
 def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=5000):
     """6-panel posterior predictive (one per species)."""
-    model_days = np.linspace(0, 22, n_steps + 1)
+    # ODE t=0 corresponds to Day 0.25 (IC). Map to real days.
+    # convert_days_to_idx maps t_days to idx with scale = (n_steps*dt*0.95)/t_days.max()
+    # t_days starts from Day 1 (after IC skip), so t_days.max()=21
+    # model time range: 0 to n_steps*dt, maps to Day 1..21
+    # But IC is at step 0 = Day 0.25
+    # Simplify: linearly map step indices to days, with step 0 = Day 0
+    t_max_day = 21.0 / 0.95  # ~22.1 (inverse of the scale)
+    model_days = np.linspace(0, t_max_day, n_steps + 1)
     traj_map = run_ode_6sp(theta, ic, n_steps=n_steps)
 
     n_sub = min(50, len(samples))
@@ -319,11 +326,25 @@ def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=5000):
         ax.fill_between(model_days, q10[:, j], q90[:, j], color=SP_COLORS[j], alpha=0.12)
         ax.fill_between(model_days, q25[:, j], q75[:, j], color=SP_COLORS[j], alpha=0.25)
         ax.plot(model_days, traj_map_norm[:, j], color=SP_COLORS[j], lw=1.3, zorder=3)
+        # All data points (obs includes Day 0.25 = IC)
         ax.scatter(
-            SM_DAYS, obs[:, j], s=18, color=SP_COLORS[j], edgecolors="k", linewidths=0.4, zorder=5
+            SM_DAYS, obs[:, j], s=22, color=SP_COLORS[j], edgecolors="k", linewidths=0.5, zorder=5
         )
-        ax.set_xlim(0, 22)
+        # Highlight IC (Day 0.25) with diamond
+        ax.scatter(
+            [0.25],
+            [ic[j]],
+            s=35,
+            color=SP_COLORS[j],
+            marker="D",
+            edgecolors="k",
+            linewidths=0.8,
+            zorder=6,
+        )
+        ax.set_xlim(-1, 23)
         ax.set_ylim(-0.02, 1.02)
+        ax.set_xticks([1, 3, 7, 14, 21])
+        ax.set_xticklabels(["1", "3", "7", "14", "21"])
         ax.grid(True)
         ax.set_title(SPECIES_ITALIC[j], fontsize=7)
         ax.set_xlabel("Day")
