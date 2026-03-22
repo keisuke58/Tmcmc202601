@@ -797,8 +797,13 @@ def fig_residuals(obs_plan, pred_plan, obs_adh, pred_adh, fig_dir):
 # ═══════════════════════════════════════════════════════════════
 def write_latex(out_dir, m_plan, m_adh, theta_plan, theta_adh, logL_plan, logL_adh, config_plan):
     theta_rows = ""
-    for i in range(N_PARAMS):
-        theta_rows += f"    {i} & {PARAM_TEX[i]} & {PARAM_NAMES[i]:12s} & {theta_plan[i]:+.3f} & {theta_adh[i]:+.3f} \\\\\n"
+    n_max = max(len(theta_plan), len(theta_adh))
+    for i in range(n_max):
+        v_plan = f"{theta_plan[i]:+.3f}" if i < len(theta_plan) else "---"
+        v_adh = f"{theta_adh[i]:+.3f}" if i < len(theta_adh) else "---"
+        tex = PARAM_TEX[i] if i < len(PARAM_TEX) else f"$\\theta_{{{i}}}$"
+        name = PARAM_NAMES[i] if i < len(PARAM_NAMES) else f"theta_{i}"
+        theta_rows += f"    {i} & {tex} & {name:12s} & {v_plan} & {v_adh} \\\\\n"
 
     latex = (
         r"""\documentclass[11pt,a4paper]{article}
