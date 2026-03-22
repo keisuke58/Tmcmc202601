@@ -149,16 +149,31 @@ def make_log_likelihood(data, idx_sparse, sigma_obs, phi_init, dt=1e-4, n_steps=
     return log_likelihood
 
 
-def get_prior_bounds():
-    """Wide prior for 77 params."""
+def get_prior_bounds(use_glv_prior=False):
+    """Prior bounds for 77 params.
+
+    If use_glv_prior=True, uses Stein's gLV MAP (symmetrized) as center ± margin.
+    """
     n_A = N_SP * (N_SP + 1) // 2  # 66
     bounds = np.zeros((N_PARAMS, 2))
-    # A_ij: [-2, 3]
-    for i in range(n_A):
-        bounds[i] = [-2.0, 3.0]
-    # μ_i: [0, 5]
-    for i in range(n_A, N_PARAMS):
-        bounds[i] = [0.0, 5.0]
+
+    if use_glv_prior:
+        prior_path = DATA_DIR / "stein2013_glv_informative_prior.json"
+        with open(prior_path) as f:
+            prior_data = json.load(f)
+        center = np.array(prior_data["theta_prior_center"])
+        margin = prior_data.get("margin", 2.0)
+        for i in range(N_PARAMS):
+            lo = center[i] - margin
+            hi = center[i] + margin
+            if i >= n_A:  # growth rates >= 0
+                lo = max(lo, 0.0)
+            bounds[i] = [lo, hi]
+    else:
+        for i in range(n_A):
+            bounds[i] = [-2.0, 3.0]
+        for i in range(n_A, N_PARAMS):
+            bounds[i] = [0.0, 5.0]
     return bounds
 
 
@@ -180,6 +195,18 @@ def main():
     parser.add_argument("--dt", type=float, default=1e-4)
     parser.add_argument("--n-steps", type=int, default=2500)
     parser.add_argument("--max-delta-beta", type=float, default=0.1)
+    parser.add_argument(
+        "--glv-prior",
+        action="store_true",
+        default=True,
+        help="Use Stein gLV MAP as informative prior (default: on)",
+    )
+    parser.add_argument(
+        "--no-glv-prior",
+        dest="glv_prior",
+        action="store_false",
+        help="Disable gLV prior, use wide bounds",
+    )
     parser.add_argument("--mutation", default="rw", choices=["rw", "hmc", "nuts"])
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--device", choices=["auto", "cpu", "gpu"], default="auto")
@@ -223,7 +250,9 @@ def main():
             n_steps=args.n_steps,
         )
 
-        prior_bounds = get_prior_bounds()
+        prior_bounds = get_prior_bounds(use_glv_prior=args.glv_prior)
+        if args.glv_prior:
+            logger.info("Using Stein gLV MAP as informative prior (center ± 2.0)")
         prior_bounds = np.array(prior_bounds, dtype=np.float32)
 
         logger.info(f"JIT warmup ({N_SP}sp, {N_PARAMS}p)...")
