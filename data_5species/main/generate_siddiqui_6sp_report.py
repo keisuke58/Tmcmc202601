@@ -296,22 +296,28 @@ def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=5000):
         if (k + 1) % 10 == 0:
             print(f"    trajectory {k+1}/{n_sub}")
 
+    # Normalize all trajectories to compositional space
+    traj_map_sum = np.maximum(traj_map.sum(axis=1, keepdims=True), 1e-12)
+    traj_map_norm = traj_map / traj_map_sum
+    for k in range(len(trajs)):
+        s = np.maximum(trajs[k].sum(axis=1, keepdims=True), 1e-12)
+        trajs[k] = trajs[k] / s
+
     q10 = np.percentile(trajs, 10, axis=0)
     q25 = np.percentile(trajs, 25, axis=0)
     q75 = np.percentile(trajs, 75, axis=0)
     q90 = np.percentile(trajs, 90, axis=0)
 
     idx_sparse = get_idx_sparse(n_steps)
-    pred = traj_map[idx_sparse]
-    pred = pred / np.maximum(pred.sum(axis=1, keepdims=True), 1e-12)
+    pred = traj_map_norm[idx_sparse]
     m = compute_metrics(obs, pred)
 
-    fig, axes = plt.subplots(1, N_SP, figsize=(9.0, 1.8), sharex=True, sharey=True)
+    fig, axes = plt.subplots(1, N_SP, figsize=(9.0, 2.2), sharex=True, sharey=True)
     for j in range(N_SP):
         ax = axes[j]
         ax.fill_between(model_days, q10[:, j], q90[:, j], color=SP_COLORS[j], alpha=0.12)
         ax.fill_between(model_days, q25[:, j], q75[:, j], color=SP_COLORS[j], alpha=0.25)
-        ax.plot(model_days, traj_map[:, j], color=SP_COLORS[j], lw=1.3, zorder=3)
+        ax.plot(model_days, traj_map_norm[:, j], color=SP_COLORS[j], lw=1.3, zorder=3)
         ax.scatter(
             SM_DAYS, obs[:, j], s=18, color=SP_COLORS[j], edgecolors="k", linewidths=0.4, zorder=5
         )
@@ -367,7 +373,7 @@ def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=5000):
 
 
 def fig_A_matrix(theta_plan, theta_adh, fig_dir):
-    fig, axes = plt.subplots(1, 2, figsize=(6.0, 2.8))
+    fig, axes = plt.subplots(1, 2, figsize=(9.0, 4.0))
     A_plan = theta_to_A_6sp(theta_plan)
     A_adh = theta_to_A_6sp(theta_adh)
     vmax = max(np.abs(A_plan).max(), np.abs(A_adh).max())
@@ -381,11 +387,11 @@ def fig_A_matrix(theta_plan, theta_adh, fig_dir):
             for j in range(N_SP):
                 val = A[i, j]
                 c = "white" if abs(val) > vmax * 0.6 else "black"
-                ax.text(j, i, f"{val:.1f}", ha="center", va="center", fontsize=5, color=c)
+                ax.text(j, i, f"{val:.2f}", ha="center", va="center", fontsize=8, color=c)
         ax.set_xticks(range(N_SP))
         ax.set_yticks(range(N_SP))
-        ax.set_xticklabels(SPECIES, fontsize=6)
-        ax.set_yticklabels(SPECIES, fontsize=6)
+        ax.set_xticklabels(SPECIES, fontsize=9)
+        ax.set_yticklabels(SPECIES, fontsize=9)
         ax.set_title(title, fontweight="bold", color=color)
 
     cbar = fig.colorbar(im, ax=axes, shrink=0.8, aspect=20, pad=0.03)
