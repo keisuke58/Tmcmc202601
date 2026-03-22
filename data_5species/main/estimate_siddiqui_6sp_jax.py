@@ -55,15 +55,24 @@ N_SP = 6
 SP_NAMES = ["So", "An", "Aa", "Vp", "Fn", "Pg"]
 
 
-def load_data_json(path):
+def load_data_json(path, start_from_idx=1):
+    """Load data, using first timepoint as IC and fitting from start_from_idx onward.
+
+    Default: start_from_idx=1 means Day 0.25 is IC, fit Day 1+.
+    This avoids the psi transient issue where phibar collapses in early steps.
+    """
     with open(path) as f:
         d = json.load(f)
-    data = np.array(d["data_frac"], dtype=np.float64)
-    t_days = np.array(d["t_days"], dtype=np.float64)
+    data_all = np.array(d["data_frac"], dtype=np.float64)
+    t_days_all = np.array(d["t_days"], dtype=np.float64)
     sigma = d.get("sigma_obs", 0.05)
-    phi_init = data[0].copy()
+    # IC from first timepoint
+    phi_init = data_all[0].copy()
     phi_init = np.clip(phi_init, 0.005, 0.99)
     phi_init = phi_init / phi_init.sum()
+    # Fit data from start_from_idx onward
+    data = data_all[start_from_idx:]
+    t_days = t_days_all[start_from_idx:]
     return data, t_days, sigma, phi_init
 
 
