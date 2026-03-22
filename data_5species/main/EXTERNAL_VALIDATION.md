@@ -96,6 +96,58 @@ Both **RMSE < 0.10** — demonstrating model transferability from Heine 2025 (5 
 3. **Joint calibration** — Fit Heine + Siddiqui simultaneously with shared A_ij
 4. **Publish** — External validation section for paper
 
+---
+
+## Beyond Oral: Broader Applicability
+
+The Hamilton ODE + TMCMC pipeline is not limited to oral biofilms. The core framework (replicator-type ODE + Bayesian calibration) applies to **any multispecies community with time-series abundance data**. The only structural requirement is:
+
+- **Input**: Species fractions at multiple timepoints
+- **Model**: N-species interaction matrix A + growth rates μ
+- **Output**: Posterior A, μ, predictions
+
+### Tier A: Direct Application (Hamilton ODE as-is)
+
+| Domain | Dataset | Species | Timepoints | Adaptation |
+|--------|---------|---------|------------|------------|
+| **Gut microbiome (gnotobiotic)** | Bucci 2016 / Stein 2013 | 10-22 species | 28-56 days, daily | Increase N, dimensionality reduction |
+| **C. difficile infection** | Buffie 2015 (public) | 5-10 key species | 28 days, 5 mice | Direct fit, Hill gate for C. diff |
+| **Wound biofilm** | P. aeruginosa + S. aureus | 2-4 species | 1-7 days | Trivial (< 10 params) |
+| **BV (bacterial vaginosis)** | PMC11149788 | 3 species | 24/48/72h | Easy (9 params) |
+| **Soil/rhizosphere** | PMC7595645 | 4 keystone species | 5/10/15 days | Change A prior, different biology |
+| **Drinking water biofilm** | PMC262284 | Community (16S) | 1 day → 3 years | Dimensionality reduction needed |
+
+### Tier B: Requires ODE Modification
+
+| Domain | Modification | Reason |
+|--------|-------------|--------|
+| **Gut with diet perturbation** | Time-varying b(t) or external forcing | Diet changes μ_i over time |
+| **Antibiotic treatment** | Kill term k_i(t) × φ_i | Species-specific mortality |
+| **Cross-kingdom (bacteria + fungi)** | Different growth kinetics | Fungi have slower doubling times |
+| **Absolute abundance (not relative)** | Lotka-Volterra instead of Hamilton | Hamilton is compositional; LV handles absolute counts |
+
+### Tier C: Fundamentally Different Framework Needed
+
+| Domain | Why Hamilton doesn't apply |
+|--------|---------------------------|
+| Phage-bacteria dynamics | Predator-prey, not competition |
+| Single-species mutation/resistance | Genotypic, not species-level |
+| >50 species metagenomics | Dimensionality explosion (N² params) |
+
+### Key Insight
+
+**Compositional Lotka-Volterra (cLV)** (Joseph et al. 2020, PMC7325845) showed that relative abundances alone suffice for dynamics — which is exactly what our Hamilton ODE does. The main advantage of Hamilton over standard gLV is the **variational structure** (energy conservation, thermodynamic consistency), which constrains the parameter space and improves identifiability.
+
+### Most Promising Non-Oral Datasets
+
+1. **Gnotobiotic gut mice** (Stein 2013): 22 species, 56 days, daily 16S rRNA — well-studied benchmark for LV models. Our Hamilton approach would be a direct competitor.
+
+2. **C. difficile infection** (Buffie 2015): Clinically relevant, 5 key species + C. diff, 28 days. Hill gate maps naturally to C. diff colonization resistance.
+
+3. **Soil keystone species** (PMC7595645): 4 species, 15 days, qPCR. Shows interspecific cooperation → A_ij structure.
+
+---
+
 ## Pipeline Summary
 
 ```
