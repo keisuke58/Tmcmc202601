@@ -356,6 +356,13 @@ def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=5000):
     fig.savefig(fig_dir / f"fig_6panel_{tag}.pdf")
     fig.savefig(fig_dir / f"fig_6panel_{tag}.png")
     plt.close(fig)
+
+    # Save posterior trajectories for reuse
+    np.save(fig_dir / f"trajs_posterior_{tag}.npy", trajs)
+    np.save(fig_dir / f"traj_map_{tag}.npy", traj_map)
+    np.save(fig_dir / f"pred_{tag}.npy", pred)
+    print(f"    Saved: trajs_posterior_{tag}.npy ({trajs.shape}), traj_map, pred")
+
     return m, pred
 
 
@@ -566,9 +573,10 @@ def fig_stacked(obs_plan, pred_plan, obs_adh, pred_adh, fig_dir):
     for row, (obs, pred, label) in enumerate(
         [(obs_plan, pred_plan, "Planktonic"), (obs_adh, pred_adh, "Adherent")]
     ):
-        axes[row, 0].stackplot(
-            SM_DAYS, obs.T, labels=SPECIES if row == 0 else None, colors=SP_COLORS, alpha=0.7
-        )
+        kw = dict(colors=SP_COLORS, alpha=0.7)
+        if row == 0:
+            kw["labels"] = SPECIES
+        axes[row, 0].stackplot(SM_DAYS, obs.T, **kw)
         axes[row, 0].set_title(f"{label} — Observed", fontweight="bold")
         axes[row, 0].set_ylabel(r"$\bar{\varphi}_i$")
         axes[row, 0].set_ylim(0, 1.05)
