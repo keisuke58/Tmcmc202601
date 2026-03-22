@@ -27,7 +27,8 @@ jax.config.update("jax_enable_x64", True)
 
 N_SP = 6
 N_STATE = 2 * N_SP + 2  # 14
-N_PARAMS = 27  # 21 (A) + 6 (b)
+N_PARAMS_BASE = 27  # 21 (A) + 6 (b)
+N_PARAMS = 28  # 27 + K_hill (free)
 
 
 def _solve_linear_pure_jax(A, b):
@@ -248,13 +249,16 @@ def simulate_0d_6sp(
     alpha_const=100.0,
 ):
     """
-    Run 0D Hamilton ODE for 6 species. Returns phi trajectory (n_steps+1, 6).
+    Run 0D Hamilton ODE for 6 species. Returns phibar trajectory (n_steps+1, 6).
 
     Parameters
     ----------
-    theta : (27,) JAX array
+    theta : (27,) or (28,) JAX array.
+            If 28 params, theta[27] = K_hill (overrides K_hill kwarg).
     """
-    A, b_diag = theta_to_matrices_6sp(theta)
+    A, b_diag = theta_to_matrices_6sp(theta[:N_PARAMS_BASE])
+    # If theta has 28 elements, use theta[27] as K_hill
+    K_hill_val = jnp.where(theta.shape[0] > N_PARAMS_BASE, theta[N_PARAMS_BASE], K_hill)
     active_mask = jnp.ones(N_SP, dtype=jnp.int64)
 
     if phi_init is None:
@@ -268,7 +272,7 @@ def simulate_0d_6sp(
         "EtaPhi": jnp.ones(N_SP, dtype=jnp.float64),
         "c": c_const,
         "alpha": alpha_const,
-        "K_hill": jnp.array(K_hill, dtype=jnp.float64),
+        "K_hill": jnp.array(K_hill_val, dtype=jnp.float64),
         "n_hill": jnp.array(n_hill, dtype=jnp.float64),
         "A": A,
         "b_diag": b_diag,
