@@ -48,7 +48,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 sys.path.insert(0, str(SCRIPT_DIR))
-from hamilton_ode_jax_6sp import simulate_0d_6sp, N_PARAMS
+from hamilton_ode_jax_6sp import simulate_0d_6sp, N_PARAMS, N_PARAMS_BASE
 from tmcmc_nuts_engine import tmcmc_engine
 
 N_SP = 6
@@ -138,14 +138,15 @@ def make_log_likelihood_6sp(
         sigma_arr = jnp.full((n_obs, 1), sigma_obs, dtype=jnp.float64)
 
     def log_likelihood(theta):
+        # theta[27] = K_hill when 28 params (auto-detected in simulate_0d_6sp)
         phi_traj = simulate_0d_6sp(
             theta,
             n_steps=n_steps,
             dt=dt,
             phi_init=phi_init_jax,
-            K_hill=K_hill,
+            K_hill=0.15,
             n_hill=n_hill,
-            c_const=c_const,
+            c_const=c_const,  # K_hill kwarg is overridden by theta[27]
         )
         phi_pred = phi_traj[idx, :]
         phi_pred = jnp.clip(phi_pred, 1e-10, 1.0 - 1e-10)
@@ -286,6 +287,9 @@ def get_prior_bounds_6sp(use_heine_prior=False):
         for i in range(21, 27):
             bounds[i] = [0.0, 6.0]
 
+    # theta[27] = K_hill (free)
+    bounds[27] = [0.01, 0.50]  # K_hill range from sensitivity analysis
+
     return bounds
 
 
@@ -303,8 +307,8 @@ def main():
     parser.add_argument("--lambda-late", type=float, default=3.0)
     parser.add_argument("--K-hill", type=float, default=0.15)
     parser.add_argument("--n-hill", type=float, default=2.0)
-    parser.add_argument("--dt", type=float, default=5e-5)
-    parser.add_argument("--n-steps", type=int, default=5000)
+    parser.add_argument("--dt", type=float, default=1e-4)
+    parser.add_argument("--n-steps", type=int, default=2500)
     parser.add_argument(
         "--per-timepoint-sigma",
         action="store_true",
@@ -481,12 +485,13 @@ def main():
             "a(Vp-Pg)",
             "a(Fn-Pg)",
             "a(Pg-Pg)",
-            "b(So)",
-            "b(An)",
-            "b(Aa)",
-            "b(Vp)",
-            "b(Fn)",
-            "b(Pg)",
+            "μ(So)",
+            "μ(An)",
+            "μ(Aa)",
+            "μ(Vp)",
+            "μ(Fn)",
+            "μ(Pg)",
+            "K_hill",
         ]
         logger.info("\n--- MAP theta (27 params) ---")
         for i, (name, val) in enumerate(zip(param_names, theta_MAP)):
