@@ -312,9 +312,10 @@ def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=5000):
     pred = traj_map_norm[idx_sparse]
     m = compute_metrics(obs, pred)
 
-    fig, axes = plt.subplots(1, N_SP, figsize=(9.0, 2.2), sharex=True, sharey=True)
+    fig, axes = plt.subplots(2, 3, figsize=(10.0, 6.0), sharex=True, sharey=True)
+    axes_flat = axes.flatten()
     for j in range(N_SP):
-        ax = axes[j]
+        ax = axes_flat[j]
         ax.fill_between(model_days, q10[:, j], q90[:, j], color=SP_COLORS[j], alpha=0.12)
         ax.fill_between(model_days, q25[:, j], q75[:, j], color=SP_COLORS[j], alpha=0.25)
         ax.plot(model_days, traj_map_norm[:, j], color=SP_COLORS[j], lw=1.3, zorder=3)
@@ -329,15 +330,15 @@ def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=5000):
         if j == 0:
             ax.set_ylabel(r"$\bar{\varphi}_i$")
 
-    axes[5].text(
+    axes_flat[5].text(
         0.95,
         0.92,
         f"RMSE {m['rmse']:.3f}\nCos {m['cosine']:.3f}",
-        transform=axes[5].transAxes,
-        fontsize=6,
+        transform=axes_flat[5].transAxes,
+        fontsize=9,
         ha="right",
         va="top",
-        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="gray", alpha=0.8),
+        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8),
     )
 
     handles = [
@@ -351,11 +352,13 @@ def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=5000):
             color="w",
             markerfacecolor="gray",
             markeredgecolor="k",
-            markersize=4,
+            markersize=5,
             label="Data",
         ),
     ]
-    axes[0].legend(handles=handles, loc="upper right", fontsize=5, handlelength=1.0, borderpad=0.3)
+    axes_flat[0].legend(
+        handles=handles, loc="upper right", fontsize=8, handlelength=1.2, borderpad=0.4
+    )
     fig.suptitle(f"{label} (6 species, {N_PARAMS} params)", fontsize=10, fontweight="bold", y=1.04)
     fig.tight_layout(w_pad=0.2)
     tag = label.lower().replace(" ", "_")
@@ -373,7 +376,7 @@ def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=5000):
 
 
 def fig_A_matrix(theta_plan, theta_adh, fig_dir):
-    fig, axes = plt.subplots(1, 2, figsize=(9.0, 4.0))
+    fig, axes = plt.subplots(1, 2, figsize=(12.0, 5.0))
     A_plan = theta_to_A_6sp(theta_plan)
     A_adh = theta_to_A_6sp(theta_adh)
     vmax = max(np.abs(A_plan).max(), np.abs(A_adh).max())
@@ -387,15 +390,25 @@ def fig_A_matrix(theta_plan, theta_adh, fig_dir):
             for j in range(N_SP):
                 val = A[i, j]
                 c = "white" if abs(val) > vmax * 0.6 else "black"
-                ax.text(j, i, f"{val:.2f}", ha="center", va="center", fontsize=8, color=c)
+                ax.text(
+                    j,
+                    i,
+                    f"{val:.2f}",
+                    ha="center",
+                    va="center",
+                    fontsize=10,
+                    color=c,
+                    fontweight="bold",
+                )
         ax.set_xticks(range(N_SP))
         ax.set_yticks(range(N_SP))
-        ax.set_xticklabels(SPECIES, fontsize=9)
-        ax.set_yticklabels(SPECIES, fontsize=9)
+        ax.set_xticklabels(SPECIES, fontsize=11)
+        ax.set_yticklabels(SPECIES, fontsize=11)
         ax.set_title(title, fontweight="bold", color=color)
 
-    cbar = fig.colorbar(im, ax=axes, shrink=0.8, aspect=20, pad=0.03)
-    cbar.set_label(r"$A_{ij}$", fontsize=9)
+    cbar = fig.colorbar(im, ax=axes, shrink=0.8, aspect=20, pad=0.04)
+    cbar.set_label(r"$A_{ij}$ (interaction strength)", fontsize=12)
+    cbar.ax.tick_params(labelsize=10)
     fig.tight_layout()
     fig.savefig(fig_dir / "fig_A_matrix_6sp.pdf")
     fig.savefig(fig_dir / "fig_A_matrix_6sp.png")
@@ -403,7 +416,7 @@ def fig_A_matrix(theta_plan, theta_adh, fig_dir):
 
 
 def fig_mu_violin(samples_plan, samples_adh, theta_plan, theta_adh, fig_dir):
-    fig, axes = plt.subplots(1, N_SP, figsize=(9.0, 2.0), sharey=True)
+    fig, axes = plt.subplots(1, N_SP, figsize=(12.0, 3.0), sharey=True)
     for sp_idx in range(N_SP):
         ax = axes[sp_idx]
         pidx = MU_IDX[sp_idx]
@@ -420,7 +433,7 @@ def fig_mu_violin(samples_plan, samples_adh, theta_plan, theta_adh, fig_dir):
             0,
             theta_plan[pidx],
             marker="*",
-            s=40,
+            s=60,
             color=COND_COLORS["plan"],
             edgecolors="k",
             linewidths=0.3,
@@ -430,20 +443,21 @@ def fig_mu_violin(samples_plan, samples_adh, theta_plan, theta_adh, fig_dir):
             1,
             theta_adh[pidx],
             marker="*",
-            s=40,
+            s=60,
             color=COND_COLORS["adh"],
             edgecolors="k",
             linewidths=0.3,
             zorder=5,
         )
-        ax.set_title(MU_LABELS[sp_idx], fontsize=7)
+        ax.set_title(MU_LABELS[sp_idx], fontsize=10)
         ax.set_xticks([0, 1])
-        ax.set_xticklabels(["P", "A"], fontsize=6)
+        ax.set_xticklabels(["Plan", "Adh"], fontsize=9)
         ax.axhline(0, color="k", lw=0.3, ls="--", alpha=0.4)
         ax.grid(True, axis="y")
         if sp_idx == 0:
-            ax.set_ylabel("Growth rate")
+            ax.set_ylabel("Growth rate", fontsize=10)
 
+    # Legend outside on right
     handles = [
         Patch(facecolor=COND_COLORS["plan"], edgecolor="k", alpha=0.7, label="Planktonic"),
         Patch(facecolor=COND_COLORS["adh"], edgecolor="k", alpha=0.7, label="Adherent"),
@@ -454,11 +468,13 @@ def fig_mu_violin(samples_plan, samples_adh, theta_plan, theta_adh, fig_dir):
             color="w",
             markerfacecolor="gray",
             markeredgecolor="k",
-            markersize=8,
+            markersize=10,
             label="MAP",
         ),
     ]
-    axes[5].legend(handles=handles, loc="upper right", fontsize=5.5, borderpad=0.3)
+    fig.legend(
+        handles=handles, loc="center right", fontsize=9, borderpad=0.5, bbox_to_anchor=(1.08, 0.5)
+    )
     fig.tight_layout(w_pad=0.3)
     fig.savefig(fig_dir / "fig_mu_violin_6sp.pdf")
     fig.savefig(fig_dir / "fig_mu_violin_6sp.png")
@@ -841,10 +857,15 @@ Adherent   & """
 \caption{Adherent on polished cpTi.}
 \end{figure}
 
+\clearpage
 \section{Interaction Matrix $A$ (6$\times$6)}
 \begin{figure}[H]\centering
-\includegraphics[width=0.8\textwidth]{figures/fig_A_matrix_6sp.pdf}
-\caption{MAP interaction matrices. Red = mutualistic, blue = competitive.}
+\includegraphics[width=\textwidth]{figures/fig_A_matrix_6sp.pdf}
+\caption{MAP interaction matrices $A_{ij}$ for planktonic (left) and adherent (right).
+Red = mutualistic ($A_{ij}>0$), blue = competitive ($A_{ij}<0$).
+Notable: Fn--Pg coupling is strongly positive in both conditions
+(planktonic $a_{56}=4.69$, adherent $a_{56}=4.40$),
+consistent with the Hill-gated bridging mechanism.}
 \end{figure}
 
 \section{Growth Rates $\mu_i$}
