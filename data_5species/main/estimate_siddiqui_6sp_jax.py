@@ -294,11 +294,11 @@ def main():
     parser.add_argument(
         "--dataset", default="planktonic", choices=["planktonic", "adherent", "both"]
     )
-    parser.add_argument("--n-particles", type=int, default=500)
+    parser.add_argument("--n-particles", type=int, default=2000)
     parser.add_argument("--max-stages", type=int, default=50)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--n-mutation-steps", type=int, default=10)
-    parser.add_argument("--sigma-scale", type=float, default=2.0)
+    parser.add_argument("--n-mutation-steps", type=int, default=20)
+    parser.add_argument("--sigma-scale", type=float, default=3.0)
     parser.add_argument("--lambda-pg", type=float, default=3.0)
     parser.add_argument("--lambda-late", type=float, default=3.0)
     parser.add_argument("--K-hill", type=float, default=0.15)
@@ -313,13 +313,20 @@ def main():
     parser.add_argument(
         "--heine-prior",
         action="store_true",
-        help="Use Heine 2025 DH MAP as informative prior for shared params",
+        default=True,
+        help="Use Heine 2025 DH MAP as informative prior (default: on)",
+    )
+    parser.add_argument(
+        "--no-heine-prior",
+        dest="heine_prior",
+        action="store_false",
+        help="Disable Heine informative prior, use wide bounds",
     )
     parser.add_argument(
         "--max-delta-beta",
         type=float,
-        default=None,
-        help="Cap beta increment per stage (e.g. 0.1 forces ≥10 stages)",
+        default=0.1,
+        help="Cap beta increment per stage (default: 0.1, forces ≥10 stages)",
     )
     parser.add_argument("--mutation", default="rw", choices=["rw", "hmc", "nuts"])
     parser.add_argument("--output-dir", type=str, default=None)
