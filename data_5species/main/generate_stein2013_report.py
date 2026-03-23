@@ -248,21 +248,55 @@ def fig_species_panels(t_days, obs, pred, mouse_key, fig_dir, ic=None, ic_day=No
     return m
 
 
+def _reorder_glv_to_our_order(A_glv, glv_species):
+    """Reorder gLV A matrix from Stein's species order to our order."""
+    # Stein order -> our order mapping
+    glv_to_ours = {
+        "Barnesiella": 2,
+        "Lachnospiraceae": 4,
+        "unc_Lachnospiraceae": 7,
+        "Other": 10,
+        "Blautia": 1,
+        "unc_Mollicutes": 3,
+        "Akkermansia": 5,
+        "Coprobacillus": 8,
+        "Clostridium_difficile": 6,
+        "Enterococcus": 9,
+        "Enterobacteriaceae": 0,
+    }
+    n = len(glv_species)
+    A_reordered = np.zeros((n, n))
+    for i_glv in range(n):
+        for j_glv in range(n):
+            i_our = glv_to_ours.get(glv_species[i_glv], i_glv)
+            j_our = glv_to_ours.get(glv_species[j_glv], j_glv)
+            A_reordered[i_our, j_our] = A_glv[i_glv, j_glv]
+    return A_reordered
+
+
 def fig_A_heatmap(theta, mouse_key, fig_dir, A_glv=None, glv_species=None):
     A_ham = theta_to_A(theta, N_SP)
+    # Reorder gLV to our species order
+    if A_glv is not None and glv_species is not None:
+        A_glv_reordered = _reorder_glv_to_our_order(A_glv, glv_species)
+    else:
+        A_glv_reordered = A_glv
+
     n_plots = 2 if A_glv is not None else 1
     fig, axes = plt.subplots(1, n_plots, figsize=(7 * n_plots, 6))
     if n_plots == 1:
         axes = [axes]
 
     vmax = np.abs(A_ham).max()
-    if A_glv is not None:
-        vmax = max(vmax, np.abs(A_glv).max())
+    if A_glv_reordered is not None:
+        vmax = max(vmax, np.abs(A_glv_reordered).max())
     norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
 
-    for ax, A, title in [(axes[0], A_ham, "Hamilton ODE (this work)")] + (
-        [(axes[1], A_glv, "gLV (Stein 2013)")] if A_glv is not None else []
-    ):
+    matrices = [(axes[0], A_ham, "Hamilton ODE (this work)")]
+    if A_glv_reordered is not None:
+        matrices.append((axes[1], A_glv_reordered, "gLV (Stein 2013)"))
+
+    for ax, A, title in matrices:
         im = ax.imshow(A, cmap="RdBu_r", norm=norm, aspect="equal")
         for i in range(N_SP):
             for j in range(N_SP):
@@ -277,15 +311,11 @@ def fig_A_heatmap(theta, mouse_key, fig_dir, A_glv=None, glv_species=None):
                     color=c,
                     fontweight="bold",
                 )
-        labels = (
-            SP_NAMES
-            if ax == axes[0]
-            else ([s[:10] for s in glv_species] if glv_species else SP_NAMES)
-        )
+        # Same labels for both
         ax.set_xticks(range(N_SP))
         ax.set_yticks(range(N_SP))
-        ax.set_xticklabels(labels, fontsize=7, rotation=45, ha="right")
-        ax.set_yticklabels(labels, fontsize=7)
+        ax.set_xticklabels(SP_NAMES, fontsize=7, rotation=45, ha="right")
+        ax.set_yticklabels(SP_NAMES, fontsize=7)
         ax.set_title(title, fontsize=11, fontweight="bold")
 
     fig.subplots_adjust(right=0.87, wspace=0.35)
