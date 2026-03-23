@@ -224,6 +224,7 @@ def simulate_0d_nsp(
     c_const=25.0,
     alpha_const=100.0,
     hill_gate_species=None,
+    perturbation=None,
 ):
     """
     Run 0D Hamilton ODE for N species. Returns phibar trajectory (n_steps+1, N).
@@ -233,8 +234,10 @@ def simulate_0d_nsp(
     theta : JAX array, length = N*(N+1)/2 + N [+ 1 for K_hill]
     n_sp : int, number of species
     hill_gate_species : tuple (gated, gating) or None.
-        e.g. (5, 4) means species 5 is gated by species 4.
-        If None, no Hill gate.
+    perturbation : dict or None.
+        If provided: {"step_start": int, "step_end": int, "alpha_perturb": float}
+        alpha = alpha_perturb during [step_start, step_end), alpha_const otherwise.
+        Represents antibiotic effect (low alpha = growth suppression).
     """
     n_A = n_sp * (n_sp + 1) // 2
     A, b_diag = theta_to_matrices(theta[: n_A + n_sp], n_sp)
@@ -252,7 +255,17 @@ def simulate_0d_nsp(
     if hill_gate_species is None:
         hill_gate_species = (-1, 0)  # disabled
 
-    params = {
+    # Perturbation schedule
+    if perturbation is not None:
+        p_start = perturbation["step_start"]
+        p_end = perturbation["step_end"]
+        alpha_p = perturbation["alpha_perturb"]
+    else:
+        p_start = -1
+        p_end = -1
+        alpha_p = alpha_const
+
+    base_params = {
         "n_sp": n_sp,
         "dt_h": dt,
         "Kp1": 1e-4,
@@ -268,7 +281,15 @@ def simulate_0d_nsp(
         "active_mask": active_mask,
     }
 
-    def body(g, _):
+    def body(carry, step_idx):
+        g = carry
+        # Time-varying alpha for antibiotic perturbation
+        alpha_t = jnp.where(
+            (step_idx >= p_start) & (step_idx < p_end),
+            alpha_p,
+            alpha_const,
+        )
+        params = {**base_params, "alpha": alpha_t}
         g_next = _newton_step(g, params)
         return g_next, g_next
 
