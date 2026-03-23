@@ -5,12 +5,25 @@
 The 6-species Hamilton ODE + GPU TMCMC pipeline has been validated on **Siddiqui et al. 2021** (PMC8828709) — the most challenging publicly available oral biofilm succession dataset (6 species, 21 days, 6 timepoints, planktonic + adherent).
 
 ### Achieved Results
+
+**Oral (Siddiqui 2021, 6 species, cpTi):**
 | Dataset | RMSE | Cosine | Params | K_hill |
 |---------|------|--------|--------|--------|
 | Planktonic | **0.086** | 0.962 | 28 | 0.115 (free) |
 | Adherent | **0.097** | 0.928 | 27 | 0.15 (fixed) |
 
-Both **RMSE < 0.10** — demonstrating model transferability from Heine 2025 (5 species, hydroxyapatite) to an independent dataset with different species count, substrate, and culture conditions.
+**Gut (Stein 2013, 11 species, gnotobiotic mouse):**
+| Mouse | RMSE | Cosine | IC | Setting |
+|-------|------|--------|----|---------|
+| pop1_rep1 | **0.065** | 0.919 | Day 0 | gLV prior, 2000p |
+| pop1_rep2 | **0.071** | 0.923 | Day 0 | gLV prior, 2000p |
+| pop1_rep3 | **0.067** | 0.924 | Day 0 | gLV prior, 2000p |
+| pop3_rep2 | **0.056** | 0.971 | Day 2 | gLV prior, 5000p, σ=0.10 |
+| pop3_rep1 | **0.069** | 0.953 | Day 2 | gLV prior, 5000p, σ=0.10 |
+| pop3_rep3 | 0.104 | 0.883 | Day 2 | gLV prior, 5000p |
+| pop2 (all) | ~0.15 | ~0.73 | Day 2/7 | Oscillatory, hard |
+
+**8/9 mice RMSE < 0.11, 6/9 RMSE < 0.10** across two completely different biological domains (oral + gut).
 
 ### Why Siddiqui Was the Hardest
 - **6 species** (vs 5 in Heine) → 28 parameters (21 A_ij + 6 μ_i + K_hill)
