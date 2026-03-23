@@ -187,7 +187,7 @@ def fig_species_panels(t_days, obs, pred, mouse_key, fig_dir, ic=None, ic_day=No
         ax.set_title(SP_NAMES_ITALIC[j], fontsize=9)
         ax.grid(True)
         ymax = max(obs[:, j].max(), pred[:, j].max()) * 1.3 + 0.02
-        ax.set_ylim(-0.02, min(ymax, 1.05))
+        ax.set_ylim(-0.02, 1.05)
         ax.set_xlim(t_days[0] - 1, t_days[-1] + 1)
         # Day ticks at measurement points
         ax.set_xticks(t_days.astype(int))
