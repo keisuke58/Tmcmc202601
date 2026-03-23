@@ -188,10 +188,15 @@ def fig_species_panels(t_days, obs, pred, mouse_key, fig_dir, ic=None, ic_day=No
         ax.grid(True)
         ymax = max(obs[:, j].max(), pred[:, j].max()) * 1.3 + 0.02
         ax.set_ylim(-0.02, 1.05)
-        ax.set_xlim(t_days[0] - 1, t_days[-1] + 1)
+        x_margin = max((t_days[-1] - t_days[0]) * 0.08, 1.5)
+        ax.set_xlim(t_days[0] - x_margin, t_days[-1] + x_margin)
         # Day ticks at measurement points
-        ax.set_xticks(t_days.astype(int))
-        ax.set_xticklabels([str(int(d)) for d in t_days], fontsize=7)
+        if ic_day is not None and ic_day not in t_days:
+            all_ticks = sorted(set([ic_day] + list(t_days)))
+        else:
+            all_ticks = list(t_days)
+        ax.set_xticks([int(d) for d in all_ticks])
+        ax.set_xticklabels([str(int(d)) for d in all_ticks], fontsize=7)
         if j >= 8:
             ax.set_xlabel("Day")
         if j % 4 == 0:
