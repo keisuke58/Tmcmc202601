@@ -104,8 +104,9 @@ def load_mouse_data(mouse_key, start_from_idx=1):
     t_days = np.array(t_days)
     data = np.array(data)
 
-    # IC from first timepoint
-    phi_init = data[0].copy()
+    # IC from the timepoint just before the fit window
+    ic_idx = start_from_idx - 1
+    phi_init = data[ic_idx].copy()
     phi_init = np.clip(phi_init, 0.001, 0.99)
     phi_init = phi_init / phi_init.sum()
 
