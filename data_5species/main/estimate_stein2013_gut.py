@@ -192,6 +192,12 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n-mutation-steps", type=int, default=20)
     parser.add_argument("--sigma-obs", type=float, default=0.15)
+    parser.add_argument(
+        "--start-from-idx",
+        type=int,
+        default=1,
+        help="Skip first N timepoints for IC. 1=Day0 as IC, 2=Day2 as IC (skip clindamycin acute)",
+    )
     parser.add_argument("--dt", type=float, default=1e-4)
     parser.add_argument("--n-steps", type=int, default=2500)
     parser.add_argument("--max-delta-beta", type=float, default=0.1)
@@ -233,7 +239,9 @@ def main():
         logger.info(f"Stein 2013 gut — {mouse_key} ({N_SP} species, {N_PARAMS} params)")
         logger.info(f"{'='*60}")
 
-        obs, t_fit, phi_init, t_all, data_all = load_mouse_data(mouse_key)
+        obs, t_fit, phi_init, t_all, data_all = load_mouse_data(
+            mouse_key, start_from_idx=args.start_from_idx
+        )
         logger.info(f"Data: {obs.shape} (fit), IC from Day {t_all[0]}")
         logger.info(f"Timepoints (fit): {t_fit}")
         logger.info(f"phi_init: {' '.join(f'{v:.3f}' for v in phi_init)}")
