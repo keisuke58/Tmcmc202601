@@ -1,0 +1,272 @@
+# -*- coding: utf-8 -*-
+"""
+estimate_monospecies_cscale.py — 2-parameter TMCMC: (sigma, c_scale)
+
+theta = [sigma, c_scale]
+  sigma   : growth-attachment rate  [prior: Felix ±1 decade]
+  c_scale : effective nutrient scale [prior: 1–100, uniform]
+
+c(t) = c_scale * (1 - phi*psi)   ← c_scale が軌跡の "曲がり方" を制御
+
+affine map  cfu = a * phibar + b  は解析的にプロファイルアウト。
+
+Usage:
+    python estimate_monospecies_cscale.py [--n_particles 4000] [--outdir DIR]
+    python estimate_monospecies_cscale.py --temp 37
+"""
+
+import os
+import sys
+import argparse
+import time
+import json
+import csv
+import numpy as np
+
+os.environ.setdefault('XLA_PYTHON_CLIENT_PREALLOCATE', 'false')
+
+import jax
+import jax.numpy as jnp
+
+jax.config.update('jax_enable_x64', True)
+
+sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'main'))
+
+from hamilton_monospecies_jax import simulate_monospecies_phibar_hist_dynamic_c
+from estimate_monospecies_tmcmc import load_static_data, FELIX_SIGMA
+
+MAX_STEPS_MAP = {4: 4000, 8: 2000, 15: 1000, 20: 500,
+                 25: 300, 35: 200, 37: 200, 40: 450}
+TEMPS = [4, 8, 15, 20, 25, 35, 37, 40]
+
+PHI_INIT = 0.1   # fixed (confirmed correct)
+
+
+def make_log_likelihood_cscale(exp_time, exp_cfu, exp_std, n_steps,
+                                time_to_step=10.0, Kp=1e-4, eta=1.0, eta_phi=1.0,
+                                dt=1e-4, n_newton=6):
+    """
+    Log-likelihood for theta = [sigma, c_scale].
+
+    c(t) = c_scale * (1 - phi*psi).
+    Affine map cfu = a*phibar + b is profiled out analytically.
+    """
+    exp_time_jax = jnp.array(exp_time)
+    exp_cfu_jax  = jnp.array(exp_cfu)
+    sigma_obs    = jnp.maximum(jnp.array(exp_std), 0.1)
+    step_idx     = jnp.clip((exp_time_jax * time_to_step).astype(int), 0, n_steps)
+
+    def log_likelihood(theta):
+        sigma   = jnp.float64(theta[0])
+        c_scale = jnp.float64(theta[1])
+
+        phibar = simulate_monospecies_phibar_hist_dynamic_c(
+            sigma, n_steps, dt=dt, Kp=Kp, eta=eta, eta_phi=eta_phi,
+            c_scale=c_scale, alpha=0.0, b=0.0,
+            n_newton=n_newton, phi_init=PHI_INIT,
+        )
+        sim_vals = phibar[step_idx]
+
+        # Profile affine map analytically
+        X = jnp.column_stack([sim_vals, jnp.ones_like(sim_vals)])
+        coeff, _, _, _ = jnp.linalg.lstsq(X, exp_cfu_jax, rcond=None)
+        predicted = X @ coeff
+
+        residuals = (predicted - exp_cfu_jax) / sigma_obs
+        logL = -0.5 * jnp.sum(residuals ** 2) - jnp.sum(jnp.log(sigma_obs))
+        return logL
+
+    return log_likelihood
+
+
+def run_cscale_condition(temp, data, n_particles=4000, mutation='rw', seed=42,
+                          max_stages=30, verbose=True,
+                          dt=1e-4, n_newton=6, target_ess_ratio=0.5,
+                          c_scale_lo=1.0, c_scale_hi=100.0):
+    from tmcmc_nuts_engine import tmcmc_engine
+
+    n_steps = MAX_STEPS_MAP[temp]
+    d = data[temp]
+    exp_std = d.get('cfu_std', np.full_like(d['cfu_mean'], 0.2))
+
+    log_lik = make_log_likelihood_cscale(
+        d['time'], d['cfu_mean'], exp_std, n_steps,
+        dt=dt, n_newton=n_newton,
+    )
+
+    sigma_ref = FELIX_SIGMA[temp]
+    lo_s = max(1.0, sigma_ref * 0.1)
+    hi_s = min(500.0, sigma_ref * 10.0)
+    prior_bounds = np.array([[lo_s, hi_s],
+                              [c_scale_lo, c_scale_hi]])
+
+    if verbose:
+        print(f"\n{'='*65}")
+        print(f"  {temp}°C [sigma+c_scale]: n_steps={n_steps}, n_obs={len(d['time'])}")
+        print(f"  theta = [sigma ∈ [{lo_s:.1f},{hi_s:.1f}], c_scale ∈ [{c_scale_lo},{c_scale_hi}]]")
+        print(f"  n_particles={n_particles}, mutation={mutation}")
+        print(f"{'='*65}", flush=True)
+
+    result = tmcmc_engine(
+        log_likelihood=log_lik,
+        prior_bounds=prior_bounds,
+        mutation=mutation,
+        n_particles=n_particles,
+        max_stages=max_stages,
+        target_ess_ratio=target_ess_ratio,
+        hmc_step_size=0.05,
+        hmc_n_leapfrog=5,
+        nuts_max_depth=4,
+        warmup_stages=2,
+        seed=seed,
+        label=f"{temp}C-cscale-{mutation}",
+        verbose=verbose,
+    )
+
+    samples   = result['samples']          # (N, 2)
+    theta_MAP = result['theta_MAP']
+    sigma_MAP   = float(theta_MAP[0])
+    c_scale_MAP = float(theta_MAP[1])
+
+    # Compute RMSE at MAP
+    phibar_map = np.asarray(simulate_monospecies_phibar_hist_dynamic_c(
+        jnp.float64(sigma_MAP), n_steps, dt=dt,
+        c_scale=jnp.float64(c_scale_MAP), n_newton=n_newton, phi_init=PHI_INIT,
+    ))
+    step_idx = np.clip((d['time'] * 10.0).astype(int), 0, n_steps)
+    sv = phibar_map[step_idx]
+    X  = np.column_stack([sv, np.ones_like(sv)])
+    coeff, _, _, _ = np.linalg.lstsq(X, d['cfu_mean'], rcond=None)
+    pred   = X @ coeff
+    rmse   = float(np.sqrt(np.mean((pred - d['cfu_mean'])**2)))
+
+    if verbose:
+        print(f"  MAP: sigma={sigma_MAP:.4f}, c_scale={c_scale_MAP:.4f}, RMSE={rmse:.4f}")
+        print(f"  Mean: sigma={np.mean(samples[:,0]):.4f}±{np.std(samples[:,0]):.4f}, "
+              f"c_scale={np.mean(samples[:,1]):.4f}±{np.std(samples[:,1]):.4f}", flush=True)
+
+    return {
+        'temp': temp,
+        'sigma_MAP': sigma_MAP,
+        'c_scale_MAP': c_scale_MAP,
+        'rmse_MAP': rmse,
+        'sigma_mean': float(np.mean(samples[:, 0])),
+        'sigma_std':  float(np.std(samples[:, 0])),
+        'c_scale_mean': float(np.mean(samples[:, 1])),
+        'c_scale_std':  float(np.std(samples[:, 1])),
+        'n_stages':   result['n_stages'],
+        'total_time': result['total_time'],
+        'samples':    samples,
+        'log_likelihoods': result['log_likelihoods'],
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--temp', type=int, default=None)
+    parser.add_argument('--device', type=str, default='auto', choices=['auto', 'gpu', 'cpu'])
+    parser.add_argument('--mutation', type=str, default='rw', choices=['rw', 'nuts', 'hmc'])
+    parser.add_argument('--n_particles', type=int, default=4000)
+    parser.add_argument('--max_stages', type=int, default=30)
+    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--outdir', type=str, default='_tmcmc_results_cscale')
+    parser.add_argument('--dt', type=float, default=1e-4)
+    parser.add_argument('--n-newton', type=int, default=6)
+    parser.add_argument('--target-ess-ratio', type=float, default=0.5)
+    parser.add_argument('--c-scale-lo', type=float, default=1.0)
+    parser.add_argument('--c-scale-hi', type=float, default=100.0)
+    args = parser.parse_args()
+
+    if args.device == 'cpu':
+        os.environ['CUDA_VISIBLE_DEVICES'] = ''
+        os.environ['JAX_PLATFORMS'] = 'cpu'
+    elif args.device == 'gpu':
+        os.environ.setdefault('JAX_PLATFORMS', 'cuda')
+
+    try:
+        print(f"JAX backend: {jax.default_backend()} | {jax.devices()}", flush=True)
+    except Exception:
+        pass
+
+    xlsx_path = os.path.join(os.path.dirname(__file__), 'raw data.xlsx')
+    data = load_static_data(xlsx_path)
+    os.makedirs(args.outdir, exist_ok=True)
+
+    temps = [args.temp] if args.temp else TEMPS
+    all_results = []
+    t_total = time.time()
+
+    for temp in temps:
+        res = run_cscale_condition(
+            temp, data,
+            n_particles=args.n_particles,
+            mutation=args.mutation,
+            seed=args.seed,
+            max_stages=args.max_stages,
+            dt=args.dt,
+            n_newton=args.n_newton,
+            target_ess_ratio=args.target_ess_ratio,
+            c_scale_lo=args.c_scale_lo,
+            c_scale_hi=args.c_scale_hi,
+        )
+        all_results.append(res)
+
+        np.savez(
+            os.path.join(args.outdir, f'samples_{temp}C.npz'),
+            samples=res['samples'],
+            log_likelihoods=res['log_likelihoods'],
+            sigma_MAP=np.float64(res['sigma_MAP']),
+            c_scale_MAP=np.float64(res['c_scale_MAP']),
+            rmse_MAP=np.float64(res['rmse_MAP']),
+        )
+        print(f"  Saved: {args.outdir}/samples_{temp}C.npz", flush=True)
+
+    elapsed = time.time() - t_total
+
+    # Summary table
+    print(f"\n{'='*80}")
+    print(f"sigma + c_scale TMCMC Summary ({args.mutation.upper()}, {args.n_particles}p)")
+    print(f"{'='*80}")
+    print(f"{'Temp':>6s} | {'Felix σ':>8s} | {'MAP σ':>8s} | {'MAP c':>8s} | "
+          f"{'RMSE':>7s} | {'Stages':>6s} | {'Time':>6s}")
+    print('-' * 80)
+    for res in all_results:
+        t = res['temp']
+        print(f"{t:>4d}°C | {FELIX_SIGMA[t]:>8.2f} | {res['sigma_MAP']:>8.3f} | "
+              f"{res['c_scale_MAP']:>8.3f} | {res['rmse_MAP']:>7.4f} | "
+              f"{res['n_stages']:>6d} | {res['total_time']:>5.0f}s")
+    print(f"\nTotal: {elapsed:.0f}s")
+
+    # CSV
+    csv_path = os.path.join(args.outdir, 'tmcmc_cscale_summary.csv')
+    with open(csv_path, 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['temp', 'felix_sigma', 'sigma_MAP', 'c_scale_MAP', 'rmse_MAP',
+                    'sigma_mean', 'sigma_std', 'c_scale_mean', 'c_scale_std',
+                    'n_stages', 'time_s'])
+        for res in all_results:
+            t = res['temp']
+            w.writerow([t, FELIX_SIGMA[t],
+                        f"{res['sigma_MAP']:.4f}", f"{res['c_scale_MAP']:.4f}",
+                        f"{res['rmse_MAP']:.4f}",
+                        f"{res['sigma_mean']:.4f}", f"{res['sigma_std']:.4f}",
+                        f"{res['c_scale_mean']:.4f}", f"{res['c_scale_std']:.4f}",
+                        res['n_stages'], f"{res['total_time']:.1f}"])
+    print(f"Saved: {csv_path}")
+
+    # JSON
+    json_path = os.path.join(args.outdir, 'tmcmc_cscale_summary.json')
+    with open(json_path, 'w') as f:
+        json.dump({
+            'n_particles': args.n_particles,
+            'n_newton': args.n_newton,
+            'results': [{k: (v.tolist() if hasattr(v, 'tolist') else v)
+                         for k, v in r.items() if k not in ('samples', 'log_likelihoods')}
+                        for r in all_results],
+        }, f, indent=2)
+    print(f"Saved: {json_path}")
+
+
+if __name__ == '__main__':
+    main()

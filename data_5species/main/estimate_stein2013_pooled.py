@@ -21,13 +21,11 @@ import numpy as np
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-
 def _parse_device_early():
     for i, a in enumerate(sys.argv):
         if a == "--device" and i + 1 < len(sys.argv):
             return sys.argv[i + 1]
     return "auto"
-
 
 _dev = _parse_device_early()
 if _dev == "cpu":
@@ -58,12 +56,8 @@ N_PARAMS = count_params(N_SP)  # 77
 DATA_DIR = SCRIPT_DIR / "external_data" / "stein2013"
 
 MICE_POP23 = [
-    "pop2_rep1_id1",
-    "pop2_rep2_id4",
-    "pop2_rep3_id7",
-    "pop3_rep1_id3",
-    "pop3_rep2_id6",
-    "pop3_rep3_id9",
+    "pop2_rep1_id1", "pop2_rep2_id4", "pop2_rep3_id7",
+    "pop3_rep1_id3", "pop3_rep2_id6", "pop3_rep3_id9",
 ]
 
 
@@ -75,14 +69,12 @@ def make_pooled_likelihood(mice, start_from_idx, sigma_obs, dt, n_steps):
             mouse_key, start_from_idx=start_from_idx
         )
         idx_sparse = convert_days_to_idx(t_fit, dt, n_steps)
-        mouse_data.append(
-            {
-                "obs": jnp.array(obs, dtype=jnp.float64),
-                "phi_init": jnp.array(phi_init, dtype=jnp.float64),
-                "idx": jnp.array(idx_sparse, dtype=jnp.int32),
-                "n_obs": len(obs),
-            }
-        )
+        mouse_data.append({
+            "obs": jnp.array(obs, dtype=jnp.float64),
+            "phi_init": jnp.array(phi_init, dtype=jnp.float64),
+            "idx": jnp.array(idx_sparse, dtype=jnp.int32),
+            "n_obs": len(obs),
+        })
         logger.info(
             f"  {mouse_key}: IC Day{t_all[start_from_idx-1]:.0f}, "
             f"fit {len(t_fit)} pts (Day{t_fit[0]:.0f}-{t_fit[-1]:.0f})"
@@ -94,10 +86,7 @@ def make_pooled_likelihood(mice, start_from_idx, sigma_obs, dt, n_steps):
         total_logL = jnp.float64(0.0)
         for md in mouse_data:
             traj = simulate_0d_nsp(
-                theta,
-                n_sp=N_SP,
-                n_steps=n_steps,
-                dt=dt,
+                theta, n_sp=N_SP, n_steps=n_steps, dt=dt,
                 phi_init=md["phi_init"],
             )
             pred = traj[md["idx"], :]
@@ -172,8 +161,7 @@ def main():
 
     logger.info(f"Running {args.mutation.upper()}-TMCMC ({args.n_particles}p, pooled)...")
     result = tmcmc_engine(
-        log_likelihood,
-        prior_bounds,
+        log_likelihood, prior_bounds,
         mutation=args.mutation,
         n_particles=args.n_particles,
         max_stages=args.max_stages,
@@ -201,41 +189,31 @@ def main():
     with open(out_dir / "theta_MAP.json", "w") as f:
         json.dump({f"theta_{i}": float(v) for i, v in enumerate(theta_MAP)}, f, indent=2)
     with open(out_dir / "config.json", "w") as f:
-        json.dump(
-            {
-                "mice": MICE_POP23,
-                "n_mice": len(MICE_POP23),
-                "n_species": N_SP,
-                "n_params": N_PARAMS,
-                "n_particles": args.n_particles,
-                "sigma_obs": args.sigma_obs,
-                "start_from_idx": args.start_from_idx,
-                "n_stages": result["n_stages"],
-                "total_time_s": result["total_time"],
-                "max_logL": float(result["log_likelihoods"].max()),
-            },
-            f,
-            indent=2,
-        )
+        json.dump({
+            "mice": MICE_POP23,
+            "n_mice": len(MICE_POP23),
+            "n_species": N_SP,
+            "n_params": N_PARAMS,
+            "n_particles": args.n_particles,
+            "sigma_obs": args.sigma_obs,
+            "start_from_idx": args.start_from_idx,
+            "n_stages": result["n_stages"],
+            "total_time_s": result["total_time"],
+            "max_logL": float(result["log_likelihoods"].max()),
+        }, f, indent=2)
 
     # Per-mouse RMSE with pooled theta
     logger.info("\n--- Per-mouse RMSE (pooled theta) ---")
     from hamilton_ode_jax_nsp import simulate_0d_nsp as sim
-
     for mouse_key in MICE_POP23:
         obs, t_fit, phi_init, t_all, data_all = load_mouse_data(
             mouse_key, start_from_idx=args.start_from_idx
         )
         idx = convert_days_to_idx(t_fit, args.dt, args.n_steps)
-        traj = np.array(
-            sim(
-                jnp.array(theta_MAP),
-                n_sp=N_SP,
-                n_steps=args.n_steps,
-                dt=args.dt,
-                phi_init=jnp.array(phi_init),
-            )
-        )
+        traj = np.array(sim(
+            jnp.array(theta_MAP), n_sp=N_SP, n_steps=args.n_steps, dt=args.dt,
+            phi_init=jnp.array(phi_init),
+        ))
         pred = traj[idx]
         pred = pred / np.maximum(pred.sum(axis=1, keepdims=True), 1e-12)
         rmse = np.sqrt(np.mean((obs - pred) ** 2))

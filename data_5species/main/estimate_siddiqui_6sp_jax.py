@@ -9,16 +9,11 @@ Usage:
     python estimate_siddiqui_6sp_jax.py --dataset adherent --n-particles 10000 --device gpu
 """
 from __future__ import annotations
-import argparse
-import json
-import logging
-import os
-import sys
+import argparse, json, logging, os, sys
 from pathlib import Path
 import numpy as np
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-
 
 # Device selection before JAX import
 def _parse_device_early():
@@ -26,7 +21,6 @@ def _parse_device_early():
         if a == "--device" and i + 1 < len(sys.argv):
             return sys.argv[i + 1]
     return "auto"
-
 
 _dev = _parse_device_early()
 if _dev == "cpu":
@@ -41,7 +35,6 @@ elif _dev in ("auto", "gpu"):
 
 import jax
 import jax.numpy as jnp
-
 jax.config.update("jax_enable_x64", True)
 
 logging.basicConfig(level=logging.INFO)
@@ -89,35 +82,24 @@ def make_sigma_schedule(t_days, base_sigma=0.10):
     sigma = np.zeros(len(t_days))
     for i, d in enumerate(t_days):
         if d <= 0.25:
-            sigma[i] = base_sigma * 2.0  # 0.20
+            sigma[i] = base_sigma * 2.0   # 0.20
         elif d <= 1.0:
-            sigma[i] = base_sigma * 1.5  # 0.15
+            sigma[i] = base_sigma * 1.5   # 0.15
         elif d <= 3.0:
-            sigma[i] = base_sigma * 1.2  # 0.12
+            sigma[i] = base_sigma * 1.2   # 0.12
         elif d <= 7.0:
-            sigma[i] = base_sigma * 1.0  # 0.10
+            sigma[i] = base_sigma * 1.0   # 0.10
         elif d <= 14.0:
-            sigma[i] = base_sigma * 0.9  # 0.09
+            sigma[i] = base_sigma * 0.9   # 0.09
         else:
-            sigma[i] = base_sigma * 0.8  # 0.08
+            sigma[i] = base_sigma * 0.8   # 0.08
     return sigma
 
 
-def make_log_likelihood_6sp(
-    data,
-    idx_sparse,
-    sigma_obs,
-    phi_init,
-    dt=5e-5,
-    n_steps=5000,
-    K_hill=0.15,
-    n_hill=2.0,
-    c_const=25.0,
-    lambda_pg=3.0,
-    lambda_late=3.0,
-    n_late=2,
-    sigma_schedule=None,
-):
+def make_log_likelihood_6sp(data, idx_sparse, sigma_obs, phi_init,
+                             dt=5e-5, n_steps=5000, K_hill=0.15, n_hill=2.0,
+                             c_const=25.0, lambda_pg=3.0, lambda_late=3.0, n_late=2,
+                             sigma_schedule=None):
     obs = jnp.array(data, dtype=jnp.float64)
     phi_init_jax = jnp.array(phi_init, dtype=jnp.float64)
     idx = jnp.array(idx_sparse, dtype=jnp.int32)
@@ -140,13 +122,8 @@ def make_log_likelihood_6sp(
     def log_likelihood(theta):
         # theta[27] = K_hill when 28 params (auto-detected in simulate_0d_6sp)
         phi_traj = simulate_0d_6sp(
-            theta,
-            n_steps=n_steps,
-            dt=dt,
-            phi_init=phi_init_jax,
-            K_hill=0.15,
-            n_hill=n_hill,
-            c_const=c_const,  # K_hill kwarg is overridden by theta[27]
+            theta, n_steps=n_steps, dt=dt, phi_init=phi_init_jax,
+            K_hill=0.15, n_hill=n_hill, c_const=c_const,  # K_hill kwarg is overridden by theta[27]
         )
         phi_pred = phi_traj[idx, :]
         phi_pred = jnp.clip(phi_pred, 1e-10, 1.0 - 1e-10)
@@ -176,30 +153,13 @@ def get_prior_bounds_6sp(use_heine_prior=False):
                           b1,b2,b3_Aa,b4_Vp,b5_Fn,b6_Pg]
     """
     # DH Phase 2 MAP (5 species, latest run)
-    DH_MAP_5SP = np.array(
-        [
-            1.674,
-            0.756,
-            0.012,
-            1.068,
-            2.233,  # a11,a12,a22,b1,b2
-            -0.297,
-            -0.769,
-            4.450,
-            5.133,
-            2.064,  # a33,a34,a44,b3,b4
-            -2.728,
-            0.382,
-            0.458,
-            0.450,  # a13,a14,a23,a24
-            3.434,
-            0.231,  # a55,b5
-            0.007,
-            -0.494,
-            -0.404,
-            5.631,  # a15,a25,a35,a45
-        ]
-    )
+    DH_MAP_5SP = np.array([
+        1.674, 0.756, 0.012, 1.068, 2.233,   # a11,a12,a22,b1,b2
+        -0.297, -0.769, 4.450, 5.133, 2.064,  # a33,a34,a44,b3,b4
+        -2.728, 0.382, 0.458, 0.450,          # a13,a14,a23,a24
+        3.434, 0.231,                          # a55,b5
+        0.007, -0.494, -0.404, 5.631,         # a15,a25,a35,a45
+    ])
 
     # 5sp index → 6sp index mapping (only for shared params)
     # 5sp: So=0, An=1, Vd=2, Fn=3, Pg=4
@@ -207,9 +167,9 @@ def get_prior_bounds_6sp(use_heine_prior=False):
     # Vd(5sp) maps to Vp(6sp), Fn(5sp index 3) maps to Fn(6sp index 4), Pg(5sp 4)→Pg(6sp 5)
     MAP_5TO6 = {
         # 5sp_idx: (6sp_idx, 5sp_MAP_value)
-        0: (0, DH_MAP_5SP[0]),  # a(So-So)
-        1: (1, DH_MAP_5SP[1]),  # a(So-An)
-        2: (2, DH_MAP_5SP[2]),  # a(An-An)  → 6sp a22 (note: 6sp idx 2 is a(An-An) not a(An-Aa)!)
+        0: (0, DH_MAP_5SP[0]),    # a(So-So)
+        1: (1, DH_MAP_5SP[1]),    # a(So-An)
+        2: (2, DH_MAP_5SP[2]),    # a(An-An)  → 6sp a22 (note: 6sp idx 2 is a(An-An) not a(An-Aa)!)
         # Wait - 6sp idx mapping is different. Let me be explicit:
         # 6sp: 0=a(So,So), 1=a(So,An), 2=a(An,An), 3=a(So,Aa), 4=a(An,Aa), 5=a(Aa,Aa)
         #       6=a(So,Vp), 7=a(An,Vp), 8=a(Aa,Vp), 9=a(Vp,Vp)
@@ -220,42 +180,34 @@ def get_prior_bounds_6sp(use_heine_prior=False):
     # 5sp indices → 6sp indices (excluding Aa-related)
     SHARED_MAP = {
         # 5sp → 6sp for A params
-        0: 0,  # a(So,So)→a(So,So)
-        1: 1,  # a(So,An)→a(So,An)
-        2: 2,  # a(An,An)→a(An,An)
-        5: 9,  # a(Vd,Vd)→a(Vp,Vp)
+        0: 0,   # a(So,So)→a(So,So)
+        1: 1,   # a(So,An)→a(So,An)
+        2: 2,   # a(An,An)→a(An,An)
+        5: 9,   # a(Vd,Vd)→a(Vp,Vp)
         6: 13,  # a(Vd,Fn)→a(Vp,Fn)
         7: 14,  # a(Fn,Fn)→a(Fn,Fn)
         10: 6,  # a(So,Vd)→a(So,Vp)
-        11: 10,  # a(So,Fn)→a(So,Fn)
+        11: 10, # a(So,Fn)→a(So,Fn)
         12: 7,  # a(An,Vd)→a(An,Vp)
-        13: 11,  # a(An,Fn)→a(An,Fn)
-        14: 20,  # a(Pg,Pg)→a(Pg,Pg)
-        16: 15,  # a(So,Pg)→a(So,Pg)
-        17: 16,  # a(An,Pg)→a(An,Pg)
-        18: 18,  # a(Vd,Pg)→a(Vp,Pg)
-        19: 19,  # a(Fn,Pg)→a(Fn,Pg)
+        13: 11, # a(An,Fn)→a(An,Fn)
+        14: 20, # a(Pg,Pg)→a(Pg,Pg)
+        16: 15, # a(So,Pg)→a(So,Pg)
+        17: 16, # a(An,Pg)→a(An,Pg)
+        18: 18, # a(Vd,Pg)→a(Vp,Pg)
+        19: 19, # a(Fn,Pg)→a(Fn,Pg)
         # b params
         3: 21,  # b(So)→b(So)
         4: 22,  # b(An)→b(An)
         8: 24,  # b(Vd)→b(Vp)
         9: 25,  # b(Fn)→b(Fn)
-        15: 26,  # b(Pg)→b(Pg)
+        15: 26, # b(Pg)→b(Pg)
     }
 
     bounds = np.zeros((N_PARAMS, 2))
 
     if use_heine_prior:
         # Aa-related indices (wide prior)
-        aa_indices = {
-            3,
-            4,
-            5,
-            8,
-            12,
-            17,
-            23,
-        }  # a(So,Aa),a(An,Aa),a(Aa,Aa),a(Aa,Vp),a(Aa,Fn),a(Aa,Pg),b(Aa)
+        aa_indices = {3, 4, 5, 8, 12, 17, 23}  # a(So,Aa),a(An,Aa),a(Aa,Aa),a(Aa,Vp),a(Aa,Fn),a(Aa,Pg),b(Aa)
 
         for i in range(N_PARAMS):
             if i in aa_indices:
@@ -295,9 +247,7 @@ def get_prior_bounds_6sp(use_heine_prior=False):
 
 def main():
     parser = argparse.ArgumentParser(description="6-species TMCMC on Siddiqui 2021")
-    parser.add_argument(
-        "--dataset", default="planktonic", choices=["planktonic", "adherent", "both"]
-    )
+    parser.add_argument("--dataset", default="planktonic", choices=["planktonic", "adherent", "both"])
     parser.add_argument("--n-particles", type=int, default=5000)
     parser.add_argument("--max-stages", type=int, default=50)
     parser.add_argument("--seed", type=int, default=42)
@@ -309,29 +259,14 @@ def main():
     parser.add_argument("--n-hill", type=float, default=2.0)
     parser.add_argument("--dt", type=float, default=1e-4)
     parser.add_argument("--n-steps", type=int, default=2500)
-    parser.add_argument(
-        "--per-timepoint-sigma",
-        action="store_true",
-        help="Use per-timepoint sigma schedule (higher σ for early digitized points)",
-    )
-    parser.add_argument(
-        "--heine-prior",
-        action="store_true",
-        default=True,
-        help="Use Heine 2025 DH MAP as informative prior (default: on)",
-    )
-    parser.add_argument(
-        "--no-heine-prior",
-        dest="heine_prior",
-        action="store_false",
-        help="Disable Heine informative prior, use wide bounds",
-    )
-    parser.add_argument(
-        "--max-delta-beta",
-        type=float,
-        default=0.1,
-        help="Cap beta increment per stage (default: 0.1, forces ≥10 stages)",
-    )
+    parser.add_argument("--per-timepoint-sigma", action="store_true",
+                        help="Use per-timepoint sigma schedule (higher σ for early digitized points)")
+    parser.add_argument("--heine-prior", action="store_true", default=True,
+                        help="Use Heine 2025 DH MAP as informative prior (default: on)")
+    parser.add_argument("--no-heine-prior", dest="heine_prior", action="store_false",
+                        help="Disable Heine informative prior, use wide bounds")
+    parser.add_argument("--max-delta-beta", type=float, default=0.1,
+                        help="Cap beta increment per stage (default: 0.1, forces ≥10 stages)")
     parser.add_argument("--mutation", default="rw", choices=["rw", "hmc", "nuts"])
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--quick", action="store_true")
@@ -365,29 +300,19 @@ def main():
         else:
             logger.info(f"Data: {data.shape}, sigma_obs={sigma_obs:.4f}")
 
-        logger.info(
-            f"phi_init: {' '.join(f'{SP_NAMES[j]}={phi_init[j]:.3f}' for j in range(N_SP))}"
-        )
+        logger.info(f"phi_init: {' '.join(f'{SP_NAMES[j]}={phi_init[j]:.3f}' for j in range(N_SP))}")
 
         for i, d in enumerate(t_days):
-            logger.info(
-                f"  Day {d:5.2f}: {' '.join(f'{SP_NAMES[j]}={data[i,j]:.3f}' for j in range(N_SP))}"
-            )
+            logger.info(f"  Day {d:5.2f}: {' '.join(f'{SP_NAMES[j]}={data[i,j]:.3f}' for j in range(N_SP))}")
 
         idx_sparse = convert_days_to_idx(t_days, args.dt, args.n_steps)
         logger.info(f"idx_sparse: {idx_sparse}")
 
         log_likelihood = make_log_likelihood_6sp(
-            data=data,
-            idx_sparse=idx_sparse,
-            sigma_obs=sigma_obs,
-            phi_init=phi_init,
-            dt=args.dt,
-            n_steps=args.n_steps,
-            K_hill=args.K_hill,
-            n_hill=args.n_hill,
-            lambda_pg=args.lambda_pg,
-            lambda_late=args.lambda_late,
+            data=data, idx_sparse=idx_sparse, sigma_obs=sigma_obs,
+            phi_init=phi_init, dt=args.dt, n_steps=args.n_steps,
+            K_hill=args.K_hill, n_hill=args.n_hill,
+            lambda_pg=args.lambda_pg, lambda_late=args.lambda_late,
             sigma_schedule=sigma_sched,
         )
 
@@ -402,12 +327,9 @@ def main():
             _ = jax.jit(jax.value_and_grad(log_likelihood))(jnp.zeros(N_PARAMS, dtype=jnp.float64))
         logger.info("Warmup OK")
 
-        logger.info(
-            f"Running {args.mutation.upper()}-TMCMC ({args.n_particles}p, {N_PARAMS} params)..."
-        )
+        logger.info(f"Running {args.mutation.upper()}-TMCMC ({args.n_particles}p, {N_PARAMS} params)...")
         result = tmcmc_engine(
-            log_likelihood,
-            prior_bounds,
+            log_likelihood, prior_bounds,
             mutation=args.mutation,
             n_particles=args.n_particles,
             max_stages=args.max_stages,
@@ -464,33 +386,11 @@ def main():
 
         # Print MAP
         param_names = [
-            "a(So-So)",
-            "a(So-An)",
-            "a(An-An)",
-            "a(So-Aa)",
-            "a(An-Aa)",
-            "a(Aa-Aa)",
-            "a(So-Vp)",
-            "a(An-Vp)",
-            "a(Aa-Vp)",
-            "a(Vp-Vp)",
-            "a(So-Fn)",
-            "a(An-Fn)",
-            "a(Aa-Fn)",
-            "a(Vp-Fn)",
-            "a(Fn-Fn)",
-            "a(So-Pg)",
-            "a(An-Pg)",
-            "a(Aa-Pg)",
-            "a(Vp-Pg)",
-            "a(Fn-Pg)",
-            "a(Pg-Pg)",
-            "μ(So)",
-            "μ(An)",
-            "μ(Aa)",
-            "μ(Vp)",
-            "μ(Fn)",
-            "μ(Pg)",
+            "a(So-So)", "a(So-An)", "a(An-An)", "a(So-Aa)", "a(An-Aa)", "a(Aa-Aa)",
+            "a(So-Vp)", "a(An-Vp)", "a(Aa-Vp)", "a(Vp-Vp)",
+            "a(So-Fn)", "a(An-Fn)", "a(Aa-Fn)", "a(Vp-Fn)", "a(Fn-Fn)",
+            "a(So-Pg)", "a(An-Pg)", "a(Aa-Pg)", "a(Vp-Pg)", "a(Fn-Pg)", "a(Pg-Pg)",
+            "μ(So)", "μ(An)", "μ(Aa)", "μ(Vp)", "μ(Fn)", "μ(Pg)",
             "K_hill",
         ]
         logger.info("\n--- MAP theta (27 params) ---")

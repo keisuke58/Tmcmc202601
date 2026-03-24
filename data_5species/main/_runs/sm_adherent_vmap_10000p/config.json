@@ -1,0 +1,7 @@
+{
+  "condition": "Dysbiotic",
+  "cultivation": "HOBIC",
+  "n_particles": 10000,
+  "mutation": "rw",
+  "sigma_obs": 0.1
+}
