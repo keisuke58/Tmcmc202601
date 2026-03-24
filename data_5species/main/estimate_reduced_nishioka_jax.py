@@ -159,21 +159,13 @@ def main():
     parser.add_argument("--n-steps", type=int, default=2500)
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--mutation", default="nuts", choices=["rw", "hmc", "nuts"])
-    parser.add_argument(
-        "--n-mutation-steps", type=int, default=1, help="Mutation steps per particle per stage"
-    )
-    parser.add_argument(
-        "--external-data",
-        type=str,
-        default=None,
-        help="Path to JSON with external data (e.g. Sanz-Martin). "
-        "Keys: t_days, data (n_obs x 5), phi_init (5,), sigma_obs",
-    )
-    parser.add_argument(
-        "--wide-prior",
-        action="store_true",
-        help="Use wide prior bounds [-1,3] instead of condition-specific",
-    )
+    parser.add_argument("--n-mutation-steps", type=int, default=1,
+                        help="Mutation steps per particle per stage")
+    parser.add_argument("--external-data", type=str, default=None,
+                        help="Path to JSON with external data (e.g. Sanz-Martin). "
+                             "Keys: t_days, data (n_obs x 5), phi_init (5,), sigma_obs")
+    parser.add_argument("--wide-prior", action="store_true",
+                        help="Use wide prior bounds [-1,3] instead of condition-specific")
     parser.add_argument("--quick", action="store_true", help="Test run: 50p, 500 steps")
     parser.add_argument(
         "--benchmark",

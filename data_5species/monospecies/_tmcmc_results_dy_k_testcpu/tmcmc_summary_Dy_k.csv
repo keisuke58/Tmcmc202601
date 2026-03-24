@@ -1,0 +1,2 @@
+k_MAP,k_mean,k_std,CI_lo_2.5,CI_hi_97.5,n_stages,time_s,n_steps,time_to_step
+0.672600,0.669052,0.019009,0.637029,0.702828,7,8596.8,1500,10

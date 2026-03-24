@@ -22,14 +22,12 @@ import numpy as np
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-
 # Device selection before JAX import
 def _parse_device_early():
     for i, a in enumerate(sys.argv):
         if a == "--device" and i + 1 < len(sys.argv):
             return sys.argv[i + 1]
     return "auto"
-
 
 _dev = _parse_device_early()
 if _dev == "cpu":
@@ -125,7 +123,8 @@ def convert_days_to_idx(t_days, dt, n_steps):
     return np.clip(idx, 0, n_steps)
 
 
-def make_log_likelihood(data, idx_sparse, sigma_obs, phi_init, dt=1e-4, n_steps=2500, c_const=25.0):
+def make_log_likelihood(data, idx_sparse, sigma_obs, phi_init,
+                        dt=1e-4, n_steps=2500, c_const=25.0):
     obs = jnp.array(data, dtype=jnp.float64)
     phi_init_jax = jnp.array(phi_init, dtype=jnp.float64)
     idx = jnp.array(idx_sparse, dtype=jnp.int32)
@@ -134,12 +133,8 @@ def make_log_likelihood(data, idx_sparse, sigma_obs, phi_init, dt=1e-4, n_steps=
 
     def log_likelihood(theta):
         phibar_traj = simulate_0d_nsp(
-            theta,
-            n_sp=N_SP,
-            n_steps=n_steps,
-            dt=dt,
-            phi_init=phi_init_jax,
-            c_const=c_const,
+            theta, n_sp=N_SP, n_steps=n_steps, dt=dt,
+            phi_init=phi_init_jax, c_const=c_const,
         )
         pred = phibar_traj[idx, :]
         pred = jnp.clip(pred, 1e-10, 1.0 - 1e-10)
@@ -185,35 +180,22 @@ def list_available_mice():
 
 def main():
     parser = argparse.ArgumentParser(description="N-species TMCMC on Stein 2013 gut data")
-    parser.add_argument(
-        "--mouse", default="pop2_rep1_id1", help="Mouse ID (e.g. pop2_rep1_id1) or 'all' or 'best'"
-    )
+    parser.add_argument("--mouse", default="pop2_rep1_id1",
+                        help="Mouse ID (e.g. pop2_rep1_id1) or 'all' or 'best'")
     parser.add_argument("--n-particles", type=int, default=5000)
     parser.add_argument("--max-stages", type=int, default=50)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n-mutation-steps", type=int, default=20)
     parser.add_argument("--sigma-obs", type=float, default=0.15)
-    parser.add_argument(
-        "--start-from-idx",
-        type=int,
-        default=1,
-        help="Skip first N timepoints for IC. 1=Day0 as IC, 2=Day2 as IC (skip clindamycin acute)",
-    )
+    parser.add_argument("--start-from-idx", type=int, default=1,
+                        help="Skip first N timepoints for IC. 1=Day0 as IC, 2=Day2 as IC (skip clindamycin acute)")
     parser.add_argument("--dt", type=float, default=1e-4)
     parser.add_argument("--n-steps", type=int, default=2500)
     parser.add_argument("--max-delta-beta", type=float, default=0.1)
-    parser.add_argument(
-        "--glv-prior",
-        action="store_true",
-        default=True,
-        help="Use Stein gLV MAP as informative prior (default: on)",
-    )
-    parser.add_argument(
-        "--no-glv-prior",
-        dest="glv_prior",
-        action="store_false",
-        help="Disable gLV prior, use wide bounds",
-    )
+    parser.add_argument("--glv-prior", action="store_true", default=True,
+                        help="Use Stein gLV MAP as informative prior (default: on)")
+    parser.add_argument("--no-glv-prior", dest="glv_prior", action="store_false",
+                        help="Disable gLV prior, use wide bounds")
     parser.add_argument("--mutation", default="rw", choices=["rw", "hmc", "nuts"])
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--device", choices=["auto", "cpu", "gpu"], default="auto")
@@ -240,9 +222,7 @@ def main():
         logger.info(f"Stein 2013 gut — {mouse_key} ({N_SP} species, {N_PARAMS} params)")
         logger.info(f"{'='*60}")
 
-        obs, t_fit, phi_init, t_all, data_all = load_mouse_data(
-            mouse_key, start_from_idx=args.start_from_idx
-        )
+        obs, t_fit, phi_init, t_all, data_all = load_mouse_data(mouse_key, start_from_idx=args.start_from_idx)
         logger.info(f"Data: {obs.shape} (fit), IC from Day {t_all[0]}")
         logger.info(f"Timepoints (fit): {t_fit}")
         logger.info(f"phi_init: {' '.join(f'{v:.3f}' for v in phi_init)}")
@@ -251,12 +231,9 @@ def main():
         logger.info(f"idx_sparse: {idx_sparse}")
 
         log_likelihood = make_log_likelihood(
-            data=obs,
-            idx_sparse=idx_sparse,
-            sigma_obs=args.sigma_obs,
-            phi_init=phi_init,
-            dt=args.dt,
-            n_steps=args.n_steps,
+            data=obs, idx_sparse=idx_sparse,
+            sigma_obs=args.sigma_obs, phi_init=phi_init,
+            dt=args.dt, n_steps=args.n_steps,
         )
 
         prior_bounds = get_prior_bounds(use_glv_prior=args.glv_prior)
@@ -270,8 +247,7 @@ def main():
 
         logger.info(f"Running {args.mutation.upper()}-TMCMC ({args.n_particles}p)...")
         result = tmcmc_engine(
-            log_likelihood,
-            prior_bounds,
+            log_likelihood, prior_bounds,
             mutation=args.mutation,
             n_particles=args.n_particles,
             max_stages=args.max_stages,
@@ -300,8 +276,7 @@ def main():
         with open(out_dir / "theta_MAP.json", "w") as f:
             json.dump(
                 {f"theta_{i}": float(v) for i, v in enumerate(theta_MAP)},
-                f,
-                indent=2,
+                f, indent=2,
             )
 
         config = {
@@ -334,10 +309,8 @@ def main():
 
         # Compute fit
         pred_traj = simulate_0d_nsp(
-            jnp.array(theta_MAP),
-            n_sp=N_SP,
-            n_steps=args.n_steps,
-            dt=args.dt,
+            jnp.array(theta_MAP), n_sp=N_SP,
+            n_steps=args.n_steps, dt=args.dt,
             phi_init=jnp.array(phi_init),
         )
         pred = np.array(pred_traj[idx_sparse])

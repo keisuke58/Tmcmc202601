@@ -141,7 +141,9 @@ def _residual(g_new, g_prev, params):
         active = active_mask[i] == 1
 
         def active_phi():
-            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / ((phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3)
+            t1 = Kp1 * (2.0 - 4.0 * phi_new[i]) / (
+                (phi_new[i] - 1.0) ** 3 * phi_new[i] ** 3
+            )
             t2 = (1.0 / Eta[i]) * (
                 gamma_new
                 + (EtaPhi[i] + Eta[i] * psi_new[i] ** 2) * phidot[i]
@@ -156,16 +158,18 @@ def _residual(g_new, g_prev, params):
         Q = Q.at[i].set(jax.lax.cond(active, active_phi, inactive_phi))
 
     Q = Q.at[n_sp].set(
-        gamma_new + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new**3) + phi0dot
+        gamma_new
+        + Kp1 * (2.0 - 4.0 * phi0_new) / ((phi0_new - 1.0) ** 3 * phi0_new**3)
+        + phi0dot
     )
 
     for i in range(n_sp):
         active = active_mask[i] == 1
 
         def active_psi():
-            t1 = (-2.0 * Kp1) / ((psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3) - (2.0 * Kp1) / (
-                (psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2
-            )
+            t1 = (-2.0 * Kp1) / (
+                (psi_new[i] - 1.0) ** 2 * psi_new[i] ** 3
+            ) - (2.0 * Kp1) / ((psi_new[i] - 1.0) ** 3 * psi_new[i] ** 2)
             t2 = (b_diag[i] * alpha / Eta[i]) * psi_new[i]
             t3 = phi_new[i] * psi_new[i] * phidot[i] + phi_new[i] ** 2 * psidot[i]
             t4 = (c / Eta[i]) * phi_new[i] * Ia[i]
@@ -174,7 +178,9 @@ def _residual(g_new, g_prev, params):
         def inactive_psi():
             return psi_new[i]
 
-        Q = Q.at[n_sp + 1 + i].set(jax.lax.cond(active, active_psi, inactive_psi))
+        Q = Q.at[n_sp + 1 + i].set(
+            jax.lax.cond(active, active_psi, inactive_psi)
+        )
 
     Q = Q.at[2 * n_sp + 1].set(jnp.sum(phi_new) + phi0_new - 1.0)
     return Q
@@ -240,7 +246,7 @@ def simulate_0d_nsp(
         Represents antibiotic effect (low alpha = growth suppression).
     """
     n_A = n_sp * (n_sp + 1) // 2
-    A, b_diag = theta_to_matrices(theta[: n_A + n_sp], n_sp)
+    A, b_diag = theta_to_matrices(theta[:n_A + n_sp], n_sp)
 
     # K_hill from theta if extra param present
     has_k_hill = theta.shape[0] > n_A + n_sp

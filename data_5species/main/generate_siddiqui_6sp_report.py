@@ -10,10 +10,7 @@ Run after 6sp TMCMC completes:
         --plan-dir _runs/siddiqui_6sp_planktonic_10000p_best \
         --adh-dir _runs/siddiqui_6sp_adherent_10000p_best
 """
-import sys
-import os
-import json
-import argparse
+import sys, os, json, argparse
 from pathlib import Path
 import numpy as np
 
@@ -23,9 +20,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "tmcmc" / "program2602"))
 
-import matplotlib
-
-matplotlib.use("Agg")
+import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
 from matplotlib.lines import Line2D
@@ -40,25 +35,15 @@ STYLE = {
     "font.family": "serif",
     "font.serif": ["Latin Modern Roman", "Computer Modern Roman", "DejaVu Serif"],
     "mathtext.fontset": "cm",
-    "font.size": 9,
-    "axes.labelsize": 10,
-    "axes.titlesize": 10,
-    "axes.titleweight": "bold",
-    "legend.fontsize": 7.5,
-    "xtick.labelsize": 8,
-    "ytick.labelsize": 8,
-    "xtick.direction": "in",
-    "ytick.direction": "in",
-    "xtick.major.size": 3,
-    "ytick.major.size": 3,
-    "lines.linewidth": 1.2,
-    "axes.linewidth": 0.6,
-    "grid.linewidth": 0.4,
-    "grid.alpha": 0.2,
-    "figure.dpi": 300,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "savefig.pad_inches": 0.03,
+    "font.size": 9, "axes.labelsize": 10, "axes.titlesize": 10,
+    "axes.titleweight": "bold", "legend.fontsize": 7.5,
+    "xtick.labelsize": 8, "ytick.labelsize": 8,
+    "xtick.direction": "in", "ytick.direction": "in",
+    "xtick.major.size": 3, "ytick.major.size": 3,
+    "lines.linewidth": 1.2, "axes.linewidth": 0.6,
+    "grid.linewidth": 0.4, "grid.alpha": 0.2,
+    "figure.dpi": 300, "savefig.dpi": 300,
+    "savefig.bbox": "tight", "savefig.pad_inches": 0.03,
 }
 plt.rcParams.update(STYLE)
 
@@ -69,12 +54,9 @@ N_SP = 6
 N_PARAMS = 28  # 27 + K_hill
 SPECIES = ["So", "An", "Aa", "Vp", "Fn", "Pg"]
 SPECIES_ITALIC = [
-    r"$\it{S.\ oralis}$",
-    r"$\it{A.\ naeslundii}$",
-    r"$\it{A.\ actinom.}$",
-    r"$\it{V.\ parvula}$",
-    r"$\it{F.\ nucleatum}$",
-    r"$\it{P.\ gingivalis}$",
+    r"$\it{S.\ oralis}$", r"$\it{A.\ naeslundii}$",
+    r"$\it{A.\ actinom.}$", r"$\it{V.\ parvula}$",
+    r"$\it{F.\ nucleatum}$", r"$\it{P.\ gingivalis}$",
 ]
 SP_COLORS = ["#2166AC", "#1B7837", "#66c2a5", "#FF8C00", "#7B3294", "#B2182B"]
 COND_COLORS = {"plan": "#2166AC", "adh": "#B2182B"}
@@ -82,81 +64,30 @@ COND_COLORS = {"plan": "#2166AC", "adh": "#B2182B"}
 SM_DAYS = np.array([0.25, 1, 3, 7, 14, 21])
 
 PARAM_NAMES = [
-    "a(So-So)",
-    "a(So-An)",
-    "a(An-An)",
-    "a(So-Aa)",
-    "a(An-Aa)",
-    "a(Aa-Aa)",
-    "a(So-Vp)",
-    "a(An-Vp)",
-    "a(Aa-Vp)",
-    "a(Vp-Vp)",
-    "a(So-Fn)",
-    "a(An-Fn)",
-    "a(Aa-Fn)",
-    "a(Vp-Fn)",
-    "a(Fn-Fn)",
-    "a(So-Pg)",
-    "a(An-Pg)",
-    "a(Aa-Pg)",
-    "a(Vp-Pg)",
-    "a(Fn-Pg)",
-    "a(Pg-Pg)",
-    "μ(So)",
-    "μ(An)",
-    "μ(Aa)",
-    "μ(Vp)",
-    "μ(Fn)",
-    "μ(Pg)",
+    "a(So-So)", "a(So-An)", "a(An-An)", "a(So-Aa)", "a(An-Aa)", "a(Aa-Aa)",
+    "a(So-Vp)", "a(An-Vp)", "a(Aa-Vp)", "a(Vp-Vp)",
+    "a(So-Fn)", "a(An-Fn)", "a(Aa-Fn)", "a(Vp-Fn)", "a(Fn-Fn)",
+    "a(So-Pg)", "a(An-Pg)", "a(Aa-Pg)", "a(Vp-Pg)", "a(Fn-Pg)", "a(Pg-Pg)",
+    "μ(So)", "μ(An)", "μ(Aa)", "μ(Vp)", "μ(Fn)", "μ(Pg)",
     "K_hill",
 ]
 PARAM_TEX = [
-    r"$a_{11}$",
-    r"$a_{12}$",
-    r"$a_{22}$",
-    r"$a_{13}$",
-    r"$a_{23}$",
-    r"$a_{33}$",
-    r"$a_{14}$",
-    r"$a_{24}$",
-    r"$a_{34}$",
-    r"$a_{44}$",
-    r"$a_{15}$",
-    r"$a_{25}$",
-    r"$a_{35}$",
-    r"$a_{45}$",
-    r"$a_{55}$",
-    r"$a_{16}$",
-    r"$a_{26}$",
-    r"$a_{36}$",
-    r"$a_{46}$",
-    r"$a_{56}$",
-    r"$a_{66}$",
-    r"$\mu_1$",
-    r"$\mu_2$",
-    r"$\mu_3$",
-    r"$\mu_4$",
-    r"$\mu_5$",
-    r"$\mu_6$",
+    r"$a_{11}$", r"$a_{12}$", r"$a_{22}$", r"$a_{13}$", r"$a_{23}$", r"$a_{33}$",
+    r"$a_{14}$", r"$a_{24}$", r"$a_{34}$", r"$a_{44}$",
+    r"$a_{15}$", r"$a_{25}$", r"$a_{35}$", r"$a_{45}$", r"$a_{55}$",
+    r"$a_{16}$", r"$a_{26}$", r"$a_{36}$", r"$a_{46}$", r"$a_{56}$", r"$a_{66}$",
+    r"$\mu_1$", r"$\mu_2$", r"$\mu_3$", r"$\mu_4$", r"$\mu_5$", r"$\mu_6$",
     r"$K_\mathrm{hill}$",
 ]
 MU_IDX = [21, 22, 23, 24, 25, 26]
-MU_LABELS = [
-    r"$\mu_1$ So",
-    r"$\mu_2$ An",
-    r"$\mu_3$ Aa",
-    r"$\mu_4$ Vp",
-    r"$\mu_5$ Fn",
-    r"$\mu_6$ Pg",
-]
+MU_LABELS = [r"$\mu_1$ So", r"$\mu_2$ An", r"$\mu_3$ Aa",
+             r"$\mu_4$ Vp", r"$\mu_5$ Fn", r"$\mu_6$ Pg"]
 
 E_MAX, E_MIN, DI_EXP = 1000.0, 10.0, 2.0
 
 # Use Numba solver (avoids JAX LLVM OOM on CPU nodes)
 try:
     from improved_5species_jit import BiofilmNewtonSolver5S
-
     HAS_NUMBA = True
 except ImportError:
     HAS_NUMBA = False
@@ -165,9 +96,7 @@ except ImportError:
 if not HAS_NUMBA:
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
     os.environ["JAX_PLATFORMS"] = "cpu"
-    import jax
-    import jax.numpy as jnp
-
+    import jax; import jax.numpy as jnp
     jax.config.update("jax_enable_x64", True)
     from hamilton_ode_jax_6sp import simulate_0d_6sp
 
@@ -179,19 +108,14 @@ def run_ode_6sp(theta, ic, n_steps=2500, dt=1e-4):
     try:
         os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
         os.environ.setdefault("JAX_PLATFORMS", "cpu")
-        import jax
-        import jax.numpy as jnp
-
+        import jax; import jax.numpy as jnp
         jax.config.update("jax_enable_x64", True)
         from hamilton_ode_jax_6sp import simulate_0d_6sp
-
         traj = simulate_0d_6sp(
             jnp.array(theta, dtype=jnp.float64),
-            n_steps=n_steps,
-            dt=dt,
+            n_steps=n_steps, dt=dt,
             phi_init=jnp.array(ic_safe, dtype=jnp.float64),
-            K_hill=0.05,
-            n_hill=2.0,
+            K_hill=0.05, n_hill=2.0,
         )
         return np.array(traj)
     except Exception as e:
@@ -201,42 +125,16 @@ def run_ode_6sp(theta, ic, n_steps=2500, dt=1e-4):
 
 def theta_to_A_6sp(theta):
     A = np.zeros((N_SP, N_SP))
-    A[0, 0] = theta[0]
-    A[0, 1] = theta[1]
-    A[1, 0] = theta[1]
-    A[1, 1] = theta[2]
-    A[0, 2] = theta[3]
-    A[2, 0] = theta[3]
-    A[1, 2] = theta[4]
-    A[2, 1] = theta[4]
-    A[2, 2] = theta[5]
-    A[0, 3] = theta[6]
-    A[3, 0] = theta[6]
-    A[1, 3] = theta[7]
-    A[3, 1] = theta[7]
-    A[2, 3] = theta[8]
-    A[3, 2] = theta[8]
-    A[3, 3] = theta[9]
-    A[0, 4] = theta[10]
-    A[4, 0] = theta[10]
-    A[1, 4] = theta[11]
-    A[4, 1] = theta[11]
-    A[2, 4] = theta[12]
-    A[4, 2] = theta[12]
-    A[3, 4] = theta[13]
-    A[4, 3] = theta[13]
-    A[4, 4] = theta[14]
-    A[0, 5] = theta[15]
-    A[5, 0] = theta[15]
-    A[1, 5] = theta[16]
-    A[5, 1] = theta[16]
-    A[2, 5] = theta[17]
-    A[5, 2] = theta[17]
-    A[3, 5] = theta[18]
-    A[5, 3] = theta[18]
-    A[4, 5] = theta[19]
-    A[5, 4] = theta[19]
-    A[5, 5] = theta[20]
+    A[0,0]=theta[0]
+    A[0,1]=theta[1]; A[1,0]=theta[1]; A[1,1]=theta[2]
+    A[0,2]=theta[3]; A[2,0]=theta[3]; A[1,2]=theta[4]; A[2,1]=theta[4]; A[2,2]=theta[5]
+    A[0,3]=theta[6]; A[3,0]=theta[6]; A[1,3]=theta[7]; A[3,1]=theta[7]
+    A[2,3]=theta[8]; A[3,2]=theta[8]; A[3,3]=theta[9]
+    A[0,4]=theta[10]; A[4,0]=theta[10]; A[1,4]=theta[11]; A[4,1]=theta[11]
+    A[2,4]=theta[12]; A[4,2]=theta[12]; A[3,4]=theta[13]; A[4,3]=theta[13]; A[4,4]=theta[14]
+    A[0,5]=theta[15]; A[5,0]=theta[15]; A[1,5]=theta[16]; A[5,1]=theta[16]
+    A[2,5]=theta[17]; A[5,2]=theta[17]; A[3,5]=theta[18]; A[5,3]=theta[18]
+    A[4,5]=theta[19]; A[5,4]=theta[19]; A[5,5]=theta[20]
     return A
 
 
@@ -285,7 +183,6 @@ def get_idx_sparse(n_steps=2500):
 # FIGURES
 # ═══════════════════════════════════════════════════════════════
 
-
 def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=2500):
     """6-panel posterior predictive (one per species)."""
     # ODE t=0 corresponds to Day 0.25 (IC). Map to real days.
@@ -331,22 +228,12 @@ def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=2500):
         ax.fill_between(model_days, q25[:, j], q75[:, j], color=SP_COLORS[j], alpha=0.25)
         ax.plot(model_days, traj_map_norm[:, j], color=SP_COLORS[j], lw=1.3, zorder=3)
         # All data points (obs includes Day 0.25 = IC)
-        ax.scatter(
-            SM_DAYS, obs[:, j], s=22, color=SP_COLORS[j], edgecolors="k", linewidths=0.5, zorder=5
-        )
+        ax.scatter(SM_DAYS, obs[:, j], s=22, color=SP_COLORS[j],
+                   edgecolors="k", linewidths=0.5, zorder=5)
         # Highlight IC (Day 0.25) with diamond
-        ax.scatter(
-            [0.25],
-            [ic[j]],
-            s=35,
-            color=SP_COLORS[j],
-            marker="D",
-            edgecolors="k",
-            linewidths=0.8,
-            zorder=6,
-        )
-        ax.set_xlim(-1, 23)
-        ax.set_ylim(-0.02, 1.02)
+        ax.scatter([0.25], [ic[j]], s=35, color=SP_COLORS[j], marker="D",
+                   edgecolors="k", linewidths=0.8, zorder=6)
+        ax.set_xlim(-1, 23); ax.set_ylim(-0.02, 1.02)
         ax.set_xticks([1, 3, 7, 14, 21])
         ax.set_xticklabels(["1", "3", "7", "14", "21"])
         ax.grid(True)
@@ -355,39 +242,20 @@ def fig_6panel(theta, samples, obs, ic, label, fig_dir, n_steps=2500):
         if j == 0:
             ax.set_ylabel(r"$\bar{\varphi}_i$")
 
-    axes_flat[5].text(
-        0.95,
-        0.92,
-        f"RMSE {m['rmse']:.3f}\nCos {m['cosine']:.3f}",
-        transform=axes_flat[5].transAxes,
-        fontsize=9,
-        ha="right",
-        va="top",
-        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8),
-    )
+    axes_flat[5].text(0.95, 0.92, f"RMSE {m['rmse']:.3f}\nCos {m['cosine']:.3f}",
+                 transform=axes_flat[5].transAxes, fontsize=9, ha="right", va="top",
+                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
 
     handles = [
         Line2D([0], [0], color="gray", lw=1.3, label="MAP"),
         Patch(facecolor="gray", alpha=0.25, label="50% CI"),
         Patch(facecolor="gray", alpha=0.12, label="80% CI"),
-        Line2D(
-            [0],
-            [0],
-            marker="o",
-            color="w",
-            markerfacecolor="gray",
-            markeredgecolor="k",
-            markersize=5,
-            label="Data",
-        ),
+        Line2D([0], [0], marker="o", color="w", markerfacecolor="gray",
+               markeredgecolor="k", markersize=5, label="Data"),
     ]
-    axes_flat[0].legend(
-        handles=handles, loc="upper right", fontsize=8, handlelength=1.2, borderpad=0.4
-    )
+    axes_flat[0].legend(handles=handles, loc="upper right", fontsize=8, handlelength=1.2, borderpad=0.4)
     n_p_actual = len(theta)
-    fig.suptitle(
-        f"{label} (6 species, {n_p_actual} params)", fontsize=10, fontweight="bold", y=1.04
-    )
+    fig.suptitle(f"{label} (6 species, {n_p_actual} params)", fontsize=10, fontweight="bold", y=1.04)
     fig.tight_layout(w_pad=0.2)
     tag = label.lower().replace(" ", "_")
     fig.savefig(fig_dir / f"fig_6panel_{tag}.pdf")
@@ -410,28 +278,17 @@ def fig_A_matrix(theta_plan, theta_adh, fig_dir):
     vmax = max(np.abs(A_plan).max(), np.abs(A_adh).max())
     norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
 
-    for ax, A, title, color in zip(
-        axes, [A_plan, A_adh], ["Planktonic", "Adherent"], [COND_COLORS["plan"], COND_COLORS["adh"]]
-    ):
+    for ax, A, title, color in zip(axes, [A_plan, A_adh],
+                                    ["Planktonic", "Adherent"],
+                                    [COND_COLORS["plan"], COND_COLORS["adh"]]):
         im = ax.imshow(A, cmap="RdBu_r", norm=norm, aspect="equal")
         for i in range(N_SP):
             for j in range(N_SP):
                 val = A[i, j]
                 c = "white" if abs(val) > vmax * 0.6 else "black"
-                ax.text(
-                    j,
-                    i,
-                    f"{val:.2f}",
-                    ha="center",
-                    va="center",
-                    fontsize=10,
-                    color=c,
-                    fontweight="bold",
-                )
-        ax.set_xticks(range(N_SP))
-        ax.set_yticks(range(N_SP))
-        ax.set_xticklabels(SPECIES, fontsize=11)
-        ax.set_yticklabels(SPECIES, fontsize=11)
+                ax.text(j, i, f"{val:.2f}", ha="center", va="center", fontsize=10, color=c, fontweight="bold")
+        ax.set_xticks(range(N_SP)); ax.set_yticks(range(N_SP))
+        ax.set_xticklabels(SPECIES, fontsize=11); ax.set_yticklabels(SPECIES, fontsize=11)
         ax.set_title(title, fontweight="bold", color=color)
 
     fig.subplots_adjust(wspace=0.5, right=0.85)
@@ -449,27 +306,10 @@ def fig_A_violin(samples_plan, samples_adh, theta_plan, theta_adh, fig_dir):
     # A param indices: 0-20
     A_IDX = list(range(21))
     A_LABELS = [
-        r"$a_{11}$",
-        r"$a_{12}$",
-        r"$a_{22}$",
-        r"$a_{13}$",
-        r"$a_{23}$",
-        r"$a_{33}$",
-        r"$a_{14}$",
-        r"$a_{24}$",
-        r"$a_{34}$",
-        r"$a_{44}$",
-        r"$a_{15}$",
-        r"$a_{25}$",
-        r"$a_{35}$",
-        r"$a_{45}$",
-        r"$a_{55}$",
-        r"$a_{16}$",
-        r"$a_{26}$",
-        r"$a_{36}$",
-        r"$a_{46}$",
-        r"$a_{56}$",
-        r"$a_{66}$",
+        r"$a_{11}$", r"$a_{12}$", r"$a_{22}$", r"$a_{13}$", r"$a_{23}$", r"$a_{33}$",
+        r"$a_{14}$", r"$a_{24}$", r"$a_{34}$", r"$a_{44}$",
+        r"$a_{15}$", r"$a_{25}$", r"$a_{35}$", r"$a_{45}$", r"$a_{55}$",
+        r"$a_{16}$", r"$a_{26}$", r"$a_{36}$", r"$a_{46}$", r"$a_{56}$", r"$a_{66}$",
     ]
     groups = [
         ("So--An--Aa", A_IDX[0:6], A_LABELS[0:6]),
@@ -488,74 +328,31 @@ def fig_A_violin(samples_plan, samples_adh, theta_plan, theta_adh, fig_dir):
             ax = axes[grp_idx, col_idx]
             ax.set_visible(True)
             # Trim samples to min of both (adherent may have 27 cols)
-            d_plan = (
-                samples_plan[:, pidx]
-                if pidx < samples_plan.shape[1]
-                else np.zeros(len(samples_plan))
-            )
-            d_adh = (
-                samples_adh[:, pidx] if pidx < samples_adh.shape[1] else np.zeros(len(samples_adh))
-            )
+            d_plan = samples_plan[:, pidx] if pidx < samples_plan.shape[1] else np.zeros(len(samples_plan))
+            d_adh = samples_adh[:, pidx] if pidx < samples_adh.shape[1] else np.zeros(len(samples_adh))
             data = [d_plan, d_adh]
-            parts = ax.violinplot(
-                data, positions=[0, 1], showmeans=False, showextrema=False, widths=0.7
-            )
+            parts = ax.violinplot(data, positions=[0, 1], showmeans=False, showextrema=False, widths=0.7)
             for i, pc in enumerate(parts["bodies"]):
                 pc.set_facecolor(COND_COLORS["plan"] if i == 0 else COND_COLORS["adh"])
-                pc.set_edgecolor("k")
-                pc.set_linewidth(0.4)
-                pc.set_alpha(0.7)
-            ax.scatter(
-                0,
-                theta_plan[pidx],
-                marker="*",
-                s=40,
-                color=COND_COLORS["plan"],
-                edgecolors="k",
-                linewidths=0.3,
-                zorder=5,
-            )
-            ax.scatter(
-                1,
-                theta_adh[pidx],
-                marker="*",
-                s=40,
-                color=COND_COLORS["adh"],
-                edgecolors="k",
-                linewidths=0.3,
-                zorder=5,
-            )
+                pc.set_edgecolor("k"); pc.set_linewidth(0.4); pc.set_alpha(0.7)
+            ax.scatter(0, theta_plan[pidx], marker="*", s=40, color=COND_COLORS["plan"],
+                       edgecolors="k", linewidths=0.3, zorder=5)
+            ax.scatter(1, theta_adh[pidx], marker="*", s=40, color=COND_COLORS["adh"],
+                       edgecolors="k", linewidths=0.3, zorder=5)
             ax.set_title(plabel, fontsize=9)
-            ax.set_xticks([0, 1])
-            ax.set_xticklabels(["P", "A"], fontsize=7)
-            ax.axhline(0, color="k", lw=0.3, ls="--", alpha=0.4)
-            ax.grid(True, axis="y")
+            ax.set_xticks([0, 1]); ax.set_xticklabels(["P", "A"], fontsize=7)
+            ax.axhline(0, color="k", lw=0.3, ls="--", alpha=0.4); ax.grid(True, axis="y")
             if col_idx == 0:
                 ax.set_ylabel(grp_label, fontsize=8)
 
     handles = [
         Patch(facecolor=COND_COLORS["plan"], edgecolor="k", alpha=0.7, label="Planktonic"),
         Patch(facecolor=COND_COLORS["adh"], edgecolor="k", alpha=0.7, label="Adherent"),
-        Line2D(
-            [0],
-            [0],
-            marker="*",
-            color="w",
-            markerfacecolor="gray",
-            markeredgecolor="k",
-            markersize=10,
-            label="MAP",
-        ),
+        Line2D([0], [0], marker="*", color="w", markerfacecolor="gray",
+               markeredgecolor="k", markersize=10, label="MAP"),
     ]
-    fig.legend(
-        handles=handles,
-        loc="upper center",
-        ncol=3,
-        bbox_to_anchor=(0.5, 1.02),
-        frameon=True,
-        edgecolor="0.8",
-        fontsize=9,
-    )
+    fig.legend(handles=handles, loc="upper center", ncol=3,
+               bbox_to_anchor=(0.5, 1.02), frameon=True, edgecolor="0.8", fontsize=9)
 
     fig.tight_layout(h_pad=0.5, w_pad=0.3)
     fig.savefig(fig_dir / "fig_A_violin_6sp.pdf")
@@ -569,60 +366,28 @@ def fig_mu_violin(samples_plan, samples_adh, theta_plan, theta_adh, fig_dir):
         ax = axes[sp_idx]
         pidx = MU_IDX[sp_idx]
         data = [samples_plan[:, pidx], samples_adh[:, pidx]]
-        parts = ax.violinplot(
-            data, positions=[0, 1], showmeans=False, showextrema=False, widths=0.7
-        )
+        parts = ax.violinplot(data, positions=[0, 1], showmeans=False, showextrema=False, widths=0.7)
         for i, pc in enumerate(parts["bodies"]):
             pc.set_facecolor(COND_COLORS["plan"] if i == 0 else COND_COLORS["adh"])
-            pc.set_edgecolor("k")
-            pc.set_linewidth(0.4)
-            pc.set_alpha(0.7)
-        ax.scatter(
-            0,
-            theta_plan[pidx],
-            marker="*",
-            s=60,
-            color=COND_COLORS["plan"],
-            edgecolors="k",
-            linewidths=0.3,
-            zorder=5,
-        )
-        ax.scatter(
-            1,
-            theta_adh[pidx],
-            marker="*",
-            s=60,
-            color=COND_COLORS["adh"],
-            edgecolors="k",
-            linewidths=0.3,
-            zorder=5,
-        )
+            pc.set_edgecolor("k"); pc.set_linewidth(0.4); pc.set_alpha(0.7)
+        ax.scatter(0, theta_plan[pidx], marker="*", s=60, color=COND_COLORS["plan"],
+                   edgecolors="k", linewidths=0.3, zorder=5)
+        ax.scatter(1, theta_adh[pidx], marker="*", s=60, color=COND_COLORS["adh"],
+                   edgecolors="k", linewidths=0.3, zorder=5)
         ax.set_title(MU_LABELS[sp_idx], fontsize=10)
-        ax.set_xticks([0, 1])
-        ax.set_xticklabels(["Plan", "Adh"], fontsize=9)
-        ax.axhline(0, color="k", lw=0.3, ls="--", alpha=0.4)
-        ax.grid(True, axis="y")
-        if sp_idx == 0:
-            ax.set_ylabel("Growth rate", fontsize=10)
+        ax.set_xticks([0, 1]); ax.set_xticklabels(["Plan", "Adh"], fontsize=9)
+        ax.axhline(0, color="k", lw=0.3, ls="--", alpha=0.4); ax.grid(True, axis="y")
+        if sp_idx == 0: ax.set_ylabel("Growth rate", fontsize=10)
 
     # Legend outside on right
     handles = [
         Patch(facecolor=COND_COLORS["plan"], edgecolor="k", alpha=0.7, label="Planktonic"),
         Patch(facecolor=COND_COLORS["adh"], edgecolor="k", alpha=0.7, label="Adherent"),
-        Line2D(
-            [0],
-            [0],
-            marker="*",
-            color="w",
-            markerfacecolor="gray",
-            markeredgecolor="k",
-            markersize=10,
-            label="MAP",
-        ),
+        Line2D([0], [0], marker="*", color="w", markerfacecolor="gray",
+               markeredgecolor="k", markersize=10, label="MAP"),
     ]
-    fig.legend(
-        handles=handles, loc="center right", fontsize=9, borderpad=0.5, bbox_to_anchor=(1.08, 0.5)
-    )
+    fig.legend(handles=handles, loc="center right", fontsize=9, borderpad=0.5,
+               bbox_to_anchor=(1.08, 0.5))
     fig.tight_layout(w_pad=0.3)
     fig.savefig(fig_dir / "fig_mu_violin_6sp.pdf")
     fig.savefig(fig_dir / "fig_mu_violin_6sp.png")
@@ -636,46 +401,25 @@ def fig_scatter_day21(obs_plan, pred_plan, obs_adh, pred_adh, m_plan, m_adh, fig
         (axes[1], obs_adh, pred_adh, "Adherent", m_adh),
     ]:
         for j in range(N_SP):
-            ax.scatter(
-                obs[:, j],
-                pred[:, j],
-                c=SP_COLORS[j],
-                s=25,
-                zorder=3,
-                edgecolors="k",
-                linewidths=0.3,
-                label=SPECIES[j],
-            )
+            ax.scatter(obs[:, j], pred[:, j], c=SP_COLORS[j], s=25, zorder=3,
+                       edgecolors="k", linewidths=0.3, label=SPECIES[j])
         ax.plot([0, 1], [0, 1], "k--", lw=0.8, alpha=0.4)
-        ax.set_xlabel("Observed")
-        ax.set_ylabel("Predicted")
+        ax.set_xlabel("Observed"); ax.set_ylabel("Predicted")
         ax.set_title(label, fontweight="bold")
-        ax.set_xlim(-0.02, 1.02)
-        ax.set_ylim(-0.02, 1.02)
-        ax.set_aspect("equal")
-        ax.grid(True)
-        ax.text(
-            0.05,
-            0.92,
-            f"RMSE={m['rmse']:.3f}\nCos={m['cosine']:.3f}",
-            transform=ax.transAxes,
-            fontsize=6.5,
-            va="top",
-            bbox=dict(boxstyle="round,pad=0.2", fc="wheat", alpha=0.7),
-        )
+        ax.set_xlim(-0.02, 1.02); ax.set_ylim(-0.02, 1.02)
+        ax.set_aspect("equal"); ax.grid(True)
+        ax.text(0.05, 0.92, f"RMSE={m['rmse']:.3f}\nCos={m['cosine']:.3f}",
+                transform=ax.transAxes, fontsize=6.5, va="top",
+                bbox=dict(boxstyle="round,pad=0.2", fc="wheat", alpha=0.7))
     axes[0].legend(fontsize=5, frameon=False, loc="lower right")
 
-    ax = axes[2]
-    x = np.arange(N_SP)
-    w = 0.2
-    ax.bar(x - 1.5 * w, obs_plan[-1], w, color=COND_COLORS["plan"], alpha=0.4, label="Plan obs")
-    ax.bar(x - 0.5 * w, pred_plan[-1], w, color=COND_COLORS["plan"], alpha=0.9, label="Plan pred")
-    ax.bar(x + 0.5 * w, obs_adh[-1], w, color=COND_COLORS["adh"], alpha=0.4, label="Adh obs")
-    ax.bar(x + 1.5 * w, pred_adh[-1], w, color=COND_COLORS["adh"], alpha=0.9, label="Adh pred")
-    ax.set_xticks(x)
-    ax.set_xticklabels(SPECIES, fontsize=6)
-    ax.set_ylabel("Fraction")
-    ax.set_title("Day 21", fontweight="bold")
+    ax = axes[2]; x = np.arange(N_SP); w = 0.2
+    ax.bar(x - 1.5*w, obs_plan[-1], w, color=COND_COLORS["plan"], alpha=0.4, label="Plan obs")
+    ax.bar(x - 0.5*w, pred_plan[-1], w, color=COND_COLORS["plan"], alpha=0.9, label="Plan pred")
+    ax.bar(x + 0.5*w, obs_adh[-1], w, color=COND_COLORS["adh"], alpha=0.4, label="Adh obs")
+    ax.bar(x + 1.5*w, pred_adh[-1], w, color=COND_COLORS["adh"], alpha=0.9, label="Adh pred")
+    ax.set_xticks(x); ax.set_xticklabels(SPECIES, fontsize=6)
+    ax.set_ylabel("Fraction"); ax.set_title("Day 21", fontweight="bold")
     ax.legend(fontsize=5, ncol=2, frameon=True, edgecolor="0.8")
     fig.tight_layout(w_pad=0.4)
     fig.savefig(fig_dir / "fig_scatter_day21_6sp.pdf")
@@ -693,45 +437,16 @@ def fig_di_E(obs_plan, pred_plan, obs_adh, pred_adh, fig_dir):
         di_pred = np.array([compute_di(pred[i]) for i in range(6)])
         E_obs = E_MIN + (E_MAX - E_MIN) * (1 - di_obs) ** DI_EXP
         E_pred = E_MIN + (E_MAX - E_MIN) * (1 - di_pred) ** DI_EXP
-        axes[0].plot(
-            SM_DAYS,
-            di_obs,
-            "o-",
-            color=color,
-            lw=1.2,
-            ms=5,
-            markeredgecolor="k",
-            markeredgewidth=0.3,
-            label=f"{label} obs",
-        )
-        axes[0].plot(
-            SM_DAYS, di_pred, "s--", color=color, lw=1.2, ms=4, alpha=0.7, label=f"{label} pred"
-        )
-        axes[1].plot(
-            SM_DAYS,
-            E_obs,
-            "o-",
-            color=color,
-            lw=1.2,
-            ms=5,
-            markeredgecolor="k",
-            markeredgewidth=0.3,
-            label=f"{label} obs",
-        )
-        axes[1].plot(
-            SM_DAYS, E_pred, "s--", color=color, lw=1.2, ms=4, alpha=0.7, label=f"{label} pred"
-        )
-    axes[0].set_xlabel("Day")
-    axes[0].set_ylabel("DI")
-    axes[0].set_title("Dysbiosis Index", fontweight="bold")
-    axes[0].legend(fontsize=5.5)
-    axes[0].set_ylim(0, 1.05)
-    axes[0].grid(True)
-    axes[1].set_xlabel("Day")
-    axes[1].set_ylabel("$E$ (Pa)")
-    axes[1].set_title("$E(\\mathrm{DI})$", fontweight="bold")
-    axes[1].legend(fontsize=5.5)
-    axes[1].grid(True)
+        axes[0].plot(SM_DAYS, di_obs, "o-", color=color, lw=1.2, ms=5,
+                     markeredgecolor="k", markeredgewidth=0.3, label=f"{label} obs")
+        axes[0].plot(SM_DAYS, di_pred, "s--", color=color, lw=1.2, ms=4, alpha=0.7, label=f"{label} pred")
+        axes[1].plot(SM_DAYS, E_obs, "o-", color=color, lw=1.2, ms=5,
+                     markeredgecolor="k", markeredgewidth=0.3, label=f"{label} obs")
+        axes[1].plot(SM_DAYS, E_pred, "s--", color=color, lw=1.2, ms=4, alpha=0.7, label=f"{label} pred")
+    axes[0].set_xlabel("Day"); axes[0].set_ylabel("DI"); axes[0].set_title("Dysbiosis Index", fontweight="bold")
+    axes[0].legend(fontsize=5.5); axes[0].set_ylim(0, 1.05); axes[0].grid(True)
+    axes[1].set_xlabel("Day"); axes[1].set_ylabel("$E$ (Pa)"); axes[1].set_title("$E(\\mathrm{DI})$", fontweight="bold")
+    axes[1].legend(fontsize=5.5); axes[1].grid(True)
     fig.tight_layout()
     fig.savefig(fig_dir / "fig_di_E_6sp.pdf")
     fig.savefig(fig_dir / "fig_di_E_6sp.png")
@@ -740,23 +455,18 @@ def fig_di_E(obs_plan, pred_plan, obs_adh, pred_adh, fig_dir):
 
 def fig_stacked(obs_plan, pred_plan, obs_adh, pred_adh, fig_dir):
     fig, axes = plt.subplots(2, 2, figsize=(7.2, 5.0))
-    for row, (obs, pred, label) in enumerate(
-        [(obs_plan, pred_plan, "Planktonic"), (obs_adh, pred_adh, "Adherent")]
-    ):
+    for row, (obs, pred, label) in enumerate([
+        (obs_plan, pred_plan, "Planktonic"), (obs_adh, pred_adh, "Adherent")]):
         kw = dict(colors=SP_COLORS, alpha=0.7)
         if row == 0:
             kw["labels"] = SPECIES
         axes[row, 0].stackplot(SM_DAYS, obs.T, **kw)
         axes[row, 0].set_title(f"{label} — Observed", fontweight="bold")
-        axes[row, 0].set_ylabel(r"$\bar{\varphi}_i$")
-        axes[row, 0].set_ylim(0, 1.05)
-        axes[row, 0].grid(True)
+        axes[row, 0].set_ylabel(r"$\bar{\varphi}_i$"); axes[row, 0].set_ylim(0, 1.05); axes[row, 0].grid(True)
         axes[row, 1].stackplot(SM_DAYS, pred.T, colors=SP_COLORS, alpha=0.7)
         axes[row, 1].set_title(f"{label} — MAP Predicted", fontweight="bold")
-        axes[row, 1].set_ylim(0, 1.05)
-        axes[row, 1].grid(True)
-    for ax in axes[1]:
-        ax.set_xlabel("Day")
+        axes[row, 1].set_ylim(0, 1.05); axes[row, 1].grid(True)
+    for ax in axes[1]: ax.set_xlabel("Day")
     axes[0, 0].legend(fontsize=5, loc="center right", frameon=False)
     fig.tight_layout(h_pad=0.5)
     fig.savefig(fig_dir / "fig_stacked_6sp.pdf")
@@ -771,20 +481,10 @@ def fig_residuals(obs_plan, pred_plan, obs_adh, pred_adh, fig_dir):
         (axes[1], obs_adh, pred_adh, "Adherent"),
     ]:
         for j in range(N_SP):
-            ax.plot(
-                SM_DAYS,
-                pred[:, j] - obs[:, j],
-                color=SP_COLORS[j],
-                marker="s",
-                ms=4,
-                label=SPECIES[j],
-                lw=1.0,
-            )
+            ax.plot(SM_DAYS, pred[:, j] - obs[:, j], color=SP_COLORS[j], marker="s", ms=4,
+                    label=SPECIES[j], lw=1.0)
         ax.axhline(0, color="gray", ls="--", lw=0.8)
-        ax.set_xlabel("Day")
-        ax.set_ylabel("Pred $-$ Obs")
-        ax.set_title(title, fontweight="bold")
-        ax.grid(True)
+        ax.set_xlabel("Day"); ax.set_ylabel("Pred $-$ Obs"); ax.set_title(title, fontweight="bold"); ax.grid(True)
     axes[0].legend(ncol=6, loc="upper center", frameon=False, fontsize=5)
     fig.tight_layout(w_pad=0.4)
     fig.savefig(fig_dir / "fig_residuals_6sp.pdf")
@@ -805,8 +505,7 @@ def write_latex(out_dir, m_plan, m_adh, theta_plan, theta_adh, logL_plan, logL_a
         name = PARAM_NAMES[i] if i < len(PARAM_NAMES) else f"theta_{i}"
         theta_rows += f"    {i} & {tex} & {name:12s} & {v_plan} & {v_adh} \\\\\n"
 
-    latex = (
-        r"""\documentclass[11pt,a4paper]{article}
+    latex = r"""\documentclass[11pt,a4paper]{article}
 \usepackage[margin=2cm]{geometry}
 \usepackage{graphicx,booktabs,amsmath,amssymb,hyperref,xcolor,float,lmodern}
 
@@ -1008,24 +707,8 @@ between $A_{ij}$ and $\mu_i$ are expected in the posterior.
 \toprule
 Dataset & RMSE & Cosine & Spearman $\rho$ & max $\log L$ \\
 \midrule
-Planktonic & """
-        + f"{m_plan['rmse']:.4f}"
-        + r""" & """
-        + f"{m_plan['cosine']:.4f}"
-        + r""" & """
-        + f"{m_plan['spearman']:.4f}"
-        + r""" & """
-        + f"{logL_plan.max():.1f}"
-        + r""" \\
-Adherent   & """
-        + f"{m_adh['rmse']:.4f}"
-        + r""" & """
-        + f"{m_adh['cosine']:.4f}"
-        + r""" & """
-        + f"{m_adh['spearman']:.4f}"
-        + r""" & """
-        + f"{logL_adh.max():.1f}"
-        + r""" \\
+Planktonic & """ + f"{m_plan['rmse']:.4f}" + r""" & """ + f"{m_plan['cosine']:.4f}" + r""" & """ + f"{m_plan['spearman']:.4f}" + r""" & """ + f"{logL_plan.max():.1f}" + r""" \\
+Adherent   & """ + f"{m_adh['rmse']:.4f}" + r""" & """ + f"{m_adh['cosine']:.4f}" + r""" & """ + f"{m_adh['spearman']:.4f}" + r""" & """ + f"{logL_adh.max():.1f}" + r""" \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1033,9 +716,7 @@ Adherent   & """
 \section{6-Panel Posterior Predictive}
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth]{figures/fig_6panel_planktonic.pdf}
-\caption{Planktonic posterior predictive fit (RMSE """
-        + f"= {m_plan['rmse']:.3f}"
-        + r""").
+\caption{Planktonic posterior predictive fit (RMSE """ + f"= {m_plan['rmse']:.3f}" + r""").
 MAP trajectory (line), 50\%/80\% credible intervals (shaded), digitized data (circles),
 and initial condition (diamond at Day~0.25).
 The model captures the So$\to$Fn$\to$Pg succession pattern.
@@ -1046,9 +727,7 @@ The main residual is the Fn peak underestimation; the CI bands cover most data p
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth]{figures/fig_6panel_adherent.pdf}
-\caption{Adherent posterior predictive fit (RMSE """
-        + f"= {m_adh['rmse']:.3f}"
-        + r""").
+\caption{Adherent posterior predictive fit (RMSE """ + f"= {m_adh['rmse']:.3f}" + r""").
 The adherent biofilm shows slower dynamics than planktonic.
 \textit{S.\ oralis} dominates longer (Day~7 recovery visible in data),
 and \textit{P.\ gingivalis} emergence is delayed relative to planktonic.
@@ -1128,15 +807,12 @@ fully capture). All residuals are within $\pm 0.2$ for both conditions.}
 \toprule
 Idx & TeX & Name & Planktonic & Adherent \\
 \midrule
-"""
-        + theta_rows
-        + r"""\bottomrule
+""" + theta_rows + r"""\bottomrule
 \end{tabular}
 \end{table}
 
 \end{document}
 """
-    )
     with open(out_dir / "siddiqui_6sp_report.tex", "w") as f:
         f.write(latex)
 
@@ -1149,18 +825,12 @@ def main():
     parser.add_argument("--plan-dir", type=str, default="_runs/siddiqui_6sp_plan_28p_kfree")
     parser.add_argument("--adh-dir", type=str, default="_runs/siddiqui_6sp_adherent_2000p_best")
     parser.add_argument("--n-steps", type=int, default=2500)
-    parser.add_argument(
-        "--n-steps-adh",
-        type=int,
-        default=None,
-        help="Override n_steps for adherent (default: same as --n-steps)",
-    )
+    parser.add_argument("--n-steps-adh", type=int, default=None,
+                        help="Override n_steps for adherent (default: same as --n-steps)")
     parser.add_argument("--n-posterior", type=int, default=50, help="Posterior trajectories for CI")
     args = parser.parse_args()
 
-    plan_dir = (
-        Path(args.plan_dir) if Path(args.plan_dir).is_absolute() else SCRIPT_DIR / args.plan_dir
-    )
+    plan_dir = Path(args.plan_dir) if Path(args.plan_dir).is_absolute() else SCRIPT_DIR / args.plan_dir
     adh_dir = Path(args.adh_dir) if Path(args.adh_dir).is_absolute() else SCRIPT_DIR / args.adh_dir
 
     OUT = SCRIPT_DIR / "_runs" / "siddiqui_6sp_report"
@@ -1183,31 +853,22 @@ def main():
     n_steps_adh = args.n_steps_adh if args.n_steps_adh else args.n_steps
 
     print("Fig: 6-panel planktonic...")
-    m_plan, pred_plan = fig_6panel(
-        theta_plan, samples_plan, obs_plan, obs_plan[0], "Planktonic", FIG_DIR, args.n_steps
-    )
+    m_plan, pred_plan = fig_6panel(theta_plan, samples_plan, obs_plan,
+                                    obs_plan[0], "Planktonic", FIG_DIR, args.n_steps)
     print("Fig: 6-panel adherent...")
-    m_adh, pred_adh = fig_6panel(
-        theta_adh, samples_adh, obs_adh, obs_adh[0], "Adherent", FIG_DIR, n_steps_adh
-    )
+    m_adh, pred_adh = fig_6panel(theta_adh, samples_adh, obs_adh,
+                                  obs_adh[0], "Adherent", FIG_DIR, n_steps_adh)
 
     print(f"  Planktonic: RMSE={m_plan['rmse']:.4f}, Cos={m_plan['cosine']:.4f}")
     print(f"  Adherent:   RMSE={m_adh['rmse']:.4f}, Cos={m_adh['cosine']:.4f}")
 
-    print("Fig: A matrix...")
-    fig_A_matrix(theta_plan, theta_adh, FIG_DIR)
-    print("Fig: A violin...")
-    fig_A_violin(samples_plan, samples_adh, theta_plan, theta_adh, FIG_DIR)
-    print("Fig: μ violin...")
-    fig_mu_violin(samples_plan, samples_adh, theta_plan, theta_adh, FIG_DIR)
-    print("Fig: scatter + day21...")
-    fig_scatter_day21(obs_plan, pred_plan, obs_adh, pred_adh, m_plan, m_adh, FIG_DIR)
-    print("Fig: DI + E...")
-    fig_di_E(obs_plan, pred_plan, obs_adh, pred_adh, FIG_DIR)
-    print("Fig: stacked...")
-    fig_stacked(obs_plan, pred_plan, obs_adh, pred_adh, FIG_DIR)
-    print("Fig: residuals...")
-    fig_residuals(obs_plan, pred_plan, obs_adh, pred_adh, FIG_DIR)
+    print("Fig: A matrix..."); fig_A_matrix(theta_plan, theta_adh, FIG_DIR)
+    print("Fig: A violin..."); fig_A_violin(samples_plan, samples_adh, theta_plan, theta_adh, FIG_DIR)
+    print("Fig: μ violin..."); fig_mu_violin(samples_plan, samples_adh, theta_plan, theta_adh, FIG_DIR)
+    print("Fig: scatter + day21..."); fig_scatter_day21(obs_plan, pred_plan, obs_adh, pred_adh, m_plan, m_adh, FIG_DIR)
+    print("Fig: DI + E..."); fig_di_E(obs_plan, pred_plan, obs_adh, pred_adh, FIG_DIR)
+    print("Fig: stacked..."); fig_stacked(obs_plan, pred_plan, obs_adh, pred_adh, FIG_DIR)
+    print("Fig: residuals..."); fig_residuals(obs_plan, pred_plan, obs_adh, pred_adh, FIG_DIR)
 
     print("Writing LaTeX...")
     write_latex(OUT, m_plan, m_adh, theta_plan, theta_adh, logL_plan, logL_adh, config_plan)
