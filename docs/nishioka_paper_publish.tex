@@ -592,9 +592,11 @@ Phase~1 achieves lower species RMSE (upper bound on fit quality), while Phase~2 
 Table~\ref{tab:r2_species} reports the per-species $R^2$ for each condition.
 In commensal states (CS, CH), Fn and Pg fractions are near zero throughout, rendering $R^2$ undefined (total variance $\approx0$); these are marked ``$-$'' in the table.
 In dysbiotic states, the model captures the pathogen dynamics with high fidelity: DH achieves $R^2>0.8$ for An, Vei, and Pg; DS achieves $R^2=0.93$ for Vei and $0.85$ for Pg.
-So shows negative $R^2$ across all conditions in Phase~2, reflecting a trade-off between the species-fraction and viability likelihood channels: the additional $\psi$-dynamics shift the MAP away from the So-optimal region to accommodate viability constraints.
-Phase~1 (fix-$\psi$) achieves substantially better So fits, confirming that the $R^2<0$ arises from the $\psi$--$\phi$ coupling rather than from a fundamental model limitation.
-So also exhibits the highest replicate variability ($\sigma_{\mathrm{So}}\approx0.19$), which inflates $\mathrm{SS}_{\mathrm{tot}}$ and further depresses $R^2$.
+So shows negative $R^2$ across most conditions in both phases.
+This is a genuine model limitation: the symmetric quadratic interaction structure produces a So trajectory that overshoots the observed decline after the initial growth peak, yielding residual variance $\mathrm{SS}_{\mathrm{res}} > \mathrm{SS}_{\mathrm{tot}}$.
+In Phase~2, the additional $\psi$-dynamics compound this by shifting the MAP away from the So-optimal region to accommodate viability constraints (CH is the exception: $R^2=0.40$ in Phase~2).
+So also exhibits the highest replicate variability ($\sigma_{\mathrm{So}}\approx0.19$), so even moderate absolute errors translate to $R^2<0$.
+The remaining species and the global RMSE are not affected; this limitation of the symmetric $\mathbf{A}$ for the dominant early coloniser is noted as a target for future model refinement.
 
 \begin{table}[h!]
 \centering\small
@@ -622,7 +624,8 @@ DS maintains $R^2>0.85$ for Vei and Pg in both phases. DH retains strong Pg iden
 Phase~2 converges in $M=4$--$7$ stages with mean acceptance rates $\bar{\alpha}=7$--$13$\% (Table~\ref{tab:rmse}).
 The effective sample size equals the nominal particle count ($\mathrm{ESS}=N_p=10{,}000$) for all conditions at the final stage, confirming adequate posterior exploration.
 As an additional check, Phase~1 was run with two independent seeds ($N_p=2{,}000$ each); the Gelman--Rubin statistic satisfies $\hat{R}<1.1$ for all active parameters in all conditions, indicating that the chains have converged to the same stationary distribution.
-The acceptance rates of 7--13\% are below the theoretically optimal 23\% for $d=15$ Gaussian targets~\cite{RobertCasella2004MonteCarlo}, reflecting the non-Gaussianity and bounded support of the posterior; nevertheless, the high ESS confirms that the TMCMC resampling--mutation cycle provides sufficient mixing.
+For Phase~2, a full multi-chain analysis is computationally prohibitive ($\sim$2\,h per run); convergence is instead supported by three indirect checks: (i)~the $\beta$-schedule reaches $\beta_M=1$ within $M=4$--$7$ stages, consistent with Phase~1, indicating no tempering failure; (ii)~the log-evidence increment $\Delta\ln\hat{Z}$ is monotonically decreasing and stabilises at the final stage for all conditions; and (iii)~the Phase~1 and Phase~2 MAP estimates are structurally consistent (Figure~\ref{fig:phase_scatter}), suggesting Phase~2 converges to the same basin as Phase~1 for commensal conditions.
+The acceptance rates of 7--13\% are below the theoretically optimal 23\% for $d=15$ Gaussian targets~\cite{RobertsRosenthal2001Optimal}, reflecting the non-Gaussianity and bounded support of the posterior; nevertheless, the high ESS confirms that the TMCMC resampling--mutation cycle provides sufficient mixing.
 
 \subsection{Posterior fits across conditions}
 
@@ -752,22 +755,10 @@ Cross-state transfers (DS$\to$CS: 0.384, CS$\to$DH: 0.198) degrade sharply, conf
 \toprule
 Source $\backslash$ Target & CS & CH & DS & DH \\
 \midrule
-<<<<<<< HEAD
 CS & \textbf{0.119} & 0.098 & 0.261 & 0.198 \\
 CH & 0.257 & \textbf{0.104} & 0.100 & 0.159 \\
 DS & 0.384 & 0.259 & \textbf{0.033} & 0.255 \\
 DH & 0.342 & 0.212 & 0.289 & \textbf{0.087} \\
-||||||| parent of a440e223 (fix: final paper QC — remove stale UMAP refs, dup sentence, wrong bold)
-CS & \textit{0.273} & $\mathbf{0.135}$ & $\mathbf{0.111}$ & 0.244 \\
-CH & 0.229 & \textit{0.168} & $\mathbf{0.127}$ & 0.233 \\
-DS & 0.273 & 0.130 & \textit{0.062} & 0.252 \\
-DH & 0.301 & 0.129 & $\mathbf{0.044}$ & \textit{0.262} \\
-=======
-CS & \textit{0.273} & $\mathbf{0.135}$ & 0.111 & 0.244 \\
-CH & 0.229 & \textit{0.168} & 0.127 & 0.233 \\
-DS & 0.273 & 0.130 & \textit{0.062} & 0.252 \\
-DH & 0.301 & 0.129 & $\mathbf{0.044}$ & \textit{0.262} \\
->>>>>>> a440e223 (fix: final paper QC — remove stale UMAP refs, dup sentence, wrong bold)
 \bottomrule
 \end{tabular}
 \caption{Cross-condition prediction RMSE. Diagonal (bold): self-prediction matches calibrated RMSE from 10000-particle TMCMC runs. CS$\to$CH (0.098) outperforms CH self-prediction (0.104), confirming a shared commensal interaction backbone across cultivation modes.}
