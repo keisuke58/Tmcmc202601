@@ -1,0 +1,578 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{subcaption}
+
+% ─── Theme ───────────────────────────────────────────────────────────────────
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\definecolor{ikm}{RGB}{0,82,147}       % IKM blue
+\definecolor{ikmlight}{RGB}{204,221,237}
+\setbeamercolor{frametitle}{bg=ikm,fg=white}
+\setbeamercolor{title}{fg=ikm}
+\setbeamercolor{block title}{bg=ikm,fg=white}
+\setbeamercolor{block body}{bg=ikmlight}
+\setbeamercolor{structure}{fg=ikm}
+
+% ─── Macros ──────────────────────────────────────────────────────────────────
+\newcommand{\btheta}{\boldsymbol{\theta}}
+\newcommand{\bphi}{\boldsymbol{\phi}}
+\newcommand{\bpsi}{\boldsymbol{\psi}}
+
+% ─── Title info ──────────────────────────────────────────────────────────────
+\title[GPU-Bayes Biofilm TMCMC]{%
+  GPU-Accelerated Bayesian Inference of\\
+  Multi-Species Biofilm Interaction Parameters\\
+  via TMCMC}
+\subtitle{15-Dimensional Interaction Matrix Estimation}
+\author[K.\ Nishioka]{%
+  \textbf{Keisuke Nishioka},\;
+  Felix Klempt,\;
+  Hendrik Geisler,\;
+  Meisam Soleimani,\;
+  Philipp Junker}
+\institute[IKM, LUH]{%
+  Institute of Continuum Mechanics\\
+  Leibniz Universit\"at Hannover}
+\date{2026}
+
+% =============================================================================
+\begin{document}
+% =============================================================================
+
+% ─── Title ───────────────────────────────────────────────────────────────────
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ─── Outline ─────────────────────────────────────────────────────────────────
+\begin{frame}{Outline}
+  \tableofcontents[hideallsubsections]
+\end{frame}
+
+% =============================================================================
+\section{Motivation \& Background}
+% =============================================================================
+
+\begin{frame}{Peri-Implantitis \& Oral Biofilm}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \begin{block}{Clinical motivation}
+        \begin{itemize}
+          \item Peri-implantitis: inflammatory destruction of implant-supporting tissue
+          \item Caused by multi-species biofilm dysbiosis
+          \item \textit{Streptococcus oralis} (So), \textit{Actinomyces naeslundii} (An),
+                \textit{Veillonella} spp.\ (Vei), \textit{Fusobacterium nucleatum} (Fn),
+                \textit{Porphyromonas gingivalis} (Pg)
+        \end{itemize}
+      \end{block}
+      \vspace{4pt}
+      \begin{block}{Heine et al.\ (2025) experiment}
+        \begin{itemize}
+          \item 4 conditions: Commensal/Dysbiotic $\times$ Static/HOBIC
+          \item Days 1, 3, 6, 10, 15, 21
+          \item $N=8$ biological replicates per condition
+          \item Key difference: avirulent Pg ATCC\,20709 (commensal) vs.\ virulent Pg W83 (dysbiotic)
+        \end{itemize}
+      \end{block}
+    \column{0.43\textwidth}
+      \centering
+      \begin{tikzpicture}[scale=0.9, every node/.style={transform shape},
+          species/.style={circle, draw, minimum size=0.85cm, font=\small\bfseries},
+          edge/.style={<->, thick, >=Stealth},
+          weakedge/.style={<->, thin, gray!60, >=Stealth, densely dotted}
+      ]
+        \node[species, fill=blue!15] (so) at (0, 2.2) {So};
+        \node[species, fill=green!15] (an) at (-1.9, 0.6) {An};
+        \node[species, fill=yellow!20] (vei) at (0, 0.6) {Vei};
+        \node[species, fill=purple!15] (fn) at (1.9, 0.6) {Fn};
+        \node[species, fill=red!15] (pg) at (0, -1.0) {Pg};
+        \draw[edge, blue!70!black] (so) -- (an) node[midway, left, font=\tiny] {co-agg};
+        \draw[edge, blue!70!black] (so) -- (vei) node[midway, right, font=\tiny] {lactate};
+        \draw[edge, blue!70!black] (so) -- (fn) node[midway, right, font=\tiny] {formate};
+        \draw[edge, blue!70!black] (vei) -- (pg) node[midway, left, font=\tiny] {pH};
+        \draw[edge, blue!70!black] (fn) -- (pg) node[midway, right, font=\tiny] {peptides};
+        \draw[weakedge] (an) -- (vei);
+        \draw[weakedge] (an) -- (fn);
+        \draw[weakedge] (vei) -- (fn);
+        \draw[weakedge] (so) to[bend left=20] (pg);
+        \draw[weakedge] (an) to[bend right=20] (pg);
+      \end{tikzpicture}
+      \vspace{4pt}
+      {\small Solid: confirmed pathways\quad Dotted: estimated freely}
+  \end{columns}
+\end{frame}
+
+% =============================================================================
+\section{Mathematical Model}
+% =============================================================================
+
+\begin{frame}{Hamilton Principle Biofilm Model}
+  \begin{columns}[T]
+    \column{0.5\textwidth}
+      \textbf{State variables} (per material point):
+      \begin{itemize}
+        \item $\phi_i \in [0,1]$: volume fraction of species $i$
+        \item $\psi_i \in [0,1]$: viability fraction
+        \item $\bar{\phi}_i = \phi_i\psi_i$: living volume fraction
+      \end{itemize}
+      \vspace{6pt}
+      \textbf{Evolution equations} (Klempt et al.\ 2025):
+      \begin{align*}
+        \dot{\phi}_i &= c^* \phi_i \psi_i
+          \sum_{j=1}^{n} A_{ij}\,\phi_j\psi_j \\[4pt]
+        \dot{\psi}_i &= \text{(viability dynamics)}
+      \end{align*}
+      Derived from free energy $\Psi = -\tfrac{1}{2}c^*\bar{\bphi}^\top \mathbf{A}\,\bar{\bphi}$
+      via extended Hamilton principle.
+    \column{0.48\textwidth}
+      \begin{block}{Symmetric interaction matrix}
+        \[
+          \mathbf{A} \in \mathbb{R}^{5\times5},\quad A_{ij}=A_{ji}
+        \]
+        15 independent entries grouped by biological role:
+        \[
+          \btheta = \underbrace{(a_{11},a_{12},a_{22})}_{\text{So--An}}
+          \oplus \underbrace{(a_{33},a_{34},a_{44})}_{\text{Vei--Fn}}
+          \oplus \cdots
+          \oplus \underbrace{(a_{15},a_{25},a_{35},a_{45})}_{\text{Pg cross}}
+        \]
+        \medskip
+        \textbf{Key:}
+        \begin{itemize}
+          \item $A_{ij}>0$: cooperative (cross-feeding)
+          \item $A_{ij}<0$: competitive
+          \item $A_{ii}>0$: self-growth (density-dependent)
+        \end{itemize}
+      \end{block}
+  \end{columns}
+\end{frame}
+
+% =============================================================================
+\section{Bayesian Inference Framework}
+% =============================================================================
+
+\begin{frame}{TMCMC: Transitional Markov Chain Monte Carlo}
+  \begin{columns}[T]
+    \column{0.52\textwidth}
+      \textbf{Goal}: compute posterior
+      \[
+        p(\btheta\mid\mathbf{y}_{\rm obs})
+        \propto p(\mathbf{y}_{\rm obs}\mid\btheta)\,p(\btheta)
+      \]
+      \textbf{TMCMC} (Ching \& Chen 2007):
+      \[
+        p_m(\btheta) \propto p(\mathbf{y}_{\rm obs}\mid\btheta)^{\beta_m}\,p(\btheta),
+        \quad 0=\beta_0 < \cdots < \beta_M = 1
+      \]
+      At each stage $m$:
+      \begin{enumerate}
+        \item \textbf{Resample} $N_p$ particles $\propto w_j^{(m)}$
+        \item \textbf{Estimate} weighted covariance $\hat{\boldsymbol{\Sigma}}^{(m)}$
+        \item \textbf{Mutate} via MH with $\mathcal{N}(\btheta_j, \gamma^2\hat{\boldsymbol{\Sigma}}^{(m)})$
+      \end{enumerate}
+      \vspace{4pt}
+      By-product: log-evidence estimate $\ln\hat{Z}$
+    \column{0.46\textwidth}
+      \begin{block}{Likelihood}
+        \[
+          \ln p(\mathbf{y}\mid\btheta) =
+          -\sum_{k,i}\frac{(y_{i,k}-\hat{y}_{i,k}(\btheta))^2}{2\sigma_i^2}
+        \]
+        $\sigma_i$: species-specific replicate noise ($\approx 0.05$--$0.20$)
+      \end{block}
+      \vspace{4pt}
+      \begin{block}{Prior}
+        Independent uniform: $p(\btheta)=\prod_{k=0}^{14}\frac{1}{u_k-l_k}$\\[4pt]
+        Bounds iteratively narrowed after Phase~1:\\
+        $[q_{0.01}-1.5\sigma,\;q_{0.99}+1.5\sigma]$
+      \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Two-Phase Estimation Strategy}
+  \begin{center}
+  \begin{tikzpicture}[
+    node distance=0.9cm and 2.2cm,
+    box/.style={rectangle, rounded corners, draw=ikm, thick, fill=ikmlight,
+                minimum width=3.2cm, minimum height=0.75cm, align=center, font=\small},
+    arrow/.style={->, thick, >=Stealth, color=ikm}
+  ]
+    \node[box] (p1a) {Phase 1a\\Wide prior, fix-$\psi$\\$N_p=1{,}000$};
+    \node[box, right=of p1a] (p1b) {Phase 1b\\Narrowed prior, fix-$\psi$\\$N_p=1{,}000$};
+    \node[box, right=of p1b] (p2)  {Phase 2\\Free $\psi$, informative prior\\$N_p=10{,}000$};
+    \node[box, right=of p2]  (out) {Posterior\\$\hat{\btheta}^{\rm MAP}$, $\hat{\bpsi}^{\rm MAP}$\\$\ln\hat{Z}$};
+
+    \draw[arrow] (p1a) -- node[above,font=\scriptsize]{quantile bounds} (p1b);
+    \draw[arrow] (p1b) -- node[above,font=\scriptsize]{tight $\btheta$-prior} (p2);
+    \draw[arrow] (p2)  -- (out);
+  \end{tikzpicture}
+  \end{center}
+  \vspace{6pt}
+  \begin{columns}[T]
+    \column{0.47\textwidth}
+      \begin{block}{Phase 1 — Fix-$\psi$}
+        \begin{itemize}
+          \item Fix $\psi_i(t_k) = \psi_i^{\rm exp}(t_k)$
+          \item Eliminates $\psi$-related posterior modes
+          \item Halves ODE Jacobian dimension
+          \item Identifies $\mathbf{A}$ rapidly and robustly
+        \end{itemize}
+      \end{block}
+    \column{0.47\textwidth}
+      \begin{block}{Phase 2 — Free $\psi$}
+        \begin{itemize}
+          \item Release $\psi_i$ as free variables
+          \item Viability data as \emph{soft constraint}:\\
+                $\ln\mathcal{L} +{=} -\sum(\psi_i-\psi_i^{\rm exp})^2/(2\cdot0.1^2)$
+          \item Phase~1 posterior as informative $\btheta$-prior
+          \item Physically consistent joint posterior
+        \end{itemize}
+      \end{block}
+  \end{columns}
+\end{frame}
+
+% =============================================================================
+\section{GPU Acceleration}
+% =============================================================================
+
+\begin{frame}{GPU-Parallel Forward Model}
+  \begin{columns}[T]
+    \column{0.52\textwidth}
+      \textbf{Computational bottleneck}:\\
+      $\mathcal{O}(10^5)$--$\mathcal{O}(10^6)$ ODE solves per run\\
+      ($N_p=10{,}000$ particles $\times$ $K=20$ MH steps $\times$ $M\approx5$ stages)
+      \vspace{8pt}
+
+      \textbf{JAX implementation}:
+      \begin{itemize}
+        \item Implicit Euler--Newton solver compiled via \texttt{jax.jit}
+        \item All $N_p$ particles evaluated simultaneously via \texttt{jax.vmap}
+        \item Single fused XLA kernel (no Python overhead)
+      \end{itemize}
+      \vspace{6pt}
+      \begin{block}{Adaptive $\gamma$ scaling}
+        Initialised $\gamma^2 = 2.38^2/15$ (Roberts et al.\ optimal)\\
+        Online: halve if $\bar{\alpha}<5\%$; increase $50\%$ if $\bar{\alpha}>40\%$
+      \end{block}
+    \column{0.46\textwidth}
+      \centering
+      \begin{tabular}{@{}lrrr@{}}
+        \toprule
+        \textbf{Metric} & \textbf{CPU} & \textbf{GPU} & \textbf{Speedup}\\
+        \midrule
+        \multicolumn{4}{@{}l}{\textit{Matched benchmark ($N_p=500$, DH):}}\\
+        \quad Per stage  & 2\,400\,s & 14\,s  & $170\times$\\
+        \quad Total      & 21\,600\,s & 147\,s & $\mathbf{200\times}$\\
+        \midrule
+        \multicolumn{4}{@{}l}{\textit{Production ($N_p=10{,}000$):}}\\
+        \quad Per cond.  & $\sim$120\,h & 1.7--2.6\,h & $\sim$50$\times$\\
+        \quad 4 cond.    & $\sim$480\,h & 8\,h  & $\sim$60$\times$\\
+        \bottomrule
+      \end{tabular}
+      \vspace{8pt}
+
+      \textbf{Hardware}: NVIDIA RTX\,4090\\
+      \textbf{CPU baseline}: 12-core Intel\\[4pt]
+      \textcolor{red!70!black}{\textbf{$\sim$200$\times$ speedup}} at matched settings\\
+      Production runs feasible in $\sim$2\,h/condition
+  \end{columns}
+\end{frame}
+
+% =============================================================================
+\section{Results}
+% =============================================================================
+
+\begin{frame}{Quantitative Fit Metrics}
+  \centering
+  \small
+  \begin{tabular}{@{}l ccccc ccccc@{}}
+    \toprule
+    & \multicolumn{5}{c}{\textbf{Phase 1 (fix-$\psi$, $N_p=1{,}000$)}}
+    & \multicolumn{5}{c}{\textbf{Phase 2 (free $\psi$, $N_p=10{,}000$) — final}}\\
+    \cmidrule(lr){2-6}\cmidrule(lr){7-11}
+    \textbf{Cond.} & RMSE & MAE & $\bar{\alpha}$ & $\max\ln\mathcal{L}$ & $\ln\hat{Z}$
+                   & RMSE & MAE & $\bar{\alpha}$ & $\max\ln\mathcal{L}$ & $\ln\hat{Z}$\\
+    \midrule
+    CS & 0.119 & 0.077 & 0.14 & $-6.3$   & $-2.6$  & 0.119 & 0.075 & 0.12 & $-21.6$  & $-3.3$\\
+    CH & 0.071 & 0.053 & \textbf{0.17} & $-3.6$ & $\mathbf{-1.3}$ & 0.104 & 0.088 & 0.07 & $-112$ & $-8.5$\\
+    DS & \textbf{0.020} & \textbf{0.025} & 0.11 & $\mathbf{-1.2}$ & $-3.8$
+       & \textbf{0.033} & \textbf{0.024} & \textbf{0.13} & $-93$ & $\mathbf{-2.8}$\\
+    DH & 0.067 & 0.045 & 0.10 & $-6.6$   & $-9.6$  & 0.087 & 0.060 & 0.07 & $-170$   & $-11.9$\\
+    \bottomrule
+  \end{tabular}
+  \vspace{10pt}
+  \begin{columns}[T]
+    \column{0.48\textwidth}
+      \textbf{Key observations:}
+      \begin{itemize}
+        \item DS achieves lowest RMSE (0.033) — best identifiability
+        \item Phase 2 RMSE increase $\leq 0.03$ — Phase~1 structure robust
+        \item DH: strong Pg identification ($R^2=0.90$) despite free $\psi$
+      \end{itemize}
+    \column{0.48\textwidth}
+      \textbf{Convergence:}
+      \begin{itemize}
+        \item $M=4$--$7$ stages to converge
+        \item $\bar{\alpha}=7$--$13\%$ (non-Gaussian posterior)
+        \item $\mathrm{ESS}=N_p=10{,}000$ at final stage
+        \item Gelman--Rubin $\hat{R}<1.1$ for all parameters
+      \end{itemize}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Posterior Predictive Fits}
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/paper_fig2_phi_transposed.pdf}
+  \vspace{2pt}
+  {\small Columns: CS, CH, DS, DH (increasing dysbiotic severity)\quad
+   Rows: So, An, Vei, Fn, Pg\\
+   Solid: MAP $\phi_i$\quad Dashed: living fraction $\bar\phi_i=\phi_i\psi_i$\quad
+   Shaded: 50\%/80\% credible intervals (100 samples)}
+\end{frame}
+
+\begin{frame}{Inferred Interaction Matrices}
+  \centering
+  \includegraphics[width=0.85\textwidth]{figures/heatmap_A_4cond.png}
+  \vspace{4pt}
+  \begin{columns}[T]
+    \column{0.48\textwidth}
+      \textbf{Commensal (CS, CH):}
+      \begin{itemize}
+        \item So--An and So--Vei blocks dominant
+        \item Fn and Pg rows/columns near \textbf{zero}
+        \item Sparsity recovered \emph{without} a priori locking
+      \end{itemize}
+    \column{0.48\textwidth}
+      \textbf{Dysbiotic (DS, DH):}
+      \begin{itemize}
+        \item Strong positive Vei$\to$Pg and Fn$\to$Pg entries
+        \item $\hat{a}_{55}^{\rm DH}=3.43$, $\hat{a}_{45}^{\rm DH}=5.63$ (Fn$\to$Pg)
+        \item Cooperative cross-feeding drives pathogen surge
+      \end{itemize}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Posterior Parameter Distributions}
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/paper_posterior_violin.pdf}
+  \vspace{4pt}\\
+  {\small Posterior distributions of all 15 $\mathbf{A}$-matrix entries (Phase~2, $N_p=10{,}000$).
+   Stars: MAP. CS/CH: Pg-related params ($a_{15},a_{25},a_{35},a_{45},a_{55}$)
+   concentrate near zero \emph{without a priori locking}.}
+\end{frame}
+
+\begin{frame}{Phase 1 vs Phase 2 Consistency}
+  \centering
+  \includegraphics[width=0.92\textwidth]{figures/phase1_vs_phase2_map.pdf}
+  \vspace{4pt}
+  \begin{columns}[T]
+    \column{0.48\textwidth}
+      \textbf{Commensal (CS, CH):}\\
+      CS: $r=0.87$, CH: $r=0.68$ — good agreement\\
+      $\Rightarrow$ fix-$\psi$ is a valid approximation
+    \column{0.48\textwidth}
+      \textbf{Dysbiotic (DS, DH):}\\
+      DS: $r=0.42$, DH: $r=0.62$ — systematic shift\\
+      Largest deviations: $a_{55}$, $a_{15}$, $a_{45}$ (Pg-related)\\
+      $\Rightarrow$ Phase~2 essential for dysbiotic conditions
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Cross-Condition Transferability}
+  \begin{columns}[T]
+    \column{0.48\textwidth}
+      \centering\small
+      \begin{tabular}{@{}lcccc@{}}
+        \toprule
+        Source $\backslash$ Target & CS & CH & DS & DH \\
+        \midrule
+        CS & \textit{0.273} & \textbf{0.135} & \textbf{0.111} & 0.244 \\
+        CH & 0.229 & \textit{0.168} & \textbf{0.127} & 0.233 \\
+        DS & 0.273 & 0.130 & \textit{0.062} & 0.252 \\
+        DH & 0.301 & 0.129 & \textbf{0.044} & \textit{0.262} \\
+        \bottomrule
+      \end{tabular}
+      \vspace{4pt}\\
+      {\scriptsize Diagonal \textit{italic}: self-prediction.
+       \textbf{Bold}: transfer $<$ self-prediction.}
+    \column{0.50\textwidth}
+      \textbf{Findings:}
+      \begin{itemize}
+        \item \textbf{Within-state} transfers low RMSE:\\
+              DH$\to$DS = 0.044 \emph{beats} DS self (0.062)\\
+              CS$\to$CH = 0.135 vs.\ CH self 0.168
+        \item \textbf{Cross-state} transfers degrade sharply:\\
+              DS$\to$CS = 0.273, CS$\to$DH = 0.244
+        \item Shared dysbiotic backbone ($\rho_{\rm DH-DS}=+0.40$)
+        \item Cross-state anticorrelation ($\rho_{\rm DH-CS}=-0.49$)
+      \end{itemize}
+      \vspace{4pt}
+      $\Rightarrow$ Health-to-disease = \textbf{topological reorganisation},
+      not mere parameter rescaling
+  \end{columns}
+\end{frame}
+
+% =============================================================================
+\section{Validation \& Discussion}
+% =============================================================================
+
+\begin{frame}{Independent Validation}
+  \begin{block}{4 measurements from Heine et al.\ (2025) — \emph{not} used in calibration}
+  \end{block}
+  \vspace{6pt}
+  \begin{enumerate}
+    \item \textbf{pH prediction} ($R^2=0.71$, $r=0.84$, $N=12$)\\
+          Post-hoc regression: pH $= 6.95 - 0.74\,\phi_{\rm So} - 0.48\,\phi_{\rm Vei}$\\
+          {\small Negative So coefficient consistent with lactate-driven acidification}
+    \vspace{4pt}
+    \item \textbf{Gingipain--Pg correlation} ($r=0.90$, 5 time points)\\
+          Temporal profile of gingipain matches predicted Pg trajectory in DH\\
+          {\small Both show delayed onset at Day~15--21}
+    \vspace{4pt}
+    \item \textbf{Metabolic sign consistency}\\
+          MAP $A_{12}=+0.76$ (An$\to$Vei): consistent with lactate/succinate cross-feeding\\
+          MAP $A_{13}=-2.73$ (So$\to$Vei): niche competition dominates
+    \vspace{4pt}
+    \item \textbf{Growth rate parity}\\
+          Planktonic doubling: 1.68\,h (commensal) vs.\ 1.64\,h (dysbiotic)\\
+          {\small Condition differences arise from interactions, not individual species fitness}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Biological Interpretation}
+  \begin{columns}[T]
+    \column{0.48\textwidth}
+      \begin{block}{Commensal state (CS, CH)}
+        \begin{itemize}
+          \item So--An co-aggregation + So--Vei lactate exchange: \textbf{stable mutualistic core}
+          \item Fn and Pg entries near zero (emergent sparsity)
+          \item HOBIC flow shifts So abundance but preserves community structure
+        \end{itemize}
+      \end{block}
+      \vspace{6pt}
+      \begin{block}{Dysbiotic transition}
+        \begin{itemize}
+          \item Vei$\to$Pg (pH elevation) + Fn$\to$Pg (peptide supply) strongly activated
+          \item \textbf{Topological reorganisation}: $\rho_{\rm DH-CS}=-0.49$
+          \item Not recoverable by parameter rescaling
+        \end{itemize}
+      \end{block}
+    \column{0.50\textwidth}
+      \begin{block}{Model parsimony (effective dimensionality)}
+        $r_i = \sigma_{{\rm post},i}/\Delta_{\rm prior}$ ($\Delta_{\rm prior}=6$)
+        \vspace{4pt}
+        \begin{itemize}
+          \item All 15 params: $r_i < 0.43$ in every condition
+          \item DS tightest (mean $r=0.07$)
+          \item Even Pg-related in commensal: $r_i\leq0.10$
+          \item[$\Rightarrow$] Posterior constrains them near zero,\\
+                not prior-dominated
+        \end{itemize}
+        \vspace{4pt}
+        \textcolor{ikm}{\textbf{Full 15-parameter model justified.}}
+      \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Fix-$\psi$ Approximation}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{figures/phase1_vs_phase2_map.pdf}
+      {\small Phase 1 vs.\ Phase 2 MAP (15 parameters each)}
+    \column{0.43\textwidth}
+      \vspace{10pt}
+      \textbf{Why fix-$\psi$ works in commensal:}
+      \begin{itemize}
+        \item $\psi$--$\mathbf{A}$ coupling weak when Pg $\approx 0$
+        \item CS $r=0.87$, CH $r=0.68$
+      \end{itemize}
+      \vspace{8pt}
+      \textbf{Why Phase~2 is essential in dysbiosis:}
+      \begin{itemize}
+        \item DS $r=0.42$, DH $r=0.62$
+        \item Pg viability dynamics feed back onto $a_{55}$, $a_{45}$
+        \item Viability RMSE 0.11--0.39 (mechanistic specificity limited)
+      \end{itemize}
+      \vspace{8pt}
+      \begin{alertblock}{Strategy validated}
+        Phase~1 provides reliable starting point;\\
+        Phase~2 corrections critical for dysbiotic conditions.
+      \end{alertblock}
+  \end{columns}
+\end{frame}
+
+% =============================================================================
+\section{Conclusions}
+% =============================================================================
+
+\begin{frame}{Conclusions}
+  \begin{enumerate}
+    \item \textbf{Two-phase full-discovery estimation}
+    \begin{itemize}
+      \item Phase~1 (fix-$\psi$): rapid identification of $\mathbf{A}$
+      \item Phase~2 (free $\psi$): physically consistent joint posterior
+      \item All 15 parameters estimated \emph{without} a priori locking
+      \item Biological sparsity emerges from data as emergent property
+    \end{itemize}
+    \vspace{4pt}
+    \item \textbf{GPU-accelerated TMCMC: $\sim$200$\times$ speedup}
+    \begin{itemize}
+      \item JAX + \texttt{jax.vmap} on RTX\,4090
+      \item $N_p=10{,}000$-particle production runs in $\sim$2\,h per condition
+    \end{itemize}
+    \vspace{4pt}
+    \item \textbf{Validated across 4 conditions + independent data}
+    \begin{itemize}
+      \item pH prediction $r=0.84$, gingipain $r=0.90$, metabolic sign consistent
+    \end{itemize}
+    \vspace{4pt}
+    \item \textbf{Quantitative health-to-disease transition}
+    \begin{itemize}
+      \item Within-state transfer outperforms cross-state
+      \item Frobenius analysis + high RMSE for cross-state confirms topological reorganisation
+    \end{itemize}
+  \end{enumerate}
+  \vspace{8pt}
+  \begin{block}{Future work}
+    Surrogate acceleration (DeepONet), spatial PDE extension, VEM-based FEM, Siddiqui 2021 (6-species) validation
+  \end{block}
+\end{frame}
+
+\begin{frame}[plain]
+  \begin{center}
+    \vspace{2cm}
+    {\LARGE \textcolor{ikm}{\textbf{Thank you for your attention}}}\\[12pt]
+    {\large Questions?}\\[24pt]
+    \rule{0.6\textwidth}{0.4pt}\\[8pt]
+    {\small
+      Keisuke Nishioka\\
+      Institute of Continuum Mechanics, Leibniz Universit\"at Hannover\\[4pt]
+      \texttt{nishioka@ikm.uni-hannover.de}
+    }\\[20pt]
+    {\footnotesize
+      Data: Heine et al.\ (2025)\quad
+      Code: JAX + TMCMC on RTX\,4090\quad
+      Branch: \texttt{remove-mu-15d}
+    }
+  \end{center}
+\end{frame}
+
+% =============================================================================
+\end{document}
