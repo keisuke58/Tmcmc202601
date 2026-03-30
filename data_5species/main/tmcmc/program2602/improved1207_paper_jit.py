@@ -645,7 +645,7 @@ if HAS_NUMBA:
         # gamma
         g_prev[9] = 0.0
 
-        # theta -> A, b_diag (same as solver.theta_to_matrices)
+        # theta -> A, b_diag (µᵢ removed; b_diag always zero)
         A = np.zeros((4, 4))
         b_diag = np.zeros(4)
 
@@ -654,26 +654,22 @@ if HAS_NUMBA:
         A[0, 1] = theta[1]
         A[1, 0] = theta[1]
         A[1, 1] = theta[2]
-        b_diag[0] = theta[3]
-        b_diag[1] = theta[4]
 
         # M2 block
-        A[2, 2] = theta[5]
-        A[2, 3] = theta[6]
-        A[3, 2] = theta[6]
-        A[3, 3] = theta[7]
-        b_diag[2] = theta[8]
-        b_diag[3] = theta[9]
+        A[2, 2] = theta[3]
+        A[2, 3] = theta[4]
+        A[3, 2] = theta[4]
+        A[3, 3] = theta[5]
 
         # M3 cross
-        A[0, 2] = theta[10]
-        A[2, 0] = theta[10]
-        A[0, 3] = theta[11]
-        A[3, 0] = theta[11]
-        A[1, 2] = theta[12]
-        A[2, 1] = theta[12]
-        A[1, 3] = theta[13]
-        A[3, 1] = theta[13]
+        A[0, 2] = theta[6]
+        A[2, 0] = theta[6]
+        A[0, 3] = theta[7]
+        A[3, 0] = theta[7]
+        A[1, 2] = theta[8]
+        A[2, 1] = theta[8]
+        A[1, 3] = theta[9]
+        A[3, 1] = theta[9]
 
         t_arr = np.empty(maxtimestep + 1, dtype=np.float64)
         g_arr = np.empty((maxtimestep + 1, 10), dtype=np.float64)
@@ -822,37 +818,39 @@ class BiofilmNewtonSolver:
         return float(self.alpha_const)
 
     def theta_to_matrices(self, theta):
+        """Map 10 params (4-species subset of 15-dim) to A(4,4). µᵢ removed.
+        Index map (4-species, no Pg):
+          [0..2]  a11, a12, a22  (So-An)
+          [3..5]  a33, a34, a44  (Vei-Fn)
+          [6..9]  a13, a14, a23, a24  (cross)
+        """
         theta = np.asarray(theta)
         dtype = np.complex128 if np.iscomplexobj(theta) else np.float64
 
         A = np.zeros((4, 4), dtype=dtype)
-        b_diag = np.zeros(4, dtype=dtype)
+        b_diag = np.zeros(4, dtype=dtype)  # always zero (no antibiotics)
 
         # M1
         A[0, 0] = theta[0]
         A[0, 1] = theta[1]
         A[1, 0] = theta[1]
         A[1, 1] = theta[2]
-        b_diag[0] = theta[3]
-        b_diag[1] = theta[4]
 
         # M2
-        A[2, 2] = theta[5]
-        A[2, 3] = theta[6]
-        A[3, 2] = theta[6]
-        A[3, 3] = theta[7]
-        b_diag[2] = theta[8]
-        b_diag[3] = theta[9]
+        A[2, 2] = theta[3]
+        A[2, 3] = theta[4]
+        A[3, 2] = theta[4]
+        A[3, 3] = theta[5]
 
         # M3
-        A[0, 2] = theta[10]
-        A[2, 0] = theta[10]
-        A[0, 3] = theta[11]
-        A[3, 0] = theta[11]
-        A[1, 2] = theta[12]
-        A[2, 1] = theta[12]
-        A[1, 3] = theta[13]
-        A[3, 1] = theta[13]
+        A[0, 2] = theta[6]
+        A[2, 0] = theta[6]
+        A[0, 3] = theta[7]
+        A[3, 0] = theta[7]
+        A[1, 2] = theta[8]
+        A[2, 1] = theta[8]
+        A[1, 3] = theta[9]
+        A[3, 1] = theta[9]
 
         return A, b_diag
 
