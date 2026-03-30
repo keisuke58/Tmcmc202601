@@ -56,7 +56,6 @@ A two-phase estimation strategy is employed: in Phase~1, the viability fraction 
 The forward model is compiled via JAX and evaluated in parallel on GPU (NVIDIA RTX\,4090), achieving a $\sim$200$\times$ speedup over the CPU baseline.
 No parameters are locked to zero a priori; the posterior self-organises, concentrating pathogen-related entries near zero in commensal conditions and activating cooperative cross-feeding terms in dysbiotic states.
 The method is validated against in-vitro time-course data from Heine et al.\ under four combinations of community state (commensal/dysbiotic) and cultivation mode (static/HOBIC reactor).
-UMAP embedding of the 15-dimensional posterior confirms that all four conditions form well-separated clusters, demonstrating that the structural reorganisation of the interaction network persists across the entire posterior distribution.
 
 \vspace{4pt}
 \noindent\textbf{Keywords:}
@@ -179,7 +178,6 @@ The variational derivation automatically ensures symmetry $A_{ij}=A_{ji}$ and th
 Since $c^*$ enters the evolution equations only through the product $c^*A_{ij}$, its absolute value is non-identifiable; we fix $c^*=25$ so that the inferred $A_{ij}$ remain $\mathcal{O}(1)$.
 The Heine et al.\ experiments do not involve antibiotic agents, so we set $\alpha^*=0$, which eliminates the decay term $\alpha^*b_i\psi_i$ from Eq.~\eqref{eq:psi_evol}; the antibiotic sensitivity matrix~$\mathbf{B}$ is therefore inactive and excluded from estimation.
 The symmetric interaction matrix~$\mathbf{A}$ has 15 independent entries, which form the 15-dimensional parameter vector~$\btheta$.
-Since the Heine et al.\ experiments contain no antibiotic agents ($\alpha^*=0$), the antibiotic sensitivity parameters~$b_i$ are identically zero and excluded from estimation.
 
 \subsection{Symmetric interaction matrix}
 \label{sec:model_matrix}
@@ -753,10 +751,22 @@ Cross-state transfers (DS$\to$CS: 0.384, CS$\to$DH: 0.198) degrade sharply, conf
 \toprule
 Source $\backslash$ Target & CS & CH & DS & DH \\
 \midrule
+<<<<<<< HEAD
 CS & \textbf{0.119} & 0.098 & 0.261 & 0.198 \\
 CH & 0.257 & \textbf{0.104} & 0.100 & 0.159 \\
 DS & 0.384 & 0.259 & \textbf{0.033} & 0.255 \\
 DH & 0.342 & 0.212 & 0.289 & \textbf{0.087} \\
+||||||| parent of a440e223 (fix: final paper QC — remove stale UMAP refs, dup sentence, wrong bold)
+CS & \textit{0.273} & $\mathbf{0.135}$ & $\mathbf{0.111}$ & 0.244 \\
+CH & 0.229 & \textit{0.168} & $\mathbf{0.127}$ & 0.233 \\
+DS & 0.273 & 0.130 & \textit{0.062} & 0.252 \\
+DH & 0.301 & 0.129 & $\mathbf{0.044}$ & \textit{0.262} \\
+=======
+CS & \textit{0.273} & $\mathbf{0.135}$ & 0.111 & 0.244 \\
+CH & 0.229 & \textit{0.168} & 0.127 & 0.233 \\
+DS & 0.273 & 0.130 & \textit{0.062} & 0.252 \\
+DH & 0.301 & 0.129 & $\mathbf{0.044}$ & \textit{0.262} \\
+>>>>>>> a440e223 (fix: final paper QC — remove stale UMAP refs, dup sentence, wrong bold)
 \bottomrule
 \end{tabular}
 \caption{Cross-condition prediction RMSE. Diagonal (bold): self-prediction matches calibrated RMSE from 10000-particle TMCMC runs. CS$\to$CH (0.098) outperforms CH self-prediction (0.104), confirming a shared commensal interaction backbone across cultivation modes.}
@@ -839,7 +849,7 @@ The framework reproduces commensal homeostasis (CS, CH), moderate dysbiosis (DS)
 Independent validation against unused pH, gingipain, and metabolic data confirms mechanistic consistency.
 
 \item \textbf{Quantitative interaction comparison.}
-Pairwise Frobenius analysis and UMAP embedding of the full posterior reveal that the health-to-disease transition corresponds to a structural reorganisation of the interaction matrix, not merely a magnitude shift.
+Pairwise Frobenius analysis reveals that the health-to-disease transition corresponds to a structural reorganisation of the interaction matrix, not merely a magnitude shift.
 Cross-condition transfer predictions confirm that within-state interaction backbones generalise across cultivation modes.
 
 \item \textbf{Model parsimony.}
