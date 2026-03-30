@@ -20,6 +20,12 @@
 \usecolortheme{default}
 \setbeamertemplate{navigation symbols}{}
 \setbeamertemplate{footline}[frame number]
+\setbeamersize{text margin left=0.4cm, text margin right=0.4cm}
+\setbeamerfont{title}{size=\Large}
+\setbeamerfont{subtitle}{size=\normalsize}
+\setbeamerfont{author}{size=\small}
+\setbeamerfont{institute}{size=\small}
+\setbeamerfont{date}{size=\small}
 
 \definecolor{ikm}{RGB}{0,82,147}       % IKM blue
 \definecolor{ikmlight}{RGB}{204,221,237}
@@ -57,7 +63,18 @@
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \begin{frame}[plain]
-  \titlepage
+  \vspace*{0.5cm}
+  \begin{center}
+    {\fontsize{18}{20}\selectfont\bfseries\color{ikm}\inserttitle\par}
+    \vspace{0.25cm}
+    {\normalsize\color{ikm}\insertsubtitle\par}
+    \vspace{0.6cm}
+    {\small\insertauthor\par}
+    \vspace{0.15cm}
+    {\small\insertinstitute\par}
+    \vfill
+    {\small\insertdate\par}
+  \end{center}
 \end{frame}
 
 % ─── Outline ─────────────────────────────────────────────────────────────────
@@ -69,7 +86,8 @@
 \section{Motivation \& Background}
 % =============================================================================
 
-\begin{frame}{Peri-Implantitis \& Oral Biofilm}
+\begin{frame}[t]{Peri-Implantitis \& Oral Biofilm}
+  \footnotesize
   \begin{columns}[T]
     \column{0.55\textwidth}
       \begin{block}{Clinical motivation}
@@ -81,7 +99,7 @@
                 \textit{Porphyromonas gingivalis} (Pg)
         \end{itemize}
       \end{block}
-      \vspace{4pt}
+      \vspace{2pt}
       \begin{block}{Heine et al.\ (2025) experiment}
         \begin{itemize}
           \item 4 conditions: Commensal/Dysbiotic $\times$ Static/HOBIC
@@ -92,8 +110,8 @@
       \end{block}
     \column{0.43\textwidth}
       \centering
-      \begin{tikzpicture}[scale=0.9, every node/.style={transform shape},
-          species/.style={circle, draw, minimum size=0.85cm, font=\small\bfseries},
+      \begin{tikzpicture}[scale=0.78, every node/.style={transform shape},
+          species/.style={circle, draw, minimum size=0.75cm, font=\scriptsize\bfseries},
           edge/.style={<->, thick, >=Stealth},
           weakedge/.style={<->, thin, gray!60, >=Stealth, densely dotted}
       ]
@@ -113,8 +131,8 @@
         \draw[weakedge] (so) to[bend left=20] (pg);
         \draw[weakedge] (an) to[bend right=20] (pg);
       \end{tikzpicture}
-      \vspace{4pt}
-      {\small Solid: confirmed pathways\quad Dotted: estimated freely}
+      \vspace{2pt}
+      {\scriptsize Solid: confirmed pathways\quad Dotted: estimated freely}
   \end{columns}
 \end{frame}
 
@@ -122,7 +140,8 @@
 \section{Mathematical Model}
 % =============================================================================
 
-\begin{frame}{Hamilton Principle Biofilm Model}
+\begin{frame}[t]{Hamilton Principle Biofilm Model}
+  \small
   \begin{columns}[T]
     \column{0.5\textwidth}
       \textbf{State variables} (per material point):
@@ -167,17 +186,18 @@
 \section{Bayesian Inference Framework}
 % =============================================================================
 
-\begin{frame}{TMCMC: Transitional Markov Chain Monte Carlo}
+\begin{frame}[t]{TMCMC: Transitional Markov Chain Monte Carlo}
+  \small
   \begin{columns}[T]
     \column{0.52\textwidth}
       \textbf{Goal}: compute posterior
       \[
-        p(\btheta\mid\mathbf{y}_{\rm obs})
-        \propto p(\mathbf{y}_{\rm obs}\mid\btheta)\,p(\btheta)
+        p(\btheta\mid\mathbf{y}_{\mathrm{obs}})
+        \propto p(\mathbf{y}_{\mathrm{obs}}\mid\btheta)\,p(\btheta)
       \]
       \textbf{TMCMC} (Ching \& Chen 2007):
       \[
-        p_m(\btheta) \propto p(\mathbf{y}_{\rm obs}\mid\btheta)^{\beta_m}\,p(\btheta),
+        p_m(\btheta) \propto p(\mathbf{y}_{\mathrm{obs}}\mid\btheta)^{\beta_m}\,p(\btheta),
         \quad 0=\beta_0 < \cdots < \beta_M = 1
       \]
       At each stage $m$:
@@ -205,41 +225,62 @@
   \end{columns}
 \end{frame}
 
-\begin{frame}{Two-Phase Estimation Strategy}
-  \begin{center}
+\begin{frame}[t]{Two-Phase Estimation Strategy}
+  \centering
   \begin{tikzpicture}[
-    node distance=0.9cm and 2.2cm,
+    node distance=0.65cm and 1.15cm,
     box/.style={rectangle, rounded corners, draw=ikm, thick, fill=ikmlight,
-                minimum width=3.2cm, minimum height=0.75cm, align=center, font=\small},
+                minimum width=2.75cm, minimum height=0.72cm, align=center, font=\scriptsize},
     arrow/.style={->, thick, >=Stealth, color=ikm}
   ]
     \node[box] (p1a) {Phase 1a\\Wide prior, fix-$\psi$\\$N_p=1{,}000$};
     \node[box, right=of p1a] (p1b) {Phase 1b\\Narrowed prior, fix-$\psi$\\$N_p=1{,}000$};
     \node[box, right=of p1b] (p2)  {Phase 2\\Free $\psi$, informative prior\\$N_p=10{,}000$};
-    \node[box, right=of p2]  (out) {Posterior\\$\hat{\btheta}^{\rm MAP}$, $\hat{\bpsi}^{\rm MAP}$\\$\ln\hat{Z}$};
+    \node[box, below=of p2]  (out) {Posterior\\$\hat{\btheta}^{\mathrm{MAP}}$, $\hat{\bpsi}^{\mathrm{MAP}}$\\$\ln\hat{Z}$};
 
     \draw[arrow] (p1a) -- node[above,font=\scriptsize]{quantile bounds} (p1b);
     \draw[arrow] (p1b) -- node[above,font=\scriptsize]{tight $\btheta$-prior} (p2);
     \draw[arrow] (p2)  -- (out);
   \end{tikzpicture}
-  \end{center}
-  \vspace{6pt}
+  \vspace{0.25cm}
   \begin{columns}[T]
-    \column{0.47\textwidth}
+    \column{0.49\textwidth}
+      \small
+      \begin{block}{Phase 1 (fix-$\psi$)}
+        \begin{itemize}
+          \item Robust identification of $\mathbf{A}$
+          \item Reduced posterior multimodality
+        \end{itemize}
+      \end{block}
+    \column{0.49\textwidth}
+      \small
+      \begin{block}{Phase 2 (free $\psi$)}
+        \begin{itemize}
+          \item Joint posterior for $(\mathbf{A},\bpsi)$
+          \item Phase~1 posterior as informative $\btheta$-prior
+        \end{itemize}
+      \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[t]{Phase 1 / Phase 2 Details}
+  \small
+  \begin{columns}[T]
+    \column{0.49\textwidth}
       \begin{block}{Phase 1 — Fix-$\psi$}
         \begin{itemize}
-          \item Fix $\psi_i(t_k) = \psi_i^{\rm exp}(t_k)$
+          \item Fix $\psi_i(t_k) = \psi_i^{\mathrm{exp}}(t_k)$
           \item Eliminates $\psi$-related posterior modes
           \item Halves ODE Jacobian dimension
           \item Identifies $\mathbf{A}$ rapidly and robustly
         \end{itemize}
       \end{block}
-    \column{0.47\textwidth}
+    \column{0.49\textwidth}
       \begin{block}{Phase 2 — Free $\psi$}
         \begin{itemize}
           \item Release $\psi_i$ as free variables
           \item Viability data as \emph{soft constraint}:\\
-                $\ln\mathcal{L} +{=} -\sum(\psi_i-\psi_i^{\rm exp})^2/(2\cdot0.1^2)$
+                $\ln\mathcal{L} +{=} -\sum(\psi_i-\psi_i^{\mathrm{exp}})^2/(2\cdot0.1^2)$
           \item Phase~1 posterior as informative $\btheta$-prior
           \item Physically consistent joint posterior
         \end{itemize}
@@ -251,7 +292,8 @@
 \section{GPU Acceleration}
 % =============================================================================
 
-\begin{frame}{GPU-Parallel Forward Model}
+\begin{frame}[t]{GPU-Parallel Forward Model}
+  \small
   \begin{columns}[T]
     \column{0.52\textwidth}
       \textbf{Computational bottleneck}:\\
@@ -298,34 +340,39 @@
 \section{Results}
 % =============================================================================
 
-\begin{frame}{Quantitative Fit Metrics}
+\begin{frame}[t]{Quantitative Fit Metrics}
   \centering
+  \scriptsize
+  \resizebox{\textwidth}{!}{%
+    \begin{tabular}{@{}l ccccc ccccc@{}}
+      \toprule
+      & \multicolumn{5}{c}{\textbf{Phase 1 (fix-$\psi$, $N_p=1{,}000$)}}
+      & \multicolumn{5}{c}{\textbf{Phase 2 (free $\psi$, $N_p=10{,}000$) — final}}\\
+      \cmidrule(lr){2-6}\cmidrule(lr){7-11}
+      \textbf{Cond.} & RMSE & MAE & $\bar{\alpha}$ & $\max\ln\mathcal{L}$ & $\ln\hat{Z}$
+                     & RMSE & MAE & $\bar{\alpha}$ & $\max\ln\mathcal{L}$ & $\ln\hat{Z}$\\
+      \midrule
+      CS & 0.119 & 0.077 & 0.14 & $-6.3$   & $-2.6$  & 0.119 & 0.075 & 0.12 & $-21.6$  & $-3.3$\\
+      CH & 0.071 & 0.053 & \textbf{0.17} & $-3.6$ & $\mathbf{-1.3}$ & 0.104 & 0.088 & 0.07 & $-112$ & $-8.5$\\
+      DS & \textbf{0.020} & \textbf{0.025} & 0.11 & $\mathbf{-1.2}$ & $-3.8$
+         & \textbf{0.033} & \textbf{0.024} & \textbf{0.13} & $-93$ & $\mathbf{-2.8}$\\
+      DH & 0.067 & 0.045 & 0.10 & $-6.6$   & $-9.6$  & 0.087 & 0.060 & 0.07 & $-170$   & $-11.9$\\
+      \bottomrule
+    \end{tabular}
+  }
+\end{frame}
+
+\begin{frame}[t]{Fit Summary}
   \small
-  \begin{tabular}{@{}l ccccc ccccc@{}}
-    \toprule
-    & \multicolumn{5}{c}{\textbf{Phase 1 (fix-$\psi$, $N_p=1{,}000$)}}
-    & \multicolumn{5}{c}{\textbf{Phase 2 (free $\psi$, $N_p=10{,}000$) — final}}\\
-    \cmidrule(lr){2-6}\cmidrule(lr){7-11}
-    \textbf{Cond.} & RMSE & MAE & $\bar{\alpha}$ & $\max\ln\mathcal{L}$ & $\ln\hat{Z}$
-                   & RMSE & MAE & $\bar{\alpha}$ & $\max\ln\mathcal{L}$ & $\ln\hat{Z}$\\
-    \midrule
-    CS & 0.119 & 0.077 & 0.14 & $-6.3$   & $-2.6$  & 0.119 & 0.075 & 0.12 & $-21.6$  & $-3.3$\\
-    CH & 0.071 & 0.053 & \textbf{0.17} & $-3.6$ & $\mathbf{-1.3}$ & 0.104 & 0.088 & 0.07 & $-112$ & $-8.5$\\
-    DS & \textbf{0.020} & \textbf{0.025} & 0.11 & $\mathbf{-1.2}$ & $-3.8$
-       & \textbf{0.033} & \textbf{0.024} & \textbf{0.13} & $-93$ & $\mathbf{-2.8}$\\
-    DH & 0.067 & 0.045 & 0.10 & $-6.6$   & $-9.6$  & 0.087 & 0.060 & 0.07 & $-170$   & $-11.9$\\
-    \bottomrule
-  \end{tabular}
-  \vspace{10pt}
   \begin{columns}[T]
-    \column{0.48\textwidth}
+    \column{0.49\textwidth}
       \textbf{Key observations:}
       \begin{itemize}
         \item DS achieves lowest RMSE (0.033) — best identifiability
         \item Phase 2 RMSE increase $\leq 0.03$ — Phase~1 structure robust
         \item DH: strong Pg identification ($R^2=0.90$) despite free $\psi$
       \end{itemize}
-    \column{0.48\textwidth}
+    \column{0.49\textwidth}
       \textbf{Convergence:}
       \begin{itemize}
         \item $M=4$--$7$ stages to converge
@@ -336,68 +383,68 @@
   \end{columns}
 \end{frame}
 
-\begin{frame}{Posterior Predictive Fits}
+\begin{frame}[plain]{Posterior Predictive Fits}
   \centering
-  \includegraphics[width=0.95\textwidth]{figures/paper_fig2_phi_transposed.pdf}
+  \includegraphics[height=0.82\textheight,keepaspectratio]{figures/paper_fig2_phi_transposed.pdf}
   \vspace{2pt}
-  {\small Columns: CS, CH, DS, DH (increasing dysbiotic severity)\quad
+  {\scriptsize Columns: CS, CH, DS, DH (increasing dysbiotic severity)\quad
    Rows: So, An, Vei, Fn, Pg\\
    Solid: MAP $\phi_i$\quad Dashed: living fraction $\bar\phi_i=\phi_i\psi_i$\quad
    Shaded: 50\%/80\% credible intervals (100 samples)}
 \end{frame}
 
-\begin{frame}{Inferred Interaction Matrices}
+\begin{frame}[t]{Inferred Interaction Matrices}
   \centering
-  \includegraphics[width=0.85\textwidth]{figures/heatmap_A_4cond.png}
-  \vspace{4pt}
+  \includegraphics[height=0.55\textheight,keepaspectratio]{figures/heatmap_A_4cond.png}
+  \vspace{2pt}
   \begin{columns}[T]
     \column{0.48\textwidth}
-      \textbf{Commensal (CS, CH):}
+      \small\textbf{Commensal (CS, CH):}
       \begin{itemize}
         \item So--An and So--Vei blocks dominant
         \item Fn and Pg rows/columns near \textbf{zero}
         \item Sparsity recovered \emph{without} a priori locking
       \end{itemize}
     \column{0.48\textwidth}
-      \textbf{Dysbiotic (DS, DH):}
+      \small\textbf{Dysbiotic (DS, DH):}
       \begin{itemize}
         \item Strong positive Vei$\to$Pg and Fn$\to$Pg entries
-        \item $\hat{a}_{55}^{\rm DH}=3.43$, $\hat{a}_{45}^{\rm DH}=5.63$ (Fn$\to$Pg)
+        \item $\hat{a}_{55}^{\mathrm{DH}}=3.43$, $\hat{a}_{45}^{\mathrm{DH}}=5.63$ (Fn$\to$Pg)
         \item Cooperative cross-feeding drives pathogen surge
       \end{itemize}
   \end{columns}
 \end{frame}
 
-\begin{frame}{Posterior Parameter Distributions}
+\begin{frame}[plain]{Posterior Parameter Distributions}
   \centering
-  \includegraphics[width=0.95\textwidth]{figures/paper_posterior_violin.pdf}
-  \vspace{4pt}\\
-  {\small Posterior distributions of all 15 $\mathbf{A}$-matrix entries (Phase~2, $N_p=10{,}000$).
+  \includegraphics[height=0.82\textheight,keepaspectratio]{figures/paper_posterior_violin.pdf}
+  \vspace{2pt}\\
+  {\scriptsize Posterior distributions of all 15 $\mathbf{A}$-matrix entries (Phase~2, $N_p=10{,}000$).
    Stars: MAP. CS/CH: Pg-related params ($a_{15},a_{25},a_{35},a_{45},a_{55}$)
    concentrate near zero \emph{without a priori locking}.}
 \end{frame}
 
-\begin{frame}{Phase 1 vs Phase 2 Consistency}
+\begin{frame}[t]{Phase 1 vs Phase 2 Consistency}
   \centering
-  \includegraphics[width=0.92\textwidth]{figures/phase1_vs_phase2_map.pdf}
-  \vspace{4pt}
+  \includegraphics[height=0.60\textheight,keepaspectratio]{figures/phase1_vs_phase2_map.pdf}
+  \vspace{2pt}
   \begin{columns}[T]
     \column{0.48\textwidth}
-      \textbf{Commensal (CS, CH):}\\
+      \small\textbf{Commensal (CS, CH):}\\
       CS: $r=0.87$, CH: $r=0.68$ — good agreement\\
       $\Rightarrow$ fix-$\psi$ is a valid approximation
     \column{0.48\textwidth}
-      \textbf{Dysbiotic (DS, DH):}\\
+      \small\textbf{Dysbiotic (DS, DH):}\\
       DS: $r=0.42$, DH: $r=0.62$ — systematic shift\\
       Largest deviations: $a_{55}$, $a_{15}$, $a_{45}$ (Pg-related)\\
       $\Rightarrow$ Phase~2 essential for dysbiotic conditions
   \end{columns}
 \end{frame}
 
-\begin{frame}{Cross-Condition Transferability}
+\begin{frame}[t]{Cross-Condition Transferability}
   \begin{columns}[T]
     \column{0.48\textwidth}
-      \centering\small
+      \centering\scriptsize
       \begin{tabular}{@{}lcccc@{}}
         \toprule
         Source $\backslash$ Target & CS & CH & DS & DH \\
@@ -408,10 +455,11 @@
         DH & 0.301 & 0.129 & \textbf{0.044} & \textit{0.262} \\
         \bottomrule
       \end{tabular}
-      \vspace{4pt}\\
+      \vspace{2pt}\\
       {\scriptsize Diagonal \textit{italic}: self-prediction.
        \textbf{Bold}: transfer $<$ self-prediction.}
     \column{0.50\textwidth}
+      \small
       \textbf{Findings:}
       \begin{itemize}
         \item \textbf{Within-state} transfers low RMSE:\\
@@ -419,8 +467,8 @@
               CS$\to$CH = 0.135 vs.\ CH self 0.168
         \item \textbf{Cross-state} transfers degrade sharply:\\
               DS$\to$CS = 0.273, CS$\to$DH = 0.244
-        \item Shared dysbiotic backbone ($\rho_{\rm DH-DS}=+0.40$)
-        \item Cross-state anticorrelation ($\rho_{\rm DH-CS}=-0.49$)
+        \item Shared dysbiotic backbone ($\rho_{\mathrm{DH}-DS}=+0.40$)
+        \item Cross-state anticorrelation ($\rho_{\mathrm{DH}-CS}=-0.49$)
       \end{itemize}
       \vspace{4pt}
       $\Rightarrow$ Health-to-disease = \textbf{topological reorganisation},
@@ -432,30 +480,41 @@
 \section{Validation \& Discussion}
 % =============================================================================
 
-\begin{frame}{Independent Validation}
+\begin{frame}[t]{Independent Validation (1/2)}
+  \small
   \begin{block}{4 measurements from Heine et al.\ (2025) — \emph{not} used in calibration}
   \end{block}
-  \vspace{6pt}
+  \vspace{4pt}
   \begin{enumerate}
     \item \textbf{pH prediction} ($R^2=0.71$, $r=0.84$, $N=12$)\\
-          Post-hoc regression: pH $= 6.95 - 0.74\,\phi_{\rm So} - 0.48\,\phi_{\rm Vei}$\\
-          {\small Negative So coefficient consistent with lactate-driven acidification}
+          Post-hoc regression: pH $= 6.95 - 0.74\,\phi_{\mathrm{So}} - 0.48\,\phi_{\mathrm{Vei}}$\\
+          {\scriptsize Negative So coefficient consistent with lactate-driven acidification}
     \vspace{4pt}
     \item \textbf{Gingipain--Pg correlation} ($r=0.90$, 5 time points)\\
           Temporal profile of gingipain matches predicted Pg trajectory in DH\\
-          {\small Both show delayed onset at Day~15--21}
-    \vspace{4pt}
+          {\scriptsize Both show delayed onset at Day~15--21}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}[t]{Independent Validation (2/2)}
+  \small
+  \begin{block}{4 measurements from Heine et al.\ (2025) — \emph{not} used in calibration}
+  \end{block}
+  \vspace{4pt}
+  \begin{enumerate}
+    \setcounter{enumi}{2}
     \item \textbf{Metabolic sign consistency}\\
           MAP $A_{12}=+0.76$ (An$\to$Vei): consistent with lactate/succinate cross-feeding\\
           MAP $A_{13}=-2.73$ (So$\to$Vei): niche competition dominates
     \vspace{4pt}
     \item \textbf{Growth rate parity}\\
           Planktonic doubling: 1.68\,h (commensal) vs.\ 1.64\,h (dysbiotic)\\
-          {\small Condition differences arise from interactions, not individual species fitness}
+          {\scriptsize Condition differences arise from interactions, not individual species fitness}
   \end{enumerate}
 \end{frame}
 
-\begin{frame}{Biological Interpretation}
+\begin{frame}[t]{Biological Interpretation}
+  \small
   \begin{columns}[T]
     \column{0.48\textwidth}
       \begin{block}{Commensal state (CS, CH)}
@@ -469,13 +528,13 @@
       \begin{block}{Dysbiotic transition}
         \begin{itemize}
           \item Vei$\to$Pg (pH elevation) + Fn$\to$Pg (peptide supply) strongly activated
-          \item \textbf{Topological reorganisation}: $\rho_{\rm DH-CS}=-0.49$
+          \item \textbf{Topological reorganisation}: $\rho_{\mathrm{DH}-CS}=-0.49$
           \item Not recoverable by parameter rescaling
         \end{itemize}
       \end{block}
     \column{0.50\textwidth}
       \begin{block}{Model parsimony (effective dimensionality)}
-        $r_i = \sigma_{{\rm post},i}/\Delta_{\rm prior}$ ($\Delta_{\rm prior}=6$)
+        $r_i = \sigma_{{\mathrm{post}},i}/\Delta_{\mathrm{prior}}$ ($\Delta_{\mathrm{prior}}=6$)
         \vspace{4pt}
         \begin{itemize}
           \item All 15 params: $r_i < 0.43$ in every condition
@@ -490,21 +549,21 @@
   \end{columns}
 \end{frame}
 
-\begin{frame}{Fix-$\psi$ Approximation}
+\begin{frame}[t]{Fix-$\psi$ Approximation}
   \begin{columns}[T]
     \column{0.55\textwidth}
       \centering
-      \includegraphics[width=\textwidth]{figures/phase1_vs_phase2_map.pdf}
-      {\small Phase 1 vs.\ Phase 2 MAP (15 parameters each)}
+      \includegraphics[height=0.70\textheight,keepaspectratio]{figures/phase1_vs_phase2_map.pdf}
+      {\scriptsize Phase 1 vs.\ Phase 2 MAP (15 parameters each)}
     \column{0.43\textwidth}
       \vspace{10pt}
-      \textbf{Why fix-$\psi$ works in commensal:}
+      \small\textbf{Why fix-$\psi$ works in commensal:}
       \begin{itemize}
         \item $\psi$--$\mathbf{A}$ coupling weak when Pg $\approx 0$
         \item CS $r=0.87$, CH $r=0.68$
       \end{itemize}
       \vspace{8pt}
-      \textbf{Why Phase~2 is essential in dysbiosis:}
+      \small\textbf{Why Phase~2 is essential in dysbiosis:}
       \begin{itemize}
         \item DS $r=0.42$, DH $r=0.62$
         \item Pg viability dynamics feed back onto $a_{55}$, $a_{45}$
@@ -522,7 +581,8 @@
 \section{Conclusions}
 % =============================================================================
 
-\begin{frame}{Conclusions}
+\begin{frame}[t]{Conclusions}
+  \small
   \begin{enumerate}
     \item \textbf{Two-phase full-discovery estimation}
     \begin{itemize}
@@ -549,29 +609,13 @@
       \item Frobenius analysis + high RMSE for cross-state confirms topological reorganisation
     \end{itemize}
   \end{enumerate}
-  \vspace{8pt}
+\end{frame}
+
+\begin{frame}[t]{Future Work}
+  \small
   \begin{block}{Future work}
     Surrogate acceleration (DeepONet), spatial PDE extension, VEM-based FEM, Siddiqui 2021 (6-species) validation
   \end{block}
-\end{frame}
-
-\begin{frame}[plain]
-  \begin{center}
-    \vspace{2cm}
-    {\LARGE \textcolor{ikm}{\textbf{Thank you for your attention}}}\\[12pt]
-    {\large Questions?}\\[24pt]
-    \rule{0.6\textwidth}{0.4pt}\\[8pt]
-    {\small
-      Keisuke Nishioka\\
-      Institute of Continuum Mechanics, Leibniz Universit\"at Hannover\\[4pt]
-      \texttt{nishioka@ikm.uni-hannover.de}
-    }\\[20pt]
-    {\footnotesize
-      Data: Heine et al.\ (2025)\quad
-      Code: JAX + TMCMC on RTX\,4090\quad
-      Branch: \texttt{remove-mu-15d}
-    }
-  \end{center}
 \end{frame}
 
 % =============================================================================
