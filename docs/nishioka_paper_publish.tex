@@ -86,7 +86,7 @@ Two principal difficulties arise: (i) poor identifiability when data are sparse 
 In this work we address these challenges through three complementary strategies.
 First, we fix the viability fraction $\psi_i$ to experimentally measured membrane-intact ratios, eliminating $\psi$-related posterior modes and halving the ODE system dimension.
 Second, we compile the forward model in JAX~\cite{jax2018github} and evaluate the entire particle ensemble on GPU via batched \texttt{vmap}, achieving a $\sim$200$\times$ speedup over the CPU baseline.
-Third, we employ iteratively narrowed priors that concentrate sampling on the high-posterior-density region, enabling convergence in 5--7 TMCMC~\cite{ChingChen2007TMCMC, Betz2016TMCMC} stages even in 20 dimensions.
+Third, we employ iteratively narrowed priors that concentrate sampling on the high-posterior-density region, enabling convergence in 5--7 TMCMC~\cite{ChingChen2007TMCMC, Betz2016TMCMC} stages even in 15 dimensions.
 The framework is validated against all four experimental conditions of Heine et al., demonstrating quantitative reproduction of commensal homeostasis as well as the non-linear pathogen surge characteristic of dysbiotic biofilms under HOBIC flow.
 
 %==============================================================================
@@ -404,7 +404,7 @@ The condition-averaged mean noise is $\bar{\sigma}\approx0.11$--$0.12$ across al
 
 The prior is a product of independent uniform distributions:
 \begin{equation}
-p(\btheta) = \prod_{k=0}^{19} \frac{1}{u_k-l_k}\,\mathbf{1}_{[l_k,u_k]}(\theta_k),
+p(\btheta) = \prod_{k=0}^{14} \frac{1}{u_k-l_k}\,\mathbf{1}_{[l_k,u_k]}(\theta_k),
 \label{eq:prior}
 \end{equation}
 where the bounds $[l_k,u_k]$ are condition-specific and iteratively narrowed (Section~\ref{sec:gpu}).
@@ -465,7 +465,7 @@ A by-product of TMCMC is the model evidence estimate
 enabling Bayesian model comparison via the Bayes factor $B_{10}=p(\yobs\mid\mathcal{M}_{\text{red}})/p(\yobs\mid\mathcal{M}_{\text{full}})$~\cite{KassRaftery1995BayesFactor}.
 The log-evidence values $\ln\hat{Z}$ reported in Section~\ref{sec:results} can be used for cross-condition model comparison.
 
-\subsection{Joint estimation in 20 dimensions}
+\subsection{Joint estimation in 15 dimensions}
 
 All 15 parameters are estimated jointly in a single TMCMC run per condition, enabled by the fix-$\psi$ strategy and GPU acceleration detailed in Section~\ref{sec:gpu}.
 The biologically motivated blocks (Eq.~\ref{eq:blocks}) serve as interpretive groups for posterior analysis but are not estimated sequentially.
@@ -689,36 +689,36 @@ To quantify the inter-condition differences, we compute for each pair $(c_1,c_2)
 \label{eq:frob}
 \end{equation}
 
-\noindent
-\begin{minipage}[c]{0.38\textwidth}
-\centering\small
-\begin{tabular}{@{}cc|ccc@{}}
-\toprule
-\textbf{C1} & \textbf{C2} & $\rho$ & $\Delta_F$ & $d_{15\mathrm{D}}$\\
-\midrule
-CH & CS & $+0.26$ & $1.06$ & $\mathbf{3.38}$\\
-DH & DS & $\mathbf{+0.40}$ & $\mathbf{0.88}$ & $5.86$\\
-CH & DH & $+0.24$ & $1.01$ & $6.33$\\
-CH & DS & $-0.27$ & $1.27$ & $4.88$\\
-DH & CS & $\mathbf{-0.49}$ & $1.28$ & $\mathbf{7.77}$\\
-CS & DS & $-0.27$ & $\mathbf{1.36}$ & $5.88$\\
-\bottomrule
-\end{tabular}
-\vspace{4pt}
-\captionof{table}{Pairwise comparison of MAP interaction matrices. $\rho$: correlation of vectorised $\mathbf{A}$; $\Delta_F$: relative Frobenius distance; $d_{15\mathrm{D}}$: posterior centroid distance in 15D space.}
-\label{tab:pairwise}
-\end{minipage}%
-\hfill
-\begin{minipage}[c]{0.58\textwidth}
-\centering
-\includegraphics[width=\textwidth]{figures/umap_A_matrix_3d.pdf}
-\vspace{-6pt}
-\captionof{figure}{UMAP 3D embedding of posterior A-matrix samples ($N_p\!=\!10{,}000$). The four conditions form well-separated clusters.}
-\label{fig:umap}
-\end{minipage}
+% fig5 (umap) + table5 (pairwise) commented out 2026-03-30
+%\noindent
+%\begin{minipage}[c]{0.38\textwidth}
+%\centering\small
+%\begin{tabular}{@{}cc|ccc@{}}
+%\toprule
+%\textbf{C1} & \textbf{C2} & $\rho$ & $\Delta_F$ & $d_{15\mathrm{D}}$\\
+%\midrule
+%CH & CS & $+0.26$ & $1.06$ & $\mathbf{3.38}$\\
+%DH & DS & $\mathbf{+0.40}$ & $\mathbf{0.88}$ & $5.86$\\
+%CH & DH & $+0.24$ & $1.01$ & $6.33$\\
+%CH & DS & $-0.27$ & $1.27$ & $4.88$\\
+%DH & CS & $\mathbf{-0.49}$ & $1.28$ & $\mathbf{7.77}$\\
+%CS & DS & $-0.27$ & $\mathbf{1.36}$ & $5.88$\\
+%\bottomrule
+%\end{tabular}
+%\vspace{4pt}
+%\captionof{table}{Pairwise comparison of MAP interaction matrices. $\rho$: correlation of vectorised $\mathbf{A}$; $\Delta_F$: relative Frobenius distance; $d_{15\mathrm{D}}$: posterior centroid distance in 15D space.}
+%\label{tab:pairwise}
+%\end{minipage}%
+%\hfill
+%\begin{minipage}[c]{0.58\textwidth}
+%\centering
+%\includegraphics[width=\textwidth]{figures/umap_A_matrix_3d.pdf}
+%\vspace{-6pt}
+%\captionof{figure}{UMAP 3D embedding of posterior A-matrix samples ($N_p\!=\!10{,}000$). The four conditions form well-separated clusters.}
+%\label{fig:umap}
+%\end{minipage}
 
-The results (Table~\ref{tab:pairwise}) show that matrices within the same health state share a common backbone ($\rho_{\text{CH--CS}}=+0.26$, $\rho_{\text{DH--DS}}=+0.40$), whereas cross-state comparisons yield negative correlations ($\rho_{\text{DH--CS}}=-0.49$) and large Frobenius distances ($\Delta_F\geq0.88$).
-The UMAP embedding of the full posterior (Figure~\ref{fig:umap}) confirms that all four conditions form well-separated clusters with no overlap~\cite{McInnes2018UMAP}; centroid distances in 15D space mirror the MAP ordering (CS--CH closest at $d\!=\!3.38$; CS--DH most distant at $d\!=\!7.77$).
+Matrices within the same health state share a common backbone ($\rho_{\text{CH--CS}}=+0.26$, $\rho_{\text{DH--DS}}=+0.40$), whereas cross-state comparisons yield negative correlations ($\rho_{\text{DH--CS}}=-0.49$) and large Frobenius distances ($\Delta_F\geq0.88$).
 Overall, the transition from health to disease corresponds to a structural reorganisation of the interaction landscape, not merely a rescaling of existing coefficients.
 
 \subsection{Independent validation}
@@ -767,7 +767,7 @@ DH & 0.342 & 0.212 & 0.289 & \textbf{0.087} \\
 We quantify posterior informativeness as $r_i = \sigma_{\mathrm{post},i} / \Delta_{\mathrm{prior}}$ ($\Delta_{\mathrm{prior}}=6$, uniform baseline).
 All 15 parameters satisfy $r_i < 0.43$ in every condition, with DS achieving the tightest posteriors (mean $r=0.07$).
 Even Pg-related parameters in commensal conditions satisfy $r_i \leq 0.10$, confirming that the data constrain them to near-zero rather than leaving them prior-dominated.
-The full 20-parameter model is therefore not over-parametrised.
+The full 15-parameter model is therefore not over-parametrised.
 
 %==============================================================================
 \section{Discussion}
@@ -777,7 +777,7 @@ The full 20-parameter model is therefore not over-parametrised.
 \paragraph{Biological interpretation.}
 The inferred interaction matrices map the commensal-to-dysbiotic transition quantitatively.
 In commensal states, So--An co-aggregation and So--Vei lactate exchange form a stable mutualistic core; the transition to dysbiosis activates cooperative Vei$\to$Pg and Fn$\to$Pg pathways whose strength is cultivation-dependent.
-The structural similarity within health states ($\rho_{\text{within}}>0$, Table~\ref{tab:pairwise}) contrasts with cross-state anticorrelations ($\rho_{\text{cross}}<0$), confirming that the health-to-disease shift is a topological reorganisation of the interaction network, not merely a magnitude rescaling.
+The structural similarity within health states ($\rho_{\text{within}}>0$) contrasts with cross-state anticorrelations ($\rho_{\text{cross}}<0$), confirming that the health-to-disease shift is a topological reorganisation of the interaction network, not merely a magnitude rescaling.
 The full discovery approach---estimating all 15 parameters without a priori locking---allows the posterior to recover the biologically expected sparsity in commensal conditions as an emergent property.
 The cross-condition transferability analysis (Table~\ref{tab:cross_prediction}) strengthens this interpretation: within-state MAP parameters generalise across cultivation modes (CS$\to$CH RMSE\,$=$\,0.098, below CH self-prediction of 0.104), while cross-state transfers (DS$\to$CS: 0.384) fail, confirming that the health-to-disease transition requires a genuinely different interaction matrix rather than parameter rescaling.
 
@@ -797,20 +797,20 @@ Finally, $a_{\mathrm{So,Pg}}$ is negative only in the DH condition (Pg W83 virul
 Eqs.~\eqref{eq:phi}--\eqref{eq:psi_evol} couple $\phi_i$ and $\psi_i$ through the interaction matrix.
 Fixing $\psi_i$ breaks this coupling; Phase~2 restores it with the Phase~1 posterior as informative prior on $\mathbf{A}$.
 Figure~\ref{fig:phase_scatter} compares the Phase~1 and Phase~2 MAP estimates parameter by parameter.
-In commensal conditions, the two phases yield consistent MAPs ($r=0.83$--$0.90$), confirming that the $\psi$--$\mathbf{A}$ coupling is weak and fix-$\psi$ is a good approximation.
-In dysbiotic conditions, the MAPs diverge ($r=0.23$ for DS, $0.62$ for DH), with the largest shifts in Pg-related parameters ($a_{55}$, $a_{15}$, $a_{45}$)---precisely where the $\psi$-dynamics are most active.
+In commensal conditions, the two phases yield consistent MAPs (CS: $r=0.87$; CH: $r=0.68$), confirming that the $\psi$--$\mathbf{A}$ coupling is weak and fix-$\psi$ is a good approximation.
+In dysbiotic conditions, the MAPs diverge ($r=0.42$ for DS, $0.62$ for DH), with the largest shifts in Pg-related parameters ($a_{55}$, $a_{15}$, $a_{45}$)---precisely where the $\psi$-dynamics are most active.
 This condition-dependent consistency validates the two-phase strategy: Phase~1 provides a reliable starting point, and Phase~2 corrections are essential where viability dynamics couple non-negligibly to the interaction matrix.
 The viability predictions themselves remain poor (RMSE 0.11--0.39), indicating that the $\psi$-dynamics lack the mechanistic specificity to capture membrane-integrity loss independently; the viability channel serves primarily as a soft constraint to break the $\psi$--$\mathbf{A}$ degeneracy.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/phase1_vs_phase2_map.pdf}
-\caption{Phase~1 (fix-$\psi$) vs.\ Phase~2 (free $\psi$) MAP estimates. Each point is one of the 15 interaction parameters; dashed line: identity. Commensal conditions (CS, CH) show strong agreement ($r>0.83$), validating the fix-$\psi$ approximation. Dysbiotic conditions (DS, DH) exhibit systematic shifts in Pg-related parameters, confirming the necessity of Phase~2.}
+\caption{Phase~1 (fix-$\psi$) vs.\ Phase~2 (free $\psi$) MAP estimates. Each point is one of the 15 interaction parameters; dashed line: identity. CS ($r=0.87$) and CH ($r=0.68$) show good agreement, validating the fix-$\psi$ approximation. Dysbiotic conditions (DS: $r=0.42$, DH: $r=0.62$) exhibit systematic shifts in Pg-related parameters, confirming the necessity of Phase~2.}
 \label{fig:phase_scatter}
 \end{figure}
 
 \paragraph{Model evidence.}
-The log-evidence $\ln\hat{Z}$ (Table~\ref{tab:rmse}) is higher for commensal conditions despite the same 20-parameter prior, because the posterior concentrates pathogen entries near zero, effectively reducing the Occam factor.
+The log-evidence $\ln\hat{Z}$ (Table~\ref{tab:rmse}) is higher for commensal conditions despite the same 15-parameter prior, because the posterior concentrates pathogen entries near zero, effectively reducing the Occam factor.
 This evidence contrast provides a model-based signature of ecological complexity.
 
 \paragraph{Computational considerations.}
