@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+comets_runs/
+spatial_history.npy
+.current_*
+medialog_*
+totalbiomasslog_*
+*.odb
+*.com
+*.dat
+*.msg
+*.prt
+*.sta
