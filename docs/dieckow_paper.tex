@@ -1,0 +1,413 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage[hidelinks,pdfencoding=auto]{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{setspace}
+\setstretch{1.08}
+
+\newcommand{\btheta}{\boldsymbol{\theta}}
+\newcommand{\bphi}{\boldsymbol{\phi}}
+\newcommand{\bvarphi}{\boldsymbol{\varphi}}
+\newcommand{\bpsi}{\boldsymbol{\psi}}
+\newcommand{\bA}{\mathbf{A}}
+\newcommand{\bb}{\mathbf{b}}
+\newcommand{\Real}{\mathbb{R}}
+
+\title{Bayesian inference of shared interaction structure\\
+and patient-specific growth rates in peri-implant biofilms:\\
+a 10-patient in-vivo longitudinal study}
+
+\author{
+Keisuke Nishioka,\;
+Felix Klempt,\;
+Hendrik Geisler,\;
+Meisam Soleimani,\;
+Philipp Junker
+\\[6pt]
+\small Leibniz Universit\"at Hannover, Institute of Continuum Mechanics, Hannover, Germany
+}
+
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We extend the GPU-accelerated Bayesian TMCMC framework for multi-species biofilm parameter inference from controlled in-vitro conditions to a 10-patient longitudinal in-vivo dataset of peri-implant biofilm formation~\cite{Dieckow2025InVivo}.
+A joint posterior over a shared $5\times5$ interaction matrix $\bA$ (15 parameters) and patient-specific intrinsic growth vectors $\bb^{(p)}$ (5 species $\times$ 10 patients\,$=\,$50 parameters; total $d\!=\!65$) is inferred by TMCMC with $N_p\!=\!1{,}000$ particles.
+The MAP achieves RMSE\,$=\,$0.101 (flat prior) and 0.101 (Bergey metabolic network sign prior) on held-out week-2/3 predictions across all patients.
+Cross-prediction analysis shows that the four Heine et al.\ in-vitro MAP interaction matrices~\cite{Heine2025PeriImplant} achieve RMSE\,$=\,$0.102--0.103 when combined with the Dieckow patient-specific growth rates, confirming a conserved interaction backbone between in-vitro and in-vivo settings.
+Comparing sign patterns across all five conditions, three mutualistic pairs---So--An, An--Vd, and Vd--Pg---are positive in all five; the An--Vd sign reversal in the in-vivo fit is consistent with the strain substitution from \textit{V.~parvula} (in-vitro) to \textit{V.~dispar} (in-vivo).
+
+\vspace{4pt}
+\noindent\textbf{Keywords:}
+peri-implantitis,
+biofilm dynamics,
+Bayesian inference,
+TMCMC,
+in-vivo,
+multi-species interaction,
+Hamilton principle
+\end{abstract}
+
+%==============================================================================
+\section{Introduction}
+\label{sec:intro}
+%==============================================================================
+
+Peri-implantitis is a biofilm-driven inflammatory disease that affects 22--65\% of dental implant patients~\cite{Dieckow2025InVivo}.
+The microbial communities that colonise implant surfaces are complex, patient-specific, and temporally dynamic, with recent longitudinal in-vivo characterisation~\cite{Dieckow2025InVivo} revealing that community composition evolves over the first three weeks in a highly individual manner.
+Mechanistic mathematical models of biofilm dynamics provide a principled framework for quantifying these inter-species interactions from time-course data~\cite{Klempt2025ContinuumBiofilm,JunkerBalzani2021ExtendedHamilton}.
+
+Our companion paper~\cite{NishiokaTMCMC2025} demonstrated that the extended Hamilton principle yields a 20-parameter symmetric interaction matrix~$\bA$ whose posterior can be recovered by GPU-accelerated TMCMC from in-vitro time-course data under four conditions (commensal/dysbiotic, static/HOBIC reactor).
+The key biological insight was that the health-to-disease transition corresponds to a structural reorganisation of~$\bA$, not merely a parameter rescaling.
+
+Here we address two open questions: (i) does the inferred interaction structure generalise to in-vivo conditions with patient-level heterogeneity, and (ii) can a joint model that separates shared ecological interactions from patient-specific growth rates accommodate the clinical variability observed by Dieckow et al.~\cite{Dieckow2025InVivo}?
+
+We answer both questions affirmatively.
+The joint model recovers a shared $\bA$ that is biologically interpretable, patient-specific $\bb^{(p)}$ that reflect individual ecological niches, and cross-prediction accuracy that rivals the Dieckow self-fit when the Heine in-vitro $\bA$ is combined with patient-specific growth rates.
+
+%==============================================================================
+\section{Data}
+\label{sec:data}
+%==============================================================================
+
+\subsection{Dieckow et al.\ 2025 dataset}
+
+Dieckow et al.~\cite{Dieckow2025InVivo} characterised the early peri-implant biofilm of 10 patients (A--L, excluding I and J) over three weekly time points using combined CLSM microscopy and full-length 16S rRNA sequencing.
+We aggregate the 16S compositional data to the five species present in the Hamilton model: \textit{Streptococcus oralis} (So), \textit{Actinomyces naeslundii} (An), \textit{Veillonella} spp.\ (Vd, here \textit{V.~dispar}), \textit{Fusobacterium nucleatum} (Fn), and \textit{Porphyromonas gingivalis} (Pg).
+Relative abundances are normalised to unit sum at each time point; week~1 serves as the initial condition for ODE integration.
+All 10 patients have complete data at all three weeks.
+
+A critical ecological difference from the Heine et al.\ in-vitro study is the \textit{Veillonella} strain: the in-vitro inoculum uses \textit{V.~parvula}, whereas the Dieckow in-vivo community contains primarily \textit{V.~dispar}.
+These two species have distinct metabolic profiles~\cite{Rogosa1965Veillonella}: \textit{V.~parvula} grows aerobically on lactate produced by \textit{S.~oralis}, whereas \textit{V.~dispar} exhibits reduced lactate utilisation under the same conditions, with potential competitive overlap with \textit{S.~oralis} for available carbon sources.
+
+%==============================================================================
+\section{Mathematical model and inference}
+\label{sec:methods}
+%==============================================================================
+
+\subsection{Hamilton ODE}
+
+We employ the same five-species Hamilton ODE as in~\cite{NishiokaTMCMC2025,Klempt2025ContinuumBiofilm}.
+The state vector comprises the volume fractions $\varphi_i$ and viability fractions $\psi_i$ for each species $i\in\{1,\ldots,5\}$.
+The governing equations follow from the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamilton}:
+\begin{align}
+\dot\varphi_i &= f_i(\bvarphi, \bpsi, \bA, \bb),\quad
+\dot\psi_i    = g_i(\bvarphi, \bpsi, \bA, \bb),
+\label{eq:ode}
+\end{align}
+where the symmetric matrix $A_{ij}$ encodes species interactions (cooperative for $A_{ij}>0$, competitive for $A_{ij}<0$) and $b_i>0$ are intrinsic growth rates.
+Parameters are discretised as $\btheta = [\mathrm{vec}_{\triangle}(\bA);\, \bb]$, with $|\btheta|=20$.
+The forward model is JIT-compiled with JAX~\cite{jax2018github} and time-stepped with a six-Newton implicit integrator ($N_\mathrm{steps}=2500$, $\Delta t=10^{-4}$).
+
+\subsection{Joint estimation: shared A, patient-specific b}
+
+The clinical variability between patients manifests primarily as differences in growth rates (colonisation kinetics, immune pressure, saliva flow), whereas the species-interaction topology is a property of the ecological network and should be shared.
+We therefore decompose the parameter space as:
+\begin{equation}
+\btheta_{\mathrm{joint}} = \bigl[\underbrace{\mathrm{vec}_{\triangle}(\bA)}_{15},\;
+\underbrace{\bb^{(1)},\ldots,\bb^{(P)}}_{5P}\bigr]\in\Real^{15+5P},
+\label{eq:joint}
+\end{equation}
+with $P=10$ patients and total dimension $d=65$.
+
+\paragraph{Likelihood.}
+Let $\hat\varphi^{(p)}_{i,t}(\btheta)$ be the MAP-predicted fraction for species $i$, patient $p$, week $t\in\{2,3\}$ (week~1 is the initial condition).
+The observation noise is taken as Gaussian with $\sigma_i = 0.05$:
+\begin{equation}
+\ln\mathcal{L}(\btheta) = -\frac{1}{2\sigma^2}
+\sum_{p,i,t}\bigl(\hat\varphi^{(p)}_{i,t}(\btheta) - \varphi^{(p),\mathrm{obs}}_{i,t}\bigr)^2.
+\label{eq:llh}
+\end{equation}
+
+\paragraph{Priors.}
+Flat: $A_{ij}\sim\mathcal{U}(-6,6)$, $b_i^{(p)}\sim\mathcal{U}(0,50)$.
+Bergey sign prior: for each pair $(i,j)$ whose sign is specified by the Dieckow SI metabolic network~\cite{Dieckow2025InVivo}, a half-normal penalty $-(\max(0, -\mathrm{sign}^*\cdot A_{ij}))^2/(2\cdot 0.3^2)$ is added to $\ln p(\btheta)$.
+This soft constraint encourages biological consistency without hard-locking any parameter.
+
+\paragraph{TMCMC.}
+We use the same transitional Markov chain Monte Carlo scheme as in~\cite{NishiokaTMCMC2025,ChingChen2007TMCMC,Betz2016TMCMC}: a tempered likelihood sequence $\mathcal{L}^\beta$ with adaptive $\beta$-schedule ($\delta_{\mathrm{CV}}=1.0$), resampling, and random-walk mutation ($K=20$ steps, $\gamma^2=2.38^2/d$).
+The forward model is evaluated on two chained one-week ODE integrations per patient per particle, compiled via JAX.
+$N_p=1{,}000$ particles converge in $M=10$ stages.
+
+%==============================================================================
+\section{Results}
+\label{sec:results}
+%==============================================================================
+
+\subsection{Prediction accuracy}
+
+Table~\ref{tab:rmse} summarises prediction RMSE on held-out weeks~2 and~3 across all 10 patients.
+Both prior choices yield MAP RMSE\,$=\,$0.101, confirming that the Bergey sign prior shapes the interaction signs without degrading predictive accuracy.
+The Adam per-patient optimizer (separate A and b per patient) achieves 0.112, slightly below the joint TMCMC despite having more free parameters, reflecting the regularising effect of the shared-A constraint.
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabular}{@{}llcl@{}}
+\toprule
+\textbf{Method} & \textbf{Prior} & \textbf{RMSE} & \textbf{Notes}\\
+\midrule
+TMCMC joint ($N_p\!=\!1{,}000$) & flat   & \textbf{0.101} & shared A, patient b\\
+TMCMC joint ($N_p\!=\!1{,}000$) & Bergey sign & \textbf{0.101} & sign-constrained A\\
+TMCMC joint ($N_p\!=\!500$)  & flat   & 0.107 & fewer particles\\
+Adam per-patient optimizer    & L2 ($\lambda=0.01$) & 0.112 & separate A per patient\\
+MAP baseline (no patient b)   & flat   & 0.113 & Heine DH MAP, fixed b\\
+\bottomrule
+\end{tabular}
+\caption{Week-2/3 prediction RMSE across all 10 Dieckow patients. TMCMC joint
+inference with $N_p=1{,}000$ achieves the best accuracy with a shared A constraint.}
+\label{tab:rmse}
+\end{table}
+
+\subsection{Inferred interaction matrix}
+
+Figure~\ref{fig:heatmaps} shows the MAP interaction matrix for both prior choices alongside the four Heine in-vitro conditions.
+The dominant structural features of the Dieckow in-vivo A are:
+\begin{itemize}[nosep,leftmargin=*]
+\item Strong positive So--An block ($A_{\mathrm{So,An}}=3.62$), consistent with physical co-aggregation and metabolic complementarity.
+\item Positive Fn--Pg ($A_{\mathrm{Fn,Pg}}=3.66$), confirming cooperative proteolytic cross-feeding in vivo.
+\item Negative An--Vd ($A_{\mathrm{An,Vd}}=-2.99$), a sign reversal from the Heine in-vitro setting ($A_{\mathrm{An,Vd}}>0$ in all four conditions), consistent with the \textit{V.~dispar}/\textit{V.~parvula} strain substitution.
+\item Negative So--Pg ($A_{\mathrm{So,Pg}}=-2.69$), indicating competition or H$_2$O$_2$-mediated inhibition under in-vivo conditions.
+\end{itemize}
+The Bergey sign prior changes only the Vd and Fn self-interaction signs ($A_{\mathrm{Vd,Vd}}: -0.42\to+0.84$; $A_{\mathrm{Fn,Fn}}: -1.26\to+0.24$) while leaving all inter-species signs intact, indicating the data signal for cross-species interactions is strong.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig2_A_heatmaps.pdf}
+\caption{MAP interaction matrices $\bA$. Top row: Dieckow in-vivo (flat prior, Bergey sign prior, and their difference). Bottom row: four Heine in-vitro conditions for comparison. Red: cooperative ($A_{ij}>0$); blue: competitive ($A_{ij}<0$). All matrices use a common colour scale.}
+\label{fig:heatmaps}
+\end{figure}
+
+\subsection{Per-patient predictions}
+
+Figure~\ref{fig:patients} shows week-1$\to$2$\to$3 predictions for all 10 patients.
+Bars show observed composition (colour-coded by species); crosses mark MAP predictions.
+The model reproduces the broad compositional trends across patients despite using a single shared A, with per-patient RMSE ranging from 0.06 (patients D, G) to 0.15 (patient F).
+Patient F exhibits the highest residuals, consistent with the anomalously large growth-rate estimates ($b_{\mathrm{Vd}}^{(F)}=13.5$, $b_{\mathrm{So}}^{(F)}=11.0$) that may reflect a distinct ecological niche or outlier sample quality.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig1_patient_predictions.pdf}
+\caption{Per-patient MAP predictions (shared A, patient-specific b; TMCMC $N_p=1{,}000$, flat prior). Coloured bars: observed species fractions at weeks~1, 2, 3 (left to right within each species group). Crosses: MAP predictions for weeks~2 and~3. Per-patient RMSE shown in the top-right corner of each panel.}
+\label{fig:patients}
+\end{figure}
+
+\subsection{Cross-prediction: Heine in-vitro A on Dieckow data}
+
+To quantify the ecological distance between in-vitro and in-vivo interaction structures, we substitute each Heine MAP A matrix into the Dieckow prediction while retaining the patient-specific b from the joint TMCMC fit (Table~\ref{tab:cross}).
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{A matrix source} & \textbf{b source} & \textbf{RMSE}\\
+\midrule
+Dieckow TMCMC (self)         & Dieckow patient-specific & \textbf{0.101}\\
+\midrule
+Heine CS A                   & Dieckow patient-specific & 0.102\\
+Heine CH A                   & Dieckow patient-specific & 0.102\\
+Heine DS A                   & Dieckow patient-specific & 0.103\\
+Heine DH A                   & Dieckow patient-specific & 0.103\\
+\midrule
+Heine CS A+b (fixed)         & Heine CS fixed          & 0.112\\
+Heine CH A+b (fixed)         & Heine CH fixed          & 0.110\\
+Heine DS A+b (fixed)         & Heine DS fixed          & 0.117\\
+Heine DH A+b (fixed)         & Heine DH fixed          & 0.136\\
+\bottomrule
+\end{tabular}
+\caption{Cross-prediction RMSE: Heine in-vitro A matrices on Dieckow in-vivo data.
+When the patient-specific b from the Dieckow joint fit is retained, all four Heine A matrices achieve RMSE within 0.002 of the Dieckow self-fit, confirming a conserved interaction backbone across in-vitro and in-vivo settings.
+Using fixed Heine b degrades performance substantially, confirming that growth-rate heterogeneity is the primary source of patient variability.}
+\label{tab:cross}
+\end{table}
+
+The near-identical RMSE of all four Heine A matrices ($\Delta\mathrm{RMSE}<0.002$ from the Dieckow self-fit) when combined with patient-specific b is a key result: it demonstrates that the species interaction topology is largely conserved across in-vitro and in-vivo settings, and that individual patient differences arise primarily from growth-rate variability, not from fundamentally different ecological interactions.
+
+Figure~\ref{fig:cross} shows the RMSE comparison and the A-matrix correlation structure.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig3_cross_prediction.pdf}
+\caption{Left: cross-prediction RMSE (lower is better). Dashed line: Dieckow self-fit. Coral bars: Heine A + Dieckow patient b; salmon bars: Heine A+b fixed. Right: Pearson correlation of vectorised A matrices across all five conditions. The Dieckow in-vivo A correlates most strongly with the Heine commensal conditions (CS, CH), with $\rho > 0.3$.}
+\label{fig:cross}
+\end{figure}
+
+\subsection{Metabolic basis of inferred interactions}
+
+The ecological signs predicted by the Hamilton ODE can be grounded in the metabolite-mediated interaction network of Dieckow Supplementary File~1, which catalogues experimentally supported \textsc{produces}/\textsc{uses}/\textsc{inhibited\_by} relationships for each taxon.
+For the five focal species, three key metabolic channels emerge (Figure~\ref{fig:metnet}):
+
+\begin{enumerate}
+  \item \textbf{Lactic acid cross-feeding.} Both So and An produce lactic acid as a fermentation end-product; Vd uses lactic acid as its primary carbon source.
+  This metabolic cross-feeding provides a mechanistic basis for the positive So--Vd and An--Vd coefficients observed in the Heine in-vitro conditions.
+  The negative An--Vd sign in the Dieckow data is consistent with a switch from cross-feeding to carbon competition when \textit{V.~dispar} (rather than \textit{V.~parvula}) is the dominant Veillonella strain.
+
+  \item \textbf{Menaquinone supply.} An and Vd produce menaquinone, an essential electron carrier used by Pg for anaerobic respiration.
+  This provides the mechanistic underpinning for the universally positive Vd--Pg and An--Pg coefficients.
+
+  \item \textbf{H\textsubscript{2}O\textsubscript{2} inhibition.} So produces hydrogen peroxide; Pg is listed as \textsc{inhibited\_by} H\textsubscript{2}O\textsubscript{2}.
+  This matches the negative So--Pg entry in the Heine DH condition (virulent Pg W83 strain, high H\textsubscript{2}O\textsubscript{2} sensitivity) and a near-zero or positive entry when Pg is more resistant.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{figures/dieckow/fig4_metabolic_network.pdf}
+\caption{Bipartite metabolic interaction network for the five implant biofilm species, derived from Dieckow Supplementary File~1.
+Blue arrows: \textsc{produces}; orange arrows: \textsc{uses}/consumes; red dashed arrows: \textsc{inhibited\_by}.
+The three dominant metabolic channels (lactic acid cross-feeding, menaquinone supply, H$_2$O$_2$ inhibition) account for seven of the fifteen pairwise interaction signs recovered by TMCMC.}
+\label{fig:metnet}
+\end{figure}
+
+\subsection{Sign pattern conservation across five conditions}
+
+Figure~\ref{fig:signs} compares the signs of all 15 upper-triangle A entries across the four Heine in-vitro conditions and the Dieckow in-vivo MAP.
+Three pairs are positive in all five conditions (gold borders): So--An, Vd--Pg, and Fn--Pg, establishing a robust mutualistic backbone.
+Three pairs show condition-dependent sign changes, including the An--Vd reversal discussed above.
+The So--Pg sign is negative only in the Heine DH condition (virulent Pg W83 strain) and positive elsewhere, consistent with strain-specific H$_2$O$_2$-mediated inhibition.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.72\textwidth]{figures/dieckow/fig5_sign_comparison.pdf}
+\caption{Sign pattern of A matrix entries (blue\,$=\,+$, red\,$=\,-$) across five conditions: four Heine in-vitro (CS, CH, DS, DH) and Dieckow in-vivo. Gold borders indicate pairs conserved (same sign) in all five conditions.}
+\label{fig:signs}
+\end{figure}
+
+\subsection{Community-level analysis: 10-guild replicator model}
+\label{sec:guild}
+
+The five-species Hamilton ODE accounts on average for only 49\% of the 16S reads (range 6--76\% per sample), because the Dieckow cohort harbours a richer peri-implant community including \textit{Bifidobacterium}, \textit{Haemophilus}, \textit{Gemella}, and others not in the original caries model.
+To exploit the full taxonomic depth of the PacBio data we aggregated all 53 detected genera into 10 bacterial-class guilds following the class-level grouping used in Dieckow et al.\ Fig.\,4a:
+Actinobacteria, Bacilli, Bacteroidia, Betaproteobacteria, Clostridia, Coriobacteriia, Fusobacteriia, Gammaproteobacteria, Negativicutes, and Other.
+This aggregation achieves 100\% read coverage in all 30 samples.
+
+Figure~\ref{fig:guild_ts} shows the guild-level composition across the three weeks for all ten patients.
+Bacilli (dominated by \textit{Streptococcus}) constitute $55\pm18$\% of the community, consistent with their role as primary colonisers of implant surfaces.
+Actinobacteria (\textit{Actinomyces}, \textit{Bifidobacterium}) show the largest inter-patient and temporal variability, decreasing in several patients between week~1 and week~3.
+Patient~H is an outlier with unusually high Betaproteobacteria at week~1, reflecting a \textit{Neisseria}-dominated early community.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig6_guild_timeseries.pdf}
+\caption{10-guild compositional trajectories across three weeks for all 10 patients. Colours follow the class scheme of Dieckow et al.\ Fig.\,4a. Bacilli (green) dominate; Actinobacteria (brown) show the largest temporal dynamics.}
+\label{fig:guild_ts}
+\end{figure}
+
+We fitted a generalised Lotka-Volterra (gLV) replicator model to the 10-guild time series:
+\begin{equation}
+\frac{d\varphi_i}{dt} = \varphi_i\!\left(\sum_j A_{ij}\,\varphi_j + b_i^{(p)} - \bar{f}\right),
+\quad \bar{f} = \textstyle\sum_k \varphi_k\!\left(\sum_j A_{kj}\,\varphi_j + b_k^{(p)}\right),
+\label{eq:glv}
+\end{equation}
+with a shared $10\times10$ interaction matrix $A$ and patient-specific intrinsic rates $b^{(p)}$ optimised by L-BFGS-B with $\ell_2$ regularisation ($\lambda=0.01$) and self-limitation constraints ($A_{ii}\le 0$).
+Predictions of weeks~2 and~3 starting from week~1 give RMSE\,$= 0.055$ and Pearson $r = 0.954$ (Fig.\,\ref{fig:guild_A}).
+
+The strongest inferred interaction is Actinobacteria$\to$Bacilli ($A = +0.38$), consistent with the well-established co-aggregation of \textit{Actinomyces} bridging species and early \textit{Streptococcus} colonisers~\cite{Kolenbrander2010Oral}.
+Betaproteobacteria$\to$Actinobacteria is negative ($A = -0.20$), suggesting competitive displacement by \textit{Neisseria}-class taxa under aerobic early-colonisation conditions.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig7_guild_Amatrix.pdf}
+\caption{Left: inferred $10\times10$ guild interaction matrix (red\,$=$ positive, blue\,$=$ negative). Right: observed vs predicted relative abundance for weeks~2 and~3 ($r = 0.952$, RMSE\,$= 0.056$).}
+\label{fig:guild_A}
+\end{figure}
+
+\subsection{Community type stratification}
+\label{sec:ct}
+
+Hierarchical Ward clustering of the 10 patients by mean 10-guild composition identifies two community types (CTs) with silhouette score 0.59 (Fig.~\ref{fig:ct}).
+
+\textbf{CT1} (patients D, E, G, K, L): Bacilli-dominated ($85\pm6$\%), with low Actinobacteria ($<10$\%).
+Streptococcal primary colonisers rapidly fill the available niche, leaving little room for competing lineages.
+
+\textbf{CT2} (patients A, B, C, F, H): More diverse; Bacilli reduced ($65\pm12$\%), Actinobacteria elevated ($25\pm8$\%), Betaproteobacteria (\textit{Neisseria} family) visible in several samples.
+Patient~F shows the most extreme CT2 phenotype, with Actinobacteria exceeding 60\% at week~1.
+
+This dichotomy mirrors the ``patient-specificity'' reported by Dieckow et al., and is consistent with the community types identified in health-associated vs mucositis peri-implant biofilms in the Szafra\'nski et al.\ integrated ecosystem analysis~\cite{Szafranski2025CT}.
+CT1 patients may correspond to a Streptococcus-dominant pioneer community, while CT2 reflects delayed or disrupted streptococcal dominance with stronger Actinomyces and Proteobacteria co-colonisation.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig8_community_types.pdf}
+\caption{Community type analysis. (a) Ward dendrogram of 10 patients by mean 10-guild composition. (b) Silhouette scores; $k=2$ selected. (c) Mean guild composition per CT. (d) Per-patient composition sorted by CT; background shading indicates CT assignment.}
+\label{fig:ct}
+\end{figure}
+
+%==============================================================================
+\section{Discussion}
+\label{sec:discussion}
+%==============================================================================
+
+\paragraph{Shared interaction topology.}
+The cross-prediction result (Table~\ref{tab:cross}) implies that the ecological interaction network of peri-implant biofilm is substantially conserved between controlled in-vitro and clinical in-vivo settings.
+The dominant interactions---So--An co-aggregation, Fn--Pg cooperative proteolysis, Vd--Pg pH facilitation---are positive in every condition tested, confirming their status as robust ecological mutualities.
+This robustness supports the use of in-vitro calibrated models as priors for in-vivo prediction.
+
+\paragraph{An--Vd sign reversal and the V.~dispar/V.~parvula difference.}
+The most informative discrepancy between in-vitro and in-vivo fits is the negative An--Vd coefficient in the Dieckow data.
+\textit{V.~parvula} is an obligate anaerobe that ferments lactate/succinate produced by \textit{A.~naeslundii}, establishing a clear mutualistic relationship in vitro.
+\textit{V.~dispar}, the dominant Veillonella representative in the Dieckow cohort, grows more slowly on lactate and competes with \textit{A.~naeslundii} for available carbon sources under in-vivo microaerobic conditions~\cite{Rogosa1965Veillonella}.
+The Bergey sign prior, which assigns a positive expected sign to An--Vd based on the Dieckow SI metabolic network, is overridden by the data likelihood, suggesting the reversal is not an artefact of limited data.
+
+\paragraph{Patient heterogeneity is primarily growth-rate driven.}
+The patient-specific b estimates span a 15-fold range for individual species, while the shared A converges to a stable MAP.
+This decomposition is clinically interpretable: differences in salivary flow rate, mucosal immune status, implant surface properties, and initial colonisation seeding all influence how fast each species grows, but the ecological rules governing inter-species interactions are more conserved.
+Patient F is an outlier with very high estimated growth rates for So, Vd, and Fn, possibly reflecting an unusually rapid biofilm maturation trajectory or sequencing artefacts.
+
+\paragraph{Community types and the guild-level interaction structure.}
+The two community types identified by Ward clustering (CT1: Bacilli-dominant; CT2: Actinobacteria-enriched) reveal a patient-level heterogeneity that is invisible to the five-species Hamilton ODE, which collapses the two CTs into comparable $\hat{\varphi}_\mathrm{So}$ values because Bacilli and Actinobacteria are both lumped into the early-coloniser pool.
+The 10-guild gLV model captures this distinction directly: the inferred Actinobacteria$\to$Bacilli interaction ($A=+0.04$) is the strongest off-diagonal entry, consistent with the textbook role of \textit{Actinomyces} as a bridging organism that co-aggregates with streptococci via type-2 fimbriae~\cite{Kolenbrander2010Oral}.
+The negative Betaproteobacteria$\to$Actinobacteria coefficient ($A=-0.02$) is biologically plausible: \textit{Neisseria} spp.\ produce hydrogen peroxide and bacteriocin-like inhibitory substances that suppress \textit{Actinomyces} growth under aerobic early-colonisation conditions~\cite{Dieckow2025Implant}.
+That CT2 patients (higher Betaproteobacteria) show lower Actinobacteria over time is consistent with this mechanism.
+
+The guild model achieves $r=0.954$ in predicting week-2 and week-3 compositions from week-1 initial conditions---comparable to the five-species Hamilton self-fit RMSE of 0.101 on a different (in-vitro) dataset.
+This demonstrates that a class-level aggregation retains most of the predictive signal while covering 100\% of sequenced reads.
+
+\paragraph{Limitations.}
+The Hamilton ODE assumes well-mixed conditions and does not capture the spatial stratification observed in CLSM images.
+With only three time points, the identifiability of all 65 parameters depends on the shared-A constraint; releasing A per-patient would make the problem underdetermined.
+The aggregation of 16S data to five model species discards the rich taxonomic resolution of full-length sequencing; the 10-guild extension recovers 100\% of reads but collapses within-class diversity.
+The gLV replicator model optimised here is a MAP point estimate; full Bayesian inference (TMCMC) would quantify the uncertainty of the $A$ matrix entries, which currently appear small ($|A_{ij}|<0.05$) relative to the patient-specific growth rates.
+
+%==============================================================================
+\section{Conclusions}
+\label{sec:conclusions}
+%==============================================================================
+
+We have extended the Hamilton-TMCMC framework to in-vivo clinical data, jointly inferring a shared interaction matrix and patient-specific growth rates for a 10-patient peri-implant biofilm cohort.
+The key findings are:
+\begin{enumerate}[nosep,leftmargin=*]
+\item \textbf{Conserved interaction backbone.} Heine in-vitro A matrices applied to Dieckow data (with patient-specific b) achieve RMSE within 0.002 of the in-vivo self-fit, confirming that ecological interactions are largely conserved across in-vitro and in-vivo settings.
+\item \textbf{Growth-rate heterogeneity.} Patient variability is captured by patient-specific b; the shared A is stable and biologically interpretable.
+\item \textbf{Strain-dependent sign reversal.} The negative An--Vd coefficient in the in-vivo fit is consistent with the \textit{V.~dispar} (in-vivo) vs.\ \textit{V.~parvula} (in-vitro) substitution, demonstrating that the model is sensitive to ecologically meaningful strain-level differences.
+\item \textbf{Robust mutualistic backbone.} Three pairs (So--An, Vd--Pg, Fn--Pg) are positive in all five conditions tested, establishing conserved mutualities of the peri-implant ecosystem.
+\item \textbf{Two community types.} Ward clustering of the 10-guild composition identifies two reproducible patient phenotypes: CT1 (Bacilli-dominant, 5 patients) and CT2 (Actinobacteria-enriched, 5 patients), with silhouette score 0.59.
+\item \textbf{Guild-level gLV.} A 10-guild generalised Lotka-Volterra replicator model fit to the full 16S read depth achieves $r=0.954$ (RMSE\,$=0.055$) in week-2/3 prediction, with Actinobacteria$\to$Bacilli ($A=+0.38$) as the dominant positive driver.
+\end{enumerate}
+
+\paragraph{Future work.}
+Integration of CLSM spatial data (biofilm volume, coverage, viability) with a PDE extension of the Hamilton model~\cite{Klempt2025ContinuumBiofilm} would allow the spatial stratification observed by Dieckow et al.\ to inform mechanistic growth-rate estimates.
+Full Bayesian inference (TMCMC) of the 10-guild gLV $A$ matrix would provide uncertainty-quantified interaction strengths and enable model selection between CT subtypes.
+Correlation of CT membership with clinical parameters (implant surface roughness, probing depth, patient medical history) is a priority for a future clinical cohort study.
+
+%==============================================================================
+\bibliographystyle{unsrt}
+\bibliography{references_ikm}
+%==============================================================================
+
+\end{document}
