@@ -314,7 +314,7 @@ We fitted a generalised Lotka-Volterra (gLV) replicator model to the 10-guild ti
 \quad \bar{f} = \textstyle\sum_k \varphi_k\!\left(\sum_j A_{kj}\,\varphi_j + b_k^{(p)}\right),
 \label{eq:glv}
 \end{equation}
-with a shared $10\times10$ interaction matrix $A$ and patient-specific intrinsic rates $b^{(p)}$ optimised by L-BFGS-B with $\ell_2$ regularisation ($\lambda=0.01$) and self-limitation constraints ($A_{ii}\le 0$).
+with a shared $10\times10$ interaction matrix $A$ and patient-specific intrinsic rates $b^{(p)}$ optimised by JAX Adam (5{,}000 epochs, lr\,$=0.003$, $\ell_2$ regularisation $\lambda=10^{-3}$) with self-limitation constraints ($A_{ii}\le 0$).
 Predictions of weeks~2 and~3 starting from week~1 give RMSE\,$= 0.055$ and Pearson $r = 0.954$ (Fig.\,\ref{fig:guild_A}).
 
 The strongest inferred interaction is Actinobacteria$\to$Bacilli ($A = +0.38$), consistent with the well-established co-aggregation of \textit{Actinomyces} bridging species and early \textit{Streptococcus} colonisers~\cite{Kolenbrander2010Oral}.
@@ -323,7 +323,7 @@ Betaproteobacteria$\to$Actinobacteria is negative ($A = -0.20$), suggesting comp
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig7_guild_Amatrix.pdf}
-\caption{Left: inferred $10\times10$ guild interaction matrix (red\,$=$ positive, blue\,$=$ negative). Right: observed vs predicted relative abundance for weeks~2 and~3 ($r = 0.952$, RMSE\,$= 0.056$).}
+\caption{Left: inferred $10\times10$ guild interaction matrix (red\,$=$ positive, blue\,$=$ negative). Right: observed vs predicted relative abundance for weeks~2 and~3 ($r = 0.954$, RMSE\,$= 0.055$).}
 \label{fig:guild_A}
 \end{figure}
 
@@ -371,18 +371,35 @@ Patient F is an outlier with very high estimated growth rates for So, Vd, and Fn
 
 \paragraph{Community types and the guild-level interaction structure.}
 The two community types identified by Ward clustering (CT1: Bacilli-dominant; CT2: Actinobacteria-enriched) reveal a patient-level heterogeneity that is invisible to the five-species Hamilton ODE, which collapses the two CTs into comparable $\hat{\varphi}_\mathrm{So}$ values because Bacilli and Actinobacteria are both lumped into the early-coloniser pool.
-The 10-guild gLV model captures this distinction directly: the inferred Actinobacteria$\to$Bacilli interaction ($A=+0.04$) is the strongest off-diagonal entry, consistent with the textbook role of \textit{Actinomyces} as a bridging organism that co-aggregates with streptococci via type-2 fimbriae~\cite{Kolenbrander2010Oral}.
-The negative Betaproteobacteria$\to$Actinobacteria coefficient ($A=-0.02$) is biologically plausible: \textit{Neisseria} spp.\ produce hydrogen peroxide and bacteriocin-like inhibitory substances that suppress \textit{Actinomyces} growth under aerobic early-colonisation conditions~\cite{Dieckow2025Implant}.
+The 10-guild gLV model captures this distinction directly: the inferred Actinobacteria$\to$Bacilli interaction ($A=+0.38$) is the dominant off-diagonal entry, consistent with the textbook role of \textit{Actinomyces} as a bridging organism that co-aggregates with streptococci via type-2 fimbriae~\cite{Kolenbrander2010Oral}.
+The negative Betaproteobacteria$\to$Actinobacteria coefficient ($A=-0.20$) is biologically plausible: \textit{Neisseria} spp.\ produce hydrogen peroxide and bacteriocin-like inhibitory substances that suppress \textit{Actinomyces} growth under aerobic early-colonisation conditions~\cite{Dieckow2025Implant}.
 That CT2 patients (higher Betaproteobacteria) show lower Actinobacteria over time is consistent with this mechanism.
 
 The guild model achieves $r=0.954$ in predicting week-2 and week-3 compositions from week-1 initial conditions---comparable to the five-species Hamilton self-fit RMSE of 0.101 on a different (in-vitro) dataset.
 This demonstrates that a class-level aggregation retains most of the predictive signal while covering 100\% of sequenced reads.
 
+\paragraph{Metabolic potential vs.\ realised dynamics: comparison with Supp.\ File~1.}
+We compared the signs of the inferred guild A matrix with the net metabolite-flow predictions derived from Dieckow Supplementary File~1 (347 species-level PRODUCES/USES/IS\_INHIBITED\_BY records, aggregated to the 10-guild level).
+Of 18 guild pairs with at least one Supp.\ File~1 prediction, 8 (44\%) showed sign agreement and 10 (56\%) disagreed.
+
+Agreements include the two most ecologically important interactions: Actinobacteria$\to$Bacilli ($+$, co-aggregation mediated by fimbrial adhesins and polysaccharide complementarity) and Negativicutes$\to$Bacilli ($+$, lactic-acid cross-feeding from \textit{Streptococcus} to \textit{Veillonella}).
+
+The most informative disagreements involve Betaproteobacteria (\textit{Neisseria}) and Bacteroidia (\textit{Prevotella}/\textit{Porphyromonas}) acting as net negative regulators of Bacilli in the temporal dynamics ($A=-0.17$ and $-0.05$ respectively), whereas Supp.\ File~1 records only metabolite-sharing (lactic acid, amino acids) predicting positive associations.
+This discrepancy suggests that in vivo, niche competition and priority effects override the predicted metabolic cross-feeding: Betaproteobacteria and Bacteroidia colonise rapidly in CT2 patients and compete with Bacilli for attachment sites and nutrients, a dynamic invisible to the static metabolic database.
+Such a divergence between metabolic-potential and realised-dynamics networks has been noted in other oral microbiome modelling studies~\cite{Mounier2022NetMismatch} and underscores the complementary value of data-driven gLV inference alongside database-derived interaction graphs.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig9_guild_vs_suppfile1.pdf}
+\caption{Comparison of inferred guild A matrix with Dieckow Supp.\ File~1 predicted interactions. Left: inferred A matrix (JAX Adam, RMSE\,=\,0.055). Centre: net metabolite-flow score from Supp.\ File~1 (positive = net PRODUCES$\to$USES; negative = net PRODUCES$\to$IS\_INHIBITED\_BY). Right: sign agreement (green\,=\,agree, red\,=\,disagree, grey\,=\,no Supp.\ File~1 prediction). Of 18 predicted pairs, 8 agree and 10 disagree.}
+\label{fig:sf1cmp}
+\end{figure}
+
 \paragraph{Limitations.}
 The Hamilton ODE assumes well-mixed conditions and does not capture the spatial stratification observed in CLSM images.
 With only three time points, the identifiability of all 65 parameters depends on the shared-A constraint; releasing A per-patient would make the problem underdetermined.
 The aggregation of 16S data to five model species discards the rich taxonomic resolution of full-length sequencing; the 10-guild extension recovers 100\% of reads but collapses within-class diversity.
-The gLV replicator model optimised here is a MAP point estimate; full Bayesian inference (TMCMC) would quantify the uncertainty of the $A$ matrix entries, which currently appear small ($|A_{ij}|<0.05$) relative to the patient-specific growth rates.
+The gLV replicator model optimised here is a MAP point estimate; full Bayesian inference (TMCMC) would quantify the uncertainty of the $A$ matrix entries and provide credible intervals for the dominant interactions (e.g.\ Actinobacteria$\to$Bacilli, $A=+0.38$).
 
 %==============================================================================
 \section{Conclusions}
