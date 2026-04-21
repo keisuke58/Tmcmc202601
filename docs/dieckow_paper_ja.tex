@@ -18,8 +18,9 @@
 \usepackage{multirow}
 \usepackage{setspace}
 \setstretch{1.08}
+\usepackage{authblk}
 \usepackage{xeCJK}
-\setCJKmainfont{IPAexMincho}
+\setCJKmainfont{Noto Serif CJK JP}
 
 \newcommand{\btheta}{\boldsymbol{\theta}}
 \newcommand{\bphi}{\boldsymbol{\phi}}
@@ -33,15 +34,18 @@
 共有相互作用構造と患者別成長率のベイズ推定:\\
 10患者 in-vivo 縦断研究}
 
-\author{
-西岡佳祐，\;
-Felix Klempt，\;
-Hendrik Geisler，\;
-Meisam Soleimani，\;
-Philipp Junker
-\\[6pt]
-\small Leibniz Universit\"at Hannover, Institut f\"ur Kontinuumsmechanik, Hannover, Germany
-}
+\author[1]{Keisuke Nishioka}
+\author[1]{Felix Klempt}
+\author[1]{Hendrik Geisler}
+\author[1]{Meisam Soleimani}
+\author[2,3]{Rumjhum Mukherjee}
+\author[2,3]{Szymon P. Szafra\'{n}ski}
+\author[1]{Philipp Junker}
+\author[2,3]{Meike Stiesch}
+
+\affil[1]{Institute of Continuum Mechanics, Leibniz Universit\"at Hannover, Hannover, Germany}
+\affil[2]{Department of Prosthetic Dentistry and Biomedical Materials Science, Hannover Medical School, Hannover, Germany}
+\affil[3]{Lower Saxony Centre for Biomedical Engineering, Implant Research and Development (NIFE), Hannover, Germany}
 
 \date{}
 
@@ -124,7 +128,7 @@ Dieckow in-vivo コミュニティは主に \textit{V.~dispar} を含む．
 競合する可能性がある．
 
 なお，患者 D の週 1 サンプル（D\_1）はヒト DNA コンタミが 97.6\% に達し，
-細菌リード数が 452 のみと極端に少ない（他サンプルの平均 \SI{7693}{reads} に対し 1/15 程度）．
+細菌リード数が 452 のみと極端に少ない（他サンプルの平均 7693 リードに対し 1/15 程度）．
 この点は組成推定の信頼性に留意が必要である．
 
 %==============================================================================
@@ -417,7 +421,7 @@ $\ell_2$ 正則化 $\lambda=10^{-3}$，自己制限制約 $A_{ii}\le 0$）で最
 
 最も強い推定相互作用は Actinobacteria$\to$Bacilli（$A = +0.38$）であり，
 \textit{Actinomyces} ブリッジング種と初期 \textit{Streptococcus} 定着者の
-よく確立された共凝集と整合する~\cite{Kolenbrander2010Oral}．
+よく確立された共凝集と整合する~\cite{Kolenbrander2010OralMultispecies}．
 Betaproteobacteria$\to$Actinobacteria は負（$A = -0.20$）であり，
 好気性初期定着条件下での \textit{Neisseria} クラス分類群による競合的置換を示唆する．
 
@@ -502,10 +506,10 @@ Ward クラスタリングで同定された 2 コミュニティタイプ
 10-ギルド gLV モデルはこの区別を直接捉える:
 推定 Actinobacteria$\to$Bacilli 相互作用（$A=+0.38$）が支配的なオフダイアゴナルエントリーであり，
 \textit{Actinomyces} が 2 型フィンブリアを介して連鎖球菌と共凝集する
-ブリッジング生物としての教科書的役割と整合する~\cite{Kolenbrander2010Oral}．
+ブリッジング生物としての教科書的役割と整合する~\cite{Kolenbrander2010OralMultispecies}．
 負の Betaproteobacteria$\to$Actinobacteria 係数（$A=-0.20$）は生物学的に妥当である:
 \textit{Neisseria} spp.\ は過酸化水素と bacteriocin 様阻害物質を産生し，
-好気性初期定着条件下で \textit{Actinomyces} 成長を抑制する~\cite{Dieckow2025Implant}．
+好気性初期定着条件下で \textit{Actinomyces} 成長を抑制する~\cite{Kolenbrander2010OralMultispecies}．
 CT2 患者（より高い Betaproteobacteria）が時間とともに低い Actinobacteria を示すことは
 このメカニズムと整合する．
 
@@ -534,7 +538,6 @@ Bacilli の正味の負の調節因子として働くこと（それぞれ $A=-0
 Betaproteobacteria と Bacteroidia は CT2 患者で迅速に定着し，
 付着部位と栄養素を Bacilli と競合する動態が，静的代謝データベースには不可視である．
 このような代謝ポテンシャルネットワークと実現動態ネットワークの乖離は，
-他の口腔マイクロバイオームモデリング研究でも指摘されており~\cite{Mounier2022NetMismatch}，
 データベース由来の相互作用グラフと並行した，
 データ駆動型 gLV 推定の補完的価値を強調する．
 

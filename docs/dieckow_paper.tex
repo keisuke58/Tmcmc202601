@@ -18,6 +18,7 @@
 \usepackage{multirow}
 \usepackage{setspace}
 \setstretch{1.08}
+\usepackage{authblk}
 
 \newcommand{\btheta}{\boldsymbol{\theta}}
 \newcommand{\bphi}{\boldsymbol{\phi}}
@@ -31,15 +32,18 @@
 and patient-specific growth rates in peri-implant biofilms:\\
 a 10-patient in-vivo longitudinal study}
 
-\author{
-Keisuke Nishioka,\;
-Felix Klempt,\;
-Hendrik Geisler,\;
-Meisam Soleimani,\;
-Philipp Junker
-\\[6pt]
-\small Leibniz Universit\"at Hannover, Institute of Continuum Mechanics, Hannover, Germany
-}
+\author[1]{Keisuke Nishioka}
+\author[1]{Felix Klempt}
+\author[1]{Hendrik Geisler}
+\author[1]{Meisam Soleimani}
+\author[2,3]{Rumjhum Mukherjee}
+\author[2,3]{Szymon P. Szafra\'{n}ski}
+\author[1]{Philipp Junker}
+\author[2,3]{Meike Stiesch}
+
+\affil[1]{Institute of Continuum Mechanics, Leibniz Universit\"at Hannover, Hannover, Germany}
+\affil[2]{Department of Prosthetic Dentistry and Biomedical Materials Science, Hannover Medical School, Hannover, Germany}
+\affil[3]{Lower Saxony Centre for Biomedical Engineering, Implant Research and Development (NIFE), Hannover, Germany}
 
 \date{}
 
@@ -317,7 +321,7 @@ We fitted a generalised Lotka-Volterra (gLV) replicator model to the 10-guild ti
 with a shared $10\times10$ interaction matrix $A$ and patient-specific intrinsic rates $b^{(p)}$ optimised by JAX Adam (5{,}000 epochs, lr\,$=0.003$, $\ell_2$ regularisation $\lambda=10^{-3}$) with self-limitation constraints ($A_{ii}\le 0$).
 Predictions of weeks~2 and~3 starting from week~1 give RMSE\,$= 0.055$ and Pearson $r = 0.954$ (Fig.\,\ref{fig:guild_A}).
 
-The strongest inferred interaction is Actinobacteria$\to$Bacilli ($A = +0.38$), consistent with the well-established co-aggregation of \textit{Actinomyces} bridging species and early \textit{Streptococcus} colonisers~\cite{Kolenbrander2010Oral}.
+The strongest inferred interaction is Actinobacteria$\to$Bacilli ($A = +0.38$), consistent with the well-established co-aggregation of \textit{Actinomyces} bridging species and early \textit{Streptococcus} colonisers~\cite{Kolenbrander2010OralMultispecies}.
 Betaproteobacteria$\to$Actinobacteria is negative ($A = -0.20$), suggesting competitive displacement by \textit{Neisseria}-class taxa under aerobic early-colonisation conditions.
 
 \begin{figure}[htbp]
@@ -371,8 +375,8 @@ Patient F is an outlier with very high estimated growth rates for So, Vd, and Fn
 
 \paragraph{Community types and the guild-level interaction structure.}
 The two community types identified by Ward clustering (CT1: Bacilli-dominant; CT2: Actinobacteria-enriched) reveal a patient-level heterogeneity that is invisible to the five-species Hamilton ODE, which collapses the two CTs into comparable $\hat{\varphi}_\mathrm{So}$ values because Bacilli and Actinobacteria are both lumped into the early-coloniser pool.
-The 10-guild gLV model captures this distinction directly: the inferred Actinobacteria$\to$Bacilli interaction ($A=+0.38$) is the dominant off-diagonal entry, consistent with the textbook role of \textit{Actinomyces} as a bridging organism that co-aggregates with streptococci via type-2 fimbriae~\cite{Kolenbrander2010Oral}.
-The negative Betaproteobacteria$\to$Actinobacteria coefficient ($A=-0.20$) is biologically plausible: \textit{Neisseria} spp.\ produce hydrogen peroxide and bacteriocin-like inhibitory substances that suppress \textit{Actinomyces} growth under aerobic early-colonisation conditions~\cite{Dieckow2025Implant}.
+The 10-guild gLV model captures this distinction directly: the inferred Actinobacteria$\to$Bacilli interaction ($A=+0.38$) is the dominant off-diagonal entry, consistent with the textbook role of \textit{Actinomyces} as a bridging organism that co-aggregates with streptococci via type-2 fimbriae~\cite{Kolenbrander2010OralMultispecies}.
+The negative Betaproteobacteria$\to$Actinobacteria coefficient ($A=-0.20$) is biologically plausible: \textit{Neisseria} spp.\ produce hydrogen peroxide and bacteriocin-like inhibitory substances that suppress \textit{Actinomyces} growth under aerobic early-colonisation conditions~\cite{Kolenbrander2010OralMultispecies}.
 That CT2 patients (higher Betaproteobacteria) show lower Actinobacteria over time is consistent with this mechanism.
 
 The guild model achieves $r=0.954$ in predicting week-2 and week-3 compositions from week-1 initial conditions---comparable to the five-species Hamilton self-fit RMSE of 0.101 on a different (in-vitro) dataset.
@@ -386,7 +390,7 @@ Agreements include the two most ecologically important interactions: Actinobacte
 
 The most informative disagreements involve Betaproteobacteria (\textit{Neisseria}) and Bacteroidia (\textit{Prevotella}/\textit{Porphyromonas}) acting as net negative regulators of Bacilli in the temporal dynamics ($A=-0.17$ and $-0.05$ respectively), whereas Supp.\ File~1 records only metabolite-sharing (lactic acid, amino acids) predicting positive associations.
 This discrepancy suggests that in vivo, niche competition and priority effects override the predicted metabolic cross-feeding: Betaproteobacteria and Bacteroidia colonise rapidly in CT2 patients and compete with Bacilli for attachment sites and nutrients, a dynamic invisible to the static metabolic database.
-Such a divergence between metabolic-potential and realised-dynamics networks has been noted in other oral microbiome modelling studies~\cite{Mounier2022NetMismatch} and underscores the complementary value of data-driven gLV inference alongside database-derived interaction graphs.
+Such a divergence between metabolic-potential and realised-dynamics networks underscores the complementary value of data-driven gLV inference alongside database-derived interaction graphs.
 
 \begin{figure}[htbp]
 \centering
