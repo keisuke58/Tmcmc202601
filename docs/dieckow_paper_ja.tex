@@ -413,13 +413,13 @@ Bacilli（緑）が支配的；Actinobacteria（茶）が最大の時間的動�
 \quad \bar{f} = \textstyle\sum_k \varphi_k\!\left(\sum_j A_{kj}\,\varphi_j + b_k^{(p)}\right),
 \label{eq:glv}
 \end{equation}
-共有 $10\times10$ 相互作用行列 $A$ と JAX Adam（5,000 エポック，lr\,$=0.003$，
-$\ell_2$ 正則化 $\lambda=10^{-3}$，自己制限制約 $A_{ii}\le 0$）で最適化した
+共有 $10\times10$ 相互作用行列 $A$ と scipy L-BFGS-B（5 マルチスタート，
+$\ell_2$ 正則化 $\lambda=10^{-4}$，自己制限制約 $A_{ii}\le 0$）で最適化した
 患者別固有率 $b^{(p)}$ を持つ．
-週 1 初期条件から週 2 および 3 を予測して RMSE\,$= 0.055$，Pearson $r = 0.954$ が得られた
+週 1 初期条件から週 2 および 3 を予測して RMSE\,$= 0.050$，Pearson $r = 0.963$ が得られた
 （図\,\ref{fig:guild_A}）．
 
-最も強い推定相互作用は Actinobacteria$\to$Bacilli（$A = +0.38$）であり，
+最も強い推定相互作用は Actinobacteria$\to$Bacilli であり，
 \textit{Actinomyces} ブリッジング種と初期 \textit{Streptococcus} 定着者の
 よく確立された共凝集と整合する~\cite{Kolenbrander2010OralMultispecies}．
 Betaproteobacteria$\to$Actinobacteria は負（$A = -0.20$）であり，
@@ -429,7 +429,7 @@ Betaproteobacteria$\to$Actinobacteria は負（$A = -0.20$）であり，
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig7_guild_Amatrix.pdf}
 \caption{左: 推定 $10\times10$ ギルド相互作用行列（赤\,$=$ 正，青\,$=$ 負）．
-右: 週 2 および 3 の観測値 vs. 予測値（$r = 0.954$，RMSE\,$= 0.055$）．}
+右: 週 2 および 3 の観測値 vs. 予測値（$r = 0.963$，RMSE\,$= 0.050$）．}
 \label{fig:guild_A}
 \end{figure}
 
@@ -513,7 +513,7 @@ Ward クラスタリングで同定された 2 コミュニティタイプ
 CT2 患者（より高い Betaproteobacteria）が時間とともに低い Actinobacteria を示すことは
 このメカニズムと整合する．
 
-ギルドモデルは週 1 初期条件から週 2 と週 3 の組成を予測して $r=0.954$ を達成し，
+ギルドモデルは週 1 初期条件から週 2 と週 3 の組成を予測して $r=0.963$（RMSE\,$=0.050$）を達成し，
 これは別の（in-vitro）データセットでの 5 種 Hamilton 自己フィット RMSE 0.101 に匹敵する．
 これはクラスレベル集計が 100\% のシーケンスリードをカバーしながら，
 予測信号の大部分を保持することを実証する．
@@ -545,7 +545,7 @@ Betaproteobacteria と Bacteroidia は CT2 患者で迅速に定着し，
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig9_guild_vs_suppfile1.pdf}
 \caption{推定ギルド A 行列と Dieckow Supp.\ File~1 予測相互作用の比較．
-左: 推定 A 行列（JAX Adam，RMSE\,=\,0.055）．
+左: 推定 A 行列（L-BFGS-B，RMSE\,=\,0.050）．
 中: Supp.\ File~1 からの正味代謝フロースコア（正 = 正味 PRODUCES$\to$USES；
 負 = 正味 PRODUCES$\to$IS\_INHIBITED\_BY）．
 右: 符号一致（緑\,=\,一致，赤\,=\,不一致，灰\,=\,Supp.\ File~1 予測なし）．
@@ -591,7 +591,7 @@ Hamilton-TMCMC フレームワークを in-vivo 臨床データへ拡張し，
   CT1（Bacilli 支配，5 患者）と CT2（Actinobacteria 濃縮，5 患者）．
 \item \textbf{ギルドレベル gLV.}
   全 16S リード深度にフィットした 10-ギルド一般化 Lotka-Volterra replicator モデルが
-  週 2/3 予測で $r=0.954$（RMSE\,$=0.055$）を達成し，
+  週 2/3 予測で $r=0.963$（RMSE\,$=0.050$）を達成し，
   Actinobacteria$\to$Bacilli（$A=+0.38$）を支配的な正のドライバーとする．
 \end{enumerate}
 
