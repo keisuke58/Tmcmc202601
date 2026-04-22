@@ -208,56 +208,164 @@ organised into five biologically motivated blocks:
 
 \subsection{Biological interaction network}
 
-The interaction network established by Heine et al.~\cite{Heine2025PeriImplant} identifies five experimentally confirmed species pairs (Figure~\ref{fig:network}).
-Five additional pairs lack direct metabolic or co-aggregation pathways; however, rather than enforcing these as hard constraints ($\theta_k\equiv0$), we estimate all 20 parameters and let the posterior determine which interactions are active.
+The metabolite-mediated interaction network of Heine et al.~\cite{Heine2025PeriImplant} identifies six experimentally confirmed species pairs (Figure~\ref{fig:network}).
+Both So and An produce lactate and succinate, which Vei ferments to short-chain fatty acids (propionate, acetate), thereby raising local pH and creating a less acidic niche that promotes Pg growth.
+Four remaining pairs lack confirmed metabolic or co-aggregation pathways; rather than enforcing these as hard constraints ($\theta_k\equiv0$), we estimate all 20 parameters and let the posterior determine which interactions are active.
 This ``full discovery'' approach is enabled by the fix-$\psi$ strategy (Section~\ref{sec:gpu}), which reduces posterior multimodality sufficiently for convergence in 20 dimensions.
 
 \begin{figure}[htbp]
 \centering
-\begin{minipage}[t]{0.32\textwidth}
-\vspace{0pt}
-\centering
-\begin{tikzpicture}[scale=0.82, every node/.style={transform shape},
-    species/.style={circle, draw, minimum size=0.9cm, font=\footnotesize\bfseries},
-    edge/.style={<->, thick, >=Stealth},
-    weakedge/.style={<->, thin, gray!60, >=Stealth, densely dotted}
+\begin{tikzpicture}[scale=0.88, every node/.style={transform shape},
+    sp/.style={circle, draw, thick, minimum size=1.12cm,
+               font=\small\bfseries, inner sep=0pt},
+    met/.style={rounded corners=3pt, draw=gray!65, font=\tiny,
+                fill=gray!12, inner sep=3pt,
+                minimum width=2.4cm, minimum height=0.62cm, align=center},
+    enz/.style={rounded corners=3pt, draw=orange!65, font=\tiny,
+                fill=orange!12, inner sep=3pt,
+                minimum width=2.4cm, minimum height=0.62cm, align=center},
+    med/.style={rounded corners=3pt, draw=teal!65, font=\tiny,
+                fill=teal!10, inner sep=3pt,
+                minimum width=2.4cm, minimum height=0.62cm, align=center},
+    prd/.style={->, >=Stealth, semithick, shorten <=3pt, shorten >=3pt},
+    cns/.style={->, >=Stealth, semithick, dashed,  shorten <=3pt, shorten >=3pt},
+    phy/.style={<->, >=Stealth, semithick, dotted, shorten <=3pt, shorten >=3pt},
+    lbl/.style={font=\tiny, inner sep=0pt},
 ]
-    \node[species, fill=blue!15] (so) at (0, 2.2) {So};
-    \node[species, fill=green!15] (an) at (-1.9, 0.6) {An};
-    \node[species, fill=yellow!20] (vei) at (0, 0.6) {Vei};
-    \node[species, fill=purple!15] (fn) at (1.9, 0.6) {Fn};
-    \node[species, fill=red!15] (pg) at (0, -1.0) {Pg};
-    \draw[edge, blue!70!black] (so) -- (an) node[midway, left, font=\tiny] {co-agg};
-    \draw[edge, blue!70!black] (so) -- (vei) node[midway, right, font=\tiny] {lactate};
-    \draw[edge, blue!70!black] (so) -- (fn) node[midway, right, font=\tiny] {formate};
-    \draw[edge, blue!70!black] (vei) -- (pg) node[midway, left, font=\tiny] {pH};
-    \draw[edge, blue!70!black] (fn) -- (pg) node[midway, right, font=\tiny] {peptides};
-    \draw[weakedge] (an) -- (vei);
-    \draw[weakedge] (an) -- (fn);
-    \draw[weakedge] (vei) -- (fn);
-    \draw[weakedge] (so) to[bend left=20] (pg);
-    \draw[weakedge] (an) to[bend right=20] (pg);
+
+% ─── column backgrounds ────────────────────────────────────────────────────
+\fill[blue!5,  rounded corners=5pt] (-1.2, -1.3) rectangle (0.8, 9.3);
+\fill[gray!6,  rounded corners=5pt] (2.75, -2.6) rectangle (5.5, 9.3);
+\fill[teal!6,  rounded corners=5pt] (6.4,  4.8)  rectangle (9.1, 9.3);
+
+% ─── column headers ────────────────────────────────────────────────────────
+\node[font=\scriptsize\bfseries, text=blue!65!black]  at (0,    9.6) {Species};
+\node[font=\scriptsize\bfseries, text=gray!60!black]  at (4.1,  9.6) {Metabolites\,/\,Enzymes};
+\node[font=\scriptsize\bfseries, text=teal!70!black]  at (7.75, 9.6) {Culture medium};
+
+% ─── culture medium nodes ──────────────────────────────────────────────────
+\node[med] (mGlu) at (7.75, 9.0)  {Glucose};
+\node[med] (mPro) at (7.75, 7.95) {(Glyco)proteins};
+\node[med] (mAA)  at (7.75, 6.9)  {Amino acids};
+\node[med] (mVit) at (7.75, 5.85) {Vitamins};
+
+% ─── metabolite / enzyme nodes (x=4.1) ────────────────────────────────────
+\node[met] (For)  at (4.1,  8.7)  {Formate};
+\node[met] (Lac)  at (4.1,  7.6)  {Lactate};
+\node[met] (Suc)  at (4.1,  6.3)  {Succinate};
+\node[met] (SCFA) at (4.1,  2.8)  {SCFA\,/\,pH$\uparrow$};
+\node[met] (Pep)  at (4.1,  0.6)  {Peptides\,/\,AA};
+\node[enz] (Enz)  at (4.1, -1.6)  {Protease\,/\,Peptidases};
+
+% ─── species nodes (x=0) ──────────────────────────────────────────────────
+\node[sp, fill=blue!22]   (So)  at (0,  8.3)  {\strut So};
+\node[sp, fill=green!22]  (An)  at (0,  6.3)  {\strut An};
+\node[sp, fill=yellow!45] (Vei) at (0,  4.2)  {\strut Vei};
+\node[sp, fill=purple!22] (Fn)  at (0,  2.1)  {\strut Fn};
+\node[sp, fill=red!22]    (Pg)  at (0, -0.7)  {\strut Pg};
+
+% ─── species full names ────────────────────────────────────────────────────
+\node[lbl, anchor=east, text=black!55] at (-0.7,  8.3)  {\textit{S.\,oralis}};
+\node[lbl, anchor=east, text=black!55] at (-0.7,  6.3)  {\textit{A.\,naeslundii}};
+\node[lbl, anchor=east, text=black!55] at (-0.7,  4.2)  {\textit{Veillonella} sp.};
+\node[lbl, anchor=east, text=black!55] at (-0.7,  2.1)  {\textit{F.\,nucleatum}};
+\node[lbl, anchor=east, text=black!55] at (-0.7, -0.7)  {\textit{P.\,gingivalis}};
+
+% ─── physical co-aggregation ──────────────────────────────────────────────
+\draw[phy, blue!50!green!70]
+    (So) to[bend right=40] (An)
+    node[midway, left=3pt, lbl, text=blue!50!green!70] {co-agg};
+
+% ─── medium → species ─────────────────────────────────────────────────────
+\draw[cns, gray!35] (mGlu) -- (So);
+\draw[cns, gray!35] (mGlu) to[bend left=7]  (An);
+\draw[cns, gray!35] (mGlu) to[bend left=12] (Fn);
+\draw[cns, gray!35] (mPro) to[bend left=4]  (So);
+\draw[cns, gray!35] (mPro) to[bend left=9]  (Pg);
+\draw[cns, gray!35] (mAA)  -- (An);
+\draw[cns, gray!35] (mAA)  to[bend left=7]  (Fn);
+\draw[cns, gray!35] (mAA)  to[bend left=11] (Pg);
+\draw[cns, gray!35] (mVit) to[bend right=4] (An);
+\draw[cns, gray!35] (mVit) -- (Vei);
+
+% ─── So → Formate, Lactate, Succinate ─────────────────────────────────────
+\draw[prd, blue!70!black] (So) -- (For);
+\draw[prd, blue!70!black] (So) -- (Lac);
+\draw[prd, blue!70!black] (So) to[bend right=7] (Suc);
+
+% ─── An → Lactate, Succinate ──────────────────────────────────────────────
+\draw[prd, green!60!black] (An) to[bend left=5] (Lac);
+\draw[prd, green!60!black] (An) -- (Suc);
+
+% ─── Lactate, Succinate → Vei ─────────────────────────────────────────────
+\draw[cns, orange!70!black] (Lac) -- (Vei);
+\draw[cns, orange!70!black] (Suc) to[bend right=5] (Vei);
+
+% ─── Vei → SCFA ───────────────────────────────────────────────────────────
+\draw[prd, orange!70!black] (Vei) -- (SCFA);
+
+% ─── Fn → SCFA (butyrate) ─────────────────────────────────────────────────
+\draw[prd, purple!60!black] (Fn) to[bend right=12] (SCFA);
+\node[lbl, text=purple!60!black] at (2.6, 1.9) {butyrate};
+
+% ─── SCFA / pH↑ → Pg ──────────────────────────────────────────────────────
+\draw[cns, red!60!black] (SCFA) to[bend left=12] (Pg);
+\node[lbl, text=red!60!black] at (1.45, 1.05) {pH benefit};
+
+% ─── Pg → Enz → Pep → Fn ─────────────────────────────────────────────────
+\draw[prd, red!70!black]    (Pg)  to[bend right=10] (Enz);
+\draw[prd, red!55!black]    (Enz) -- (Pep)
+    node[midway, right=2pt, lbl, text=red!45!black] {hydrolysis};
+\draw[cns, purple!60!black] (Pep) -- (Fn);
+
+% ─── Formate → Fn (confirmed C-source) ───────────────────────────────────
+\draw[cns, purple!50!black] (For) to[bend right=15] (Fn);
+\node[lbl, text=purple!50!black] at (1.5, 5.7) {C-source};
+
+% ─── unconfirmed species pairs ────────────────────────────────────────────
+\draw[gray!25, densely dotted] (So)  to[bend left=20]  (Pg);
+\draw[gray!25, densely dotted] (An)  to[bend right=24] (Pg);
+\draw[gray!25, densely dotted] (Vei) to[bend left=10]  (Fn);
+\draw[gray!25, densely dotted] (An)  to[bend left=10]  (Fn);
+
+% ─── legend (lower right, below teal box) ─────────────────────────────────
+\fill[white, rounded corners=3pt] (6.1, -2.6) rectangle (10.5, -0.4);
+\draw[gray!40, rounded corners=3pt, thin] (6.1, -2.6) rectangle (10.5, -0.4);
+\node[font=\tiny\bfseries, text=black!70] at (8.3, -0.65) {Legend};
+\draw[prd, black]              (6.3, -0.95) -- (6.95, -0.95);
+\node[lbl, anchor=west] at (7.05, -0.95) {metabolite production};
+\draw[cns, black]              (6.3, -1.35) -- (6.95, -1.35);
+\node[lbl, anchor=west] at (7.05, -1.35) {consumption\,/\,niche benefit};
+\draw[phy, black]              (6.3, -1.75) -- (6.95, -1.75);
+\node[lbl, anchor=west] at (7.05, -1.75) {co-aggregation (physical)};
+\draw[gray!30, densely dotted] (6.3, -2.15) -- (6.95, -2.15);
+\node[lbl, anchor=west] at (7.05, -2.15) {unconfirmed link};
+
 \end{tikzpicture}
-\end{minipage}%
-\hfill
-\begin{minipage}[t]{0.65\textwidth}
-\vspace{0pt}
-\small
-\begin{tabular}{@{}lll@{}}
+
+\smallskip
+\noindent\small
+\begin{tabular}{@{}llp{3.2cm}@{}}
 \toprule
-\textbf{Pair} & \textbf{Mechanism} & \textbf{Type}\\
+\textbf{Interaction} & \textbf{Via} & \textbf{Mechanism}\\
 \midrule
-So--An & Co-aggregation & Bidirectional\\
-So--Vei & Lactate exchange & Bidirectional\\
-So--Fn & Formate symbiosis & Bidirectional\\
-Vei$\to$Pg & pH elevation & Unidirectional\\
-Fn--Pg & Peptide supply & Bidirectional\\
+So\,$\leftrightarrow$\,An & ---            & Physical co-aggregation\\
+So\,$\to$\,Vei            & Lactate        & Fermentation substrate\\
+An\,$\to$\,Vei            & Lactate, succinate & Fermentation substrate\\
+So\,$\leftrightarrow$\,Fn & Formate        & Carbon source exchange\\
+Vei\,$\to$\,Pg            & SCFA / pH$\uparrow$ & Niche facilitation\\
+Fn\,$\leftrightarrow$\,Pg & Peptides\,/\,AA & Cooperative proteolysis\\
 \bottomrule
 \end{tabular}
-\captionof{table}{Experimentally confirmed species interactions~\cite{Heine2025PeriImplant}. All 20 parameters are estimated without a priori locking; the posterior concentrates near zero for biologically inactive pairs.}
-\label{tab:active}
-\end{minipage}
-\caption{Species interaction network~\cite{Heine2025PeriImplant}. Solid blue: experimentally confirmed pathways. Dotted grey: no known pathway, estimated freely---the posterior determines their magnitude.}
+
+\caption{Metabolite-mediated interaction network based on Heine et al.~\cite{Heine2025PeriImplant} (Fig.~4C and metabolic profiles).
+Left: five model species (coloured circles) with full names.
+Centre: extracellular metabolites (grey boxes) and enzymatic activity (orange, \textit{Pg}-derived proteases).
+Right: culture-medium substrates (teal).
+Solid arrows: metabolite production; dashed arrows: consumption or physiological benefit; dotted double-headed arrow: physical co-aggregation.
+Both So and An supply lactate and succinate to Vei, which ferments them to short-chain fatty acids (SCFA), raising local pH and promoting Pg growth.
+Pg-derived proteases hydrolyse (glyco)proteins into peptides and amino acids, fuelling Fn growth (cooperative Fn--Pg association).
+Grey dotted arrows between species: no confirmed metabolic pathway; all 20 interaction parameters are estimated freely---the posterior determines their magnitude.}
 \label{fig:network}
 \end{figure}
 
@@ -635,8 +743,8 @@ planktonic doubling times (1.68\,h commensal vs.\ 1.64\,h dysbiotic; Fig.~1B) co
 
 \paragraph{Cross-condition transferability.}
 To test whether the inferred matrices capture genuine condition-specific structure, we evaluate each MAP on every other condition's data (Table~\ref{tab:cross_prediction}).
-Within-state transfers yield low RMSE: DH$\to$DS achieves 0.044---\emph{lower than DS self-prediction} (0.062)---and CS$\to$CH yields 0.135 vs.\ CH self 0.168, indicating a shared interaction backbone within each health state.
-Cross-state transfers (DS$\to$CS: 0.273, CS$\to$DH: 0.244) degrade sharply, confirming that commensal and dysbiotic matrices are structurally distinct.
+Within-state commensal transfer achieves CS$\to$CH\,$=$\,0.098---\emph{below} CH self-prediction (0.104)---indicating a shared commensal interaction backbone that generalises across cultivation modes.
+Cross-state transfers (DS$\to$CS: 0.384, CS$\to$DH: 0.198) degrade sharply, confirming that commensal and dysbiotic matrices are structurally distinct.
 
 \begin{table}[htbp]
 \centering\small
@@ -644,13 +752,13 @@ Cross-state transfers (DS$\to$CS: 0.273, CS$\to$DH: 0.244) degrade sharply, conf
 \toprule
 Source $\backslash$ Target & CS & CH & DS & DH \\
 \midrule
-CS & \textbf{0.273} & 0.135 & 0.111 & 0.244 \\
-CH & 0.229 & \textbf{0.168} & 0.127 & 0.233 \\
-DS & 0.273 & 0.130 & \textbf{0.062} & 0.252 \\
-DH & 0.301 & 0.129 & 0.044 & \textbf{0.262} \\
+CS & \textbf{0.119} & 0.098 & 0.261 & 0.198 \\
+CH & 0.257 & \textbf{0.104} & 0.100 & 0.159 \\
+DS & 0.384 & 0.259 & \textbf{0.033} & 0.255 \\
+DH & 0.342 & 0.212 & 0.289 & \textbf{0.087} \\
 \bottomrule
 \end{tabular}
-\caption{Cross-condition prediction RMSE. Diagonal (bold): self-prediction. DH$\to$DS (0.044) outperforms DS self (0.062), confirming a shared dysbiotic backbone.}
+\caption{Cross-condition prediction RMSE. Diagonal (bold): self-prediction matches calibrated RMSE from 10000-particle TMCMC runs. CS$\to$CH (0.098) outperforms CH self-prediction (0.104), confirming a shared commensal interaction backbone across cultivation modes.}
 \label{tab:cross_prediction}
 \end{table}
 
@@ -670,7 +778,17 @@ The inferred interaction matrices map the commensal-to-dysbiotic transition quan
 In commensal states, So--An co-aggregation and So--Vei lactate exchange form a stable mutualistic core; the transition to dysbiosis activates cooperative Vei$\to$Pg and Fn$\to$Pg pathways whose strength is cultivation-dependent.
 The structural similarity within health states ($\rho_{\text{within}}>0$, Table~\ref{tab:pairwise}) contrasts with cross-state anticorrelations ($\rho_{\text{cross}}<0$), confirming that the health-to-disease shift is a topological reorganisation of the interaction network, not merely a magnitude rescaling.
 The full discovery approach---estimating all 20 parameters without a priori locking---allows the posterior to recover the biologically expected sparsity in commensal conditions as an emergent property.
-The cross-condition transferability analysis (Table~\ref{tab:cross_prediction}) strengthens this interpretation: within-state MAP parameters generalise across cultivation modes (DH$\to$DS RMSE\,$=$\,0.044, better than DS self-prediction), while cross-state transfers fail, confirming that the health-to-disease transition requires a genuinely different interaction matrix rather than parameter rescaling.
+The cross-condition transferability analysis (Table~\ref{tab:cross_prediction}) strengthens this interpretation: within-state MAP parameters generalise across cultivation modes (CS$\to$CH RMSE\,$=$\,0.098, below CH self-prediction of 0.104), while cross-state transfers (DS$\to$CS: 0.384) fail, confirming that the health-to-disease transition requires a genuinely different interaction matrix rather than parameter rescaling.
+
+\paragraph{In-vivo cross-cohort validation and strain-dependent interaction signs.}
+To test whether the inferred interaction structure generalises beyond controlled in-vitro conditions, we applied the framework to a 10-patient longitudinal in-vivo dataset~\cite{Dieckow2025InVivo}, distinct from the Heine cohort in both clinical context and specific strains employed---notably, the \textit{Veillonella} representatives correspond to \textit{V.~dispar} rather than the \textit{V.~parvula} used in Heine et al.
+A joint posterior over a shared $\mathbf{A}$ (15 parameters) and patient-specific growth vectors $\mathbf{b}^{(p)}$ ($5\times10=50$ parameters; total $d=65$) was inferred by GPU-accelerated TMCMC ($N_p=1{,}000$, RW mutation, two sequential two-week forward simulations per patient), yielding MAP RMSE\,$=$\,0.101 (flat prior) and 0.101 (Bergey sign prior) across all patients and prediction windows; the near-identical RMSE confirms that the sign prior shapes the interaction signs without degrading predictive accuracy.
+
+Comparing sign patterns across all five conditions (four Heine in-vitro, one Dieckow in-vivo), three mutualistic pairs are consistently positive in every condition: $a_{\mathrm{So,An}}$ (5/5), $a_{\mathrm{An,Vd}}$ (5/5), and $a_{\mathrm{Vd,Pg}}$ (5/5), establishing a robust mutualistic backbone that is conserved between in-vitro and in-vivo settings.
+By contrast, $a_{\mathrm{So,Vd}}$ is positive in all four Heine conditions but reverses sign in the Dieckow in-vivo fit ($a_{\mathrm{So,Vd}}=-2.94$), persisting even under the soft Bergey sign prior.
+This reversal is consistent with the strain substitution: \textit{V.~parvula} grows aerobically on lactate~\cite{Bergey2009}, sustaining the So$\to$Vei cross-feeding observed in vitro, whereas \textit{V.~dispar} exhibits a distinct metabolic profile~\cite{Rogosa1965Veillonella} and appears to compete with \textit{So} under in-vivo conditions.
+The Bergey sign prior (half-normal penalty, $\sigma=0.3$, for signs contradicting the Dieckow SI metabolic network) recovered the expected positive sign for $a_{\mathrm{Vd,Pg}}$ ($-0.94\to+0.57$) but was overridden by the data signal for $a_{\mathrm{So,Vd}}$, suggesting this sign reversal is not an artefact of limited data but reflects a genuine ecological shift under in-vivo conditions.
+Finally, $a_{\mathrm{So,Pg}}$ is negative only in the DH condition (Pg W83 virulent strain) and positive in all other settings---a pattern reproduced in the in-vivo fit---confirming that H$_2$O$_2$-mediated \textit{So}$\to$\textit{Pg} inhibition is strain-specific and not a universal feature of the So--Pg interaction.
 
 \paragraph{Fix-$\psi$ approximation and Phase~2.}
 Eqs.~\eqref{eq:phi}--\eqref{eq:psi_evol} couple $\phi_i$ and $\psi_i$ through the interaction matrix.
@@ -731,7 +849,7 @@ Effective dimensionality analysis confirms that all 20 parameters are data-infor
 \item Integration with continuum PDE models for spatially resolved inference~\cite{Klempt2025ContinuumBiofilm}.
 \item Surrogate-accelerated TMCMC with Bayesian neural operators~\cite{AlphaVIDeepONet2025} for larger particle ensembles.
 \item Virtual element discretisation~\cite{Klempt2024ContinuumGrowth} for conformal biofilm--implant interface meshing.
-\item External validation against independent in-vitro datasets (e.g.\ Sanz-Martin et al.\ 6-species protocol).
+\item Extension to six-species communities using the independent Siddiqui et al.~\cite{Siddiqui2021Biofilm} 21-day titanium surface dataset, which includes \textit{Aggregatibacter actinomycetemcomitans} absent from the current five-species model.
 \end{itemize}
 
 %==============================================================================

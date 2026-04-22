@@ -318,8 +318,8 @@ We fitted a generalised Lotka-Volterra (gLV) replicator model to the 10-guild ti
 \quad \bar{f} = \textstyle\sum_k \varphi_k\!\left(\sum_j A_{kj}\,\varphi_j + b_k^{(p)}\right),
 \label{eq:glv}
 \end{equation}
-with a shared $10\times10$ interaction matrix $A$ and patient-specific intrinsic rates $b^{(p)}$ optimised by JAX Adam (5{,}000 epochs, lr\,$=0.003$, $\ell_2$ regularisation $\lambda=10^{-3}$) with self-limitation constraints ($A_{ii}\le 0$).
-Predictions of weeks~2 and~3 starting from week~1 give RMSE\,$= 0.055$ and Pearson $r = 0.954$ (Fig.\,\ref{fig:guild_A}).
+with a shared $10\times10$ interaction matrix $A$ and patient-specific intrinsic rates $b^{(p)}$ optimised by scipy L-BFGS-B (5 multi-starts: warm\,$+$\,4 random, $\ell_2$ regularisation $\lambda=10^{-4}$) with self-limitation constraints ($A_{ii}\le 0$).
+Predictions of weeks~2 and~3 starting from week~1 give RMSE\,$= 0.050$ and Pearson $r = 0.963$ (Fig.\,\ref{fig:guild_A}).
 
 The strongest inferred interaction is Actinobacteria$\to$Bacilli ($A = +0.38$), consistent with the well-established co-aggregation of \textit{Actinomyces} bridging species and early \textit{Streptococcus} colonisers~\cite{Kolenbrander2010OralMultispecies}.
 Betaproteobacteria$\to$Actinobacteria is negative ($A = -0.20$), suggesting competitive displacement by \textit{Neisseria}-class taxa under aerobic early-colonisation conditions.
@@ -327,7 +327,7 @@ Betaproteobacteria$\to$Actinobacteria is negative ($A = -0.20$), suggesting comp
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig7_guild_Amatrix.pdf}
-\caption{Left: inferred $10\times10$ guild interaction matrix (red\,$=$ positive, blue\,$=$ negative). Right: observed vs predicted relative abundance for weeks~2 and~3 ($r = 0.954$, RMSE\,$= 0.055$).}
+\caption{Left: inferred $10\times10$ guild interaction matrix (red\,$=$ positive, blue\,$=$ negative). Right: observed vs predicted relative abundance for weeks~2 and~3 ($r = 0.963$, RMSE\,$= 0.050$).}
 \label{fig:guild_A}
 \end{figure}
 
@@ -379,7 +379,7 @@ The 10-guild gLV model captures this distinction directly: the inferred Actinoba
 The negative Betaproteobacteria$\to$Actinobacteria coefficient ($A=-0.20$) is biologically plausible: \textit{Neisseria} spp.\ produce hydrogen peroxide and bacteriocin-like inhibitory substances that suppress \textit{Actinomyces} growth under aerobic early-colonisation conditions~\cite{Kolenbrander2010OralMultispecies}.
 That CT2 patients (higher Betaproteobacteria) show lower Actinobacteria over time is consistent with this mechanism.
 
-The guild model achieves $r=0.954$ in predicting week-2 and week-3 compositions from week-1 initial conditions---comparable to the five-species Hamilton self-fit RMSE of 0.101 on a different (in-vitro) dataset.
+The guild model achieves $r=0.963$ (RMSE\,$=0.050$) in predicting week-2 and week-3 compositions from week-1 initial conditions---comparable to the five-species Hamilton self-fit RMSE of 0.101 on a different (in-vitro) dataset.
 This demonstrates that a class-level aggregation retains most of the predictive signal while covering 100\% of sequenced reads.
 
 \paragraph{Metabolic potential vs.\ realised dynamics: comparison with Supp.\ File~1.}
@@ -395,7 +395,7 @@ Such a divergence between metabolic-potential and realised-dynamics networks und
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig9_guild_vs_suppfile1.pdf}
-\caption{Comparison of inferred guild A matrix with Dieckow Supp.\ File~1 predicted interactions. Left: inferred A matrix (JAX Adam, RMSE\,=\,0.055). Centre: net metabolite-flow score from Supp.\ File~1 (positive = net PRODUCES$\to$USES; negative = net PRODUCES$\to$IS\_INHIBITED\_BY). Right: sign agreement (green\,=\,agree, red\,=\,disagree, grey\,=\,no Supp.\ File~1 prediction). Of 18 predicted pairs, 8 agree and 10 disagree.}
+\caption{Comparison of inferred guild A matrix with Dieckow Supp.\ File~1 predicted interactions. Left: inferred A matrix (L-BFGS-B, RMSE\,=\,0.050). Centre: net metabolite-flow score from Supp.\ File~1 (positive = net PRODUCES$\to$USES; negative = net PRODUCES$\to$IS\_INHIBITED\_BY). Right: sign agreement (green\,=\,agree, red\,=\,disagree, grey\,=\,no Supp.\ File~1 prediction). Of 18 predicted pairs, 8 agree and 10 disagree.}
 \label{fig:sf1cmp}
 \end{figure}
 
@@ -418,7 +418,7 @@ The key findings are:
 \item \textbf{Strain-dependent sign reversal.} The negative An--Vd coefficient in the in-vivo fit is consistent with the \textit{V.~dispar} (in-vivo) vs.\ \textit{V.~parvula} (in-vitro) substitution, demonstrating that the model is sensitive to ecologically meaningful strain-level differences.
 \item \textbf{Robust mutualistic backbone.} Three pairs (So--An, Vd--Pg, Fn--Pg) are positive in all five conditions tested, establishing conserved mutualities of the peri-implant ecosystem.
 \item \textbf{Two community types.} Ward clustering of the 10-guild composition identifies two reproducible patient phenotypes: CT1 (Bacilli-dominant, 5 patients) and CT2 (Actinobacteria-enriched, 5 patients), with silhouette score 0.59.
-\item \textbf{Guild-level gLV.} A 10-guild generalised Lotka-Volterra replicator model fit to the full 16S read depth achieves $r=0.954$ (RMSE\,$=0.055$) in week-2/3 prediction, with Actinobacteria$\to$Bacilli ($A=+0.38$) as the dominant positive driver.
+\item \textbf{Guild-level gLV.} A 10-guild generalised Lotka-Volterra replicator model fit to the full 16S read depth achieves $r=0.963$ (RMSE\,$=0.050$) in week-2/3 prediction, with Actinobacteria$\to$Bacilli as the dominant positive driver.
 \end{enumerate}
 
 \paragraph{Future work.}
