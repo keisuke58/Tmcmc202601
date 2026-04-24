@@ -207,15 +207,19 @@ def _newton_step(g_prev, params):
     return g_final
 
 
-def _make_initial_state(phi_init, n_sp, active_mask):
+def _make_initial_state(phi_init, n_sp, active_mask, psi_init=0.999):
     phi = jnp.asarray(phi_init, dtype=jnp.float64)
     if phi.ndim == 0 or phi.size == 1:
         phi = jnp.full(n_sp, float(phi.flat[0]))
     phi = jnp.where(active_mask == 1, phi, 0.0)
-    phi_sum = jnp.minimum(jnp.sum(phi), 0.999999)
-    phi = phi * (0.999999 / phi_sum)
+    phi_sum = jnp.sum(phi)
+    # Only renormalise if sum > 1 (safety cap). If sum < 1, preserve phi0 = 1 - sum
+    # so that CLSM-derived occupancy (phi_rel * occ_norm) propagates to phi0.
+    phi = jnp.where(phi_sum > 0.999999, phi * (0.999999 / phi_sum), phi)
     phi0 = 1.0 - jnp.sum(phi)
-    psi = jnp.where(active_mask == 1, 0.999, 0.0)
+    # psi_init: scalar (0,1) — CLSM PerLive fraction or default 0.999
+    psi_val = jnp.clip(jnp.asarray(psi_init, dtype=jnp.float64), 1e-4, 0.9999)
+    psi = jnp.where(active_mask == 1, psi_val, 0.0)
     return jnp.concatenate([phi, phi0[jnp.newaxis], psi, jnp.array([0.0])])
 
 
@@ -225,6 +229,7 @@ def simulate_0d_nsp(
     n_steps=2500,
     dt=1e-4,
     phi_init=None,
+    psi_init=0.999,
     K_hill=0.0,
     n_hill=2.0,
     c_const=25.0,
@@ -256,7 +261,7 @@ def simulate_0d_nsp(
 
     if phi_init is None:
         phi_init = jnp.full(n_sp, 1.0 / n_sp)
-    g0 = _make_initial_state(phi_init, n_sp, active_mask)
+    g0 = _make_initial_state(phi_init, n_sp, active_mask, psi_init=psi_init)
 
     if hill_gate_species is None:
         hill_gate_species = (-1, 0)  # disabled
