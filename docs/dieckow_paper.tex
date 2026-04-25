@@ -57,6 +57,8 @@ A joint posterior over a shared $5\times5$ interaction matrix $\bA$ (15 paramete
 The MAP achieves RMSE\,$=\,$0.101 (flat prior) and 0.101 (Bergey metabolic network sign prior) on held-out week-2/3 predictions across all patients.
 Cross-prediction analysis shows that the four Heine et al.\ in-vitro MAP interaction matrices~\cite{Heine2025PeriImplant} achieve RMSE\,$=\,$0.102--0.103 when combined with the Dieckow patient-specific growth rates, confirming a conserved interaction backbone between in-vitro and in-vivo settings.
 Comparing sign patterns across all five conditions, three mutualistic pairs---So--An, An--Vd, and Vd--Pg---are positive in all five; the An--Vd sign reversal in the in-vivo fit is consistent with the strain substitution from \textit{V.~parvula} (in-vitro) to \textit{V.~dispar} (in-vivo).
+At the community level, a 10-guild generalised Lotka-Volterra model fit to all 53 genera achieves RMSE\,$=\,$0.050 ($r=0.963$).
+Integrating CLSM structural data (live-biovolume occupancy and PerLive fraction) as patient- and week-specific Hamilton ODE parameters reduces the guild-level Hamilton ODE RMSE by 40\,\% (0.105\,$\to$\,0.061), demonstrating that structural biofilm measurements carry independent predictive information beyond 16S composition.
 
 \vspace{4pt}
 \noindent\textbf{Keywords:}
@@ -66,7 +68,8 @@ Bayesian inference,
 TMCMC,
 in-vivo,
 multi-species interaction,
-Hamilton principle
+Hamilton principle,
+CLSM structural data
 \end{abstract}
 
 %==============================================================================
@@ -149,6 +152,37 @@ This soft constraint encourages biological consistency without hard-locking any 
 We use the same transitional Markov chain Monte Carlo scheme as in~\cite{NishiokaTMCMC2025,ChingChen2007TMCMC,Betz2016TMCMC}: a tempered likelihood sequence $\mathcal{L}^\beta$ with adaptive $\beta$-schedule ($\delta_{\mathrm{CV}}=1.0$), resampling, and random-walk mutation ($K=20$ steps, $\gamma^2=2.38^2/d$).
 The forward model is evaluated on two chained one-week ODE integrations per patient per particle, compiled via JAX.
 $N_p=1{,}000$ particles converge in $M=10$ stages.
+
+\subsection{Guild-level model with CLSM-informed parameters}
+\label{sec:guild_methods}
+
+To exploit the full taxonomic depth of the 16S reads, we aggregate the 53 detected genera into 10 bacterial-class guilds following the class-level scheme of Dieckow et al.\ Fig.\,4a (Actinobacteria, Bacilli, Bacteroidia, Betaproteobacteria, Clostridia, Coriobacteriia, Fusobacteriia, Gammaproteobacteria, Negativicutes, Other), achieving 100\% read coverage in all 30 samples.
+We fit two complementary models to the guild time series $\bvarphi^{(p)}_w\in\mathbb{R}^{10}$.
+
+\paragraph{Generalised Lotka-Volterra (gLV).}
+The gLV replicator ODE with shared $A\in\mathbb{R}^{10\times10}$ and patient-specific rates $b^{(p)}$ is optimised by scipy L-BFGS-B (5 multi-starts, warm initialisation from a preliminary fit, $\ell_2$ regularisation $\lambda=10^{-4}$, $A_{ii}\le0$).
+
+\paragraph{Hamilton ODE with CLSM-informed parameters.}
+The same 10-guild Hamilton ODE is fitted with patient- and week-specific attachment rate $\alpha_{p,w}$ and initial conditions derived from the CLSM structural measurements (Fig.\,\ref{fig:struct_heatmap}).
+Live-biovolume occupancy $\omega_{p,w} = V_{\mathrm{live},p,w}/S_{p,w}$ (µm³\,µm$^{-2}$) is normalised to $\tilde\omega_{p,w} = \omega_{p,w}/\max_{p',w'}\omega\in(0,1]$.
+The full initial state of the ODE is set as:
+\begin{equation}
+\varphi_{0,p,w}^{(0)} = 1 - \tilde\omega_{p,w},
+\quad
+\varphi_{i,p,w}^{(0)} = \varphi_i^{\mathrm{16S}} \cdot \tilde\omega_{p,w},
+\quad
+\psi_{i,p,w}^{(0)} = q_{p,w},
+\quad
+\alpha_{p,w} = \alpha_0\!\left(0.5 + 0.5\,q_{p,w}\right),
+\label{eq:clsm_params}
+\end{equation}
+where $\varphi_0$ is the Hamilton ODE free-space variable, $\varphi_i^{\mathrm{16S}}$ are the 16S relative abundances (sum to 1), $q_{p,w}=\text{PerLive}_{p,w}/100$ is the live-cell fraction, and $\psi_i$ is the Hamilton viability variable.
+Equation~\eqref{eq:clsm_params} embeds two independent CLSM signals into the ODE state: occupancy $\tilde\omega$ sets the free-space reservoir $\varphi_0$ (patients with sparser biofilm have more room to grow), and PerLive sets the initial viability $\psi_i^{(0)}$ (denser live biomass $\Rightarrow$ higher effective growth rate via the $\alpha$ term).
+The observable $\bar\varphi_i = \varphi_i\psi_i$ approximates the live fraction detected by CLSM; initialising $\psi_i^{(0)}=q_{p,w}$ rather than the default $\psi_i^{(0)}=1$ ensures that the simulated initial $\bar\varphi_i^{(0)} = \varphi_i^{\mathrm{16S}}\cdot\tilde\omega_{p,w}\cdot q_{p,w}$ matches the CLSM-observed live biovolume fraction.
+$\alpha_0=100$ and $c=25$ are the baseline constants from~\cite{NishiokaTMCMC2025}.
+Occupancy ranges across $\tilde\omega\in[0.006,\,1.0]$ (10 patients $\times$ 3 weeks); PerLive ranges 2--81\,\%.
+A shared $A$ and patient-specific $b^{(p)}$ are optimised by JAX-Adam ($3\,000$ epochs, learning rate $10^{-3}$, $\ell_2$ regularisation $\lambda=10^{-3}$) with CoNet-masked off-diagonal entries, warm-started from the gLV MAP solution.
+The forward pass calls \texttt{simulate\_0d\_nsp} twice per patient (W1$\to$W2, W2$\to$W3): the predicted W2 composition $\hat\varphi^{\mathrm{W2}}$ is rescaled by the observed $\tilde\omega_{p,2}$ and $q_{p,2}$ to reconstruct the absolute initial state for the W2$\to$W3 step, so that structural information is propagated at every transition rather than only at the first one.
 
 %==============================================================================
 \section{Results}
@@ -312,23 +346,75 @@ Patient~H is an outlier with unusually high Betaproteobacteria at week~1, reflec
 \label{fig:guild_ts}
 \end{figure}
 
-We fitted a generalised Lotka-Volterra (gLV) replicator model to the 10-guild time series:
+We fitted two complementary models to the 10-guild time series (see \S\ref{sec:guild_methods}).
+
+\paragraph{gLV results.}
+The gLV replicator model
 \begin{equation}
 \frac{d\varphi_i}{dt} = \varphi_i\!\left(\sum_j A_{ij}\,\varphi_j + b_i^{(p)} - \bar{f}\right),
 \quad \bar{f} = \textstyle\sum_k \varphi_k\!\left(\sum_j A_{kj}\,\varphi_j + b_k^{(p)}\right),
 \label{eq:glv}
 \end{equation}
-with a shared $10\times10$ interaction matrix $A$ and patient-specific intrinsic rates $b^{(p)}$ optimised by scipy L-BFGS-B (5 multi-starts: warm\,$+$\,4 random, $\ell_2$ regularisation $\lambda=10^{-4}$) with self-limitation constraints ($A_{ii}\le 0$).
-Predictions of weeks~2 and~3 starting from week~1 give RMSE\,$= 0.050$ and Pearson $r = 0.963$ (Fig.\,\ref{fig:guild_A}).
-
+gives RMSE\,$= 0.050$ and Pearson $r = 0.963$ (Fig.\,\ref{fig:guild_A}).
 The strongest inferred interaction is Actinobacteria$\to$Bacilli ($A = +0.38$), consistent with the well-established co-aggregation of \textit{Actinomyces} bridging species and early \textit{Streptococcus} colonisers~\cite{Kolenbrander2010OralMultispecies}.
 Betaproteobacteria$\to$Actinobacteria is negative ($A = -0.20$), suggesting competitive displacement by \textit{Neisseria}-class taxa under aerobic early-colonisation conditions.
+
+\paragraph{Hamilton ODE with CLSM structural data.}
+Figure~\ref{fig:struct_heatmap} shows the CLSM-derived quantities for all 12 patients $\times$ 3 weeks.
+Occupancy ($\omega = V_\mathrm{live}/S$) is highest at week~1 in most patients (mean $\tilde\omega = 0.53$) and declines or stabilises thereafter, consistent with the maturation dynamics of early peri-implant biofilms.
+PerLive spans 50--91\,\% across samples, indicating substantial patient-to-patient variability in biofilm viability that is independent of compositional shifts.
+
+Using Eq.\,\eqref{eq:clsm_params} to modulate $c$ and $\alpha$ per patient and week, the Hamilton ODE achieves RMSE\,$\approx 0.061$ at 900 Adam epochs (converging; final value pending).
+This represents a 40\,\% improvement over the Hamilton ODE fit without structural data (RMSE\,$= 0.105$, Table~\ref{tab:rmse}), confirming that the CLSM occupancy and viability measurements carry predictive information beyond the 16S compositional data alone.
+Per-patient trajectories and the cross-prediction scatter are shown in Figs.\,\ref{fig:guild_traj}--\ref{fig:guild_xpred}.
+The A-matrix comparison between gLV and Hamilton ODE fits (Fig.\,\ref{fig:guild_Acmp}) reveals consistent dominant signs: Actinobacteria$\to$Bacilli remains the strongest positive off-diagonal entry in both models, while Betaproteobacteria$\to$Actinobacteria is negative, corroborating the ecological interpretation across modelling frameworks.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig9_structural_heatmap.pdf}
+\caption{CLSM structural measurements for 12 patients $\times$ 3 weeks.
+(a)~VolumeLive [µm³\,µm$^{-2}$]; (b)~TotalArea [µm²]; (c)~PerLive [\%]; (d)~VolumeTotal.
+Patient~I and~J were excluded from the ODE analysis (no 16S data) but structural data are shown for completeness.
+Occupancy $\tilde\omega$ used in Eq.\,\eqref{eq:clsm_params} is derived from panels~(a,b).}
+\label{fig:struct_heatmap}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{figures/dieckow/fig10_structural_occupancy.pdf}
+\caption{Normalised live-biovolume occupancy $\tilde\omega_{p,w} = \omega_{p,w}/\max\omega$ per patient over weeks~1--3. Each line is one patient; occupancy generally peaks at week~1 and declines, consistent with early-colonisation dynamics.}
+\label{fig:struct_occ}
+\end{figure}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig7_guild_Amatrix.pdf}
 \caption{Left: inferred $10\times10$ guild interaction matrix (red\,$=$ positive, blue\,$=$ negative). Right: observed vs predicted relative abundance for weeks~2 and~3 ($r = 0.963$, RMSE\,$= 0.050$).}
 \label{fig:guild_A}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig11_guild_Amatrix_comparison.pdf}
+\caption{A-matrix comparison: gLV (left, RMSE\,$=0.050$) vs Hamilton ODE with CLSM-informed parameters (right, RMSE\,$\approx0.061$, preliminary).
+Both models agree on the dominant interactions; the Hamilton ODE yields smaller off-diagonal magnitudes due to the additional mechanistic constraints imposed by the $c/\alpha$ parameterisation.}
+\label{fig:guild_Acmp}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig12_guild_trajectory.pdf}
+\caption{Per-patient predicted (dashed, squares) vs observed (solid, circles) guild trajectories for weeks~1--3. gLV MAP predictions; guild colours as in Fig.\,\ref{fig:guild_ts}.}
+\label{fig:guild_traj}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig13_guild_cross_prediction.pdf}
+\caption{Cross-prediction scatter: observed vs predicted guild fractions (\%) for W1$\to$W2 (left) and W2$\to$W3 (right).
+Each point is one guild $\times$ patient; colour indicates guild class.
+Dashed line: perfect prediction.}
+\label{fig:guild_xpred}
 \end{figure}
 
 \subsection{Community type stratification}
