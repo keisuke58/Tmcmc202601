@@ -100,7 +100,8 @@ A 10-guild gLV achieves $r=0.963$ covering 100\% of sequenced reads, and integra
 Dieckow et al.~\cite{Dieckow2025InVivo} characterised the early peri-implant biofilm of 10 patients (A--L, excluding I and J) over three weekly time points using combined CLSM microscopy and full-length 16S rRNA sequencing.
 We aggregate the 16S compositional data to the five species present in the Hamilton model: \textit{Streptococcus oralis} (So), \textit{Actinomyces naeslundii} (An), \textit{Veillonella} spp.\ (Vd, here \textit{V.~dispar}), \textit{Fusobacterium nucleatum} (Fn), and \textit{Porphyromonas gingivalis} (Pg).
 Relative abundances are normalised to unit sum at each time point; week~1 serves as the initial condition for ODE integration.
-All 10 patients have complete data at all three weeks.
+Eight patients (A--C, E--H, K) have complete 16S data at all three weekly time points.
+Patients~D and~L have incomplete time series (D: week~2 only; L: week~3 only) and are included in the gLV full-cohort fit (which skips missing transitions) but excluded from the Hamilton ODE analysis and leave-one-out cross-validation, which require a week-1 initial condition.
 
 A critical ecological difference from the Heine et al.\ in-vitro study is the \textit{Veillonella} strain: the in-vitro inoculum uses \textit{V.~parvula}, whereas the Dieckow in-vivo community contains primarily \textit{V.~dispar}.
 These two species have distinct metabolic profiles~\cite{Rogosa1965Veillonella}: \textit{V.~parvula} grows aerobically on lactate produced by \textit{S.~oralis}, whereas \textit{V.~dispar} exhibits reduced lactate utilisation under the same conditions, with potential competitive overlap with \textit{S.~oralis} for available carbon sources.
@@ -418,7 +419,8 @@ Train RMSE: in-sample fit on all 8 patients.
 LOO-CV RMSE: leave-one-patient-out mean (held-out patient; shared $A$ fit on 7, patient-specific $b$ fit on held-out).
 All fits use 8 patients $\times$ 3 weeks (W1$\to$W2 and W2$\to$W3 predictions, 11 guilds unless noted).
 Hamilton ODE without structural data uses 10 guilds.
-$^\dagger$Approximate LOO (shared $A$ fixed from full-cohort fit; patient-specific $b$ re-fitted from W1$\to$W2): Hamilton ODE (no struct) estimated by train/LOO ratio; Hamilton+CLSM based on running computation (patient A LOO\,$=0.132$).}
+$^\dagger$Approximate LOO (shared $A$ fixed from full-cohort fit; patient-specific $b$ re-fitted from W1$\to$W2; 8 patients A--C, E--H, K): Hamilton+CLSM value is the completed 8-patient computation; Hamilton (no struct) is estimated from the train/LOO ratio of Hamilton+CLSM ($1.43\times$).
+Note: gLV LOO is a proper LOO ($A$ re-fitted on 7 patients); Hamilton LOO is approximate ($A$ fixed), so the two values are not directly comparable.}
 \label{tab:rmse_guild}
 \begin{tabular}{@{}llccl@{}}
 \toprule
@@ -426,8 +428,8 @@ $^\dagger$Approximate LOO (shared $A$ fixed from full-cohort fit; patient-specif
 \midrule
 gLV (L-BFGS-B, 5 starts)            & 11 & 0.050 & 0.059 & none\\
 gLV + struct (PerLive-scaled $b$)    & 11 & 0.060 & 0.059 & $q_{p,w}$ only\\
-Hamilton ODE (no struct)             & 10 & 0.105 & $\sim$0.20$^\dagger$ & none\\
-Hamilton ODE + CLSM (this work)      & 11 & \textbf{0.060} & $\sim$0.13$^\dagger$ & $\tilde\omega$, $q_{p,w}$, $\alpha$\\
+Hamilton ODE (no struct)             & 10 & 0.105 & $\sim$0.15$^\dagger$ & none\\
+Hamilton ODE + CLSM (this work)      & 11 & \textbf{0.060} & \textbf{0.086}$^\dagger$ & $\tilde\omega$, $q_{p,w}$, $\alpha$\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -435,12 +437,23 @@ Hamilton ODE + CLSM (this work)      & 11 & \textbf{0.060} & $\sim$0.13$^\dagger
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig15_loo_cv.pdf}
-\caption{Leave-one-patient-out cross-validation RMSE for gLV\,+\,struct.
+\caption{Leave-one-patient-out cross-validation RMSE for gLV (proper LOO: $A$ re-fitted on 7 patients).
 Solid bars: held-out patient RMSE; hatched bars: train RMSE on the remaining 7 patients.
 Blue: CT1 patients (E, G, K); orange: CT2 patients (A, B, C, F, H).
+Patients D and L are excluded due to incomplete time series.
 Dashed line: mean LOO-CV RMSE\,$= 0.059$.
-Patient~A and~B show the highest held-out RMSE ($\approx 0.092$), consistent with their atypical CT2 compositions; patients~C, E, and~F generalise well ($\leq 0.046$).}
+Patients~A and~B show the highest held-out RMSE ($\approx 0.092$), consistent with their CT2 compositions; patients~C, E, and~F generalise well ($\leq 0.046$).}
 \label{fig:loo_cv}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig_loo_comparison.pdf}
+\caption{Per-patient LOO-CV RMSE comparison between gLV (solid bars, proper LOO: $A$ re-fitted on 7 patients) and Hamilton+CLSM (hatched bars, approximate LOO: $A$ fixed from full-cohort fit).
+Blue: CT1 patients (E, G, K); orange: CT2 patients (A, B, C, F, H).
+Horizontal lines: cohort means (gLV: 0.059; Hamilton: 0.086).
+CT2 patients consistently show higher LOO errors in both models (gLV CT2\,$=0.064$, CT1\,$=0.051$; Hamilton CT2\,$=0.099$, CT1\,$=0.063$), indicating that the more diverse CT2 community is harder to generalise from limited training data.}
+\label{fig:loo_cmp}
 \end{figure}
 
 \begin{figure}[htbp]
@@ -523,7 +536,7 @@ CT1 patients may correspond to a Streptococcus-dominant pioneer community, while
 \end{figure}
 
 \paragraph{CT-stratified interaction matrices.}
-To test whether the shared interaction matrix $A$ is consistent across community types, we fit separate gLV models on the CT1 subset (patients E, G, K; $n=3$) and the CT2 subset (patients A, B, C, F, H; $n=5$), using the full-cohort $A$ as warm start.
+To test whether the shared interaction matrix $A$ is consistent across community types, we fit separate gLV models on the CT1 subset (patients E, G, K; $n=3$; patients D and L are CT1 by clustering but lack complete three-week data) and the CT2 subset (patients A, B, C, F, H; $n=5$), using the full-cohort $A$ as warm start.
 Both subsets achieve in-sample RMSE comparable to the full-cohort fit ($\text{CT1}: 0.050$; $\text{CT2}: 0.065$), confirming model adequacy within each group.
 The difference matrix $\Delta A = A_{\text{CT2}} - A_{\text{CT1}}$ (Fig.\,\ref{fig:ct_Amat}) reveals the largest CT-specific shifts in interactions involving Bacteroidia (Prevotella/Porphyromonas) and Bacilli.
 In CT2, Bacteroidia exerts a strong negative effect on Actinobacteria ($\Delta A = -1.98$) and a positive effect on Bacilli ($\Delta A = +1.74$), while Betaproteobacteria enhances its competitive inhibition of Actinobacteria ($\Delta A = -1.02$).
@@ -649,6 +662,9 @@ The gLV replicator is constrained to the $(N-1)$-simplex ($\sum_i\varphi_i = 1$)
 The Hamilton ODE instead evolves $\varphi_0 = 1 - \tilde\omega$ as a dynamical variable; initialising from $\tilde\omega$ directly encodes the amount of colonisable free space, and low occupancy weeks naturally produce a larger $\varphi_0$ that decelerates competitive exclusion dynamics.
 The failure of gLV\,+\,struct also rules out the simpler explanation that the gain is purely due to the PerLive growth-rate modulation, establishing the free-space channel as the dominant mechanism.
 Leave-one-patient-out cross-validation confirms that gLV generalises well (LOO-CV RMSE\,$= 0.059$, vs.\ train RMSE\,$= 0.050$), and the PerLive scaling provides no additional gain in generalisation (gLV\,+\,struct LOO-CV\,$= 0.059$), consistent with the free-space interpretation.
+For the Hamilton+CLSM model, the approximate LOO-CV (shared $A$ fixed from full-cohort fit) yields mean RMSE\,$= 0.086$, compared with a train RMSE of 0.060 (Fig.\,\ref{fig:loo_cmp}).
+CT1 patients (E, G, K) generalise better than CT2 (mean LOO: 0.063 vs.\ 0.099), mirroring the gLV pattern (CT1\,$= 0.051$; CT2\,$= 0.064$) and consistent with the greater compositional diversity of CT2 communities.
+The Hamilton RMSE gap (train\,0.060 vs.\ LOO\,0.086) is larger than the gLV gap (0.050 vs.\ 0.059), partly reflecting the approximate LOO definition (fixing $A$ introduces optimism) and partly the larger per-parameter information demand of the Hamilton ODE, which requires both occupancy and viability data calibrated jointly.
 
 \paragraph{Metabolic potential vs.\ realised dynamics: comparison with Supp.\ File~1.}
 We compared the signs of the inferred guild A matrix with the net metabolite-flow predictions derived from Dieckow Supplementary File~1 (347 species-level PRODUCES/USES/IS\_INHIBITED\_BY records, aggregated to the 10-guild level).
@@ -688,6 +704,7 @@ The key findings are:
 \item \textbf{Two community types.} Ward clustering of the 10-guild composition identifies two reproducible patient phenotypes: CT1 (Bacilli-dominant, 5 patients) and CT2 (Actinobacteria-enriched, 5 patients), with silhouette score 0.59.
 \item \textbf{Guild-level gLV.} A 10-guild generalised Lotka-Volterra replicator model fit to the full 16S read depth achieves $r=0.963$ (RMSE\,$=0.050$) in week-2/3 prediction, with Actinobacteria$\to$Bacilli as the dominant positive driver.
 \item \textbf{CLSM structural data reduce Hamilton ODE error by 43\,\%.} Incorporating live-biovolume occupancy $\tilde\omega$ and PerLive fraction $q_{p,w}$ as patient-specific initial conditions reduces guild-level Hamilton ODE RMSE from 0.105 to 0.060 (Table~\ref{tab:rmse_guild}).
+The approximate LOO-CV for Hamilton+CLSM yields mean RMSE\,$= 0.086$, with CT1 patients (0.063) generalising better than CT2 (0.099).
 The same PerLive signal does not help gLV (RMSE: 0.050\,$\to$\,0.060), identifying the free-space variable~$\varphi_0$ as the dominant information carrier and a Hamilton-specific advantage over simplex-constrained models.
 \end{enumerate}
 
