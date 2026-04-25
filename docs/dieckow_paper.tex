@@ -372,6 +372,24 @@ This asymmetry confirms that the free-space channel ($\varphi_0 = 1 - \tilde\ome
 Per-patient trajectories and the cross-prediction scatter are shown in Figs.\,\ref{fig:guild_traj}--\ref{fig:guild_xpred}.
 The A-matrix comparison between gLV and Hamilton ODE fits (Fig.\,\ref{fig:guild_Acmp}) reveals consistent dominant signs: Actinobacteria$\to$Bacilli remains the strongest positive off-diagonal entry in both models, while Betaproteobacteria$\to$Actinobacteria is negative, corroborating the ecological interpretation across modelling frameworks.
 
+\begin{table}[htbp]
+\centering\small
+\caption{RMSE comparison across models and data integration strategies.
+All fits use 8 patients $\times$ 3 weeks (W1$\to$W2 and W2$\to$W3 predictions, 11 guilds unless noted).
+Hamilton ODE without structural data uses 10 guilds (two guilds absent from the JAX solver initialisation).}
+\label{tab:rmse}
+\begin{tabular}{@{}llcl@{}}
+\toprule
+\textbf{Model} & \textbf{Guilds} & \textbf{RMSE} & \textbf{Structural data used}\\
+\midrule
+gLV (L-BFGS-B, 5 starts)            & 11 & 0.050 & none\\
+gLV + struct (PerLive-scaled $b$)    & 11 & 0.060 & $q_{p,w}$ only\\
+Hamilton ODE (no struct)             & 10 & 0.105 & none\\
+Hamilton ODE + CLSM (this work)      & 11 & \textbf{0.060} & $\tilde\omega$, $q_{p,w}$, $\alpha$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig9_structural_heatmap.pdf}
@@ -439,6 +457,56 @@ CT1 patients may correspond to a Streptococcus-dominant pioneer community, while
 \includegraphics[width=\textwidth]{figures/dieckow/fig8_community_types.pdf}
 \caption{Community type analysis. (a) Ward dendrogram of 10 patients by mean 10-guild composition. (b) Silhouette scores; $k=2$ selected. (c) Mean guild composition per CT. (d) Per-patient composition sorted by CT; background shading indicates CT assignment.}
 \label{fig:ct}
+\end{figure}
+
+\subsection{Structural--compositional correlations and ecological stability}
+\label{sec:extras}
+
+\paragraph{Structural--compositional Spearman correlations.}
+To identify guilds whose abundance co-varies with biofilm physical state, we computed Spearman correlations between each guild fraction and the three CLSM variables (VolumeLive, PerLive, VolumeTotal) across all 24 patient-week observations.
+Only one association survived a Bonferroni-corrected threshold ($\alpha = 0.05/33$): Coriobacteriia fraction is negatively correlated with PerLive ($\rho = -0.55$, $p = 0.005$; Fig.\,\ref{fig:struct_corr}).
+This suggests that viability-rich biofilms suppress Coriobacteriia, possibly reflecting competition under oxygen-limited conditions in physiologically active (high PerLive) communities.
+
+\paragraph{Dynamical stability.}
+Linearising the gLV at the patient mean steady states, all 8 patients yield a stable fixed point (dominant eigenvalue $< 0$).
+The global gLV A-matrix has a dominant eigenvalue $\lambda_{\max} = -0.003$, confirming that the inferred community is near-neutrally stable---consistent with slow turnover in peri-implant pioneer biofilms (Fig.\,\ref{fig:stability}).
+
+\paragraph{Patient clustering.}
+PCA on the 10-guild space confirms the CT1/CT2 dichotomy: CT1 (Bacilli-dominant) patients cluster tightly, while CT2 patients are more dispersed along PC2, reflecting greater within-group heterogeneity (Fig.\,\ref{fig:clustering}).
+
+\paragraph{Diversity dynamics.}
+Shannon diversity peaks at week~1 (mean $H = 1.08$) and declines by week~3 ($H = 0.94$), consistent with competitive exclusion by Bacilli over time.
+Simpson diversity follows the same trend.
+Neither gLV nor Hamilton ODE fully captures the magnitude of diversity decline (observed $\Delta H = 0.14$, predicted $\Delta H \approx 0.03$), suggesting that additional niche-filtering dynamics beyond pair-wise interactions may contribute to the observed temporal trajectory (Fig.\,\ref{fig:diversity}).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig_struct_composition_corr.pdf}
+\caption{Spearman correlations between CLSM structural variables (VolumeLive, PerLive, VolumeTotal) and the 11 guild fractions.
+Circle area $\propto |\rho|$; red = positive, blue = negative.
+Only Coriobacteriia$\times$PerLive survives Bonferroni correction ($\rho = -0.55$, indicated by white dot).}
+\label{fig:struct_corr}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig_stability.pdf}
+\caption{Dynamical stability analysis. (a) Dominant eigenvalue of the Jacobian at patient steady states (all $< 0$, stable). (b) Phase portrait projection (PC1 vs PC2) showing convergence of trajectories to a single attractor. (c) Return time ($-1/\lambda_{\max}$) per patient.}
+\label{fig:stability}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig_patient_clustering.pdf}
+\caption{Patient clustering in 10-guild PCA space. CT1 (Bacilli-dominant) and CT2 (diverse) patients are labelled; ellipses indicate 1-$\sigma$ covariance. Right panel: cluster silhouette profile for $k=2$.}
+\label{fig:clustering}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig_diversity.pdf}
+\caption{Shannon and Simpson diversity over weeks~1--3. Grey lines: individual patients; thick coloured lines: patient mean. Dashed: gLV predicted diversity; dotted: Hamilton ODE prediction. Both models underpredict the observed diversity decline at week~3.}
+\label{fig:diversity}
 \end{figure}
 
 %==============================================================================
