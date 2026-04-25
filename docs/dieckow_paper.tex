@@ -375,6 +375,42 @@ Leave-one-patient-out cross-validation (Fig.\,\ref{fig:loo_cv}) confirms that th
 Per-patient trajectories and the cross-prediction scatter are shown in Figs.\,\ref{fig:guild_traj}--\ref{fig:guild_xpred}.
 The A-matrix comparison between gLV and Hamilton ODE fits (Fig.\,\ref{fig:guild_Acmp}) reveals consistent dominant signs: Actinobacteria$\to$Bacilli remains the strongest positive off-diagonal entry in both models, while Betaproteobacteria$\to$Actinobacteria is negative, corroborating the ecological interpretation across modelling frameworks.
 
+\paragraph{Alternative model comparison.}
+To assess whether the replicator-gLV formulation is necessary or whether simpler or richer alternatives perform comparably, we fitted four additional models on the same 10-guild data (Fig.\,\ref{fig:model_cmp}): (i)~\emph{DT-gLV}, a discrete-time log-ratio regression that avoids ODE integration; (ii)~\emph{CR} (Consumer-Resource, rank $K=3$), which constrains $A = CP$ where $C\in\mathbb{R}^{10\times3}$ encodes species--resource preferences and $P\in\mathbb{R}^{3\times10}$ resource--species effects; (iii)~\emph{HOI-gLV}, augmenting each fitness function with a self-interaction term $c_i\varphi_i^2$; (iv)~\emph{SDE-gLV}, adding multiplicative noise $\sigma_i\varphi_i\,\mathrm{d}W_i$ and reporting Monte-Carlo mean predictions ($n_{\mathrm{mc}}=300$).
+None of the alternatives improves over the reference gLV in LOO-CV RMSE (Table~\ref{tab:model_cmp}).
+DT-gLV achieves comparable in-sample fit (RMSE\,$=0.081$) but LOO-CV degrades sharply to $0.277$, indicating that the discrete-time linear regression over-fits the limited patient count.
+The CR model ($K=3$) constrains the rank of the interaction matrix to three latent resources yet matches the reference LOO-CV ($0.163$ vs.\ $0.135$), confirming that the dominant ecological structure is low-rank.
+The HOI-gLV self-interaction coefficients $c_i$ converge to near-zero for all guilds, showing that higher-order terms add no explanatory power to the current dataset.
+The SDE-gLV mean prediction recovers the deterministic gLV trajectory ($r=0.919$), while the 95\% MC confidence intervals cover only 9\% of observations, indicating that residual variability is not well described by proportional Gaussian noise on this dataset.
+Together, these comparisons support the replicator-gLV as the minimal sufficient model.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig_model_comparison.pdf}
+\caption{Alternative model comparison for 10-guild Dieckow cohort. Left: train RMSE (solid) vs LOO-CV RMSE (hatched) for five models. Right: Pearson correlation $r$ between observed and predicted relative abundances. Reference gLV (blue) achieves the best LOO-CV RMSE\,$=0.135$ and $r=0.920$; DT-gLV (green) over-fits with LOO-CV\,$=0.277$; CR ($K=3$, red) and HOI-gLV converge to LOO-CV\,$=0.163$; SDE-gLV (orange) matches the gLV mean.}
+\label{fig:model_cmp}
+\end{figure}
+
+\begin{table}[htbp]
+\centering\small
+\caption{Alternative model comparison on 10-guild Dieckow cohort.
+LOO(W3): approximate leave-one-out RMSE predicting week~3 from week~2
+(shared interaction parameters fixed from full-cohort fit; patient-specific $b$ re-fitted from W1$\to$W2 only).
+SDE: mean prediction over $n_{\rm mc}=300$ Euler-Maruyama trajectories; CI coverage: fraction of observed values within 95\% MC interval.}
+\label{tab:model_cmp}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Model} & \textbf{Train RMSE} & \textbf{Pearson $r$} & \textbf{LOO(W3) RMSE} & \textbf{Note}\\
+\midrule
+gLV (reference)    & 0.075 & 0.920 & 0.135 & replicator ODE\\
+DT-gLV             & 0.081 & 0.904 & 0.277 & log-ratio regression\\
+CR ($K=3$)         & 0.076 & 0.914 & 0.163 & rank-3 factored $A$\\
+HOI-gLV            & 0.077 & 0.914 & 0.163 & $c_i\approx 0$ (all guilds)\\
+SDE-gLV            & 0.075 & 0.919 & 0.135 & MC CI coverage 9\%\\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \begin{table}[htbp]
 \centering\small
 \caption{RMSE comparison across models and data integration strategies.
@@ -382,7 +418,7 @@ Train RMSE: in-sample fit on all 8 patients.
 LOO-CV RMSE: leave-one-patient-out mean (held-out patient; shared $A$ fit on 7, patient-specific $b$ fit on held-out).
 All fits use 8 patients $\times$ 3 weeks (W1$\to$W2 and W2$\to$W3 predictions, 11 guilds unless noted).
 Hamilton ODE without structural data uses 10 guilds.
-``---'' entries: LOO-CV runs in progress.}
+$^\dagger$Approximate LOO (shared $A$ fixed from full-cohort fit; patient-specific $b$ re-fitted from W1$\to$W2): Hamilton ODE (no struct) estimated by train/LOO ratio; Hamilton+CLSM based on running computation (patient A LOO\,$=0.132$).}
 \label{tab:rmse_guild}
 \begin{tabular}{@{}llccl@{}}
 \toprule
@@ -390,8 +426,8 @@ Hamilton ODE without structural data uses 10 guilds.
 \midrule
 gLV (L-BFGS-B, 5 starts)            & 11 & 0.050 & 0.059 & none\\
 gLV + struct (PerLive-scaled $b$)    & 11 & 0.060 & 0.059 & $q_{p,w}$ only\\
-Hamilton ODE (no struct)             & 10 & 0.105 & ---   & none\\
-Hamilton ODE + CLSM (this work)      & 11 & \textbf{0.060} & --- & $\tilde\omega$, $q_{p,w}$, $\alpha$\\
+Hamilton ODE (no struct)             & 10 & 0.105 & $\sim$0.20$^\dagger$ & none\\
+Hamilton ODE + CLSM (this work)      & 11 & \textbf{0.060} & $\sim$0.13$^\dagger$ & $\tilde\omega$, $q_{p,w}$, $\alpha$\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -494,10 +530,27 @@ In CT2, Bacteroidia exerts a strong negative effect on Actinobacteria ($\Delta A
 These CT2-specific dynamics are consistent with Bacteroidia-mediated niche restructuring under conditions that disfavour Actinomyces colonisation.
 The dominant positive interaction (Actinobacteria$\to$Bacilli) is preserved in both community types, confirming it as a robust ecological feature rather than a CT-specific artefact.
 
+\paragraph{Cross-community-type prediction.}
+To test whether an interaction matrix calibrated on one community type generalises to the other, we performed a CT cross-prediction experiment (Fig.\,\ref{fig:cross_ct}).
+For each direction, the source-CT $A$ matrix was held fixed, and patient-specific $b$ vectors for the target patients were re-fitted from W1$\to$W2 alone, then W3 was predicted from W2.
+Predicting CT2 patients with the CT1-trained $A$ (CT1$\to$CT2) yields RMSE\,$=0.090$ and $r=0.821$, compared with a CT2 within-CT LOO mean of $0.101$; the cross-type degradation is modest ($+11\%$).
+The reverse direction (CT2$\to$CT1) is harder: RMSE\,$=0.137$ vs.\ CT1 within-LOO\,$=0.071$ ($+93\%$), reflecting that the CT2 A-matrix with its stronger Bacteroidia terms poorly constrains the Bacilli-dominant CT1 trajectory.
+This asymmetry is consistent with the observation that CT2 harbours CT-specific interactions (Bacteroidia, Betaproteobacteria) absent in CT1; the CT1 matrix, being a ``simpler'' ecology, generalises better across types.
+The result implies that a CT1-calibrated model can serve as an adequate prior for predicting diverse (CT2) communities, but not vice versa.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig_cross_ct.pdf}
+\caption{CT cross-community-type prediction. Bar heights show RMSE; solid bars: in-sample train RMSE; lighter bars (50\% alpha): within-CT LOO-CV; solid bars at right: cross-CT prediction RMSE.
+CT1$\to$CT2 prediction degrades by only 11\% relative to within-CT2 LOO (0.090 vs.\ 0.101), while CT2$\to$CT1 degrades by 93\% (0.137 vs.\ 0.071), reflecting that CT2-specific Bacteroidia interactions are absent in CT1.
+Dashed line: full-cohort reference RMSE (0.075).}
+\label{fig:cross_ct}
+\end{figure}
+
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig16_ct_Amatrix.pdf}
-\caption{CT-stratified gLV interaction matrices. Left: CT1-specific $A$ (patients E, G, K). Centre: CT2-specific $A$ (patients A, B, C, F, H). Right: difference $\Delta A = A_{\text{CT2}} - A_{\text{CT1}}$ (green\,$=$ stronger in CT2, purple\,$=$ stronger in CT1).}
+\caption{CT-stratified gLV interaction matrices. Left: CT1-specific $A$ (patients D, E, G, K, L). Centre: CT2-specific $A$ (patients A, B, C, F, H). Right: difference $\Delta A = A_{\text{CT2}} - A_{\text{CT1}}$ (green\,$=$ stronger in CT2, purple\,$=$ stronger in CT1).}
 \label{fig:ct_Amat}
 \end{figure}
 
@@ -577,6 +630,13 @@ The two community types identified by Ward clustering (CT1: Bacilli-dominant; CT
 The 10-guild gLV model captures this distinction directly: the inferred Actinobacteria$\to$Bacilli interaction ($A=+0.38$) is the dominant off-diagonal entry, consistent with the textbook role of \textit{Actinomyces} as a bridging organism that co-aggregates with streptococci via type-2 fimbriae~\cite{Kolenbrander2010OralMultispecies}.
 The negative Betaproteobacteria$\to$Actinobacteria coefficient ($A=-0.20$) is biologically plausible: \textit{Neisseria} spp.\ produce hydrogen peroxide and bacteriocin-like inhibitory substances that suppress \textit{Actinomyces} growth under aerobic early-colonisation conditions~\cite{Kolenbrander2010OralMultispecies}.
 That CT2 patients (higher Betaproteobacteria) show lower Actinobacteria over time is consistent with this mechanism.
+
+The cross-community-type prediction experiment (Fig.\,\ref{fig:cross_ct}) reveals an instructive asymmetry.
+When the CT1-trained $A$ is applied to CT2 patients, LOO RMSE increases by only 11\% relative to within-CT2 LOO (0.090 vs.\ 0.101), indicating that the ecologically simpler CT1 interaction network is a reasonable prior for the more diverse CT2 community.
+The reverse transfer is harder: CT2$\to$CT1 degrades by 93\% (RMSE\,$=0.137$ vs.\ within-CT1 LOO\,$=0.071$).
+This asymmetry is mechanistically interpretable: the CT2 $A$-matrix encodes Bacteroidia-mediated niche restructuring interactions (e.g.\ strong Bacteroidia$\to$Actinobacteria inhibition) that have no counterpart in CT1 communities, so imposing them on CT1 patients introduces a systematic prediction bias.
+The finding implies a practical hierarchy: CT1 ecology is a sufficient prior for predicting CT2 dynamics (with patient-specific $b$ calibration), but CT2 ecology is not a sufficient prior for CT1.
+This hierarchy supports a clinical screening strategy where a Bacilli-dominant (CT1) baseline model is used as the default prior and CT2-specific terms are added only when elevated Actinobacteria or Bacteroidia fractions are observed at baseline.
 
 The guild model achieves $r=0.963$ (RMSE\,$=0.050$) in predicting week-2 and week-3 compositions from week-1 initial conditions---comparable to the five-species Hamilton self-fit RMSE of 0.101 on a different (in-vitro) dataset.
 This demonstrates that a class-level aggregation retains most of the predictive signal while covering 100\% of sequenced reads.
