@@ -371,6 +371,7 @@ This represents a 43\,\% improvement over the Hamilton ODE fit without structura
 To assess whether the gain is Hamilton-specific or arises purely from the PerLive growth-rate signal, we fitted a gLV with the same $\alpha_{p,w} = \alpha_0(0.5 + 0.5\,q_{p,w})$ scaling applied to the patient-specific rates $b^{(p)}$.
 The gLV\,+\,struct model achieves RMSE\,$= 0.060$, no improvement over plain gLV (RMSE\,$= 0.050$); using the fitted $A$, $b$ without the PerLive scaling raises RMSE to 0.114.
 This asymmetry confirms that the free-space channel ($\varphi_0 = 1 - \tilde\omega$) is the dominant structural-data contribution: it is available only in the Hamilton ODE, not in the simplex-constrained gLV replicator.
+Leave-one-patient-out cross-validation (Fig.\,\ref{fig:loo_cv}) confirms that the gLV generalises well: mean LOO-CV RMSE\,$= 0.059$ (vs.\ train\,$= 0.050$), with the highest held-out error for patients~A and~B ($\approx 0.092$), both CT2-type outliers, and the lowest for patients~E and~C ($\leq 0.046$).
 Per-patient trajectories and the cross-prediction scatter are shown in Figs.\,\ref{fig:guild_traj}--\ref{fig:guild_xpred}.
 The A-matrix comparison between gLV and Hamilton ODE fits (Fig.\,\ref{fig:guild_Acmp}) reveals consistent dominant signs: Actinobacteria$\to$Bacilli remains the strongest positive off-diagonal entry in both models, while Betaproteobacteria$\to$Actinobacteria is negative, corroborating the ecological interpretation across modelling frameworks.
 
@@ -394,6 +395,17 @@ Hamilton ODE + CLSM (this work)      & 11 & \textbf{0.060} & --- & $\tilde\omega
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig15_loo_cv.pdf}
+\caption{Leave-one-patient-out cross-validation RMSE for gLV\,+\,struct.
+Solid bars: held-out patient RMSE; hatched bars: train RMSE on the remaining 7 patients.
+Blue: CT1 patients (E, G, K); orange: CT2 patients (A, B, C, F, H).
+Dashed line: mean LOO-CV RMSE\,$= 0.059$.
+Patient~A and~B show the highest held-out RMSE ($\approx 0.092$), consistent with their atypical CT2 compositions; patients~C, E, and~F generalise well ($\leq 0.046$).}
+\label{fig:loo_cv}
+\end{figure}
 
 \begin{figure}[htbp]
 \centering
@@ -472,6 +484,21 @@ CT1 patients may correspond to a Streptococcus-dominant pioneer community, while
 \includegraphics[width=\textwidth]{figures/dieckow/fig8_community_types.pdf}
 \caption{Community type analysis. (a) Ward dendrogram of 10 patients by mean 10-guild composition. (b) Silhouette scores; $k=2$ selected. (c) Mean guild composition per CT. (d) Per-patient composition sorted by CT; background shading indicates CT assignment.}
 \label{fig:ct}
+\end{figure}
+
+\paragraph{CT-stratified interaction matrices.}
+To test whether the shared interaction matrix $A$ is consistent across community types, we fit separate gLV models on the CT1 subset (patients E, G, K; $n=3$) and the CT2 subset (patients A, B, C, F, H; $n=5$), using the full-cohort $A$ as warm start.
+Both subsets achieve in-sample RMSE comparable to the full-cohort fit ($\text{CT1}: 0.050$; $\text{CT2}: 0.065$), confirming model adequacy within each group.
+The difference matrix $\Delta A = A_{\text{CT2}} - A_{\text{CT1}}$ (Fig.\,\ref{fig:ct_Amat}) reveals the largest CT-specific shifts in interactions involving Bacteroidia (Prevotella/Porphyromonas) and Bacilli.
+In CT2, Bacteroidia exerts a strong negative effect on Actinobacteria ($\Delta A = -1.98$) and a positive effect on Bacilli ($\Delta A = +1.74$), while Betaproteobacteria enhances its competitive inhibition of Actinobacteria ($\Delta A = -1.02$).
+These CT2-specific dynamics are consistent with Bacteroidia-mediated niche restructuring under conditions that disfavour Actinomyces colonisation.
+The dominant positive interaction (Actinobacteria$\to$Bacilli) is preserved in both community types, confirming it as a robust ecological feature rather than a CT-specific artefact.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig16_ct_Amatrix.pdf}
+\caption{CT-stratified gLV interaction matrices. Left: CT1-specific $A$ (patients E, G, K). Centre: CT2-specific $A$ (patients A, B, C, F, H). Right: difference $\Delta A = A_{\text{CT2}} - A_{\text{CT1}}$ (green\,$=$ stronger in CT2, purple\,$=$ stronger in CT1).}
+\label{fig:ct_Amat}
 \end{figure}
 
 \subsection{Structural--compositional correlations and ecological stability}
