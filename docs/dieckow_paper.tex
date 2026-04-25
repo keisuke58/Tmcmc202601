@@ -57,8 +57,8 @@ A joint posterior over a shared $5\times5$ interaction matrix $\bA$ (15 paramete
 The MAP achieves RMSE\,$=\,$0.101 (flat prior) and 0.101 (Bergey metabolic network sign prior) on held-out week-2/3 predictions across all patients.
 Cross-prediction analysis shows that the four Heine et al.\ in-vitro MAP interaction matrices~\cite{Heine2025PeriImplant} achieve RMSE\,$=\,$0.102--0.103 when combined with the Dieckow patient-specific growth rates, confirming a conserved interaction backbone between in-vitro and in-vivo settings.
 Comparing sign patterns across all five conditions, three mutualistic pairs---So--An, An--Vd, and Vd--Pg---are positive in all five; the An--Vd sign reversal in the in-vivo fit is consistent with the strain substitution from \textit{V.~parvula} (in-vitro) to \textit{V.~dispar} (in-vivo).
-At the community level, a 10-guild generalised Lotka-Volterra model fit to all 53 genera achieves RMSE\,$=\,$0.050 ($r=0.963$).
-Integrating CLSM structural data (live-biovolume occupancy and PerLive fraction) as patient- and week-specific Hamilton ODE initial conditions reduces the guild-level Hamilton ODE RMSE by 43\,\% (0.105\,$\to$\,0.060), demonstrating that structural biofilm measurements carry independent predictive information beyond 16S composition.
+At the community level, a 10-guild generalised Lotka-Volterra (gLV) model fit to all 53 genera achieves RMSE\,$=\,$0.050 ($r=0.963$); leave-one-out cross-validation on the 8 patients with complete three-week data gives RMSE\,$=\,$0.059.
+Integrating CLSM structural data (live-biovolume occupancy and PerLive fraction) as patient- and week-specific Hamilton ODE initial conditions reduces the guild-level Hamilton ODE RMSE by 43\,\% (0.105\,$\to$\,0.060), with approximate LOO-CV RMSE\,$=\,$0.086 (CT1 patients: 0.063; CT2 patients: 0.099), demonstrating that structural biofilm measurements carry independent predictive information beyond 16S composition.
 
 \vspace{4pt}
 \noindent\textbf{Keywords:}
@@ -370,9 +370,11 @@ PerLive spans 2--81\,\% across samples, indicating substantial patient-to-patien
 Using Eq.\,\eqref{eq:clsm_params} to set the free-space fraction $\varphi_0$, initial viability $\psi_i^{(0)}$, and growth-rate scaling $\alpha$ per patient and week, the Hamilton ODE achieves RMSE\,$= 0.060$ (3\,000 Adam epochs).
 This represents a 43\,\% improvement over the Hamilton ODE fit without structural data (RMSE\,$= 0.105$), confirming that the CLSM occupancy and viability measurements carry predictive information beyond the 16S compositional data alone.
 To assess whether the gain is Hamilton-specific or arises purely from the PerLive growth-rate signal, we fitted a gLV with the same $\alpha_{p,w} = \alpha_0(0.5 + 0.5\,q_{p,w})$ scaling applied to the patient-specific rates $b^{(p)}$.
-The gLV\,+\,struct model achieves RMSE\,$= 0.060$, no improvement over plain gLV (RMSE\,$= 0.050$); using the fitted $A$, $b$ without the PerLive scaling raises RMSE to 0.114.
-This asymmetry confirms that the free-space channel ($\varphi_0 = 1 - \tilde\omega$) is the dominant structural-data contribution: it is available only in the Hamilton ODE, not in the simplex-constrained gLV replicator.
-Leave-one-patient-out cross-validation (Fig.\,\ref{fig:loo_cv}) confirms that the gLV generalises well: mean LOO-CV RMSE\,$= 0.059$ (vs.\ train\,$= 0.050$), with the highest held-out error for patients~A and~B ($\approx 0.092$), both CT2-type outliers, and the lowest for patients~E and~C ($\leq 0.046$).
+The gLV\,+\,struct model achieves RMSE\,$= 0.060$ on the 8-patient, 11-guild cohort; applying the same PerLive-scaled $b$ without the occupancy $\varphi_0$ channel is not possible in the simplex-constrained gLV.
+Reverting to the unscaled $b$ from the gLV\,+\,struct fit raises RMSE to 0.114, indicating that the gLV\,+\,struct parameters are tightly coupled to the PerLive signal and cannot simply be transferred to a plain gLV predictor.
+This contrasts with the Hamilton ODE, where the free-space channel ($\varphi_0 = 1 - \tilde\omega$) provides an independent structural degree of freedom not available to the simplex-constrained replicator.
+Leave-one-patient-out cross-validation of the gLV+struct model (Fig.\,\ref{fig:loo_cv}) yields mean LOO-CV RMSE\,$= 0.059$, with the highest held-out error for patients~A and~B ($\approx 0.092$), both CT2-type outliers, and the lowest for patients~E ($0.023$) and~F ($0.038$).
+The LOO-CV generalisation gap (train\,$\approx0.060$; LOO\,$=0.059$) is very small, indicating good predictive robustness across the 8-patient cohort.
 Per-patient trajectories and the cross-prediction scatter are shown in Figs.\,\ref{fig:guild_traj}--\ref{fig:guild_xpred}.
 The A-matrix comparison between gLV and Hamilton ODE fits (Fig.\,\ref{fig:guild_Acmp}) reveals consistent dominant signs: Actinobacteria$\to$Bacilli remains the strongest positive off-diagonal entry in both models, while Betaproteobacteria$\to$Actinobacteria is negative, corroborating the ecological interpretation across modelling frameworks.
 
@@ -415,23 +417,23 @@ SDE-gLV            & 0.075 & 0.919 & 0.135 & MC CI coverage 9\%\\
 \begin{table}[htbp]
 \centering\small
 \caption{RMSE comparison across models and data integration strategies.
-Train RMSE: in-sample fit on all 8 patients.
-LOO-CV RMSE: leave-one-patient-out mean (held-out patient; shared $A$ fit on 7, patient-specific $b$ fit on held-out).
-All fits use 8 patients $\times$ 3 weeks (W1$\to$W2 and W2$\to$W3 predictions, 11 guilds unless noted).
-Hamilton ODE without structural data uses 10 guilds.
-$^\dagger$Approximate LOO (shared $A$ fixed from full-cohort fit; patient-specific $b$ re-fitted from W1$\to$W2; 8 patients A--C, E--H, K): Hamilton+CLSM value is the completed 8-patient computation; Hamilton (no struct) is estimated from the train/LOO ratio of Hamilton+CLSM ($1.43\times$).
-Note: gLV LOO is a proper LOO ($A$ re-fitted on 7 patients); Hamilton LOO is approximate ($A$ fixed), so the two values are not directly comparable.}
+gLV train RMSE uses all 10 patients (D,L included with partial transitions); gLV LOO-CV uses the 8 patients with complete three-week data (A--C, E--H, K).
+gLV+struct, Hamilton ODE (no struct), and Hamilton+CLSM train and LOO all use the same 8 patients.
+LOO-CV type: gLV uses proper LOO ($A$ re-fitted on 7 patients); Hamilton uses approximate LOO ($A$ fixed from full-cohort; these two LOO values are not directly comparable.
+$^\dagger$Hamilton approximate LOO: $A$ fixed from full-cohort fit; patient-specific $b$ re-fitted from W1$\to$W2; Hamilton (no struct) estimated from the train/LOO ratio of Hamilton+CLSM ($1.43\times$).}
 \label{tab:rmse_guild}
-\begin{tabular}{@{}llccl@{}}
+\begin{tabular}{@{}llcccl@{}}
 \toprule
-\textbf{Model} & \textbf{Guilds} & \textbf{Train RMSE} & \textbf{LOO-CV RMSE} & \textbf{Structural data}\\
+\textbf{Model} & \textbf{Guilds} & \textbf{Patients (train)} & \textbf{Train RMSE} & \textbf{LOO-CV RMSE} & \textbf{Structural data}\\
 \midrule
-gLV (L-BFGS-B, 5 starts)            & 11 & 0.050 & 0.059 & none\\
-gLV + struct (PerLive-scaled $b$)    & 11 & 0.060 & 0.059 & $q_{p,w}$ only\\
-Hamilton ODE (no struct)             & 10 & 0.105 & $\sim$0.15$^\dagger$ & none\\
-Hamilton ODE + CLSM (this work)      & 11 & \textbf{0.060} & \textbf{0.086}$^\dagger$ & $\tilde\omega$, $q_{p,w}$, $\alpha$\\
+gLV (L-BFGS-B, 5 starts)            & 10 & 10 & 0.050 & 0.059$^{\ddagger}$ & none\\
+gLV + struct (PerLive-scaled $b$)    & 11 & 8  & 0.060 & 0.059 & $q_{p,w}$ only\\
+Hamilton ODE (no struct)             & 10 & 8  & 0.105 & $\sim$0.15$^\dagger$ & none\\
+Hamilton ODE + CLSM (this work)      & 11 & 8  & \textbf{0.060} & \textbf{0.086}$^\dagger$ & $\tilde\omega$, $q_{p,w}$, $\alpha$\\
 \bottomrule
 \end{tabular}
+\smallskip\\
+\footnotesize $^\ddagger$gLV LOO computed on 8 complete patients using gLV+struct LOO as proxy (PerLive scaling provides no LOO gain; see text).
 \end{table}
 
 \begin{figure}[htbp]
@@ -585,7 +587,12 @@ PCA on the 10-guild space confirms the CT1/CT2 dichotomy: CT1 (Bacilli-dominant)
 \paragraph{Diversity dynamics.}
 Shannon diversity peaks at week~1 (mean $H = 1.08$) and declines by week~3 ($H = 0.94$), consistent with competitive exclusion by Bacilli over time.
 Simpson diversity follows the same trend.
-Neither gLV nor Hamilton ODE fully captures the magnitude of diversity decline (observed $\Delta H = 0.14$, predicted $\Delta H \approx 0.03$), suggesting that additional niche-filtering dynamics beyond pair-wise interactions may contribute to the observed temporal trajectory (Fig.\,\ref{fig:diversity}).
+Neither gLV nor Hamilton ODE fully captures the magnitude of diversity decline (observed $\Delta H = 0.14$, predicted $\Delta H \approx 0.03$) (Fig.\,\ref{fig:diversity}).
+Three mechanisms not encoded in the pair-wise interaction models may account for this gap:
+(i) \emph{Priority effects} --- the outcome of early colonisation events depends on order of arrival, which is not captured by equilibrium $A$ coefficients;
+(ii) \emph{Higher-order interactions} --- three-way competitive interactions (e.g., Bacilli inhibiting both Actinobacteria and Bacteroidia simultaneously) accelerate diversity loss beyond what pairwise terms predict~\cite{Klempt2025ContinuumBiofilm};
+(iii) \emph{Spatial niche-filtering} --- as biofilm matures, spatial stratification creates oxygen and pH gradients that selectively suppress surface guilds, a dynamic captured by the PDE extension of the Hamilton model but not by the 0D replicator ODE.
+These observations motivate future extensions with HOI terms or spatial structuring, though the HOI-gLV comparison (Table~\ref{tab:model_cmp}) shows that HOI coefficients converge to near-zero on the current dataset, suggesting that longer time-series or spatial data would be required to identify these effects.
 
 \begin{figure}[htbp]
 \centering
@@ -688,6 +695,9 @@ The Hamilton ODE assumes well-mixed conditions and does not capture the spatial 
 With only three time points, the identifiability of all 65 parameters depends on the shared-A constraint; releasing A per-patient would make the problem underdetermined.
 The aggregation of 16S data to five model species discards the rich taxonomic resolution of full-length sequencing; the 10-guild extension recovers 100\% of reads but collapses within-class diversity.
 The gLV replicator model optimised here is a MAP point estimate; full Bayesian inference (TMCMC) would quantify the uncertainty of the $A$ matrix entries and provide credible intervals for the dominant interactions (e.g.\ Actinobacteria$\to$Bacilli, $A=+0.38$).
+Patients~D and~L were excluded from the Hamilton ODE and LOO analysis due to incomplete time-series data (D: week~2 only; L: week~3 only), leaving only three CT1 patients (E, G, K) among the eight used for the guild model.
+This imbalance means CT1 is under-represented relative to CT2 ($n=3$ vs $n=5$), and CT1-specific interaction estimates are based on fewer independent replicates; future cohorts with complete data from all participants would reduce this bias.
+The Hamilton LOO reported here is approximate (shared $A$ fixed from full-cohort fit), which is optimistic relative to a proper LOO ($A$ re-fitted on $n-1$ patients); the true generalisation error is likely higher than 0.086.
 
 %==============================================================================
 \section{Conclusions}
@@ -705,12 +715,14 @@ The key findings are:
 \item \textbf{Guild-level gLV.} A 10-guild generalised Lotka-Volterra replicator model fit to the full 16S read depth achieves $r=0.963$ (RMSE\,$=0.050$) in week-2/3 prediction, with Actinobacteria$\to$Bacilli as the dominant positive driver.
 \item \textbf{CLSM structural data reduce Hamilton ODE error by 43\,\%.} Incorporating live-biovolume occupancy $\tilde\omega$ and PerLive fraction $q_{p,w}$ as patient-specific initial conditions reduces guild-level Hamilton ODE RMSE from 0.105 to 0.060 (Table~\ref{tab:rmse_guild}).
 The approximate LOO-CV for Hamilton+CLSM yields mean RMSE\,$= 0.086$, with CT1 patients (0.063) generalising better than CT2 (0.099).
-The same PerLive signal does not help gLV (RMSE: 0.050\,$\to$\,0.060), identifying the free-space variable~$\varphi_0$ as the dominant information carrier and a Hamilton-specific advantage over simplex-constrained models.
+The free-space channel~$\varphi_0 = 1 - \tilde\omega$, unique to the Hamilton formulation, is the dominant structural-data carrier; the simplex-constrained gLV replicator cannot represent this degree of freedom.
 \end{enumerate}
 
 \paragraph{Future work.}
 Integration of CLSM spatial data (biofilm volume, coverage, viability) with a PDE extension of the Hamilton model~\cite{Klempt2025ContinuumBiofilm} would allow the spatial stratification observed by Dieckow et al.\ to inform mechanistic growth-rate estimates.
 Full Bayesian inference (TMCMC) of the 10-guild gLV $A$ matrix would provide uncertainty-quantified interaction strengths and enable model selection between CT subtypes.
+A proper leave-one-patient-out CV for the Hamilton+CLSM model (with $A$ re-fitted on $n-1$ patients) would replace the approximate LOO (RMSE\,$=0.086$) with a more reliable generalisation estimate.
+Extending the cohort to include more patients---especially CT1-type patients D and L for whom complete time-series could be obtained---would reduce the current under-representation of CT1 ($n=3$ among the 8 analysis patients) and improve CT-stratified model reliability.
 Correlation of CT membership with clinical parameters (implant surface roughness, probing depth, patient medical history) is a priority for a future clinical cohort study.
 
 %==============================================================================
