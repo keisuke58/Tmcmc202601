@@ -377,17 +377,20 @@ The A-matrix comparison between gLV and Hamilton ODE fits (Fig.\,\ref{fig:guild_
 \begin{table}[htbp]
 \centering\small
 \caption{RMSE comparison across models and data integration strategies.
+Train RMSE: in-sample fit on all 8 patients.
+LOO-CV RMSE: leave-one-patient-out mean (held-out patient; shared $A$ fit on 7, patient-specific $b$ fit on held-out).
 All fits use 8 patients $\times$ 3 weeks (W1$\to$W2 and W2$\to$W3 predictions, 11 guilds unless noted).
-Hamilton ODE without structural data uses 10 guilds (two guilds absent from the JAX solver initialisation).}
+Hamilton ODE without structural data uses 10 guilds.
+``---'' entries: LOO-CV runs in progress.}
 \label{tab:rmse_guild}
-\begin{tabular}{@{}llcl@{}}
+\begin{tabular}{@{}llccl@{}}
 \toprule
-\textbf{Model} & \textbf{Guilds} & \textbf{RMSE} & \textbf{Structural data used}\\
+\textbf{Model} & \textbf{Guilds} & \textbf{Train RMSE} & \textbf{LOO-CV RMSE} & \textbf{Structural data}\\
 \midrule
-gLV (L-BFGS-B, 5 starts)            & 11 & 0.050 & none\\
-gLV + struct (PerLive-scaled $b$)    & 11 & 0.060 & $q_{p,w}$ only\\
-Hamilton ODE (no struct)             & 10 & 0.105 & none\\
-Hamilton ODE + CLSM (this work)      & 11 & \textbf{0.060} & $\tilde\omega$, $q_{p,w}$, $\alpha$\\
+gLV (L-BFGS-B, 5 starts)            & 11 & 0.050 & 0.059 & none\\
+gLV + struct (PerLive-scaled $b$)    & 11 & 0.060 & 0.059 & $q_{p,w}$ only\\
+Hamilton ODE (no struct)             & 10 & 0.105 & ---   & none\\
+Hamilton ODE + CLSM (this work)      & 11 & \textbf{0.060} & --- & $\tilde\omega$, $q_{p,w}$, $\alpha$\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -558,6 +561,7 @@ The difference originates in the free-space variable~$\varphi_0$, which is uniqu
 The gLV replicator is constrained to the $(N-1)$-simplex ($\sum_i\varphi_i = 1$), so occupancy information is inaccessible: even when total live-biovolume $\tilde\omega$ is low (sparse biofilm), the model must predict a normalised composition summing to one.
 The Hamilton ODE instead evolves $\varphi_0 = 1 - \tilde\omega$ as a dynamical variable; initialising from $\tilde\omega$ directly encodes the amount of colonisable free space, and low occupancy weeks naturally produce a larger $\varphi_0$ that decelerates competitive exclusion dynamics.
 The failure of gLV\,+\,struct also rules out the simpler explanation that the gain is purely due to the PerLive growth-rate modulation, establishing the free-space channel as the dominant mechanism.
+Leave-one-patient-out cross-validation confirms that gLV generalises well (LOO-CV RMSE\,$= 0.059$, vs.\ train RMSE\,$= 0.050$), and the PerLive scaling provides no additional gain in generalisation (gLV\,+\,struct LOO-CV\,$= 0.059$), consistent with the free-space interpretation.
 
 \paragraph{Metabolic potential vs.\ realised dynamics: comparison with Supp.\ File~1.}
 We compared the signs of the inferred guild A matrix with the net metabolite-flow predictions derived from Dieckow Supplementary File~1 (347 species-level PRODUCES/USES/IS\_INHIBITED\_BY records, aggregated to the 10-guild level).
