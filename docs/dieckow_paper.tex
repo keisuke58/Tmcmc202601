@@ -357,7 +357,8 @@ The gLV replicator model
 \quad \bar{f} = \textstyle\sum_k \varphi_k\!\left(\sum_j A_{kj}\,\varphi_j + b_k^{(p)}\right),
 \label{eq:glv}
 \end{equation}
-gives RMSE\,$= 0.050$ and Pearson $r = 0.963$ (Fig.\,\ref{fig:guild_A}).
+gives RMSE\,$= 0.050$ and Pearson $r = 0.963$ on all 10 patients (10 guilds; Fig.\,\ref{fig:guild_A}).
+On the 8-patient/11-guild cohort used for structural data comparison (patients A--C, E--H, K), the same L-BFGS-B procedure yields RMSE\,$= 0.060$ and $r = 0.927$ (Table~\ref{tab:rmse_guild}).
 The strongest inferred interaction is Actinobacteria$\to$Bacilli ($A = +0.38$), consistent with the well-established co-aggregation of \textit{Actinomyces} bridging species and early \textit{Streptococcus} colonisers~\cite{Kolenbrander2010OralMultispecies}.
 Betaproteobacteria$\to$Actinobacteria is negative ($A = -0.20$), suggesting competitive displacement by \textit{Neisseria}-class taxa under aerobic early-colonisation conditions.
 The signed network topology is visualised in Fig.\,\ref{fig:guild_net}.
@@ -426,14 +427,16 @@ $^\dagger$Hamilton approximate LOO: $A$ fixed from full-cohort fit; patient-spec
 \toprule
 \textbf{Model} & \textbf{Guilds} & \textbf{Patients (train)} & \textbf{Train RMSE} & \textbf{LOO-CV RMSE} & \textbf{Structural data}\\
 \midrule
-gLV (L-BFGS-B, 5 starts)            & 10 & 10 & 0.050 & 0.059$^{\ddagger}$ & none\\
+gLV (L-BFGS-B, 5 starts)$^{\ddagger}$ & 11 & 8  & \textbf{0.060} & --- & none\\
 gLV + struct (PerLive-scaled $b$)    & 11 & 8  & 0.060 & 0.059 & $q_{p,w}$ only\\
 Hamilton ODE (no struct)             & 10 & 8  & 0.105 & $\sim$0.15$^\dagger$ & none\\
 Hamilton ODE + CLSM (this work)      & 11 & 8  & \textbf{0.060} & \textbf{0.086}$^\dagger$ & $\tilde\omega$, $q_{p,w}$, $\alpha$\\
 \bottomrule
 \end{tabular}
 \smallskip\\
-\footnotesize $^\ddagger$gLV LOO computed on 8 complete patients using gLV+struct LOO as proxy (PerLive scaling provides no LOO gain; see text).
+\footnotesize $^\ddagger$gLV train RMSE\,$=0.060$ is for the 11-guild/8-patient consistent fit (this work).
+The 10-guild/10-patient gLV fit (including patients D and L with partial data) achieves RMSE\,$=0.050$, $r=0.963$ (see text and Fig.\,\ref{fig:guild_A}) but is not directly comparable to the other rows.
+gLV LOO pending (pure gLV LOO-CV in progress; gLV+struct LOO\,$=0.059$ is shown as proxy in row~2).
 \end{table}
 
 \begin{figure}[htbp]
@@ -663,7 +666,7 @@ This demonstrates that a class-level aggregation retains most of the predictive 
 
 \paragraph{Structural data and the free-space channel.}
 A key finding from Table~\ref{tab:rmse_guild} is the asymmetry between the gLV and Hamilton ODE responses to structural data integration.
-Applying the same PerLive growth-rate scaling $\alpha_{p,w} = \alpha_0(0.5 + 0.5\,q_{p,w})$ to gLV raises RMSE from 0.050 to 0.060---a degradation---while the same signal reduces Hamilton ODE RMSE from 0.105 to 0.060.
+On the consistent 8-patient/11-guild cohort, the plain gLV achieves RMSE\,$=0.060$ ($r=0.927$), identical to Hamilton+CLSM (Table~\ref{tab:rmse_guild}); adding the PerLive growth-rate scaling to gLV (gLV+struct) does not improve this further (RMSE\,$=0.060$), while the same PerLive signal reduces Hamilton ODE RMSE from 0.105 to 0.060.
 The difference originates in the free-space variable~$\varphi_0$, which is unique to the Hamilton formulation.
 The gLV replicator is constrained to the $(N-1)$-simplex ($\sum_i\varphi_i = 1$), so occupancy information is inaccessible: even when total live-biovolume $\tilde\omega$ is low (sparse biofilm), the model must predict a normalised composition summing to one.
 The Hamilton ODE instead evolves $\varphi_0 = 1 - \tilde\omega$ as a dynamical variable; initialising from $\tilde\omega$ directly encodes the amount of colonisable free space, and low occupancy weeks naturally produce a larger $\varphi_0$ that decelerates competitive exclusion dynamics.
@@ -712,7 +715,8 @@ The key findings are:
 \item \textbf{Strain-dependent sign reversal.} The negative An--Vd coefficient in the in-vivo fit is consistent with the \textit{V.~dispar} (in-vivo) vs.\ \textit{V.~parvula} (in-vitro) substitution, demonstrating that the model is sensitive to ecologically meaningful strain-level differences.
 \item \textbf{Robust mutualistic backbone.} Three pairs (So--An, Vd--Pg, Fn--Pg) are positive in all five conditions tested, establishing conserved mutualities of the peri-implant ecosystem.
 \item \textbf{Two community types.} Ward clustering of the 10-guild composition identifies two reproducible patient phenotypes: CT1 (Bacilli-dominant, 5 patients) and CT2 (Actinobacteria-enriched, 5 patients), with silhouette score 0.59.
-\item \textbf{Guild-level gLV.} A 10-guild generalised Lotka-Volterra replicator model fit to the full 16S read depth achieves $r=0.963$ (RMSE\,$=0.050$) in week-2/3 prediction, with Actinobacteria$\to$Bacilli as the dominant positive driver.
+\item \textbf{Guild-level gLV.} A 10-guild generalised Lotka-Volterra replicator model fit on all 10 patients achieves $r=0.963$ (RMSE\,$=0.050$); the 11-guild/8-patient consistent fit gives RMSE\,$=0.060$ ($r=0.927$).
+Actinobacteria$\to$Bacilli is the dominant positive driver in both fits.
 \item \textbf{CLSM structural data reduce Hamilton ODE error by 43\,\%.} Incorporating live-biovolume occupancy $\tilde\omega$ and PerLive fraction $q_{p,w}$ as patient-specific initial conditions reduces guild-level Hamilton ODE RMSE from 0.105 to 0.060 (Table~\ref{tab:rmse_guild}).
 The approximate LOO-CV for Hamilton+CLSM yields mean RMSE\,$= 0.086$, with CT1 patients (0.063) generalising better than CT2 (0.099).
 The free-space channel~$\varphi_0 = 1 - \tilde\omega$, unique to the Hamilton formulation, is the dominant structural-data carrier; the simplex-constrained gLV replicator cannot represent this degree of freedom.
