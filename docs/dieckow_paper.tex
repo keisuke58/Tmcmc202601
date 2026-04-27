@@ -747,6 +747,13 @@ Of 7 guild pairs for which the minimal models yielded a definite sign prediction
 The three strongest positive predictions matched: Gammaproteobacteria$\to$Actinobacteria via L-lactate ($A=+0.44$), Bacilli$\to$Betaproteobacteria via H$_2$O$_2$ ($A=+0.42$), and Fusobacteriia$\to$\{Actinobacteria, Negativicutes\} via acetate.
 The single disagreement (Bacteroidia$\to$Gammaproteobacteria, gLV $A=-0.081$, minimal model: +succinate cross-feeding) is biologically plausible: Bacteroidia also produce H$_2$S, whose inhibitory effect can dominate over succinate cross-feeding under oral conditions.
 
+As a complementary genome-scale check, we ran parsimonious FBA on AGORA~v1.03 SBML reconstructions for each guild representative (10 organisms; oral-fluid medium with carbon sources capped, vitamins unrestricted).
+The AGORA models confirm the two canonical cross-feeding axes at the flux level:
+(i)~\textit{Streptococcus gordonii} (Bacilli) secretes L-lactate at 982~mmol~gDW$^{-1}$~h$^{-1}$, and Veillonella (Negativicutes) carries an open exchange for L-lactate, supporting $A[\text{Negativicutes}\!\leftarrow\!\text{Bacilli}]=+0.04$;
+(ii)~\textit{Eikenella corrodens} (Betaproteobacteria) secretes succinate at 53~mmol~gDW$^{-1}$~h$^{-1}$, which Fusobacteriia can import, consistent with $A[\text{Fusobacteriia}\!\leftarrow\!\text{Betaproteo}]=+0.14$.
+Inhibitory interactions mediated by H$_2$O$_2$ (e.g.\ $A[\text{Actinobacteria}\!\leftarrow\!\text{Bacilli}]=-1.27$) cannot be recovered by single-organism pFBA, as reactive oxygen species dynamics require explicit community modelling; these remain a limitation of the genome-scale validation.
+Guild-resolved secretion profiles are provided as a supplementary heatmap (Fig.~\ref{fig:agora_sign_comparison}).
+
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig_minimal_model_signs.pdf}
@@ -757,6 +764,17 @@ Of 7 pairs with a definite prediction, 6 (86\,\%) agreed.
 Driver metabolites are annotated for each predicted pair (lac = L-lactate; h2o2 = hydrogen peroxide; ac = acetate; succ = succinate).
 The single disagreement (Bacteroidia$\to$Gammaproteobacteria) is attributed to competing H$_2$S toxicity dominating over succinate cross-feeding.}
 \label{fig:minimal_model_signs}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig_agora_sign_comparison.pdf}
+\caption{AGORA~v1.03 pFBA secretion profiles for the 10 oral guilds under an oral-fluid medium.
+Each cell shows the net secretion flux (mmol~gDW$^{-1}$~h$^{-1}$) for a key metabolite class from parsimonious FBA on the AGORA~v1.03 (With Mucins) SBML reconstruction of the guild representative organism.
+Carbon sources were capped at oral-fluid levels; vitamins and cofactors were left at model defaults to ensure feasible growth.
+Guild representatives: Actinomyces~naeslundii (Actinobacteria), Atopobium~parvulum (Coriobacteriia), Streptococcus~gordonii (Bacilli), Parvimonas~micra (Clostridia), Veillonella~parvula~Te3 (Negativicutes), Prevotella~melaninogenica (Bacteroidia), Capnocytophaga~sputigena (Flavobacteriia), Fusobacterium~nucleatum (Fusobacteriia), Eikenella~corrodens (Betaproteobacteria), Haemophilus~parainfluenzae (Gammaproteobacteria).
+The strong lactate secretion by Bacilli (Streptococcus) and succinate secretion by Betaproteobacteria (Eikenella) and Bacteroidia (Prevotella) are consistent with the corresponding positive gLV entries.}
+\label{fig:agora_sign_comparison}
 \end{figure}
 
 \paragraph{Limitations.}
