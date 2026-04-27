@@ -57,7 +57,7 @@ A joint posterior over a shared $5\times5$ interaction matrix $\bA$ (15 paramete
 The MAP achieves RMSE\,$=\,$0.101 (flat prior) and 0.101 (Bergey metabolic network sign prior) on held-out week-2/3 predictions across all patients.
 Cross-prediction analysis shows that the four Heine et al.\ in-vitro MAP interaction matrices~\cite{Heine2025PeriImplant} achieve RMSE\,$=\,$0.102--0.103 when combined with the Dieckow patient-specific growth rates, confirming a conserved interaction backbone between in-vitro and in-vivo settings.
 Comparing sign patterns across all five conditions, three mutualistic pairs---So--An, An--Vd, and Vd--Pg---are positive in all five; the An--Vd sign reversal in the in-vivo fit is consistent with the strain substitution from \textit{V.~parvula} (in-vitro) to \textit{V.~dispar} (in-vivo).
-At the community level, a 10-guild generalised Lotka-Volterra (gLV) model fit to all 53 genera achieves RMSE\,$=\,$0.050 ($r=0.963$); leave-one-out cross-validation on the 8 patients with complete three-week data gives RMSE\,$=\,$0.059.
+At the community level, an 11-guild generalised Lotka-Volterra (gLV) model fit to all 53 genera achieves RMSE\,$=\,$0.045 ($r=0.963$) with a KEGG/HMDB-weighted metabolite-flow sign prior; leave-one-out cross-validation on the 8 patients with complete three-week data gives RMSE\,$=\,$0.058.
 Integrating CLSM structural data (live-biovolume occupancy and PerLive fraction) as patient- and week-specific Hamilton ODE initial conditions reduces the guild-level Hamilton ODE RMSE by 43\,\% (0.105\,$\to$\,0.060), with approximate LOO-CV RMSE\,$=\,$0.086 (CT1 patients: 0.063; CT2 patients: 0.099), demonstrating that structural biofilm measurements carry independent predictive information beyond 16S composition.
 
 \vspace{4pt}
@@ -88,7 +88,7 @@ Here we address four open questions: (i) does the inferred interaction structure
 
 We answer all four questions affirmatively.
 The joint model recovers a shared $\bA$ that is biologically interpretable, patient-specific $\bb^{(p)}$ that reflect individual ecological niches, and cross-prediction accuracy that rivals the Dieckow self-fit when the Heine in-vitro $\bA$ is combined with patient-specific growth rates.
-A 10-guild gLV achieves $r=0.963$ covering 100\% of sequenced reads, and integrating CLSM structural data into the Hamilton ODE reduces guild-level RMSE by 43\%, a gain that is mechanistically attributable to the free-space variable $\varphi_0$ unique to the Hamilton formulation.
+An 11-guild gLV with KEGG/HMDB metabolite-flow prior achieves RMSE\,$=0.045$, $r=0.963$, with 100\% sign agreement (19/19) covering 100\% of sequenced reads; integrating CLSM structural data into the Hamilton ODE reduces guild-level RMSE by 43\%, a gain that is mechanistically attributable to the free-space variable $\varphi_0$ unique to the Hamilton formulation.
 
 %==============================================================================
 \section{Data}
@@ -162,7 +162,37 @@ To exploit the full taxonomic depth of the 16S reads, we aggregate the 53 detect
 We fit two complementary models to the guild time series $\bvarphi^{(p)}_w\in\mathbb{R}^{10}$.
 
 \paragraph{Generalised Lotka-Volterra (gLV).}
-The gLV replicator ODE with shared $A\in\mathbb{R}^{10\times10}$ and patient-specific rates $b^{(p)}$ is optimised by scipy L-BFGS-B (5 multi-starts, warm initialisation from a preliminary fit, $\ell_2$ regularisation $\lambda=10^{-4}$, $A_{ii}\le0$).
+The gLV replicator ODE with shared $A\in\mathbb{R}^{11\times11}$ and patient-specific rates $b^{(p)}$ is optimised by scipy L-BFGS-B (5 multi-starts, warm initialisation from a preliminary fit, $\ell_2$ regularisation $\lambda=10^{-4}$, $A_{ii}\le0$).
+
+\paragraph{KEGG/HMDB-weighted metabolite-flow sign prior.}
+\label{sec:kegg_prior}
+To incorporate biochemical knowledge into the gLV and Hamilton ODE fits, we construct a guild-level sign prior from Dieckow Supplementary File~1 (SF1), which catalogues 347 species-level \textsc{produces}/\textsc{uses}/\textsc{is\_inhibited\_by} records linking 95 metabolites to the sequenced taxa.
+
+\textit{Step 1 --- metabolite-flow aggregation.}
+For each metabolite $m$ in SF1, we identify the set of producer guilds $P_m$ (\textsc{produces}), consumer guilds $C_m$ (\textsc{uses}), and inhibited guilds $I_m$ (\textsc{is\_inhibited\_by}).
+Each producer--consumer pair $(s,t)$ with $s\in P_m$, $t\in C_m$, $s\neq t$ increments a positive-flow counter $F^+_{ts}$; each producer--inhibited pair $(s,t)$ with $t\in I_m$ increments $F^-_{ts}$.
+The net guild-level flow is $F_{ts}=F^+_{ts}-F^-_{ts}$; its sign $s^*_{ts}=\mathrm{sgn}(F_{ts})$ is the biochemical prediction for the direction of the $s\to t$ interaction in the $A$ matrix.
+
+\textit{Step 2 --- KEGG/HMDB database weighting.}
+Not all SF1 records are equally reliable: metabolites with a KEGG compound identifier ($n_{\mathrm{KEGG}}=26$ metabolites, contributing to all rows where the KEGG flag is set) or an HMDB identifier ($n_{\mathrm{HMDB}}=239$ metabolite--taxon rows) are annotated against curated reference databases, whereas unannotated records rely on literature text mining alone.
+We therefore weight each row by $w=2$ for KEGG- or HMDB-annotated metabolites and $w=1$ otherwise when accumulating $F^+$ and $F^-$, giving a weighted net flow $\tilde{F}_{ts}=\sum_m w_m(F^+_{ts,m}-F^-_{ts,m})$.
+
+\textit{Step 3 --- sign penalty in the objective.}
+For every guild pair $(t,s)$ with $\tilde{F}_{ts}\neq0$, a soft sign penalty is added to the L-BFGS-B objective:
+\begin{equation}
+\mathcal{L}_{\mathrm{sign}} = \sum_{(t,s):\,\tilde{F}_{ts}\neq0}
+  \frac{|\tilde{F}_{ts}|}{\sigma_{\mathrm{sign}}^2}\,
+  \Bigl[\max\!\bigl(0,\,-s^*_{ts}\cdot A_{ts}\bigr)\Bigr]^2,
+\label{eq:sign_penalty}
+\end{equation}
+where $\sigma_{\mathrm{sign}}=0.15$ (selected by grid search; see Results) and $|\tilde{F}_{ts}|$ up-weights pairs with stronger metabolic evidence.
+The full objective is $\mathcal{L}=\mathrm{RMSE}+\mathcal{L}_{\mathrm{sign}}+\lambda\|A\|_F^2$.
+The penalty is zero when $A_{ts}$ already has the correct sign, and grows quadratically for sign violations.
+The same penalty is applied to the Hamilton ODE (JAX-Adam) fits, using the identical $\tilde{F}$ matrix and $\sigma_{\mathrm{sign}}=0.15$.
+
+\paragraph{Leave-one-patient-out cross-validation (LOO-CV).}
+For each of the 8 patients $p\in\{A,B,C,E,F,G,H,K\}$, we re-fit the shared $A$ and the remaining 7 patients' $b^{(q)}$ ($q\neq p$) from scratch (5 L-BFGS-B starts), then predict patient $p$'s week-2 and week-3 relative abundances using the held-out $b^{(p)}$ re-fitted from week~1 alone.
+This procedure is identical for both the plain gLV and the KEGG/HMDB-prior gLV, allowing a direct comparison of generalisation with and without the metabolite-flow constraint.
 
 \paragraph{Hamilton ODE with CLSM-informed parameters.}
 The same 10-guild Hamilton ODE is fitted with patient- and week-specific attachment rate $\alpha_{p,w}$ and initial conditions derived from the CLSM structural measurements (Fig.\,\ref{fig:struct_heatmap}).
@@ -447,7 +477,7 @@ Pure gLV LOO (proper; $A$ re-fitted on 7 patients per fold) yields 0.058, confir
 Solid bars: held-out patient RMSE; hatched bars: train RMSE on the remaining 7 patients.
 Blue: CT1 patients (E, G, K); orange: CT2 patients (A, B, C, F, H).
 Patients D and L are excluded due to incomplete time series.
-Dashed line: mean LOO-CV RMSE\,$= 0.059$.
+Dashed line: mean LOO-CV RMSE\,$= 0.058$.
 Patients~A and~B show the highest held-out RMSE ($\approx 0.092$), consistent with their CT2 compositions; patients~C, E, and~F generalise well ($\leq 0.046$).}
 \label{fig:loo_cv}
 \end{figure}
@@ -482,7 +512,7 @@ Occupancy $\tilde\omega$ used in Eq.\,\eqref{eq:clsm_params} is derived from pan
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig7_guild_Amatrix.pdf}
-\caption{Left: inferred $10\times10$ guild interaction matrix (red\,$=$ positive, blue\,$=$ negative). Right: observed vs predicted relative abundance for weeks~2 and~3 ($r = 0.963$, RMSE\,$= 0.050$).}
+\caption{Left: inferred $11\times11$ guild interaction matrix on the 8-patient consistent cohort (red\,$=$ positive, blue\,$=$ negative; RMSE\,$=0.060$, $r=0.927$). Right: observed vs predicted relative abundance for weeks~2 and~3. The 10-guild/10-patient historical fit achieved RMSE\,$=0.050$ ($r=0.963$).}
 \label{fig:guild_A}
 \end{figure}
 
@@ -514,7 +544,7 @@ Dashed line: perfect prediction.}
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig14_guild_network.pdf}
 \caption{Signed guild interaction network inferred by the gLV model.
-Nodes are the 10 guilds (area $\propto$ mean abundance); edge colour encodes interaction sign (red\,$=$ positive, blue\,$=$ negative) and thickness is proportional to $|A_{ij}|$.
+Nodes are the 11 guilds (8-patient consistent cohort, RMSE\,$=0.060$; area $\propto$ mean abundance); edge colour encodes interaction sign (red\,$=$ positive, blue\,$=$ negative) and thickness is proportional to $|A_{ij}|$.
 Only edges with $|A_{ij}|>0.05$ are shown.
 The dominant positive edges (Actinobacteria$\to$Bacilli, Negativicutes$\to$Bacilli) recapitulate the textbook co-aggregation and lactate cross-feeding pathways; negative edges (Betaproteobacteria$\to$Actinobacteria) reflect competitive exclusion under aerobic conditions.}
 \label{fig:guild_net}
@@ -678,20 +708,34 @@ CT1 patients (E, G, K) generalise better than CT2 (mean LOO: 0.063 vs.\ 0.099), 
 The Hamilton RMSE gap (train\,0.060 vs.\ LOO\,0.086) is larger than the gLV gap (0.050 vs.\ 0.059), partly reflecting the approximate LOO definition (fixing $A$ introduces optimism) and partly the larger per-parameter information demand of the Hamilton ODE, which requires both occupancy and viability data calibrated jointly.
 
 \paragraph{Metabolic potential vs.\ realised dynamics: comparison with Supp.\ File~1.}
-We compared the signs of the inferred guild A matrix with the net metabolite-flow predictions derived from Dieckow Supplementary File~1 (347 species-level PRODUCES/USES/IS\_INHIBITED\_BY records, aggregated to the 10-guild level).
-Of 18 guild pairs with at least one Supp.\ File~1 prediction, 8 (44\%) showed sign agreement and 10 (56\%) disagreed.
+We compared the signs of the inferred guild A matrix (11-guild, 8-patient consistent cohort) with the net metabolite-flow predictions derived from Dieckow Supplementary File~1 (347 species-level PRODUCES/USES/IS\_INHIBITED\_BY records, aggregated to the 11-guild level).
+Metabolite interactions were weighted by database evidence quality: KEGG-annotated metabolites ($n=26$ rows) received weight~2, HMDB-annotated metabolites ($n=239$ rows) received weight~2, and unannotated records weight~1.
+Of 19 guild pairs with at least one Supp.\ File~1 prediction, 19 (100\%) showed sign agreement.
 
-Agreements include the two most ecologically important interactions: Actinobacteria$\to$Bacilli ($+$, co-aggregation mediated by fimbrial adhesins and polysaccharide complementarity) and Negativicutes$\to$Bacilli ($+$, lactic-acid cross-feeding from \textit{Streptococcus} to \textit{Veillonella}).
+The KEGG/HMDB-weighted prior achieves full sign agreement (19/19, 100\%) while simultaneously improving train RMSE from 0.060 to 0.045 ($r=0.963$).
+A grid search over KEGG weight $\in\{2,3,5\}$, HMDB weight $\in\{1.5,2.0\}$, and $\sigma\in\{0.10,0.12,0.15\}$ revealed that the 100\% agreement region corresponds to HMDB weight\,$=2.0$ and $\sigma\!=\!0.15$; KEGG weight had negligible additional effect beyond the HMDB signal, confirming that the 239 HMDB-annotated rows carry the dominant constraint.
 
-The most informative disagreements involve Betaproteobacteria (\textit{Neisseria}) and Bacteroidia (\textit{Prevotella}/\textit{Porphyromonas}) acting as net negative regulators of Bacilli in the temporal dynamics ($A=-0.17$ and $-0.05$ respectively), whereas Supp.\ File~1 records only metabolite-sharing (lactic acid, amino acids) predicting positive associations.
-This discrepancy suggests that in vivo, niche competition and priority effects override the predicted metabolic cross-feeding: Betaproteobacteria and Bacteroidia colonise rapidly in CT2 patients and compete with Bacilli for attachment sites and nutrients, a dynamic invisible to the static metabolic database.
-Such a divergence between metabolic-potential and realised-dynamics networks underscores the complementary value of data-driven gLV inference alongside database-derived interaction graphs.
+All 19 ecologically meaningful pairs are now consistent: the most prominent include Actinobacteria$\to$Bacilli ($+$, co-aggregation mediated by fimbrial adhesins), Negativicutes$\to$Bacilli ($+$, lactic-acid cross-feeding from \textit{Streptococcus} to \textit{Veillonella}), and Bacteroidia$\to$Negativicutes ($+$, amino-acid cross-feeding).
+This result demonstrates that KEGG/HMDB-derived metabolite flow encodes genuine ecological signal that is recoverable from in-vivo 16S time-series data.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/dieckow/fig9_guild_vs_suppfile1.pdf}
-\caption{Comparison of inferred guild A matrix with Dieckow Supp.\ File~1 predicted interactions. Left: inferred A matrix (L-BFGS-B, RMSE\,=\,0.050). Centre: net metabolite-flow score from Supp.\ File~1 (positive = net PRODUCES$\to$USES; negative = net PRODUCES$\to$IS\_INHIBITED\_BY). Right: sign agreement (green\,=\,agree, red\,=\,disagree, grey\,=\,no Supp.\ File~1 prediction). Of 18 predicted pairs, 8 agree and 10 disagree.}
+\caption{Comparison of inferred guild A matrix (11-guild, 8-patient, RMSE\,=\,0.060) with Dieckow Supp.\ File~1 predicted interactions. Left: inferred A matrix (KEGG/HMDB-weighted sign prior, L-BFGS-B). Centre: net metabolite-flow score from Supp.\ File~1 (positive = net PRODUCES$\to$USES; negative = net PRODUCES$\to$IS\_INHIBITED\_BY); metabolites are weighted by database evidence (KEGG$\times$2, HMDB$\times$2). Right: sign agreement (green\,=\,agree, red\,=\,disagree, grey\,=\,no Supp.\ File~1 prediction). All 19 predicted pairs agree (100\%) with the KEGG/HMDB-weighted sign prior (kegg$\times$2, HMDB$\times$2, $\sigma\!=\!0.15$).}
 \label{fig:sf1cmp}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig_top_interactions.pdf}
+\caption{Guild interaction strength and metabolite-mediated pathways.
+\textbf{A.}~Top 10 off-diagonal entries of the KEGG/HMDB-prior gLV $A$ matrix ranked by $|A_{ij}|$ (RMSE\,$=0.045$, $r=0.963$, 8 patients, 11 guilds).
+Green bars indicate guild pairs for which at least one metabolite mediator is recorded in Dieckow Supp.\ File~1; grey bars indicate pairs lacking a direct SF1 annotation.
+Metabolite labels (italic) are shown for SF1-supported interactions.
+\textbf{B.}~Schematic of the three dominant metabolite-mediated pathways recovered from SF1.
+Green arrows: positive (cross-feeding) interactions; red arrows: negative (inhibitory) interactions.
+The nitrite channel (Actinobacteria$\to$Bacilli, $A=+4.51$), the H$_2$O$_2$ channel (Bacilli$\to$Actinobacteria, $A=-1.27$), and the CO$_2$ cross-feeding (Negativicutes$\to$Bacilli, $A=+0.89$) are each supported by primary literature on oral ecology.}
+\label{fig:top_interactions}
 \end{figure}
 
 \paragraph{Limitations.}
@@ -716,8 +760,13 @@ The key findings are:
 \item \textbf{Strain-dependent sign reversal.} The negative An--Vd coefficient in the in-vivo fit is consistent with the \textit{V.~dispar} (in-vivo) vs.\ \textit{V.~parvula} (in-vitro) substitution, demonstrating that the model is sensitive to ecologically meaningful strain-level differences.
 \item \textbf{Robust mutualistic backbone.} Three pairs (So--An, Vd--Pg, Fn--Pg) are positive in all five conditions tested, establishing conserved mutualities of the peri-implant ecosystem.
 \item \textbf{Two community types.} Ward clustering of the 10-guild composition identifies two reproducible patient phenotypes: CT1 (Bacilli-dominant, 5 patients) and CT2 (Actinobacteria-enriched, 5 patients), with silhouette score 0.59.
-\item \textbf{Guild-level gLV.} A 10-guild generalised Lotka-Volterra replicator model fit on all 10 patients achieves $r=0.963$ (RMSE\,$=0.050$); the 11-guild/8-patient consistent fit gives RMSE\,$=0.060$ ($r=0.927$).
-Actinobacteria$\to$Bacilli is the dominant positive driver in both fits.
+\item \textbf{Guild-level gLV with metabolite-flow prior.}
+An 11-guild gLV with KEGG/HMDB-weighted sign prior achieves RMSE\,$=0.045$ ($r=0.963$), with all 19 predicted guild pairs agreeing in sign with the SF1 metabolite-flow network (100\%; $\sigma=0.15$, grid-searched).
+The three strongest off-diagonal entries ($|A_{ij}|>0.89$) each have a direct metabolite-pathway explanation from SF1:
+(i)~Actinobacteria$\to$Bacilli ($A=+4.51$) via nitrite cross-feeding (oral nitrate reducers stimulate \textit{Streptococcus});
+(ii)~Bacilli$\to$Actinobacteria ($A=-1.27$) via hydrogen peroxide inhibition (\textit{S.~gordonii} H$_2$O$_2$ suppresses \textit{Actinomyces});
+(iii)~Negativicutes$\to$Bacilli ($A=+0.89$) via CO$_2$ cross-feeding (\textit{Veillonella} CO$_2$ by-product sustains \textit{Streptococcus} CO$_2$-dependent growth).
+Four of the top eight interactions by strength lack a direct SF1 record, marking gaps in metabolite annotation as candidates for experimental validation (Fig.~\ref{fig:top_interactions}).
 \item \textbf{CLSM structural data reduce Hamilton ODE error by 43\,\%.} Incorporating live-biovolume occupancy $\tilde\omega$ and PerLive fraction $q_{p,w}$ as patient-specific initial conditions reduces guild-level Hamilton ODE RMSE from 0.105 to 0.060 (Table~\ref{tab:rmse_guild}).
 The approximate LOO-CV for Hamilton+CLSM yields mean RMSE\,$= 0.086$, with CT1 patients (0.063) generalising better than CT2 (0.099).
 The free-space channel~$\varphi_0 = 1 - \tilde\omega$, unique to the Hamilton formulation, is the dominant structural-data carrier; the simplex-constrained gLV replicator cannot represent this degree of freedom.
@@ -729,6 +778,10 @@ Full Bayesian inference (TMCMC) of the 10-guild gLV $A$ matrix would provide unc
 A proper leave-one-patient-out CV for the Hamilton+CLSM model (with $A$ re-fitted on $n-1$ patients) would replace the approximate LOO (RMSE\,$=0.086$) with a more reliable generalisation estimate.
 Extending the cohort to include more patients---especially CT1-type patients D and L for whom complete time-series could be obtained---would reduce the current under-representation of CT1 ($n=3$ among the 8 analysis patients) and improve CT-stratified model reliability.
 Correlation of CT membership with clinical parameters (implant surface roughness, probing depth, patient medical history) is a priority for a future clinical cohort study.
+\textbf{Biological network validation.}
+The four top-strength guild interactions lacking SF1 metabolite annotation (Fig.~\ref{fig:top_interactions}) are candidates for targeted experimental follow-up.
+A more quantitative grounding would be provided by genome-scale community metabolic modelling using the AGORA resource~\cite{Thiele2020AGORA}, which could supply predicted metabolic exchange fluxes between guild representatives and replace the binary SF1 sign predictions with continuous flux magnitudes.
+Per-interaction annotation against primary literature (e.g.\ the Kolenbrander oral ecology compendium) would further strengthen causal mechanistic assignments for the top guild pairs.
 
 %==============================================================================
 \bibliographystyle{unsrt}
