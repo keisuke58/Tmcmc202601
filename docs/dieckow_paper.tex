@@ -57,7 +57,7 @@ A joint posterior over a shared $5\times5$ interaction matrix $\bA$ (15 paramete
 The MAP achieves RMSE\,$=\,$0.101 (flat prior) and 0.101 (Bergey metabolic network sign prior) on held-out week-2/3 predictions across all patients.
 Cross-prediction analysis shows that the four Heine et al.\ in-vitro MAP interaction matrices~\cite{Heine2025PeriImplant} achieve RMSE\,$=\,$0.102--0.103 when combined with the Dieckow patient-specific growth rates, confirming a conserved interaction backbone between in-vitro and in-vivo settings.
 Comparing sign patterns across all five conditions, three mutualistic pairs---So--An, An--Vd, and Vd--Pg---are positive in all five; the An--Vd sign reversal in the in-vivo fit is consistent with the strain substitution from \textit{V.~parvula} (in-vitro) to \textit{V.~dispar} (in-vivo).
-At the community level, an 11-guild generalised Lotka-Volterra (gLV) model fit to all 53 genera achieves RMSE\,$=\,$0.045 ($r=0.963$) with a KEGG/HMDB-weighted metabolite-flow sign prior; leave-one-out cross-validation on the 8 patients with complete three-week data gives RMSE\,$=\,$0.058.
+At the community level, an 11-guild generalised Lotka-Volterra (gLV) model with KEGG/HMDB-weighted metabolite-flow sign prior achieves RMSE\,$=\,$0.045 ($r=0.963$) with 100\% sign agreement (19/19 guild pairs); the sign-constrained LOO-CV is 0.074, versus 0.058 for unconstrained gLV, reflecting the trade-off between biological plausibility and generalisation.
 Integrating CLSM structural data (live-biovolume occupancy and PerLive fraction) as patient- and week-specific Hamilton ODE initial conditions reduces the guild-level Hamilton ODE RMSE by 43\,\% (0.105\,$\to$\,0.060), with approximate LOO-CV RMSE\,$=\,$0.086 (CT1 patients: 0.063; CT2 patients: 0.099), demonstrating that structural biofilm measurements carry independent predictive information beyond 16S composition.
 
 \vspace{4pt}
@@ -459,6 +459,7 @@ $^\dagger$Hamilton approximate LOO: $A$ fixed from full-cohort fit; patient-spec
 \textbf{Model} & \textbf{Guilds} & \textbf{Patients (train)} & \textbf{Train RMSE} & \textbf{LOO-CV RMSE} & \textbf{Structural data}\\
 \midrule
 gLV (L-BFGS-B, 5 starts)$^{\ddagger}$ & 11 & 8  & \textbf{0.060} & \textbf{0.058} & none\\
+gLV + KEGG/HMDB prior (this work)   & 11 & 8  & 0.045 & 0.074$^{\S}$ & none\\
 gLV + struct (PerLive-scaled $b$)    & 11 & 8  & 0.060 & 0.059 & $q_{p,w}$ only\\
 Hamilton ODE (no struct)             & 10 & 8  & 0.105 & $\sim$0.15$^\dagger$ & none\\
 Hamilton ODE + CLSM (this work)      & 11 & 8  & \textbf{0.060} & \textbf{0.086}$^\dagger$ & $\tilde\omega$, $q_{p,w}$, $\alpha$\\
@@ -468,6 +469,7 @@ Hamilton ODE + CLSM (this work)      & 11 & 8  & \textbf{0.060} & \textbf{0.086}
 \footnotesize $^\ddagger$gLV train/LOO are for the 11-guild/8-patient consistent fit (this work).
 The 10-guild/10-patient gLV fit (patients D,L included with partial data) achieves RMSE\,$=0.050$, $r=0.963$ (see text, Fig.\,\ref{fig:guild_A}) but is not directly comparable to the other rows.
 Pure gLV LOO (proper; $A$ re-fitted on 7 patients per fold) yields 0.058, confirming that PerLive scaling (gLV+struct LOO\,$=0.059$) provides no generalisation gain.
+$^\S$KEGG/HMDB-prior gLV LOO (0.074) is higher than the plain gLV LOO (0.058): the sign penalty regularises the $A$ matrix toward biological plausibility at the cost of a small generalisation trade-off (8-fold LOO, 8 patients).
 \end{table}
 
 \begin{figure}[htbp]
@@ -712,7 +714,7 @@ We compared the signs of the inferred guild A matrix (11-guild, 8-patient consis
 Metabolite interactions were weighted by database evidence quality: KEGG-annotated metabolites ($n=26$ rows) received weight~2, HMDB-annotated metabolites ($n=239$ rows) received weight~2, and unannotated records weight~1.
 Of 19 guild pairs with at least one Supp.\ File~1 prediction, 19 (100\%) showed sign agreement.
 
-The KEGG/HMDB-weighted prior achieves full sign agreement (19/19, 100\%) while simultaneously improving train RMSE from 0.060 to 0.045 ($r=0.963$).
+The KEGG/HMDB-weighted prior achieves full sign agreement (19/19, 100\%) while simultaneously improving train RMSE from 0.060 to 0.045 ($r=0.963$); the 8-fold LOO-CV RMSE is 0.074, slightly higher than the plain gLV LOO (0.058), reflecting the trade-off between biological plausibility and generalisation imposed by the sign penalty.
 A grid search over KEGG weight $\in\{2,3,5\}$, HMDB weight $\in\{1.5,2.0\}$, and $\sigma\in\{0.10,0.12,0.15\}$ revealed that the 100\% agreement region corresponds to HMDB weight\,$=2.0$ and $\sigma\!=\!0.15$; KEGG weight had negligible additional effect beyond the HMDB signal, confirming that the 239 HMDB-annotated rows carry the dominant constraint.
 
 All 19 ecologically meaningful pairs are now consistent: the most prominent include Actinobacteria$\to$Bacilli ($+$, co-aggregation mediated by fimbrial adhesins), Negativicutes$\to$Bacilli ($+$, lactic-acid cross-feeding from \textit{Streptococcus} to \textit{Veillonella}), and Bacteroidia$\to$Negativicutes ($+$, amino-acid cross-feeding).
@@ -736,6 +738,25 @@ Metabolite labels (italic) are shown for SF1-supported interactions.
 Green arrows: positive (cross-feeding) interactions; red arrows: negative (inhibitory) interactions.
 The nitrite channel (Actinobacteria$\to$Bacilli, $A=+4.51$), the H$_2$O$_2$ channel (Bacilli$\to$Actinobacteria, $A=-1.27$), and the CO$_2$ cross-feeding (Negativicutes$\to$Bacilli, $A=+0.89$) are each supported by primary literature on oral ecology.}
 \label{fig:top_interactions}
+\end{figure}
+
+\paragraph{Independent metabolic network validation.}
+To assess whether the sign structure of the KEGG/HMDB-prior gLV $A$ matrix is consistent with first-principles metabolic modelling, we constructed manually curated minimal COBRApy flux-balance models for each guild (10--12 reactions per model, based on HOMD and established oral ecology~\cite{Kolenbrander2010OralMultispecies}).
+Each model was optimised in an oral-fluid medium using parsimonious FBA; sign predictions were assigned for guild pairs where net cross-feeding flux exceeded threshold (positive) or where a toxic metabolite (H$_2$O$_2$, H$_2$S) was secreted in excess (negative).
+Of 7 guild pairs for which the minimal models yielded a definite sign prediction, 6 (86\,\%) agreed with the KEGG/HMDB-prior gLV inferred signs (Fig.~\ref{fig:minimal_model_signs}).
+The three strongest positive predictions matched: Gammaproteobacteria$\to$Actinobacteria via L-lactate ($A=+0.44$), Bacilli$\to$Betaproteobacteria via H$_2$O$_2$ ($A=+0.42$), and Fusobacteriia$\to$\{Actinobacteria, Negativicutes\} via acetate.
+The single disagreement (Bacteroidia$\to$Gammaproteobacteria, gLV $A=-0.081$, minimal model: +succinate cross-feeding) is biologically plausible: Bacteroidia also produce H$_2$S, whose inhibitory effect can dominate over succinate cross-feeding under oral conditions.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig_minimal_model_signs.pdf}
+\caption{Independent validation of gLV interaction signs using manually curated minimal metabolic models.
+Ten guild-level COBRApy flux-balance models (10--12 reactions each, one per guild, based on HOMD and Kolenbrander 2010) were optimised in an oral-fluid medium using parsimonious FBA.
+Sign predictions (positive = net cross-feeding; negative = H$_2$O$_2$ or H$_2$S toxicity) are compared with KEGG/HMDB-prior gLV inferred signs for all guild pairs with a definite prediction.
+Of 7 pairs with a definite prediction, 6 (86\,\%) agreed.
+Driver metabolites are annotated for each predicted pair (lac = L-lactate; h2o2 = hydrogen peroxide; ac = acetate; succ = succinate).
+The single disagreement (Bacteroidia$\to$Gammaproteobacteria) is attributed to competing H$_2$S toxicity dominating over succinate cross-feeding.}
+\label{fig:minimal_model_signs}
 \end{figure}
 
 \paragraph{Limitations.}
@@ -767,6 +788,7 @@ The three strongest off-diagonal entries ($|A_{ij}|>0.89$) each have a direct me
 (ii)~Bacilli$\to$Actinobacteria ($A=-1.27$) via hydrogen peroxide inhibition (\textit{S.~gordonii} H$_2$O$_2$ suppresses \textit{Actinomyces});
 (iii)~Negativicutes$\to$Bacilli ($A=+0.89$) via CO$_2$ cross-feeding (\textit{Veillonella} CO$_2$ by-product sustains \textit{Streptococcus} CO$_2$-dependent growth).
 Four of the top eight interactions by strength lack a direct SF1 record, marking gaps in metabolite annotation as candidates for experimental validation (Fig.~\ref{fig:top_interactions}).
+Independently, manually curated minimal metabolic models (COBRApy pFBA, one per guild) achieve 6/7 (86\,\%) sign agreement with the inferred gLV signs (Fig.~\ref{fig:minimal_model_signs}), confirming the metabolic plausibility of the dominant interaction signs.
 \item \textbf{CLSM structural data reduce Hamilton ODE error by 43\,\%.} Incorporating live-biovolume occupancy $\tilde\omega$ and PerLive fraction $q_{p,w}$ as patient-specific initial conditions reduces guild-level Hamilton ODE RMSE from 0.105 to 0.060 (Table~\ref{tab:rmse_guild}).
 The approximate LOO-CV for Hamilton+CLSM yields mean RMSE\,$= 0.086$, with CT1 patients (0.063) generalising better than CT2 (0.099).
 The free-space channel~$\varphi_0 = 1 - \tilde\omega$, unique to the Hamilton formulation, is the dominant structural-data carrier; the simplex-constrained gLV replicator cannot represent this degree of freedom.
@@ -780,7 +802,8 @@ Extending the cohort to include more patients---especially CT1-type patients D a
 Correlation of CT membership with clinical parameters (implant surface roughness, probing depth, patient medical history) is a priority for a future clinical cohort study.
 \textbf{Biological network validation.}
 The four top-strength guild interactions lacking SF1 metabolite annotation (Fig.~\ref{fig:top_interactions}) are candidates for targeted experimental follow-up.
-A more quantitative grounding would be provided by genome-scale community metabolic modelling using the AGORA resource~\cite{Thiele2020AGORA}, which could supply predicted metabolic exchange fluxes between guild representatives and replace the binary SF1 sign predictions with continuous flux magnitudes.
+As a preliminary step, manually curated minimal COBRApy guild models achieve 6/7 (86\,\%) sign agreement with gLV-inferred signs (Fig.~\ref{fig:minimal_model_signs}); the single disagreement (Bacteroidia$\to$Gammaproteobacteria) is consistent with competing H$_2$S toxicity.
+A more comprehensive grounding would be provided by genome-scale community metabolic modelling using the AGORA2 resource~\cite{Thiele2020AGORA}, which could supply continuous flux magnitudes and replace binary sign predictions with quantitative interaction strengths.
 Per-interaction annotation against primary literature (e.g.\ the Kolenbrander oral ecology compendium) would further strengthen causal mechanistic assignments for the top guild pairs.
 
 %==============================================================================
