@@ -1048,26 +1048,37 @@ class SignPrior:
     """
     Soft sign prior on interaction-matrix parameters from KEGG/HMDB metabolite flow.
 
-    For each non-zero entry net_flow[i,j], the corresponding A[i,j] element is
-    penalised if it has the wrong sign:
-        log_prior -= w * max(0, -sign(net_flow[i,j]) * A[i,j])^2 / (2 sigma^2)
+    Penalises A[i,j] if it has the wrong sign relative to net_flow[i,j]:
+        log_prior -= w * max(0, -sign(f) * A[i,j])^2 / (2 sigma^2)
 
-    Designed to be attached to LogLikelihoodEvaluator.sign_prior after construction.
-
-    Parameters
-    ----------
-    net_flow : ndarray (n_sp, n_sp)
-        Signed metabolite-flow matrix (positive = cross-feeding, negative = inhibition).
-        Typically built from Dieckow SF1 KEGG/HMDB annotation.
-    active_indices : list[int]
-        Indices in full theta vector that are active (passed as theta_sub).
-    n_sp : int
-        Number of species (default 5 for Heine).
-    sigma : float
-        Prior width (default 0.15, same as guild gLV).
-    symmetric : bool
-        If True, treat A as symmetric (Hamilton ODE) and average net_flow directions.
+    Uses the actual 5-species Hamilton theta layout (block structure, NOT sequential
+    upper-triangle):
+        theta[0]=A[0,0]  theta[1]=A[0,1]  theta[2]=A[1,1]  theta[3]=b0  theta[4]=b1
+        theta[5]=A[2,2]  theta[6]=A[2,3]  theta[7]=A[3,3]  theta[8]=b2  theta[9]=b3
+        theta[10]=A[0,2] theta[11]=A[0,3] theta[12]=A[1,2] theta[13]=A[1,3]
+        theta[14]=A[4,4] theta[15]=b4
+        theta[16]=A[0,4] theta[17]=A[1,4] theta[18]=A[2,4] theta[19]=A[3,4]
     """
+
+    # Full-theta index for each symmetric A-matrix pair (0-based species indices).
+    # Keys are frozenset({i,j}) so order doesn't matter; value is theta index.
+    _PAIR_TO_THETA_5SP: dict = {
+        frozenset({0, 0}): 0,
+        frozenset({0, 1}): 1,
+        frozenset({1, 1}): 2,
+        frozenset({2, 2}): 5,
+        frozenset({2, 3}): 6,
+        frozenset({3, 3}): 7,
+        frozenset({0, 2}): 10,
+        frozenset({0, 3}): 11,
+        frozenset({1, 2}): 12,
+        frozenset({1, 3}): 13,
+        frozenset({4, 4}): 14,
+        frozenset({0, 4}): 16,
+        frozenset({1, 4}): 17,
+        frozenset({2, 4}): 18,
+        frozenset({3, 4}): 19,
+    }
 
     def __init__(
         self,
@@ -1079,32 +1090,32 @@ class SignPrior:
     ):
         self.n_sp = n_sp
         self.sigma = sigma
-        self.active_indices = list(active_indices)
-        n_a = n_sp * (n_sp + 1) // 2  # upper-triangle params (indices 0..n_a-1)
 
         # For symmetric A, average both flow directions
-        nf = np.array(net_flow)
+        nf = np.array(net_flow, dtype=float)
         if symmetric:
             nf = (nf + nf.T) / 2.0
 
-        # Pre-build list of (sub_idx, sign) for non-zero A-matrix active params
+        # Build penalty list: (position_in_theta_sub, net_flow_value)
+        active_set = {idx: pos for pos, idx in enumerate(active_indices)}
         self._penalties: List[tuple] = []
-        idx = 0
-        for j in range(n_sp):
-            for i in range(j + 1):  # upper triangle (i <= j)
-                full_idx = idx  # A_upper param index in theta (0-based)
-                if full_idx in self.active_indices:
-                    sub_pos = self.active_indices.index(full_idx)
-                    f_ij = nf[i, j]
-                    f_ji = nf[j, i]
-                    # Use larger absolute flow direction
-                    if abs(f_ij) >= abs(f_ji):
-                        f = f_ij
-                    else:
-                        f = f_ji
-                    if f != 0.0:
-                        self._penalties.append((sub_pos, f))
-                idx += 1
+        for i in range(n_sp):
+            for j in range(i, n_sp):  # unique pairs (i <= j)
+                f = nf[i, j]
+                if f == 0.0:
+                    continue
+                theta_idx = self._PAIR_TO_THETA_5SP.get(frozenset({i, j}))
+                if theta_idx is None:
+                    continue  # pair not in layout (shouldn't happen for 5-sp)
+                sub_pos = active_set.get(theta_idx)
+                if sub_pos is None:
+                    continue  # parameter locked / inactive
+                self._penalties.append((sub_pos, float(f)))
+
+        print(
+            f"  SignPrior: {len(self._penalties)} active A-pairs with KEGG/HMDB prior "
+            f"(sigma={sigma})"
+        )
 
     def log_prior(self, theta_sub: np.ndarray) -> float:
         lp = 0.0
