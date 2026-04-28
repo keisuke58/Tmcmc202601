@@ -1127,6 +1127,25 @@ class SignPrior:
         return lp
 
 
+class _NullTiming:
+    """Picklable no-op timing stub for HamiltonDirectEvaluator."""
+
+    @staticmethod
+    def get_s(key):
+        return 0.0
+
+
+class _NullHealth:
+    """Picklable no-op health stub for HamiltonDirectEvaluator."""
+
+    def __init__(self):
+        self.n_calls = 0
+        self.n_tsm_fail = 0
+        self.n_output_nonfinite = 0
+        self.n_logL_neginf = 0
+        self.n_logL_nan = 0
+
+
 class HamiltonDirectEvaluator:
     """
     Log-likelihood evaluator that calls simulate_0d_nsp (Hamilton JAX ODE) directly.
@@ -1170,18 +1189,8 @@ class HamiltonDirectEvaluator:
         self.fom_call_count = 0
         self._linearization_enabled = False
         self.debug_logger = None
-        self.timing = type("_T", (), {"get_s": staticmethod(lambda k: 0.0)})()
-        self.health = type(
-            "_H",
-            (),
-            {
-                "n_calls": 0,
-                "n_tsm_fail": 0,
-                "n_output_nonfinite": 0,
-                "n_logL_neginf": 0,
-                "n_logL_nan": 0,
-            },
-        )()
+        self.timing = _NullTiming()
+        self.health = _NullHealth()
 
     def __call__(self, theta_sub: np.ndarray) -> float:
         self.call_count += 1
