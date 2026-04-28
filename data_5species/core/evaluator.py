@@ -1157,7 +1157,7 @@ class HamiltonDirectEvaluator:
         self.theta_base = theta_base.copy()
         self.data = np.array(data, dtype=np.float64)
         self.idx_sparse = np.array(idx_sparse, dtype=int)
-        self.sigma_obs = float(sigma_obs)
+        self.sigma_obs = float(np.mean(sigma_obs))
         self.n_sp = n_sp
         self.n_steps = n_steps
         self.weights = weights
