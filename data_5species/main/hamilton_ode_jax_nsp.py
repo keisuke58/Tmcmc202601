@@ -247,9 +247,9 @@ def simulate_0d_nsp(
     n_A = n_sp * (n_sp + 1) // 2
     A, b_diag = theta_to_matrices(theta[: n_A + n_sp], n_sp)
 
-    # K_hill from theta if extra param present
+    # K_hill from theta if extra param present (Python conditional to avoid OOB access)
     has_k_hill = theta.shape[0] > n_A + n_sp
-    K_hill_val = jnp.where(has_k_hill, theta[n_A + n_sp], K_hill)
+    K_hill_val = theta[n_A + n_sp] if has_k_hill else K_hill
 
     active_mask = jnp.ones(n_sp, dtype=jnp.int64)
 
