@@ -406,6 +406,7 @@ Reverting to the unscaled $b$ from the gLV\,+\,struct fit raises RMSE to 0.114, 
 This contrasts with the Hamilton ODE, where the free-space channel ($\varphi_0 = 1 - \tilde\omega$) provides an independent structural degree of freedom not available to the simplex-constrained replicator.
 Leave-one-patient-out cross-validation of the pure gLV (Fig.\,\ref{fig:loo_cv}) yields mean LOO-CV RMSE\,$= 0.058$, with the highest held-out error for patients~A and~B ($\approx 0.091$), both CT2-type outliers, and the lowest for patient~E ($0.020$).
 The gLV+struct LOO-CV (Fig.\,\ref{fig:loo_cmp}) gives 0.059, confirming that PerLive scaling adds no generalisation benefit.
+Adding the KEGG/HMDB sign prior raises the mean LOO-CV to 0.074; the per-patient breakdown (Fig.\,\ref{fig:loo_pat_cmp}) reveals that patient~E is a pronounced outlier (RMSE$=0.190$ vs.\ $0.023$ without prior), indicating that the biochemical sign constraints conflict with this patient's atypical ecological trajectory, whereas patients~F (CT2) and~G (CT1) benefit from the prior (RMSE reduced by 0.017 and 0.024, respectively).
 The small generalisation gap (train\,$=0.060$; LOO\,$=0.058$) indicates good predictive robustness across the 8-patient cohort.
 Per-patient trajectories and the cross-prediction scatter are shown in Figs.\,\ref{fig:guild_traj}--\ref{fig:guild_xpred}.
 The A-matrix comparison between gLV and Hamilton ODE fits (Fig.\,\ref{fig:guild_Acmp}) reveals consistent dominant signs: Actinobacteria$\to$Bacilli remains the strongest positive off-diagonal entry in both models, while Betaproteobacteria$\to$Actinobacteria is negative, corroborating the ecological interpretation across modelling frameworks.
@@ -492,6 +493,16 @@ Blue: CT1 patients (E, G, K); orange: CT2 patients (A, B, C, F, H).
 Horizontal lines: cohort means (gLV: 0.059; Hamilton: 0.086).
 CT2 patients consistently show higher LOO errors in both models (gLV CT2\,$=0.064$, CT1\,$=0.051$; Hamilton CT2\,$=0.099$, CT1\,$=0.063$), indicating that the more diverse CT2 community is harder to generalise from limited training data.}
 \label{fig:loo_cmp}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dieckow/fig_loo_patient_comparison.pdf}
+\caption{Per-patient leave-one-out cross-validation RMSE for three models: pure gLV (blue), gLV\,+\,KEGG/HMDB sign prior (green), and Hamilton\,+\,CLSM (red).
+Dashed horizontal lines mark the respective cohort means (0.059, 0.074, 0.086).
+Background shading: CT2 (yellow) vs.\ CT1 (green).
+Patient~E (CT1) is a pronounced outlier under the KEGG prior (RMSE\,$=0.190$), while patients~F and~G benefit (RMSE reduced by 0.017 and 0.024). Hamilton\,+\,CLSM generalises better than the KEGG prior on CT2 patients but worse on CT1.}
+\label{fig:loo_pat_cmp}
 \end{figure}
 
 \begin{figure}[htbp]
