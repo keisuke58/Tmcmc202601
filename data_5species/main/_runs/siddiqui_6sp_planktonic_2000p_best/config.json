@@ -1,0 +1,29 @@
+{
+  "paper": "Siddiqui et al. 2021 (PMC8828709)",
+  "dataset": "planktonic",
+  "n_species": 6,
+  "n_params": 27,
+  "n_particles": 2000,
+  "mutation": "rw",
+  "n_mutation_steps": 20,
+  "sigma_obs": 0.15000000000000002,
+  "sigma_schedule": null,
+  "n_steps": 5000,
+  "dt": 5e-05,
+  "K_hill": 0.15,
+  "n_hill": 2.0,
+  "prior_a_ij": [
+    -2.0,
+    4.0
+  ],
+  "prior_mu": [
+    0.0,
+    6.0
+  ],
+  "lambda_pg": 3.0,
+  "lambda_fn": 1.5,
+  "n_stages": 13,
+  "total_time_s": 7265.068100690842,
+  "max_logL": -6.551369857390881,
+  "strategy": "best_v2: K_hill=0.15, dt=5e-5, n_steps=5000, wider prior, per-tp sigma, Fn weight"
+}

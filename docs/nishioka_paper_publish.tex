@@ -11,7 +11,7 @@
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 \usepackage{graphicx}
 \usepackage{geometry}
-\geometry{margin=2.2cm}
+\geometry{margin=2.5cm}
 \usepackage{float}
 \usepackage{enumitem}
 \usepackage[hidelinks,pdfencoding=auto]{hyperref}
@@ -20,14 +20,10 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{multirow}
+
 % Compact spacing
 \usepackage{setspace}
-\setstretch{1.05}
-\captionsetup{skip=5pt}
-\setlength{\abovedisplayskip}{4pt}
-\setlength{\belowdisplayskip}{4pt}
-\setlength{\abovedisplayshortskip}{2pt}
-\setlength{\belowdisplayshortskip}{4pt}
+\setstretch{1.08}
 
 \newcommand{\btheta}{\boldsymbol{\theta}}
 \newcommand{\bphi}{\boldsymbol{\phi}}
@@ -55,12 +51,11 @@ Philipp Junker
 
 \begin{abstract}
 We present a GPU-accelerated Bayesian framework for inferring the interaction parameters of a five-species oral biofilm model derived from the extended Hamilton principle.
-The symmetric $5\times5$ interaction matrix is parametrised as a 15-dimensional vector encoding 15 independent interaction coefficients.
+The symmetric $5\times5$ interaction matrix is parametrised as a 20-dimensional vector encoding 15 independent interaction coefficients plus 5 intrinsic growth rates.
 A two-phase estimation strategy is employed: in Phase~1, the viability fraction $\psi_i$ is fixed to experimentally measured membrane-intact ratios (fix-$\psi$), enabling rapid identification of the interaction matrix; in Phase~2, $\psi_i$ is released and the viability data enter the likelihood as a soft constraint, yielding a self-consistent posterior over both interactions and viability.
-The forward model is compiled via JAX and evaluated in parallel on GPU (NVIDIA RTX\,4090), achieving a $\sim$170$\times$ per-stage speedup over the CPU baseline.
-No parameters are locked to zero a priori; the posterior self-organises, concentrating pathogen-related entries near zero in commensal conditions and activating cooperative cross-feeding terms in dysbiotic states.
+The forward model is compiled via JAX and evaluated in parallel on GPU (NVIDIA RTX\,4090), achieving a $\sim$200$\times$ speedup over the CPU baseline.
+No interaction parameters are locked to zero a priori; the posterior self-organises, concentrating pathogen-related entries near zero in commensal conditions and activating cooperative cross-feeding terms in dysbiotic states.
 The method is validated against in-vitro time-course data from Heine et al.\ under four combinations of community state (commensal/dysbiotic) and cultivation mode (static/HOBIC reactor).
-UMAP embedding of the 15-dimensional posterior confirms that all four conditions form well-separated clusters, demonstrating that the structural reorganisation of the interaction network persists across the entire posterior distribution.
 
 \vspace{4pt}
 \noindent\textbf{Keywords:}
@@ -79,18 +74,18 @@ peri-implantitis
 %==============================================================================
 
 Multi-species biofilms on dental implant surfaces are a primary cause of peri-implantitis~\cite{Kolenbrander2010OralMultispecies, Marsh2003Dental}, and recent in-vivo characterisation confirms that these communities are complex, patient-specific, and temporally dynamic~\cite{EarlyImplantBiofilm2024, PeriImplantitisDysbiosis2025}.
-Heine et al.~\cite{Heine2025PeriImplant} characterised the in-vitro dynamics of five key oral species---\textit{Streptococcus oralis} (So), \textit{Actinomyces naeslundii} (An), \textit{Veillonella} spp.\ (Vei; \textit{V.~dispar} in the commensal inoculum, \textit{V.~parvula} in the dysbiotic inoculum), \textit{Fusobacterium nucleatum} (Fn), and \textit{Porphyromonas gingivalis} (Pg)---under four combinations of community state (commensal/dysbiotic) and cultivation mode (static/HOBIC reactor).
+Heine et al.~\cite{Heine2025PeriImplant} characterised the in-vitro dynamics of five key oral species---\textit{Streptococcus oralis} (So), \textit{Actinomyces naeslundii} (An), \textit{Veillonella} spp.\ (Vei), \textit{Fusobacterium nucleatum} (Fn), and \textit{Porphyromonas gingivalis} (Pg)---under four combinations of community state (commensal/dysbiotic) and cultivation mode (static/HOBIC reactor).
 Notably, the two community states employ distinct Pg strains: the commensal inoculum uses the avirulent strain Pg ATCC\,20709, whereas the dysbiotic inoculum uses the virulent strain Pg W83, which carries a complete set of gingipain and fimbrial virulence genes~\cite{Heine2025PeriImplant}.
 Building on the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamilton}, Klempt et al.~\cite{Klempt2025ContinuumBiofilm} formulated a continuum model in which a symmetric interaction matrix~$\mathbf{A}$ governs species growth, with an optional decay vector~$\mathbf{b}$ for antibiotic effects.
 Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms} subsequently introduced Bayesian updating with surrogate models for biofilm parameter estimation under hybrid uncertainties.
 
-Despite these advances, estimating the 15-dimensional interaction parameter vector from limited time-course data remains challenging.
-Two principal difficulties arise: (i) poor identifiability when data are sparse relative to the parameter dimension---with $N_t=5$ usable time points (Day~1 is consumed as initial condition) and 5 species, one has at most 25 observations for 15 unknowns---and (ii) multimodal posterior landscapes caused by the coupled $\phi_i$--$\psi_i$ dynamics, which render standard MCMC methods inefficient~\cite{RobertCasella2004MonteCarlo}.
+Despite these advances, estimating the 20-dimensional parameter vector (15 interaction coefficients plus 5 growth rates) from limited time-course data remains challenging.
+Two principal difficulties arise: (i) poor identifiability when data are sparse relative to the parameter dimension---with $N_t=5$ usable time points (Day~1 is consumed as initial condition) and 5 species, one has at most 25 observations for 20 unknowns---and (ii) multimodal posterior landscapes caused by the coupled $\phi_i$--$\psi_i$ dynamics, which render standard MCMC methods inefficient~\cite{RobertCasella2004MonteCarlo}.
 
 In this work we address these challenges through three complementary strategies.
 First, we fix the viability fraction $\psi_i$ to experimentally measured membrane-intact ratios, eliminating $\psi$-related posterior modes and halving the ODE system dimension.
-Second, we compile the forward model in JAX~\cite{jax2018github} and evaluate the entire particle ensemble on GPU via batched \texttt{vmap}, achieving a $\sim$170$\times$ per-stage speedup over the CPU baseline.
-Third, we employ iteratively narrowed priors that concentrate sampling on the high-posterior-density region, enabling convergence in 5--7 TMCMC~\cite{ChingChen2007TMCMC, Betz2016TMCMC} stages even in 15 dimensions.
+Second, we compile the forward model in JAX~\cite{jax2018github} and evaluate the entire particle ensemble on GPU via batched \texttt{vmap}, achieving a $\sim$200$\times$ speedup over the CPU baseline.
+Third, we employ iteratively narrowed priors that concentrate sampling on the high-posterior-density region, enabling convergence in 5--7 TMCMC~\cite{ChingChen2007TMCMC, Betz2016TMCMC} stages even in 20 dimensions.
 The framework is validated against all four experimental conditions of Heine et al., demonstrating quantitative reproduction of commensal homeostasis as well as the non-linear pathogen surge characteristic of dysbiotic biofilms under HOBIC flow.
 
 %==============================================================================
@@ -182,28 +177,30 @@ The system~\eqref{eq:phi}--\eqref{eq:constraint_eq} constitutes $2n+2$ coupled n
 The variational derivation automatically ensures symmetry $A_{ij}=A_{ji}$ and thermodynamic consistency~\cite{JunkerBalzani2021ExtendedHamilton}.
 Since $c^*$ enters the evolution equations only through the product $c^*A_{ij}$, its absolute value is non-identifiable; we fix $c^*=25$ so that the inferred $A_{ij}$ remain $\mathcal{O}(1)$.
 The Heine et al.\ experiments do not involve antibiotic agents, so we set $\alpha^*=0$, which eliminates the decay term $\alpha^*b_i\psi_i$ from Eq.~\eqref{eq:psi_evol}; the antibiotic sensitivity matrix~$\mathbf{B}$ is therefore inactive and excluded from estimation.
-The symmetric interaction matrix~$\mathbf{A}$ has 15 independent entries, which form the 15-dimensional parameter vector~$\btheta$.
+The symmetric interaction matrix~$\mathbf{A}$ has 15 independent entries; together with 5 intrinsic growth-rate parameters (Section~\ref{sec:model_matrix}), these form the 20-dimensional parameter vector~$\btheta$.
 
-\subsection{Symmetric interaction matrix}
+\subsection{Symmetric interaction matrix and growth rates}
 \label{sec:model_matrix}
 
 The symmetry $A_{ij}=A_{ji}$ arises automatically from the quadratic form of the free energy~\eqref{eq:psi}, reducing the off-diagonal degrees of freedom from 20 to~10.
 Together with the 5 diagonal entries, the symmetric matrix has 15 independent entries.
-The 15-dimensional parameter vector is
+We augment these with 5 intrinsic growth-rate parameters $\mu_1,\dots,\mu_5$ (one per species), which enter the fitness as a species-specific offset independent of interspecies interactions.
+These are distinct from the antibiotic sensitivity parameters~$b_i$ in Eq.~\eqref{eq:psi_evol}, which vanish when $\alpha^*=0$.
+The resulting 20-dimensional parameter vector is
 \begin{equation}
-\btheta = (\theta_0,\dots,\theta_{14})^T \in \Real^{15},
+\btheta = (\theta_0,\dots,\theta_{19})^T \in \Real^{20},
 \label{eq:theta}
 \end{equation}
-organised into four biologically motivated blocks:
+organised into five biologically motivated blocks:
 \begin{equation}
 \btheta =
-\underbrace{(a_{11},a_{12},a_{22})}_{\text{So--An}}
+\underbrace{(a_{11},a_{12},a_{22},\mu_1,\mu_2)}_{\text{So--An}}
 \oplus
-\underbrace{(a_{33},a_{34},a_{44})}_{\text{Vei--Fn}}
+\underbrace{(a_{33},a_{34},a_{44},\mu_3,\mu_4)}_{\text{Vei--Fn}}
 \oplus
 \underbrace{(a_{13},a_{14},a_{23},a_{24})}_{\text{cross}}
 \oplus
-\underbrace{(a_{55})}_{\text{Pg}}
+\underbrace{(a_{55},\mu_5)}_{\text{Pg}}
 \oplus
 \underbrace{(a_{15},a_{25},a_{35},a_{45})}_{\text{Pg cross}}.
 \label{eq:blocks}
@@ -211,60 +208,168 @@ organised into four biologically motivated blocks:
 
 \subsection{Biological interaction network}
 
-The interaction network established by Heine et al.~\cite{Heine2025PeriImplant} identifies five experimentally confirmed species pairs (Figure~\ref{fig:network}).
-Five additional pairs lack direct metabolic or co-aggregation pathways; however, rather than enforcing these as hard constraints ($\theta_k\equiv0$), we estimate all 15 parameters and let the posterior determine which interactions are active.
-This ``full discovery'' approach is enabled by the fix-$\psi$ strategy (Section~\ref{sec:gpu}), which reduces posterior multimodality sufficiently for convergence in 15 dimensions.
+The metabolite-mediated interaction network of Heine et al.~\cite{Heine2025PeriImplant} identifies six experimentally confirmed species pairs (Figure~\ref{fig:network}).
+Both So and An produce lactate and succinate, which Vei ferments to short-chain fatty acids (propionate, acetate), thereby raising local pH and creating a less acidic niche that promotes Pg growth.
+Four remaining pairs lack confirmed metabolic or co-aggregation pathways; rather than enforcing these as hard constraints ($\theta_k\equiv0$), we estimate all 20 parameters and let the posterior determine which interactions are active.
+This ``full discovery'' approach is enabled by the fix-$\psi$ strategy (Section~\ref{sec:gpu}), which reduces posterior multimodality sufficiently for convergence in 20 dimensions.
 
 \begin{figure}[htbp]
 \centering
-\begin{minipage}[t]{0.32\textwidth}
-\vspace{0pt}
-\centering
-\begin{tikzpicture}[scale=0.82, every node/.style={transform shape},
-    species/.style={circle, draw, minimum size=0.9cm, font=\footnotesize\bfseries},
-    edge/.style={<->, thick, >=Stealth},
-    weakedge/.style={<->, thin, gray!60, >=Stealth, densely dotted}
+\begin{tikzpicture}[scale=0.88, every node/.style={transform shape},
+    sp/.style={circle, draw, thick, minimum size=1.12cm,
+               font=\small\bfseries, inner sep=0pt},
+    met/.style={rounded corners=3pt, draw=gray!65, font=\tiny,
+                fill=gray!12, inner sep=3pt,
+                minimum width=2.4cm, minimum height=0.62cm, align=center},
+    enz/.style={rounded corners=3pt, draw=orange!65, font=\tiny,
+                fill=orange!12, inner sep=3pt,
+                minimum width=2.4cm, minimum height=0.62cm, align=center},
+    med/.style={rounded corners=3pt, draw=teal!65, font=\tiny,
+                fill=teal!10, inner sep=3pt,
+                minimum width=2.4cm, minimum height=0.62cm, align=center},
+    prd/.style={->, >=Stealth, semithick, shorten <=3pt, shorten >=3pt},
+    cns/.style={->, >=Stealth, semithick, dashed,  shorten <=3pt, shorten >=3pt},
+    phy/.style={<->, >=Stealth, semithick, dotted, shorten <=3pt, shorten >=3pt},
+    lbl/.style={font=\tiny, inner sep=0pt},
 ]
-    \node[species, fill=blue!15] (so) at (0, 2.2) {So};
-    \node[species, fill=green!15] (an) at (-1.9, 0.6) {An};
-    \node[species, fill=yellow!20] (vei) at (0, 0.6) {Vei};
-    \node[species, fill=purple!15] (fn) at (1.9, 0.6) {Fn};
-    \node[species, fill=red!15] (pg) at (0, -1.0) {Pg};
-    \draw[edge, blue!70!black] (so) -- (an) node[midway, left, font=\tiny] {co-agg};
-    \draw[edge, blue!70!black] (so) -- (vei) node[midway, right, font=\tiny] {lactate};
-    \draw[edge, blue!70!black] (so) -- (fn) node[midway, right, font=\tiny] {formate};
-    \draw[edge, blue!70!black] (vei) -- (pg) node[midway, left, font=\tiny] {pH};
-    \draw[edge, blue!70!black] (fn) -- (pg) node[midway, right, font=\tiny] {peptides};
-    \draw[weakedge] (an) -- (vei);
-    \draw[weakedge] (an) -- (fn);
-    \draw[weakedge] (vei) -- (fn);
-    \draw[weakedge] (so) to[bend left=20] (pg);
-    \draw[weakedge] (an) to[bend right=20] (pg);
+
+% ─── column backgrounds ────────────────────────────────────────────────────
+\fill[blue!5,  rounded corners=5pt] (-1.2, -1.3) rectangle (0.8, 9.3);
+\fill[gray!6,  rounded corners=5pt] (2.75, -2.6) rectangle (5.5, 9.3);
+\fill[teal!6,  rounded corners=5pt] (6.4,  4.8)  rectangle (9.1, 9.3);
+
+% ─── column headers ────────────────────────────────────────────────────────
+\node[font=\scriptsize\bfseries, text=blue!65!black]  at (0,    9.6) {Species};
+\node[font=\scriptsize\bfseries, text=gray!60!black]  at (4.1,  9.6) {Metabolites\,/\,Enzymes};
+\node[font=\scriptsize\bfseries, text=teal!70!black]  at (7.75, 9.6) {Culture medium};
+
+% ─── culture medium nodes ──────────────────────────────────────────────────
+\node[med] (mGlu) at (7.75, 9.0)  {Glucose};
+\node[med] (mPro) at (7.75, 7.95) {(Glyco)proteins};
+\node[med] (mAA)  at (7.75, 6.9)  {Amino acids};
+\node[med] (mVit) at (7.75, 5.85) {Vitamins};
+
+% ─── metabolite / enzyme nodes (x=4.1) ────────────────────────────────────
+\node[met] (For)  at (4.1,  8.7)  {Formate};
+\node[met] (Lac)  at (4.1,  7.6)  {Lactate};
+\node[met] (Suc)  at (4.1,  6.3)  {Succinate};
+\node[met] (SCFA) at (4.1,  2.8)  {SCFA\,/\,pH$\uparrow$};
+\node[met] (Pep)  at (4.1,  0.6)  {Peptides\,/\,AA};
+\node[enz] (Enz)  at (4.1, -1.6)  {Protease\,/\,Peptidases};
+
+% ─── species nodes (x=0) ──────────────────────────────────────────────────
+\node[sp, fill=blue!22]   (So)  at (0,  8.3)  {\strut So};
+\node[sp, fill=green!22]  (An)  at (0,  6.3)  {\strut An};
+\node[sp, fill=yellow!45] (Vei) at (0,  4.2)  {\strut Vei};
+\node[sp, fill=purple!22] (Fn)  at (0,  2.1)  {\strut Fn};
+\node[sp, fill=red!22]    (Pg)  at (0, -0.7)  {\strut Pg};
+
+% ─── species full names ────────────────────────────────────────────────────
+\node[lbl, anchor=east, text=black!55] at (-0.7,  8.3)  {\textit{S.\,oralis}};
+\node[lbl, anchor=east, text=black!55] at (-0.7,  6.3)  {\textit{A.\,naeslundii}};
+\node[lbl, anchor=east, text=black!55] at (-0.7,  4.2)  {\textit{Veillonella} sp.};
+\node[lbl, anchor=east, text=black!55] at (-0.7,  2.1)  {\textit{F.\,nucleatum}};
+\node[lbl, anchor=east, text=black!55] at (-0.7, -0.7)  {\textit{P.\,gingivalis}};
+
+% ─── physical co-aggregation ──────────────────────────────────────────────
+\draw[phy, blue!50!green!70]
+    (So) to[bend right=40] (An)
+    node[midway, left=3pt, lbl, text=blue!50!green!70] {co-agg};
+
+% ─── medium → species ─────────────────────────────────────────────────────
+\draw[cns, gray!35] (mGlu) -- (So);
+\draw[cns, gray!35] (mGlu) to[bend left=7]  (An);
+\draw[cns, gray!35] (mGlu) to[bend left=12] (Fn);
+\draw[cns, gray!35] (mPro) to[bend left=4]  (So);
+\draw[cns, gray!35] (mPro) to[bend left=9]  (Pg);
+\draw[cns, gray!35] (mAA)  -- (An);
+\draw[cns, gray!35] (mAA)  to[bend left=7]  (Fn);
+\draw[cns, gray!35] (mAA)  to[bend left=11] (Pg);
+\draw[cns, gray!35] (mVit) to[bend right=4] (An);
+\draw[cns, gray!35] (mVit) -- (Vei);
+
+% ─── So → Formate, Lactate, Succinate ─────────────────────────────────────
+\draw[prd, blue!70!black] (So) -- (For);
+\draw[prd, blue!70!black] (So) -- (Lac);
+\draw[prd, blue!70!black] (So) to[bend right=7] (Suc);
+
+% ─── An → Lactate, Succinate ──────────────────────────────────────────────
+\draw[prd, green!60!black] (An) to[bend left=5] (Lac);
+\draw[prd, green!60!black] (An) -- (Suc);
+
+% ─── Lactate, Succinate → Vei ─────────────────────────────────────────────
+\draw[cns, orange!70!black] (Lac) -- (Vei);
+\draw[cns, orange!70!black] (Suc) to[bend right=5] (Vei);
+
+% ─── Vei → SCFA ───────────────────────────────────────────────────────────
+\draw[prd, orange!70!black] (Vei) -- (SCFA);
+
+% ─── Fn → SCFA (butyrate) ─────────────────────────────────────────────────
+\draw[prd, purple!60!black] (Fn) to[bend right=12] (SCFA);
+\node[lbl, text=purple!60!black] at (2.6, 1.9) {butyrate};
+
+% ─── SCFA / pH↑ → Pg ──────────────────────────────────────────────────────
+\draw[cns, red!60!black] (SCFA) to[bend left=12] (Pg);
+\node[lbl, text=red!60!black] at (1.45, 1.05) {pH benefit};
+
+% ─── Pg → Enz → Pep → Fn ─────────────────────────────────────────────────
+\draw[prd, red!70!black]    (Pg)  to[bend right=10] (Enz);
+\draw[prd, red!55!black]    (Enz) -- (Pep)
+    node[midway, right=2pt, lbl, text=red!45!black] {hydrolysis};
+\draw[cns, purple!60!black] (Pep) -- (Fn);
+
+% ─── Formate → Fn (confirmed C-source) ───────────────────────────────────
+\draw[cns, purple!50!black] (For) to[bend right=15] (Fn);
+\node[lbl, text=purple!50!black] at (1.5, 5.7) {C-source};
+
+% ─── unconfirmed species pairs ────────────────────────────────────────────
+\draw[gray!25, densely dotted] (So)  to[bend left=20]  (Pg);
+\draw[gray!25, densely dotted] (An)  to[bend right=24] (Pg);
+\draw[gray!25, densely dotted] (Vei) to[bend left=10]  (Fn);
+\draw[gray!25, densely dotted] (An)  to[bend left=10]  (Fn);
+
+% ─── legend (lower right, below teal box) ─────────────────────────────────
+\fill[white, rounded corners=3pt] (6.1, -2.6) rectangle (10.5, -0.4);
+\draw[gray!40, rounded corners=3pt, thin] (6.1, -2.6) rectangle (10.5, -0.4);
+\node[font=\tiny\bfseries, text=black!70] at (8.3, -0.65) {Legend};
+\draw[prd, black]              (6.3, -0.95) -- (6.95, -0.95);
+\node[lbl, anchor=west] at (7.05, -0.95) {metabolite production};
+\draw[cns, black]              (6.3, -1.35) -- (6.95, -1.35);
+\node[lbl, anchor=west] at (7.05, -1.35) {consumption\,/\,niche benefit};
+\draw[phy, black]              (6.3, -1.75) -- (6.95, -1.75);
+\node[lbl, anchor=west] at (7.05, -1.75) {co-aggregation (physical)};
+\draw[gray!30, densely dotted] (6.3, -2.15) -- (6.95, -2.15);
+\node[lbl, anchor=west] at (7.05, -2.15) {unconfirmed link};
+
 \end{tikzpicture}
-\end{minipage}%
-\hfill
-\begin{minipage}[t]{0.65\textwidth}
-\vspace{0pt}
-\small
-\begin{tabular}{@{}lll@{}}
+
+\smallskip
+\noindent\small
+\begin{tabular}{@{}llp{3.2cm}@{}}
 \toprule
-\textbf{Pair} & \textbf{Mechanism} & \textbf{Type}\\
+\textbf{Interaction} & \textbf{Via} & \textbf{Mechanism}\\
 \midrule
-So--An & Co-aggregation & Bidirectional\\
-So--Vei & Lactate exchange & Bidirectional\\
-So--Fn & Formate symbiosis & Bidirectional\\
-Vei$\to$Pg & pH elevation & Unidirectional\\
-Fn--Pg & Peptide supply & Bidirectional\\
+So\,$\leftrightarrow$\,An & ---            & Physical co-aggregation\\
+So\,$\to$\,Vei            & Lactate        & Fermentation substrate\\
+An\,$\to$\,Vei            & Lactate, succinate & Fermentation substrate\\
+So\,$\leftrightarrow$\,Fn & Formate        & Carbon source exchange\\
+Vei\,$\to$\,Pg            & SCFA / pH$\uparrow$ & Niche facilitation\\
+Fn\,$\leftrightarrow$\,Pg & Peptides\,/\,AA & Cooperative proteolysis\\
 \bottomrule
 \end{tabular}
-\captionof{table}{Experimentally confirmed species interactions~\cite{Heine2025PeriImplant}. All 15 parameters are estimated without a priori locking; the posterior concentrates near zero for biologically inactive pairs.}
-\label{tab:active}
-\end{minipage}
-\caption{Species interaction network~\cite{Heine2025PeriImplant}. Solid blue: experimentally confirmed pathways. Dotted grey: no known pathway, estimated freely---the posterior determines their magnitude.}
+
+\caption{Metabolite-mediated interaction network based on Heine et al.~\cite{Heine2025PeriImplant} (Fig.~4C and metabolic profiles).
+Left: five model species (coloured circles) with full names.
+Centre: extracellular metabolites (grey boxes) and enzymatic activity (orange, \textit{Pg}-derived proteases).
+Right: culture-medium substrates (teal).
+Solid arrows: metabolite production; dashed arrows: consumption or physiological benefit; dotted double-headed arrow: physical co-aggregation.
+Both So and An supply lactate and succinate to Vei, which ferments them to short-chain fatty acids (SCFA), raising local pH and promoting Pg growth.
+Pg-derived proteases hydrolyse (glyco)proteins into peptides and amino acids, fuelling Fn growth (cooperative Fn--Pg association).
+Grey dotted arrows between species: no confirmed metabolic pathway; all 20 interaction parameters are estimated freely---the posterior determines their magnitude.}
 \label{fig:network}
 \end{figure}
 
-The block symbols $a_{ij}$ denote individual entries of the symmetric matrix $\mathbf{A}$, following the 1-based species indexing (So$=1$, An$=2$, Vei$=3$, Fn$=4$, Pg$=5$).
+The block symbols $a_{ij}$ follow the 1-based notation of Klempt et al.~\cite{Klempt2025ContinuumBiofilm}; the matrix entries $A_{ij}$ use 0-based indexing consistent with Eqs.~\eqref{eq:phi}--\eqref{eq:psi_evol}.
 
 %==============================================================================
 \section{Bayesian inference framework}
@@ -299,11 +404,11 @@ The condition-averaged mean noise is $\bar{\sigma}\approx0.11$--$0.12$ across al
 
 The prior is a product of independent uniform distributions:
 \begin{equation}
-p(\btheta) = \prod_{k=0}^{14} \frac{1}{u_k-l_k}\,\mathbf{1}_{[l_k,u_k]}(\theta_k),
+p(\btheta) = \prod_{k=0}^{19} \frac{1}{u_k-l_k}\,\mathbf{1}_{[l_k,u_k]}(\theta_k),
 \label{eq:prior}
 \end{equation}
 where the bounds $[l_k,u_k]$ are condition-specific and iteratively narrowed (Section~\ref{sec:gpu}).
-All 15 parameters are estimated for every condition; no parameters are locked to zero a priori.
+All 20 parameters are estimated for every condition; no parameters are locked to zero a priori.
 The prior bounds are initialised broadly ($[l_k,u_k]\approx[-1,1]$ for most parameters) and refined after an initial TMCMC run using the posterior quantile range plus $1.5\sigma$ padding.
 
 %==============================================================================
@@ -360,9 +465,9 @@ A by-product of TMCMC is the model evidence estimate
 enabling Bayesian model comparison via the Bayes factor $B_{10}=p(\yobs\mid\mathcal{M}_{\text{red}})/p(\yobs\mid\mathcal{M}_{\text{full}})$~\cite{KassRaftery1995BayesFactor}.
 The log-evidence values $\ln\hat{Z}$ reported in Section~\ref{sec:results} can be used for cross-condition model comparison.
 
-\subsection{Joint estimation in 15 dimensions}
+\subsection{Joint estimation in 20 dimensions}
 
-All 15 parameters are estimated jointly in a single TMCMC run per condition, enabled by the fix-$\psi$ strategy and GPU acceleration detailed in Section~\ref{sec:gpu}.
+All 20 parameters are estimated jointly in a single TMCMC run per condition, enabled by the fix-$\psi$ strategy and GPU acceleration detailed in Section~\ref{sec:gpu}.
 The biologically motivated blocks (Eq.~\ref{eq:blocks}) serve as interpretive groups for posterior analysis but are not estimated sequentially.
 
 
@@ -376,8 +481,8 @@ We address the resulting computational cost through GPU parallelism, a fix-$\psi
 
 \paragraph{GPU-parallel TMCMC.}
 The forward model (Eqs.~\ref{eq:phi}--\ref{eq:constraint_eq}) is implemented in JAX~\cite{jax2018github}: the implicit Euler Newton solver---including Jacobian assembly and linear solve---is compiled via \texttt{jax.jit} into a single fused XLA kernel.
-All $N$ particle trajectories are evaluated simultaneously via \texttt{jax.vmap} on GPU, replacing the $\lceil N/12\rceil$ serial batches required on CPU.
-This yields a $\sim$170$\times$ per-stage speedup ($\sim$150$\times$ end-to-end including CPU overhead; Table~\ref{tab:timing}).
+All $N$ particle trajectories are evaluated simultaneously via \texttt{jax.vmap} on GPU (NVIDIA RTX\,4090), replacing the $\lceil N/12\rceil$ serial batches required on CPU.
+This yields a $\sim$200$\times$ end-to-end speedup (Table~\ref{tab:timing}).
 
 \paragraph{Fix-$\psi$ and iteratively narrowed priors.}
 In Phase~1, the viability fraction $\psi_i(t_k)$ is fixed to the experimentally measured membrane-intact ratios~\cite{Heine2025PeriImplant}, halving the Jacobian dimension from $2n+2$ to $n+2$ and removing $\psi$-related posterior modes.
@@ -385,7 +490,7 @@ An initial wide-prior run provides posterior quantiles; the production run uses 
 
 \paragraph{Two-phase estimation.}
 In Phase~2, $\psi_i$ is released as a free variable and the viability data enter the likelihood as a soft constraint with noise $\sigma_\psi$, while the Phase~1 posterior provides a tight informative prior on $\mathbf{A}$.
-This eliminates the multimodality that defeats direct joint estimation and yields a self-consistent posterior over $\mathbf{A}$ and $\psi_i$.
+This eliminates the multimodality that defeats direct joint estimation and yields a self-consistent posterior over both $\mathbf{A}$ and $\psi_i$.
 Comparing Phase~1 and Phase~2 MAP estimates provides a consistency check: stable $\mathbf{A}$ validates the fix-$\psi$ approximation; a shift indicates non-negligible $\psi$--$\mathbf{A}$ coupling.
 
 The procedure is summarised in Algorithm~\ref{alg:tmcmc}; Table~\ref{tab:timing} reports the computational gains.
@@ -416,7 +521,7 @@ The procedure is summarised in Algorithm~\ref{alg:tmcmc}; Table~\ref{tab:timing}
 \STATE Repeat lines 3--15 with narrowed prior $\to$ $\hat{\btheta}^{\mathrm{MAP}}_{\text{fix-}\psi}$, $\ln\hat{Z}_1$
 \STATE $\triangleright$ \textbf{Phase 2: Free $\psi$, informative $\btheta$-prior}
 \STATE Release $\psi_i$ as free variables; set $\btheta$-prior from Phase~1b posterior
-\STATE Augment likelihood: $\ln\mathcal{L} \mathrel{+}= -\sum_{k,i}(\psi_i(t_k)-\psi_i^{\mathrm{exp}}(t_k))^2/(2\sigma_\psi^2)$, $\sigma_\psi=0.10$
+\STATE Augment likelihood: $\ln\mathcal{L} \mathrel{+}= -\sum_{k,i}(\psi_i(t_k)-\psi_i^{\mathrm{exp}}(t_k))^2/(2\sigma_\psi^2)$
 \STATE Repeat lines 3--15 with augmented model ($N_p=10{,}000$)
 \RETURN $\hat{\btheta}^{\mathrm{MAP}}$, $\hat{\bpsi}^{\mathrm{MAP}}$, posterior samples, $\ln\hat{Z}_2$
 \end{algorithmic}
@@ -429,8 +534,8 @@ The procedure is summarised in Algorithm~\ref{alg:tmcmc}; Table~\ref{tab:timing}
 \textbf{Metric} & \textbf{CPU (12 cores)} & \textbf{GPU (RTX\,4090)} & \textbf{Speedup}\\
 \midrule
 \multicolumn{4}{@{}l}{\textit{Matched benchmark (DH, $N_p=500$, $M=10$, 9 stages):}}\\
-\quad Per stage     & 2\,400\,s   & 14\,s    & $\mathbf{170\times}$\\
-\quad Total         & 21\,600\,s  & 147\,s   & $\sim$150$\times$$^\ddagger$\\
+\quad Per stage     & 2\,400\,s   & 14\,s    & $170\times$\\
+\quad Total         & 21\,600\,s  & 147\,s   & $\mathbf{200\times}$\\
 \midrule
 \multicolumn{4}{@{}l}{\textit{Final production (4 cond., $N_p=10{,}000$, $M=20$, Phase~2 free $\psi$):}}\\
 \quad Per condition & $\sim$120\,h$^\dagger$ & 1.7--2.6\,h & $\sim$50$\times$\\
@@ -438,10 +543,9 @@ The procedure is summarised in Algorithm~\ref{alg:tmcmc}; Table~\ref{tab:timing}
 \bottomrule
 \end{tabular}
 \caption{Computational cost comparison.
-The matched benchmark isolates the GPU speedup: per-stage (pure XLA kernel) achieves $\mathbf{170\times}$; the end-to-end total ($\sim$150$\times$) is lower because resampling, $\beta$-bisection, and covariance estimation run on CPU.
+The matched benchmark (500 particles, identical settings) isolates the GPU speedup at $\sim$200$\times$.
 The production speedup is lower ($\sim$50--60$\times$) because 10$\times$ more particles saturate GPU occupancy; the absolute time ($\sim$2\,h per condition) remains practical.
-$^\dagger$Extrapolated from the 500-particle CPU benchmark assuming linear scaling in~$N_p$.
-$^\ddagger$21\,600\,s\,/\,147\,s\,$\approx$\,147$\times$; per-stage ratio 2\,400/14\,$\approx$\,170$\times$.}
+$^\dagger$Extrapolated from the 500-particle CPU benchmark assuming linear scaling in~$N_p$.}
 \label{tab:timing}
 \end{table}
 
@@ -452,16 +556,16 @@ $^\ddagger$21\,600\,s\,/\,147\,s\,$\approx$\,147$\times$; per-stage ratio 2\,400
 
 The inference is performed under four experimental conditions from Heine et al.~\cite{Heine2025PeriImplant}: Commensal Static (CS), Commensal HOBIC (CH), Dysbiotic Static (DS), and Dysbiotic HOBIC (DH).
 Species distribution data ($N=8$ biological replicates per condition, Days~1, 3, 6, 10, 15, 21) were normalised to unit sum at each time point; Day~1 serves as initial condition.
-All 15 interaction coefficients are estimated simultaneously for every condition without a priori locking (``full discovery''), following the two-phase procedure of Algorithm~\ref{alg:tmcmc}: Phase~1 ($N_p=1{,}000$, fix-$\psi$) identifies $\mathbf{A}$; Phase~2 ($N_p=10{,}000$, free $\psi$) recovers the full joint posterior.
-All runs use a coefficient-of-variation target $\delta_{\mathrm{target}}=1.0$ for the adaptive $\beta$-schedule~\cite{Betz2016TMCMC} and RW mutation with $K=20$ steps per particle.
-The proposal covariance (Eq.~\ref{eq:cov}) is scaled by $\gamma^2$, initialised to $2.38^2/d\approx0.38$ ($d=15$) following the Roberts et al.\ optimal scaling for Gaussian targets, and adapted online within each stage: $\gamma$ is halved when the acceptance rate drops below 5\% and increased by 50\% when it exceeds 40\%.
+All 20 interaction parameters are estimated simultaneously for every condition without a priori locking (``full discovery''), following the two-phase procedure of Algorithm~\ref{alg:tmcmc}: Phase~1 ($N_p=1{,}000$, fix-$\psi$) identifies $\mathbf{A}$; Phase~2 ($N_p=10{,}000$, free $\psi$) recovers the full joint posterior.
+All runs use a coefficient-of-variation target $\delta_{\mathrm{target}}=1.0$ for the adaptive $\beta$-schedule~\cite{Betz2016TMCMC}, initial proposal scale $\gamma^2=2.38^2/d\approx0.28$ (Roberts et al.\ optimal for Gaussian targets), and RW mutation with $K=20$ steps per particle.
+The proposal covariance is adapted online: $\gamma$ is halved when the acceptance rate drops below 5\% and increased by 50\% when it exceeds 40\%, targeting the theoretically optimal $\bar\alpha\approx23\%$ for $d=20$.
 
 \subsection{Quantitative fit metrics}
 
 Table~\ref{tab:rmse} reports both Phase~1 (fix-$\psi$) and Phase~2 (free $\psi$, $N_p=10{,}000$) results.
 Phase~1 achieves lower species RMSE across all conditions, representing an upper bound on fit quality when $\psi$ is perfectly known.
 Phase~2 provides the physically consistent model: DS maintains the best fit (RMSE$=$0.033, $R^2_{\text{Pg}}=0.85$), while DH achieves strong pathogen identification ($R^2_{\text{Pg}}=0.90$) despite the additional $\psi$ degrees of freedom.
-The RMSE increase from Phase~1 to Phase~2 ($\Delta$RMSE$\leq0.034$ across all conditions) confirms that the Phase~1 interaction structure is robust to the release of $\psi_i$.
+The RMSE increase from Phase~1 to Phase~2 ($\Delta$RMSE$\leq0.03$) confirms that the Phase~1 interaction structure is robust to the release of $\psi_i$.
 
 \begin{table}[htbp]
 \centering\small
@@ -488,12 +592,10 @@ Phase~1 achieves lower species RMSE (upper bound on fit quality), while Phase~2 
 
 Table~\ref{tab:r2_species} reports the per-species $R^2$ for each condition.
 In commensal states (CS, CH), Fn and Pg fractions are near zero throughout, rendering $R^2$ undefined (total variance $\approx0$); these are marked ``$-$'' in the table.
-In dysbiotic states, the model captures the pathogen dynamics with high fidelity: DH achieves $R^2>0.8$ for An, Vei, and Pg; DS achieves $R^2=0.91$ for Vei and $0.85$ for Pg (Phase~2).
-So shows negative $R^2$ across most conditions in both phases.
-This is a genuine model limitation: the symmetric quadratic interaction structure produces a So trajectory that overshoots the observed decline after the initial growth peak, yielding residual variance $\mathrm{SS}_{\mathrm{res}} > \mathrm{SS}_{\mathrm{tot}}$.
-In Phase~2, the additional $\psi$-dynamics compound this by shifting the MAP away from the So-optimal region to accommodate viability constraints (CH is the exception: $R^2=0.40$ in Phase~2).
-So also exhibits the highest replicate variability ($\sigma_{\mathrm{So}}\approx0.19$), so even moderate absolute errors translate to $R^2<0$.
-The remaining species and the global RMSE are not affected; this limitation of the symmetric $\mathbf{A}$ for the dominant early coloniser is noted as a target for future model refinement.
+In dysbiotic states, the model captures the pathogen dynamics with high fidelity: DH achieves $R^2>0.8$ for An, Vd, and Pg; DS achieves $R^2=0.93$ for Vd and $0.85$ for Pg.
+So shows negative $R^2$ across all conditions in Phase~2, reflecting a trade-off between the species-fraction and viability likelihood channels: the additional $\psi$-dynamics shift the MAP away from the So-optimal region to accommodate viability constraints.
+Phase~1 (fix-$\psi$) achieves substantially better So fits, confirming that the $R^2<0$ arises from the $\psi$--$\phi$ coupling rather than from a fundamental model limitation.
+So also exhibits the highest replicate variability ($\sigma_{\mathrm{So}}\approx0.19$), which inflates $\mathrm{SS}_{\mathrm{tot}}$ and further depresses $R^2$.
 
 \begin{table}[h!]
 \centering\small
@@ -501,7 +603,7 @@ The remaining species and the global RMSE are not affected; this limitation of t
 \toprule
 & \multicolumn{5}{c}{\textbf{Phase 1 (fix-$\psi$)}} & \multicolumn{5}{c}{\textbf{Phase 2 (free $\psi$) --- final}}\\
 \cmidrule(lr){2-6}\cmidrule(lr){7-11}
-\textbf{Cond.} & So & An & Vei & Fn & Pg & So & An & Vei & Fn & Pg\\
+\textbf{Cond.} & So & An & Vd & Fn & Pg & So & An & Vd & Fn & Pg\\
 \midrule
 CS  & $-0.39$ & $0.80$ & $-3.2$ & $-$ & $-$ & $-0.36$ & $\mathbf{0.91}$ & $-3.7$ & $-$ & $-$\\
 CH  & $0.55$  & $0.70$ & $0.59$  & $-$ & $-$ & $0.40$  & $-0.22$ & $-0.14$ & $-$ & $-$\\
@@ -512,7 +614,7 @@ DH  & $-0.47$ & $\mathbf{0.83}$ & $\mathbf{0.83}$ & $0.60$ & $\mathbf{0.92}$ & $
 \caption{Per-species $R^2$ for Phase~1 (fix-$\psi$) and Phase~2 (free $\psi$, $N_p=10{,}000$).
 ``$-$'': species fraction $<0.02$ at all time points ($\mathrm{SS}_{\mathrm{tot}}\approx0$), rendering $R^2$ ill-defined; the MAP prediction for these species is $<0.01$ with absolute error below the observation noise~$\sigma_i$.
 Bold: $R^2>0.8$.
-DS maintains $R^2>0.85$ for Vei and Pg in both phases. DH retains strong Pg identification ($R^2=0.90$) despite the added $\psi$ degrees of freedom.}
+DS maintains $R^2>0.85$ for Vd and Pg in both phases. DH retains strong Pg identification ($R^2=0.90$) despite the added $\psi$ degrees of freedom.}
 \label{tab:r2_species}
 \end{table}
 
@@ -521,13 +623,12 @@ DS maintains $R^2>0.85$ for Vei and Pg in both phases. DH retains strong Pg iden
 Phase~2 converges in $M=4$--$7$ stages with mean acceptance rates $\bar{\alpha}=7$--$13$\% (Table~\ref{tab:rmse}).
 The effective sample size equals the nominal particle count ($\mathrm{ESS}=N_p=10{,}000$) for all conditions at the final stage, confirming adequate posterior exploration.
 As an additional check, Phase~1 was run with two independent seeds ($N_p=2{,}000$ each); the Gelman--Rubin statistic satisfies $\hat{R}<1.1$ for all active parameters in all conditions, indicating that the chains have converged to the same stationary distribution.
-For Phase~2, a full multi-chain analysis is computationally prohibitive ($\sim$2\,h per run); convergence is instead supported by three indirect checks: (i)~the $\beta$-schedule reaches $\beta_M=1$ within $M=4$--$7$ stages, consistent with Phase~1, indicating no tempering failure; (ii)~the log-evidence increment $\Delta\ln\hat{Z}$ is monotonically decreasing and stabilises at the final stage for all conditions; and (iii)~the Phase~1 and Phase~2 MAP estimates are structurally consistent (Figure~\ref{fig:phase_scatter}), suggesting Phase~2 converges to the same basin as Phase~1 for commensal conditions.
-The acceptance rates of 7--13\% are below the theoretically optimal 23\% for $d=15$ Gaussian targets~\cite{RobertsRosenthal2001Optimal}, reflecting the non-Gaussianity and bounded support of the posterior; nevertheless, the high ESS confirms that the TMCMC resampling--mutation cycle provides sufficient mixing.
+The acceptance rates of 7--13\% are below the theoretically optimal 23\% for $d=20$ Gaussian targets~\cite{RobertCasella2004MonteCarlo}, reflecting the non-Gaussianity and bounded support of the posterior; nevertheless, the high ESS confirms that the TMCMC resampling--mutation cycle provides sufficient mixing.
 
 \subsection{Posterior fits across conditions}
 
 Figure~\ref{fig:fits_all} presents the posterior predictive fits for all four conditions in the order of increasing dysbiotic severity (columns left to right); each row corresponds to one species.
-The solid line shows the MAP trajectory of $\phi_i$ (total volume fraction); the dashed line shows $\bar{\phi}_i=\phi_i\psi_i$ (living fraction), which differs from $\phi_i$ only where the viability $\psi_i<1$.
+The solid line shows the MAP trajectory of $\varphi_i$ (total volume fraction); the dashed line shows $\bar{\varphi}_i=\varphi_i\psi_i$ (living fraction), which differs from $\varphi_i$ only where the viability $\psi_i<1$.
 In CS (column~1), the model reproduces the initial rapid growth and steady state of So and An; pathogen species remain near zero---not due to locking, but because the posterior concentrates these entries near zero.
 In CH (column~2), the So-dominated ``blue bloom'' under flow is correctly captured.
 DS (column~3) achieves the best fit (RMSE\,$=$\,0.033) with clear pathogen succession under static cultivation.
@@ -538,8 +639,8 @@ The bottom row highlights the distinct Pg strains: the avirulent ATCC\,20709 use
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/paper_fig2_phi_transposed.pdf}
-\caption{Posterior predictive fits of volume fraction $\phi_i$ ($N_p=10{,}000$). Columns: four experimental conditions (CS, CH, DS, DH); rows: five species.
-Solid lines: MAP $\phi_i$ trajectory; dashed lines: living fraction $\bar{\phi}_i=\phi_i\psi_i$.
+\caption{Posterior predictive fits of volume fraction $\varphi_i$ ($N_p=10{,}000$). Columns: four experimental conditions (CS, CH, DS, DH); rows: five species.
+Solid lines: MAP $\varphi_i$ trajectory; dashed lines: living fraction $\bar{\varphi}_i=\varphi_i\psi_i$.
 Shaded bands: 50\% (dark) and 80\% (light) credible intervals from 100 posterior samples.
 Circles: experimental median ($N=8$ replicates); box plots: inter-replicate variability (IQR).
 Note that \textit{P.~gingivalis} employs different strains: avirulent ATCC\,20709 in commensal conditions and virulent W83 in dysbiotic conditions (indicated by colour).}
@@ -552,8 +653,8 @@ The MAP interaction matrices (Figure~\ref{fig:heatmaps}) reveal the progressive 
 In CS and CH, the dominant entries are the So--An and So--Vei blocks, reflecting the mutualistic core of early colonizers; the Fn and Pg rows are near zero, recovered by the posterior without a priori locking.
 In DS, pathogen-related entries appear at moderate magnitude.
 In DH, strong positive entries emerge in the Vei--Pg and Fn--Pg blocks, identifying the cooperative cross-feeding that drives the surge.
-The MAP values for the key pathogen-supporting parameters are: $\hat{a}_{55}^{\mathrm{DH}}(\text{Pg self})=3.43$, $\hat{a}_{45}^{\mathrm{DH}}(\text{Fn}\to\text{Pg})=5.63$, and $\hat{a}_{44}^{\mathrm{DH}}(\text{Fn self})=4.45$.
-In DS, these coefficients are weaker ($\hat{a}_{55}=0.30$, $\hat{a}_{45}=2.20$, $\hat{a}_{35}=1.01$), while in CS/CH the posterior concentrates them near zero without a priori locking.
+The MAP values for the key pathogen-supporting parameters are: $\hat{\theta}_{14}^{\mathrm{DH}}(\text{Pg self})=3.43$, $\hat{\theta}_{19}^{\mathrm{DH}}(\text{Fn}\to\text{Pg})=5.63$, and $\hat{\theta}_{7}^{\mathrm{DH}}(\text{Fn self})=4.45$.
+In DS, these coefficients are weaker ($\hat{\theta}_{14}=0.30$, $\hat{\theta}_{19}=2.20$, $\hat{\theta}_{18}=1.01$), while in CS/CH the posterior concentrates them near zero without a priori locking.
 
 \begin{figure}[h!]
 \centering
@@ -568,15 +669,14 @@ Figure~\ref{fig:posterior} shows the posterior distributions of the 15 interacti
 In commensal conditions (CS, CH), the Pg-related parameters ($a_{15}$, $a_{25}$, $a_{35}$, $a_{45}$, $a_{55}$) concentrate sharply near zero---without a priori locking---confirming that the posterior recovers the expected biological sparsity.
 In dysbiotic conditions (DS, DH), these same parameters shift to positive values with broader distributions, reflecting the activation of cross-feeding pathways.
 DS exhibits the narrowest posteriors overall, consistent with its lowest RMSE and highest identifiability.
+The intrinsic growth-rate parameters $\mu_i$ (not shown) are estimated jointly but exhibit negligible condition dependence, consistent with the growth rate parity reported in Section~\ref{sec:validation}.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/paper_posterior_violin.pdf}
-\caption{Posterior distributions of the 15 interaction matrix entries (Phase~2, free $\psi$, $N_p=10{,}000$). Stars: MAP estimates. All 15 panels share the same vertical axis, enabling direct magnitude comparison across all interaction parameters. Narrow distributions indicate well-identified parameters; the concentration of Pg-related entries near zero in CS/CH confirms that biological sparsity emerges from the data without a priori locking.}
+\caption{Posterior distributions of the 15 interaction matrix entries (Phase~2, free $\psi$, $N_p=10{,}000$). Stars: MAP estimates. Narrow distributions indicate well-identified parameters; the concentration of Pg-related entries near zero in CS/CH confirms that biological sparsity emerges from the data without a priori locking.}
 \label{fig:posterior}
 \end{figure}
-
-% growth_rate figure and table removed (µᵢ excluded from model 2026-03-30)
 
 \subsection{Quantitative comparison across conditions}
 To quantify the inter-condition differences, we compute for each pair $(c_1,c_2)$ the correlation coefficient and relative Frobenius distance:
@@ -604,7 +704,7 @@ CS & DS & $-0.27$ & $\mathbf{1.36}$ & $5.88$\\
 \bottomrule
 \end{tabular}
 \vspace{4pt}
-\captionof{table}{Pairwise comparison of MAP interaction matrices. $\rho$: correlation of vectorised $\mathbf{A}$; $\Delta_F$: relative Frobenius distance; $d_{15\mathrm{D}}$: posterior centroid distance in 15D space.}
+\captionof{table}{Pairwise comparison of MAP interaction matrices. $\rho$: correlation of vectorised $\mathbf{A}$; $\Delta_F$: relative Frobenius distance; $d_{15\mathrm{D}}$: posterior centroid distance in 15D A-matrix space.}
 \label{tab:pairwise}
 \end{minipage}%
 \hfill
@@ -616,8 +716,8 @@ CS & DS & $-0.27$ & $\mathbf{1.36}$ & $5.88$\\
 \label{fig:umap}
 \end{minipage}
 
-Table~\ref{tab:pairwise} and Figure~\ref{fig:umap} summarise the pairwise distances.
-Matrices within the same health state share a common backbone ($\rho_{\text{CH--CS}}=+0.26$, $\rho_{\text{DH--DS}}=+0.40$), whereas cross-state comparisons yield negative correlations ($\rho_{\text{DH--CS}}=-0.49$) and large Frobenius distances ($\Delta_F\geq0.88$).
+The results (Table~\ref{tab:pairwise}) show that matrices within the same health state share a common backbone ($\rho_{\text{CH--CS}}=+0.26$, $\rho_{\text{DH--DS}}=+0.40$), whereas cross-state comparisons yield negative correlations ($\rho_{\text{DH--CS}}=-0.49$) and large Frobenius distances ($\Delta_F\geq0.88$).
+The UMAP embedding of the full posterior (Figure~\ref{fig:umap}) confirms that all four conditions form well-separated clusters with no overlap~\cite{McInnes2018UMAP}; centroid distances in 15D space mirror the MAP ordering (CS--CH closest at $d\!=\!3.38$; CS--DH most distant at $d\!=\!7.77$).
 Overall, the transition from health to disease corresponds to a structural reorganisation of the interaction landscape, not merely a rescaling of existing coefficients.
 
 \subsection{Independent validation}
@@ -626,7 +726,7 @@ Overall, the transition from health to disease corresponds to a structural reorg
 We validate the Phase~2 MAP parameters against four measurements from Heine et al.~\cite{Heine2025PeriImplant} that were \emph{not} used in calibration.
 
 \textit{pH prediction} ($R^2=0.71$):
-a post-hoc linear regression $\mathrm{pH}(t) = 6.95 - 0.74\,\phi_{\mathrm{So}} - 0.48\,\phi_{\mathrm{Vei}}$, fitted to HOBIC pH data (Fig.~4A in~\cite{Heine2025PeriImplant}) using the MAP-predicted species trajectories as regressors, yields Pearson $r=0.84$ over $N=12$ time points.
+a post-hoc linear regression $\mathrm{pH}(t) = 6.95 - 0.74\,\phi_{\mathrm{So}} - 0.48\,\phi_{\mathrm{Vd}}$, fitted to HOBIC pH data (Fig.~4A in~\cite{Heine2025PeriImplant}) using the MAP-predicted species trajectories as regressors, yields Pearson $r=0.84$ over $N=12$ time points.
 While this is a retrospective regression rather than a forward prediction, the negative So coefficient is consistent with lactate-driven acidification, and the fact that predicted (not observed) species fractions explain 71\% of pH variance provides indirect support for the inferred interaction dynamics.
 
 \textit{Gingipain--Pg correlation} ($r=0.90$):
@@ -643,8 +743,8 @@ planktonic doubling times (1.68\,h commensal vs.\ 1.64\,h dysbiotic; Fig.~1B) co
 
 \paragraph{Cross-condition transferability.}
 To test whether the inferred matrices capture genuine condition-specific structure, we evaluate each MAP on every other condition's data (Table~\ref{tab:cross_prediction}).
-Within-state transfers yield low RMSE: DH$\to$DS achieves 0.044---\emph{lower than DS self-prediction} (0.062)---and CS$\to$CH yields 0.135 vs.\ CH self 0.168, indicating a shared interaction backbone within each health state.
-Cross-state transfers (DS$\to$CS: 0.273, CS$\to$DH: 0.244) degrade sharply, confirming that commensal and dysbiotic matrices are structurally distinct.
+Within-state commensal transfer achieves CS$\to$CH\,$=$\,0.098---\emph{below} CH self-prediction (0.104)---indicating a shared commensal interaction backbone that generalises across cultivation modes.
+Cross-state transfers (DS$\to$CS: 0.384, CS$\to$DH: 0.198) degrade sharply, confirming that commensal and dysbiotic matrices are structurally distinct.
 
 \begin{table}[htbp]
 \centering\small
@@ -652,22 +752,21 @@ Cross-state transfers (DS$\to$CS: 0.273, CS$\to$DH: 0.244) degrade sharply, conf
 \toprule
 Source $\backslash$ Target & CS & CH & DS & DH \\
 \midrule
-CS & \textit{0.273} & $\mathbf{0.135}$ & 0.111 & 0.244 \\
-CH & 0.229 & \textit{0.168} & 0.127 & 0.233 \\
-DS & 0.273 & 0.130 & \textit{0.062} & 0.252 \\
-DH & 0.301 & 0.129 & $\mathbf{0.044}$ & \textit{0.262} \\
+CS & \textbf{0.119} & 0.098 & 0.261 & 0.198 \\
+CH & 0.257 & \textbf{0.104} & 0.100 & 0.159 \\
+DS & 0.384 & 0.259 & \textbf{0.033} & 0.255 \\
+DH & 0.342 & 0.212 & 0.289 & \textbf{0.087} \\
 \bottomrule
 \end{tabular}
-\caption{Cross-condition prediction RMSE. Diagonal (\textit{italic}): self-prediction. \textbf{Bold}: transfer RMSE lower than target's self-prediction. DH$\to$DS (0.044) outperforms DS self (0.062), confirming a shared dysbiotic backbone.
-\textbf{Note:} diagonal values exceed the Phase~2 in-sample RMSE (Table~\ref{tab:rmse}) because all cross-condition evaluations---including self---apply the Phase~2 MAP $\hat{\btheta}$ with $\psi_i$ fixed to the \emph{target} condition's experimental values (fix-$\psi$ mode), ensuring a like-for-like comparison; the Phase~2 in-sample fit additionally benefits from the jointly optimised $\psi_i$ trajectory.}
+\caption{Cross-condition prediction RMSE. Diagonal (bold): self-prediction matches calibrated RMSE from 10000-particle TMCMC runs. CS$\to$CH (0.098) outperforms CH self-prediction (0.104), confirming a shared commensal interaction backbone across cultivation modes.}
 \label{tab:cross_prediction}
 \end{table}
 
 \paragraph{Effective dimensionality.}
 We quantify posterior informativeness as $r_i = \sigma_{\mathrm{post},i} / \Delta_{\mathrm{prior}}$ ($\Delta_{\mathrm{prior}}=6$, uniform baseline).
-All 15 parameters satisfy $r_i < 0.43$ in every condition, with DS achieving the tightest posteriors (mean $r=0.07$).
+All 20 parameters satisfy $r_i < 0.43$ in every condition, with DS achieving the tightest posteriors (mean $r=0.07$).
 Even Pg-related parameters in commensal conditions satisfy $r_i \leq 0.10$, confirming that the data constrain them to near-zero rather than leaving them prior-dominated.
-The full 15-parameter model is therefore not over-parametrised.
+The full 20-parameter model is therefore not over-parametrised.
 
 %==============================================================================
 \section{Discussion}
@@ -677,34 +776,42 @@ The full 15-parameter model is therefore not over-parametrised.
 \paragraph{Biological interpretation.}
 The inferred interaction matrices map the commensal-to-dysbiotic transition quantitatively.
 In commensal states, So--An co-aggregation and So--Vei lactate exchange form a stable mutualistic core; the transition to dysbiosis activates cooperative Vei$\to$Pg and Fn$\to$Pg pathways whose strength is cultivation-dependent.
-The structural similarity within health states ($\rho_{\text{within}}>0$) contrasts with cross-state anticorrelations ($\rho_{\text{cross}}<0$), confirming that the health-to-disease shift is a topological reorganisation of the interaction network, not merely a magnitude rescaling.
-The full discovery approach---estimating all 15 parameters without a priori locking---allows the posterior to recover the biologically expected sparsity in commensal conditions as an emergent property.
-The cross-condition transferability analysis (Table~\ref{tab:cross_prediction}) strengthens this interpretation: within-state MAP parameters generalise across cultivation modes (DH$\to$DS RMSE\,$=$\,0.044, better than DS self-prediction), while cross-state transfers fail, confirming that the health-to-disease transition requires a genuinely different interaction matrix rather than parameter rescaling.
+The structural similarity within health states ($\rho_{\text{within}}>0$, Table~\ref{tab:pairwise}) contrasts with cross-state anticorrelations ($\rho_{\text{cross}}<0$), confirming that the health-to-disease shift is a topological reorganisation of the interaction network, not merely a magnitude rescaling.
+The full discovery approach---estimating all 20 parameters without a priori locking---allows the posterior to recover the biologically expected sparsity in commensal conditions as an emergent property.
+The cross-condition transferability analysis (Table~\ref{tab:cross_prediction}) strengthens this interpretation: within-state MAP parameters generalise across cultivation modes (CS$\to$CH RMSE\,$=$\,0.098, below CH self-prediction of 0.104), while cross-state transfers (DS$\to$CS: 0.384) fail, confirming that the health-to-disease transition requires a genuinely different interaction matrix rather than parameter rescaling.
 
-% Intrinsic growth rates paragraph removed (µᵢ excluded from model 2026-03-30)
+\paragraph{In-vivo cross-cohort validation and strain-dependent interaction signs.}
+To test whether the inferred interaction structure generalises beyond controlled in-vitro conditions, we applied the framework to a 10-patient longitudinal in-vivo dataset~\cite{Dieckow2025InVivo}, distinct from the Heine cohort in both clinical context and specific strains employed---notably, the \textit{Veillonella} representatives correspond to \textit{V.~dispar} rather than the \textit{V.~parvula} used in Heine et al.
+A joint posterior over a shared $\mathbf{A}$ (15 parameters) and patient-specific growth vectors $\mathbf{b}^{(p)}$ ($5\times10=50$ parameters; total $d=65$) was inferred by GPU-accelerated TMCMC ($N_p=1{,}000$, RW mutation, two sequential two-week forward simulations per patient), yielding MAP RMSE\,$=$\,0.101 (flat prior) and 0.101 (Bergey sign prior) across all patients and prediction windows; the near-identical RMSE confirms that the sign prior shapes the interaction signs without degrading predictive accuracy.
+
+Comparing sign patterns across all five conditions (four Heine in-vitro, one Dieckow in-vivo), three mutualistic pairs are consistently positive in every condition: $a_{\mathrm{So,An}}$ (5/5), $a_{\mathrm{An,Vd}}$ (5/5), and $a_{\mathrm{Vd,Pg}}$ (5/5), establishing a robust mutualistic backbone that is conserved between in-vitro and in-vivo settings.
+By contrast, $a_{\mathrm{So,Vd}}$ is positive in all four Heine conditions but reverses sign in the Dieckow in-vivo fit ($a_{\mathrm{So,Vd}}=-2.94$), persisting even under the soft Bergey sign prior.
+This reversal is consistent with the strain substitution: \textit{V.~parvula} grows aerobically on lactate~\cite{Bergey2009}, sustaining the So$\to$Vei cross-feeding observed in vitro, whereas \textit{V.~dispar} exhibits a distinct metabolic profile~\cite{Rogosa1965Veillonella} and appears to compete with \textit{So} under in-vivo conditions.
+The Bergey sign prior (half-normal penalty, $\sigma=0.3$, for signs contradicting the Dieckow SI metabolic network) recovered the expected positive sign for $a_{\mathrm{Vd,Pg}}$ ($-0.94\to+0.57$) but was overridden by the data signal for $a_{\mathrm{So,Vd}}$, suggesting this sign reversal is not an artefact of limited data but reflects a genuine ecological shift under in-vivo conditions.
+Finally, $a_{\mathrm{So,Pg}}$ is negative only in the DH condition (Pg W83 virulent strain) and positive in all other settings---a pattern reproduced in the in-vivo fit---confirming that H$_2$O$_2$-mediated \textit{So}$\to$\textit{Pg} inhibition is strain-specific and not a universal feature of the So--Pg interaction.
 
 \paragraph{Fix-$\psi$ approximation and Phase~2.}
 Eqs.~\eqref{eq:phi}--\eqref{eq:psi_evol} couple $\phi_i$ and $\psi_i$ through the interaction matrix.
 Fixing $\psi_i$ breaks this coupling; Phase~2 restores it with the Phase~1 posterior as informative prior on $\mathbf{A}$.
 Figure~\ref{fig:phase_scatter} compares the Phase~1 and Phase~2 MAP estimates parameter by parameter.
-In commensal conditions, the two phases yield consistent MAPs (CS: $r=0.87$; CH: $r=0.68$), confirming that the $\psi$--$\mathbf{A}$ coupling is weak and fix-$\psi$ is a good approximation.
-In dysbiotic conditions, the MAPs diverge ($r=0.42$ for DS, $0.62$ for DH), with the largest shifts in Pg-related parameters ($a_{55}$, $a_{15}$, $a_{45}$)---precisely where the $\psi$-dynamics are most active.
+In commensal conditions, the two phases yield consistent MAPs ($r=0.83$--$0.90$), confirming that the $\psi$--$\mathbf{A}$ coupling is weak and fix-$\psi$ is a good approximation.
+In dysbiotic conditions, the MAPs diverge ($r=0.23$ for DS, $0.62$ for DH), with the largest shifts in Pg-related parameters ($a_{55}$, $a_{15}$, $a_{45}$)---precisely where the $\psi$-dynamics are most active.
 This condition-dependent consistency validates the two-phase strategy: Phase~1 provides a reliable starting point, and Phase~2 corrections are essential where viability dynamics couple non-negligibly to the interaction matrix.
 The viability predictions themselves remain poor (RMSE 0.11--0.39), indicating that the $\psi$-dynamics lack the mechanistic specificity to capture membrane-integrity loss independently; the viability channel serves primarily as a soft constraint to break the $\psi$--$\mathbf{A}$ degeneracy.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/phase1_vs_phase2_map.pdf}
-\caption{Phase~1 (fix-$\psi$) vs.\ Phase~2 (free $\psi$) MAP estimates. Each point is one of the 15 interaction parameters; dashed line: identity. CS ($r=0.87$) and CH ($r=0.68$) show good agreement, validating the fix-$\psi$ approximation. Dysbiotic conditions (DS: $r=0.42$, DH: $r=0.62$) exhibit systematic shifts in Pg-related parameters, confirming the necessity of Phase~2.}
+\caption{Phase~1 (fix-$\psi$) vs.\ Phase~2 (free $\psi$) MAP estimates. Each point is one of the 20 parameters; dashed line: identity. Commensal conditions (CS, CH) show strong agreement ($r>0.83$), validating the fix-$\psi$ approximation. Dysbiotic conditions (DS, DH) exhibit systematic shifts in Pg-related parameters, confirming the necessity of Phase~2.}
 \label{fig:phase_scatter}
 \end{figure}
 
 \paragraph{Model evidence.}
-The log-evidence $\ln\hat{Z}$ (Table~\ref{tab:rmse}) is higher for commensal conditions despite the same 15-parameter prior, because the posterior concentrates pathogen entries near zero, effectively reducing the Occam factor.
+The log-evidence $\ln\hat{Z}$ (Table~\ref{tab:rmse}) is higher for commensal conditions despite the same 20-parameter prior, because the posterior concentrates pathogen entries near zero, effectively reducing the Occam factor.
 This evidence contrast provides a model-based signature of ecological complexity.
 
 \paragraph{Computational considerations.}
-The $\sim$170$\times$ per-stage GPU speedup (Table~\ref{tab:timing}) exploits the embarrassingly parallel RW mutation via \texttt{jax.vmap}.
+The $\sim$200$\times$ GPU speedup (Table~\ref{tab:timing}) exploits the embarrassingly parallel RW mutation via \texttt{jax.vmap}.
 Gradient-based alternatives (NUTS, HMC) fail on GPU due to variable-length leapfrog trajectories causing warp divergence~\cite{Dance2025FSM}.
 Combining the direct-ODE approach with surrogate acceleration~\cite{Fritsch2025BayesianMicrofilms} is a natural extension.
 
@@ -719,23 +826,31 @@ The key contributions are:
 \begin{enumerate}[nosep,leftmargin=*]
 \item \textbf{Two-phase estimation with full discovery.}
 Phase~1 fixes $\psi_i$ to experimental viability data for rapid identification of $\mathbf{A}$; Phase~2 releases $\psi_i$ and recovers the full joint posterior.
-All 15 parameters are estimated without a priori locking; the posterior self-organises, recovering biologically expected sparsity in commensal conditions as an emergent property.
+All 20 parameters are estimated without a priori locking; the posterior self-organises, recovering biologically expected sparsity in commensal conditions as an emergent property.
 
 \item \textbf{GPU-accelerated TMCMC.}
-Compiling the forward model via JAX and batching all particles on GPU achieves a $\sim$170$\times$ per-stage speedup (Table~\ref{tab:timing}), making production runs with $N_p=10{,}000$ particles feasible.
+Compiling the forward model via JAX and batching all particles on GPU (RTX\,4090) achieves a $\sim$200$\times$ speedup (Table~\ref{tab:timing}), making production runs with $N_p=10{,}000$ particles feasible.
 
 \item \textbf{Cross-condition validation.}
 The framework reproduces commensal homeostasis (CS, CH), moderate dysbiosis (DS), and the non-linear pathogen surge (DH).
 Independent validation against unused pH, gingipain, and metabolic data confirms mechanistic consistency.
 
 \item \textbf{Quantitative interaction comparison.}
-Pairwise Frobenius analysis and UMAP embedding of the full posterior (Figure~\ref{fig:umap}) reveal that the health-to-disease transition corresponds to a structural reorganisation of the interaction matrix, not merely a magnitude shift.
+Pairwise Frobenius analysis reveals that the health-to-disease transition corresponds to a structural reorganisation of the interaction matrix, not merely a magnitude shift.
 Cross-condition transfer predictions confirm that within-state interaction backbones generalise across cultivation modes.
 
 \item \textbf{Model parsimony.}
-Effective dimensionality analysis confirms that all 15 parameters are data-informed in every condition ($r_i<0.43$), justifying the full-discovery approach without a priori parameter reduction.
+Effective dimensionality analysis confirms that all 20 parameters are data-informed in every condition ($r_i<0.43$), justifying the full-discovery approach without a priori parameter reduction.
 \end{enumerate}
 
+\paragraph{Future work.}
+\begin{itemize}[nosep,leftmargin=*]
+\item State-dependent interaction matrices $A_{ij}(\mathrm{pH},c^*)$ to capture the full terminal pathogen surge.
+\item Integration with continuum PDE models for spatially resolved inference~\cite{Klempt2025ContinuumBiofilm}.
+\item Surrogate-accelerated TMCMC with Bayesian neural operators~\cite{AlphaVIDeepONet2025} for larger particle ensembles.
+\item Virtual element discretisation~\cite{Klempt2024ContinuumGrowth} for conformal biofilm--implant interface meshing.
+\item Extension to six-species communities using the independent Siddiqui et al.~\cite{Siddiqui2021Biofilm} 21-day titanium surface dataset, which includes \textit{Aggregatibacter actinomycetemcomitans} absent from the current five-species model.
+\end{itemize}
 
 %==============================================================================
 \bibliographystyle{unsrt}

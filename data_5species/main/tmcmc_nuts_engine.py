@@ -283,8 +283,8 @@ def tmcmc_engine(
                 proposals[:, free_dims] += perturbations
                 # Bounds check (vectorized)
                 in_bounds = np.all(
-                    (proposals[:, free_dims] >= lo_np[free_dims])
-                    & (proposals[:, free_dims] <= hi_np[free_dims]),
+                    (proposals[:, free_dims] >= lo_np[free_dims]) &
+                    (proposals[:, free_dims] <= hi_np[free_dims]),
                     axis=1,
                 )
                 # Batch GPU evaluation via vmap

@@ -1,0 +1,21 @@
+{
+  "mutation": "rw",
+  "n_particles": 4000,
+  "dynamic_c": false,
+  "c_scale": 10.0,
+  "dt": 0.0001,
+  "n_newton": 6,
+  "total_time": 194.60527682304382,
+  "conditions": [
+    {
+      "temp": 8,
+      "sigma_MAP": 1.0000039339065552,
+      "sigma_mean": 1.0358479022979736,
+      "sigma_std": 0.022463588044047356,
+      "sigma_ci_lo": 1.0008388757705688,
+      "sigma_ci_hi": 1.0664407014846802,
+      "n_stages": 6,
+      "total_time": 194.45218706130981
+    }
+  ]
+}

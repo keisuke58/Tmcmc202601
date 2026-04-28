@@ -3,10 +3,7 @@
 generate_stein2013_report.py — Stein 2013 gut microbiome TMCMC report.
 Same visual style as Siddiqui 6sp report (Latin Modern, 300 dpi, 2x3 panels).
 """
-import sys
-import os
-import json
-import argparse
+import sys, os, json, argparse
 from pathlib import Path
 import numpy as np
 
@@ -15,7 +12,6 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""
 os.environ["JAX_PLATFORMS"] = "cpu"
 
 import matplotlib
-
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
@@ -28,74 +24,39 @@ STYLE = {
     "font.family": "serif",
     "font.serif": ["Latin Modern Roman", "Computer Modern Roman", "DejaVu Serif"],
     "mathtext.fontset": "cm",
-    "font.size": 9,
-    "axes.labelsize": 10,
-    "axes.titlesize": 10,
-    "axes.titleweight": "bold",
-    "legend.fontsize": 7.5,
-    "xtick.labelsize": 8,
-    "ytick.labelsize": 8,
-    "xtick.direction": "in",
-    "ytick.direction": "in",
-    "xtick.major.size": 3,
-    "ytick.major.size": 3,
-    "lines.linewidth": 1.2,
-    "axes.linewidth": 0.6,
-    "grid.linewidth": 0.4,
-    "grid.alpha": 0.2,
-    "figure.dpi": 300,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "savefig.pad_inches": 0.03,
+    "font.size": 9, "axes.labelsize": 10, "axes.titlesize": 10,
+    "axes.titleweight": "bold", "legend.fontsize": 7.5,
+    "xtick.labelsize": 8, "ytick.labelsize": 8,
+    "xtick.direction": "in", "ytick.direction": "in",
+    "xtick.major.size": 3, "ytick.major.size": 3,
+    "lines.linewidth": 1.2, "axes.linewidth": 0.6,
+    "grid.linewidth": 0.4, "grid.alpha": 0.2,
+    "figure.dpi": 300, "savefig.dpi": 300,
+    "savefig.bbox": "tight", "savefig.pad_inches": 0.03,
 }
 plt.rcParams.update(STYLE)
 
 N_SP = 11
 SP_NAMES = [
-    "Enterobact",
-    "Blautia",
-    "Barnesiella",
-    "Mollicutes",
-    "Lachnospi",
-    "Akkermansia",
-    "C.difficile",
-    "unc_Lachno",
-    "Coprobacil",
-    "Enterococc",
-    "Other",
+    "Enterobact", "Blautia", "Barnesiella", "Mollicutes",
+    "Lachnospi", "Akkermansia", "C.difficile", "unc_Lachno",
+    "Coprobacil", "Enterococc", "Other",
 ]
 SP_NAMES_ITALIC = [
-    r"Enterobact.",
-    r"$\it{Blautia}$",
-    r"$\it{Barnesiella}$",
-    r"unc. Mollicutes",
-    r"Lachnospi.",
-    r"$\it{Akkermansia}$",
-    r"$\it{C.\ difficile}$",
-    r"unc. Lachno.",
-    r"$\it{Coprobacillus}$",
-    r"$\it{Enterococcus}$",
-    r"Other",
+    r"Enterobact.", r"$\it{Blautia}$", r"$\it{Barnesiella}$",
+    r"unc. Mollicutes", r"Lachnospi.", r"$\it{Akkermansia}$",
+    r"$\it{C.\ difficile}$", r"unc. Lachno.", r"$\it{Coprobacillus}$",
+    r"$\it{Enterococcus}$", r"Other",
 ]
 SP_COLORS = [
-    "#e41a1c",
-    "#377eb8",
-    "#4daf4a",
-    "#984ea3",
-    "#ff7f00",
-    "#a65628",
-    "#f781bf",
-    "#999999",
-    "#66c2a5",
-    "#fc8d62",
-    "#8da0cb",
+    "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00",
+    "#a65628", "#f781bf", "#999999", "#66c2a5", "#fc8d62", "#8da0cb",
 ]
 DATA_DIR = SCRIPT_DIR / "external_data" / "stein2013"
 
 
 def load_mouse_csv(mouse_key):
     import csv as csv_mod
-
     with open(DATA_DIR / f"stein2013_{mouse_key}.csv") as f:
         reader = csv_mod.reader(f)
         header = next(reader)
@@ -156,33 +117,15 @@ def fig_species_panels(t_days, obs, pred, mouse_key, fig_dir, ic=None, ic_day=No
     for j in range(N_SP):
         ax = axes_flat[j]
         # Data scatter
-        ax.scatter(
-            t_days, obs[:, j], s=30, color=SP_COLORS[j], edgecolors="k", linewidths=0.5, zorder=5
-        )
+        ax.scatter(t_days, obs[:, j], s=30, color=SP_COLORS[j],
+                   edgecolors="k", linewidths=0.5, zorder=5)
         # MAP line
-        ax.plot(
-            t_days,
-            pred[:, j],
-            color=SP_COLORS[j],
-            lw=2.0,
-            zorder=3,
-            marker="s",
-            ms=4,
-            markeredgecolor="white",
-            markeredgewidth=0.5,
-        )
+        ax.plot(t_days, pred[:, j], color=SP_COLORS[j], lw=2.0, zorder=3,
+                marker="s", ms=4, markeredgecolor="white", markeredgewidth=0.5)
         # IC diamond
         if ic is not None and ic_day is not None:
-            ax.scatter(
-                [ic_day],
-                [ic[j]],
-                s=50,
-                color=SP_COLORS[j],
-                marker="D",
-                edgecolors="k",
-                linewidths=0.8,
-                zorder=6,
-            )
+            ax.scatter([ic_day], [ic[j]], s=50, color=SP_COLORS[j], marker="D",
+                       edgecolors="k", linewidths=0.8, zorder=6)
 
         ax.set_title(SP_NAMES_ITALIC[j], fontsize=9)
         ax.grid(True)
@@ -207,39 +150,19 @@ def fig_species_panels(t_days, obs, pred, mouse_key, fig_dir, ic=None, ic_day=No
     # Legend
     handles = [
         Line2D([0], [0], marker="s", color="gray", lw=2, ms=4, label="MAP"),
-        Line2D(
-            [0],
-            [0],
-            marker="o",
-            color="w",
-            markerfacecolor="gray",
-            markeredgecolor="k",
-            markersize=6,
-            label="Data",
-        ),
+        Line2D([0], [0], marker="o", color="w", markerfacecolor="gray",
+               markeredgecolor="k", markersize=6, label="Data"),
     ]
     if ic is not None:
-        handles.append(
-            Line2D(
-                [0],
-                [0],
-                marker="D",
-                color="w",
-                markerfacecolor="gray",
-                markeredgecolor="k",
-                markersize=6,
-                label="IC",
-            )
-        )
+        handles.append(Line2D([0], [0], marker="D", color="w", markerfacecolor="gray",
+                              markeredgecolor="k", markersize=6, label="IC"))
     axes_flat[0].legend(handles=handles, fontsize=7, loc="upper right")
 
     m = compute_metrics(obs, pred)
     fig.suptitle(
         f"Stein 2013 — {mouse_key} (11 species, 77 params)\n"
         f"RMSE = {m['rmse']:.3f}, Cosine = {m['cosine']:.3f}",
-        fontsize=12,
-        fontweight="bold",
-        y=1.02,
+        fontsize=12, fontweight="bold", y=1.02,
     )
     fig.tight_layout()
     fig.savefig(fig_dir / f"fig_panels_{mouse_key}.pdf")
@@ -252,17 +175,10 @@ def _reorder_glv_to_our_order(A_glv, glv_species):
     """Reorder gLV A matrix from Stein's species order to our order."""
     # Stein order -> our order mapping
     glv_to_ours = {
-        "Barnesiella": 2,
-        "Lachnospiraceae": 4,
-        "unc_Lachnospiraceae": 7,
-        "Other": 10,
-        "Blautia": 1,
-        "unc_Mollicutes": 3,
-        "Akkermansia": 5,
-        "Coprobacillus": 8,
-        "Clostridium_difficile": 6,
-        "Enterococcus": 9,
-        "Enterobacteriaceae": 0,
+        "Barnesiella": 2, "Lachnospiraceae": 4, "unc_Lachnospiraceae": 7,
+        "Other": 10, "Blautia": 1, "unc_Mollicutes": 3,
+        "Akkermansia": 5, "Coprobacillus": 8, "Clostridium_difficile": 6,
+        "Enterococcus": 9, "Enterobacteriaceae": 0,
     }
     n = len(glv_species)
     A_reordered = np.zeros((n, n))
@@ -301,16 +217,8 @@ def fig_A_heatmap(theta, mouse_key, fig_dir, A_glv=None, glv_species=None):
         for i in range(N_SP):
             for j in range(N_SP):
                 c = "white" if abs(A[i, j]) > vmax * 0.5 else "black"
-                ax.text(
-                    j,
-                    i,
-                    f"{A[i,j]:.2f}",
-                    ha="center",
-                    va="center",
-                    fontsize=7,
-                    color=c,
-                    fontweight="bold",
-                )
+                ax.text(j, i, f"{A[i,j]:.2f}", ha="center", va="center",
+                        fontsize=7, color=c, fontweight="bold")
         # Same labels for both
         ax.set_xticks(range(N_SP))
         ax.set_yticks(range(N_SP))
@@ -330,7 +238,7 @@ def fig_A_heatmap(theta, mouse_key, fig_dir, A_glv=None, glv_species=None):
 
 def fig_growth_rates(theta, mouse_key, fig_dir):
     n_A = N_SP * (N_SP + 1) // 2
-    mu = theta[n_A : n_A + N_SP]
+    mu = theta[n_A:n_A + N_SP]
     fig, ax = plt.subplots(1, 1, figsize=(10, 3.5))
     bars = ax.bar(range(N_SP), mu, color=SP_COLORS, edgecolor="k", linewidth=0.5)
     ax.set_xticks(range(N_SP))
@@ -341,14 +249,8 @@ def fig_growth_rates(theta, mouse_key, fig_dir):
     ax.grid(True, axis="y")
     # Value labels
     for bar, val in zip(bars, mu):
-        ax.text(
-            bar.get_x() + bar.get_width() / 2,
-            bar.get_height() + 0.02,
-            f"{val:.2f}",
-            ha="center",
-            va="bottom",
-            fontsize=7,
-        )
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.02,
+                f"{val:.2f}", ha="center", va="bottom", fontsize=7)
     fig.tight_layout()
     fig.savefig(fig_dir / f"fig_mu_{mouse_key}.pdf")
     fig.savefig(fig_dir / f"fig_mu_{mouse_key}.png")
@@ -359,7 +261,8 @@ def fig_residuals(t_days, obs, pred, mouse_key, fig_dir):
     fig, ax = plt.subplots(1, 1, figsize=(10, 4))
     for j in range(N_SP):
         residual = pred[:, j] - obs[:, j]
-        ax.plot(t_days, residual, color=SP_COLORS[j], marker="s", ms=4, label=SP_NAMES[j], lw=1.0)
+        ax.plot(t_days, residual, color=SP_COLORS[j], marker="s", ms=4,
+                label=SP_NAMES[j], lw=1.0)
     ax.axhline(0, color="gray", ls="--", lw=0.8)
     ax.set_xlabel("Day")
     ax.set_ylabel("Residual (pred $-$ obs)")
@@ -385,7 +288,6 @@ def main():
 
     import jax
     import jax.numpy as jnp
-
     jax.config.update("jax_enable_x64", True)
     from hamilton_ode_jax_nsp import simulate_0d_nsp
 
@@ -396,6 +298,9 @@ def main():
         "pop1_rep1_id2": ("_runs/stein2013_pop1_rep1_id2_2000p", 1),
         "pop1_rep2_id5": ("_runs/stein2013_pop1_rep2_id5_2000p", 1),
         "pop1_rep3_id8": ("_runs/stein2013_pop1_rep3_id8_2000p", 1),
+        "pop2_rep1_id1": ("_runs/stein2013_pop2r1_day7ic_s010", 7),
+        "pop2_rep2_id4": ("_runs/stein2013_pop2r2_day7ic_s010", 7),
+        "pop2_rep3_id7": ("_runs/stein2013_pop2r3_day7ic_5000p", 7),
         "pop3_rep1_id3": ("_runs/stein2013_pop3r1_day2ic_5000p", 2),
         "pop3_rep2_id6": ("_runs/stein2013_pop3r2_day2ic_5000p", 2),
         "pop3_rep3_id9": ("_runs/stein2013_pop3r3_day2ic_5000p", 2),
@@ -437,15 +342,10 @@ def main():
         scale = (t_max * 0.95) / t_fit.max()
         idx = np.clip(np.round(t_fit * scale / dt).astype(int), 0, n_steps)
 
-        traj = np.array(
-            simulate_0d_nsp(
-                jnp.array(theta),
-                n_sp=N_SP,
-                n_steps=n_steps,
-                dt=dt,
-                phi_init=jnp.array(ic),
-            )
-        )
+        traj = np.array(simulate_0d_nsp(
+            jnp.array(theta), n_sp=N_SP, n_steps=n_steps, dt=dt,
+            phi_init=jnp.array(ic),
+        ))
         pred = traj[idx]
         pred = pred / np.maximum(pred.sum(axis=1, keepdims=True), 1e-12)
 
@@ -466,9 +366,7 @@ def main():
         np.save(FIG_DIR / f"obs_{mouse_key}.npy", obs)
 
         results[mouse_key] = {
-            "rmse": m["rmse"],
-            "cosine": m["cosine"],
-            "spearman": m["spearman"],
+            "rmse": m["rmse"], "cosine": m["cosine"], "spearman": m["spearman"],
             "max_logL": float(logL.max()),
             "start_from_idx": sfi,
         }

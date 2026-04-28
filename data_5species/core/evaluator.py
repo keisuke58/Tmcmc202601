@@ -576,6 +576,7 @@ class LogLikelihoodEvaluator:
             False  # Start with linearization disabled (non-linear exploration)
         )
         self.ve_prior = None  # Optional ViscoelasticPrior, set externally
+        self.sign_prior = None  # Optional SignPrior, set externally
         logger.info("TSM initialized (linearization disabled initially for exploration)")
 
     def update_linearization_point(self, theta_new_full: np.ndarray):
@@ -974,6 +975,10 @@ class LogLikelihoodEvaluator:
         if self.ve_prior is not None:
             logL += self.ve_prior.log_prior(theta_sub)
 
+        # Add sign prior penalty if configured (KEGG/HMDB metabolite-flow)
+        if self.sign_prior is not None:
+            logL += self.sign_prior.log_prior(theta_sub)
+
         # Track evaluation
         self.theta_history.append(theta_sub.copy())
         self.logL_history.append(logL)
@@ -1036,6 +1041,78 @@ class ViscoelasticPrior:
         for ve_idx, sub_pos in self._sub_positions.items():
             val = theta_sub[sub_pos]
             lp -= 0.5 * ((val - self.mu[ve_idx]) / self.sigma[ve_idx]) ** 2
+        return lp
+
+
+class SignPrior:
+    """
+    Soft sign prior on interaction-matrix parameters from KEGG/HMDB metabolite flow.
+
+    For each non-zero entry net_flow[i,j], the corresponding A[i,j] element is
+    penalised if it has the wrong sign:
+        log_prior -= w * max(0, -sign(net_flow[i,j]) * A[i,j])^2 / (2 sigma^2)
+
+    Designed to be attached to LogLikelihoodEvaluator.sign_prior after construction.
+
+    Parameters
+    ----------
+    net_flow : ndarray (n_sp, n_sp)
+        Signed metabolite-flow matrix (positive = cross-feeding, negative = inhibition).
+        Typically built from Dieckow SF1 KEGG/HMDB annotation.
+    active_indices : list[int]
+        Indices in full theta vector that are active (passed as theta_sub).
+    n_sp : int
+        Number of species (default 5 for Heine).
+    sigma : float
+        Prior width (default 0.15, same as guild gLV).
+    symmetric : bool
+        If True, treat A as symmetric (Hamilton ODE) and average net_flow directions.
+    """
+
+    def __init__(
+        self,
+        net_flow: np.ndarray,
+        active_indices: List[int],
+        n_sp: int = 5,
+        sigma: float = 0.15,
+        symmetric: bool = True,
+    ):
+        self.n_sp = n_sp
+        self.sigma = sigma
+        self.active_indices = list(active_indices)
+        n_a = n_sp * (n_sp + 1) // 2  # upper-triangle params (indices 0..n_a-1)
+
+        # For symmetric A, average both flow directions
+        nf = np.array(net_flow)
+        if symmetric:
+            nf = (nf + nf.T) / 2.0
+
+        # Pre-build list of (sub_idx, sign) for non-zero A-matrix active params
+        self._penalties: List[tuple] = []
+        idx = 0
+        for j in range(n_sp):
+            for i in range(j + 1):  # upper triangle (i <= j)
+                full_idx = idx  # A_upper param index in theta (0-based)
+                if full_idx in self.active_indices:
+                    sub_pos = self.active_indices.index(full_idx)
+                    f_ij = nf[i, j]
+                    f_ji = nf[j, i]
+                    # Use larger absolute flow direction
+                    if abs(f_ij) >= abs(f_ji):
+                        f = f_ij
+                    else:
+                        f = f_ji
+                    if f != 0.0:
+                        self._penalties.append((sub_pos, f))
+                idx += 1
+
+    def log_prior(self, theta_sub: np.ndarray) -> float:
+        lp = 0.0
+        s2 = 2.0 * self.sigma * self.sigma
+        for sub_pos, f in self._penalties:
+            a_val = theta_sub[sub_pos]
+            v = max(0.0, -np.sign(f) * a_val)
+            lp -= abs(f) * v * v / s2
         return lp
 
 
