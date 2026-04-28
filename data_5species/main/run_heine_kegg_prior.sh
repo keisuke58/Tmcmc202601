@@ -3,7 +3,8 @@
 # Execute on GPU server: ssh vancouver01 "cd /path && bash run_heine_kegg_prior.sh"
 set -e
 
-PYTHON=/home/nishioka/IKM_Hiwi/.venv_jax/bin/python
+PYTHON=${PYTHON:-/home/nishioka/IKM_Hiwi/.venv_jax/bin/python}
+# On vancouver01: PYTHON=/home/nishioka/miniconda3/envs/gnnEmulEnv/bin/python
 SCRIPT=estimate_reduced_nishioka.py
 N_PARTICLES=500
 SIGMA_KEGG=0.15
