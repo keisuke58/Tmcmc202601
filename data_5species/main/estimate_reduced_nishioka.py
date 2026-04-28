@@ -2552,20 +2552,21 @@ def run_estimation(
                 / "Dieckow"
                 / "Supplementary_File_1_microbe_metabolite_enzyme_interactions.tsv"
             )
-            _nife_root = next(
+            _sf1 = next(
                 (
-                    p / "nife"
+                    p / "nife" / _sf1_tail
                     for p in [
                         Path(__file__).resolve().parents[3],  # IKM_Hiwi/ (local)
                         Path(__file__).resolve().parents[2],  # Tmcmc202601/ (vancouver01 submodule)
                     ]
-                    if (p / "nife").exists()
+                    if (p / "nife" / _sf1_tail).exists()
                 ),
                 None,
             )
-            if _nife_root is None:
-                raise FileNotFoundError("Cannot locate nife/ directory for Dieckow SF1 data")
-            _sf1 = _nife_root / _sf1_tail
+            if _sf1 is None:
+                raise FileNotFoundError(
+                    "Cannot locate Dieckow SF1 TSV (checked parents[2,3]/nife/)"
+                )
             _genus_sp = {
                 "Streptococcus": 0,
                 "Schaalia": 0,
