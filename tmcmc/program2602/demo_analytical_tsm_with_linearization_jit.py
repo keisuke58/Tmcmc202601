@@ -401,10 +401,15 @@ class BiofilmTSM_Analytical(BiofilmTSM):
                 return result
 
         # ★ NEW: Check if linearization is enabled
-        # If disabled, use full TSM (non-linear) for initial exploration
+        # If disabled, use deterministic solve (super().solve_tsm hardcodes 10-state for 4-sp model)
         if not self._linearization_enabled:
-            # Use full TSM without linearization (slower but more accurate for exploration)
-            return super().solve_tsm(theta)
+            if hasattr(self.solver, "solve_deterministic"):
+                t_arr, x_det = self.solver.solve_deterministic(np.real(theta).astype(np.float64))
+            elif hasattr(self.solver, "run_deterministic"):
+                t_arr, x_det = self.solver.run_deterministic(np.real(theta).astype(np.float64))
+            else:
+                return super().solve_tsm(theta)
+            return t_arr, x_det, np.zeros_like(x_det)
 
         # ★ 1) 最重要修正: 線形化を本当に使う
         # TSMの定義: x(θ) ≈ x(θ₀) + ∂x/∂θ|_{θ₀} · (θ - θ₀)
