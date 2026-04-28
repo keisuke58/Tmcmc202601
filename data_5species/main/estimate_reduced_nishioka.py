@@ -2598,6 +2598,18 @@ def run_estimation(
                     for _tgt in _inhib:
                         if _src != _tgt:
                             _neg[_tgt, _src] += _w
+            # eHOMD/literature supplement for 4 pairs not covered by Dieckow SF1
+            # Signs from oral microbiome coaggregation / metabolic cross-feeding literature
+            _ehomD_w = 1.0  # eHOMD-only weight (vs KEGG/HMDB = 2.0)
+            _ehomD_pos = [
+                (0, 1),  # So-An: lactate/nitrite cross-feeding (Dieckow SI Neo4j)
+                (1, 3),  # An-Fn: early colonizer bridge synergy (eHOMD)
+                (2, 3),  # Vd-Fn: metabolite cross-feeding (eHOMD)
+                (3, 4),  # Fn-Pg: coaggregation + cross-feeding (Kapatral 2002, Periasamy 2011)
+            ]
+            for _i, _j in _ehomD_pos:
+                _pos[_j, _i] += _ehomD_w
+                _pos[_i, _j] += _ehomD_w
             _net_flow = _pos - _neg
             evaluator.sign_prior = SignPrior(
                 net_flow=_net_flow,
