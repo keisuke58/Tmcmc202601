@@ -2512,13 +2512,8 @@ def run_estimation(
             n_steps=args.maxtimestep,
             weights=likelihood_weights,
         )
-        # LogLikelihoodEvaluator compat shims needed by TMCMC internals
+        # Override active_species from data (HamiltonDirectEvaluator defaults to range(n_sp))
         evaluator.active_species = list(active_species)
-        evaluator.theta_base = ode_theta_base.copy()
-        evaluator.call_count = 0
-        evaluator.fom_call_count = 0
-        evaluator.health = type("H", (), {"n_calls": 0, "n_tsm_fail": 0, "n_output_nonfinite": 0})()
-        evaluator.timing = type("T", (), {"get_s": lambda self, k: 0.0})()
 
         # Attach VE prior if enabled
         if ve_enabled:
