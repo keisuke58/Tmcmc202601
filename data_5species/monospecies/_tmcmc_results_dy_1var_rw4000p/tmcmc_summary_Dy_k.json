@@ -1,0 +1,19 @@
+{
+  "mode": "Dy_k",
+  "mutation": "rw",
+  "n_particles": 4000,
+  "dynamic_c": true,
+  "c_scale": 10.0,
+  "dt": 0.0001,
+  "n_newton": 6,
+  "dy_sheet": "Dy",
+  "dy_time_to_step": 10.0,
+  "sigma_knots_dir": "data_5species/monospecies/_tmcmc_results_dyncc10_rw4000p",
+  "k_MAP": 0.7497812509536743,
+  "k_mean": 0.7486683130264282,
+  "k_std": 0.013030583038926125,
+  "k_ci_lo": 0.7241089940071106,
+  "k_ci_hi": 0.7744250297546387,
+  "n_stages": 6,
+  "total_time": 218.06545996665955
+}

@@ -1,0 +1,47 @@
+{
+  "source": "Stein et al. 2013 (PLoS Comput Biol 9:e1003388)",
+  "mouse": "pop1_rep1_id2",
+  "n_species": 11,
+  "n_params": 77,
+  "species": [
+    "Enterobact",
+    "Blautia",
+    "Barnesiella",
+    "Mollicutes",
+    "Lachnospi",
+    "Akkermansia",
+    "C.difficile",
+    "unc_Lachno",
+    "Coprobacil",
+    "Enterococc",
+    "Other"
+  ],
+  "n_particles": 2000,
+  "mutation": "rw",
+  "n_mutation_steps": 20,
+  "sigma_obs": 0.15,
+  "n_steps": 2500,
+  "dt": 0.0001,
+  "max_delta_beta": 0.1,
+  "n_stages": 11,
+  "total_time_s": 5748.131134033203,
+  "max_logL": -3.0690227467046154,
+  "t_fit": [
+    2.0,
+    6.0,
+    13.0
+  ],
+  "phi_init": [
+    0.00099601593625498,
+    0.0010776892430278886,
+    0.28746015936254976,
+    0.0018854581673306773,
+    0.436445219123506,
+    0.00099601593625498,
+    0.00099601593625498,
+    0.10776992031872511,
+    0.001346613545816733,
+    0.00099601593625498,
+    0.16003087649402392
+  ]
+}

@@ -2539,6 +2539,78 @@ def run_estimation(
 
             evaluator.ve_prior = ViscoelasticPrior(active_indices=active_indices)
 
+        # Attach KEGG/HMDB sign prior if requested
+        kegg_sigma = getattr(args, "kegg_prior_sigma", 0.0)
+        if kegg_sigma > 0.0:
+            from core.evaluator import SignPrior
+            import pandas as _pd
+
+            _sf1 = (
+                Path(__file__).resolve().parents[3]
+                / "nife"
+                / "Szafranski_Published_Work"
+                / "Szafranski_Published_Work"
+                / "public_data"
+                / "Dieckow"
+                / "Supplementary_File_1_microbe_metabolite_enzyme_interactions.tsv"
+            )
+            _genus_sp = {
+                "Streptococcus": 0,
+                "Schaalia": 0,
+                "Actinomyces": 1,
+                "Veillonella": 2,
+                "Lancefieldella": 2,
+                "Selenomonas": 2,
+                "Fusobacterium": 3,
+                "Leptotrichia": 3,
+                "Porphyromonas": 4,
+                "Prevotella": 4,
+                "Tannerella": 4,
+            }
+            _n_sp = 5
+            _pos = np.zeros((_n_sp, _n_sp))
+            _neg = np.zeros((_n_sp, _n_sp))
+            _df = _pd.read_csv(_sf1, sep="\t")
+            for _met in _df["OBJECT"].unique():
+                _mdf = _df[_df["OBJECT"] == _met]
+
+                def _met_w(r):
+                    if str(r.get("KEGG", "")) not in ("n/a", "", "nan", "NaN"):
+                        return 2.0
+                    return 2.0 if "HMDB" in str(r.get("HMDB_ID", "")) else 1.0
+
+                _w = float(_mdf.apply(_met_w, axis=1).max())
+                _prod, _cons, _inhib = set(), set(), set()
+                for _, _row in _mdf.iterrows():
+                    _g = _genus_sp.get(str(_row["TAXON"]).split()[0])
+                    if _g is None:
+                        continue
+                    if _row["RELATIONSHIP"] == "PRODUCES":
+                        _prod.add(_g)
+                    elif _row["RELATIONSHIP"] == "USES":
+                        _cons.add(_g)
+                    elif _row["RELATIONSHIP"] == "IS_INHIBITED_BY":
+                        _inhib.add(_g)
+                for _src in _prod:
+                    for _tgt in _cons:
+                        if _src != _tgt:
+                            _pos[_tgt, _src] += _w
+                    for _tgt in _inhib:
+                        if _src != _tgt:
+                            _neg[_tgt, _src] += _w
+            _net_flow = _pos - _neg
+            evaluator.sign_prior = SignPrior(
+                net_flow=_net_flow,
+                active_indices=list(active_indices),
+                n_sp=_n_sp,
+                sigma=kegg_sigma,
+                symmetric=True,
+            )
+            print(
+                f"  KEGG/HMDB sign prior attached (sigma={kegg_sigma}, "
+                f"non-zero pairs: {int((_net_flow != 0).sum() - _n_sp)})"
+            )
+
         # Override active_indices/theta_base for TMCMC sampling (includes VE params)
         evaluator.active_indices = list(active_indices)
         evaluator.theta_base = theta_base.copy()
@@ -3057,6 +3129,16 @@ Examples:
         "--correlation-analysis",
         action="store_true",
         help="Compute and plot parameter correlation matrix",
+    )
+
+    # KEGG/HMDB sign prior
+    parser.add_argument(
+        "--kegg-prior-sigma",
+        type=float,
+        default=0.0,
+        dest="kegg_prior_sigma",
+        help="Attach KEGG/HMDB metabolite-flow sign prior (Dieckow SF1) with given sigma. "
+        "0 = disabled (default). Recommended: 0.15 (same as guild gLV).",
     )
 
     # Heteroscedastic sigma from replicate IQR

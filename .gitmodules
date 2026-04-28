@@ -1,0 +1,3 @@
+[submodule "nife"]
+	path = nife
+	url = git@github.com:keisuke58/nife_intern.git
