@@ -1155,6 +1155,7 @@ class HamiltonDirectEvaluator:
         self._simulate = simulate_0d_nsp
         self.active_indices = list(active_indices)
         self.theta_base = theta_base.copy()
+        self._linearization_point = theta_base.copy()
         self.data = np.array(data, dtype=np.float64)
         self.idx_sparse = np.array(idx_sparse, dtype=int)
         self.sigma_obs = float(np.mean(sigma_obs))
@@ -1163,8 +1164,28 @@ class HamiltonDirectEvaluator:
         self.weights = weights
         self.sign_prior = sign_prior
         self.ve_prior = ve_prior
+        self.active_species = list(range(n_sp))
+        # TMCMC-compat counters and flags
+        self.call_count = 0
+        self.fom_call_count = 0
+        self._linearization_enabled = False
+        self.debug_logger = None
+        self.timing = type("_T", (), {"get_s": staticmethod(lambda k: 0.0)})()
+        self.health = type(
+            "_H",
+            (),
+            {
+                "n_calls": 0,
+                "n_tsm_fail": 0,
+                "n_output_nonfinite": 0,
+                "n_logL_neginf": 0,
+                "n_logL_nan": 0,
+            },
+        )()
 
     def __call__(self, theta_sub: np.ndarray) -> float:
+        self.call_count += 1
+        self.health.n_calls += 1
         # Reconstruct full theta
         full_theta = self.theta_base.copy()
         for i, idx in enumerate(self.active_indices):
@@ -1174,16 +1195,17 @@ class HamiltonDirectEvaluator:
         try:
             traj = np.array(self._simulate(full_theta[:20], n_sp=self.n_sp, n_steps=self.n_steps))
         except Exception:
+            self.health.n_tsm_fail += 1
             return -1e20
 
         if not np.all(np.isfinite(traj)):
+            self.health.n_output_nonfinite += 1
             return -1e20
 
         # Extract predicted phi at observation times
         phi_pred = traj[self.idx_sparse, : self.n_sp]  # (n_obs, n_sp)
         phi_obs = self.data  # (n_obs, n_sp)
 
-        # Sanity check
         if phi_pred.shape != phi_obs.shape:
             return -1e20
 
@@ -1196,13 +1218,29 @@ class HamiltonDirectEvaluator:
         else:
             logL = float(-0.5 * np.sum(residuals**2) / s2)
 
-        # Attach priors
         if self.sign_prior is not None:
             logL += self.sign_prior.log_prior(theta_sub)
         if self.ve_prior is not None:
             logL += self.ve_prior.log_prior(theta_sub)
 
         return logL
+
+    # -- TMCMC-compat stubs (no-op; Hamilton needs no ROM/linearization) --
+
+    def get_linearization_point(self) -> np.ndarray:
+        return self._linearization_point.copy()
+
+    def update_linearization_point(self, theta: np.ndarray) -> None:
+        self._linearization_point = np.array(theta).copy()
+
+    def enable_linearization(self, flag: bool) -> None:
+        self._linearization_enabled = flag
+
+    def compute_ROM_error(self, theta: np.ndarray) -> float:
+        return 0.0
+
+    def get_health(self):
+        return self.health
 
 
 class DeepONetEvaluator:
