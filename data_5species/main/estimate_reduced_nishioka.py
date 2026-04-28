@@ -2496,42 +2496,29 @@ def run_estimation(
                 weights=likelihood_weights,
             )
 
-        # ODE solver/TSM only uses theta[0:19] — filter active_indices for TSM
+        # Use Hamilton direct evaluator (bypasses Newton CLSM solver which is
+        # incompatible with Hamilton replicator ODE theta parametrization)
+        from core.evaluator import HamiltonDirectEvaluator
+
         ode_active_indices = [i for i in active_indices if i < 20]
         ode_theta_base = theta_base[:20] if len(theta_base) > 20 else theta_base
-        ode_theta_lin = (
-            theta_linearization[:20] if len(theta_linearization) > 20 else theta_linearization
-        )
-
-        evaluator = LogLikelihoodEvaluator(
-            solver_kwargs=solver_kwargs,
-            active_species=active_species,
+        evaluator = HamiltonDirectEvaluator(
             active_indices=ode_active_indices,
             theta_base=ode_theta_base,
             data=data,
             idx_sparse=idx_sparse,
             sigma_obs=sigma_obs,
-            cov_rel=args.cov_rel,
-            rho=0.0,
-            theta_linearization=ode_theta_lin,
-            paper_mode=False,
-            debug_logger=debug_logger,
-            use_absolute_volume=args.use_absolute_volume,
+            n_sp=5,
+            n_steps=args.maxtimestep,
             weights=likelihood_weights,
-            data_total=multichannel_data.get("data_total"),
-            sigma_obs_total=multichannel_data.get("sigma_obs_total"),
-            data_viability=multichannel_data.get("data_viability"),
-            sigma_obs_viability=multichannel_data.get("sigma_obs_viability", 0.10),
-            data_pH=multichannel_data.get("data_pH"),
-            idx_pH=multichannel_data.get("idx_pH"),
-            sigma_obs_pH=multichannel_data.get("sigma_obs_pH", 0.15),
-            lambda_ch={
-                1: getattr(args, "lambda_ch1", 1.0),
-                2: getattr(args, "lambda_ch2", 0.5),
-                3: getattr(args, "lambda_ch3", 2.0),
-                5: getattr(args, "lambda_ch5", 0.3),
-            },
         )
+        # LogLikelihoodEvaluator compat shims needed by TMCMC internals
+        evaluator.active_species = list(active_species)
+        evaluator.theta_base = ode_theta_base.copy()
+        evaluator.call_count = 0
+        evaluator.fom_call_count = 0
+        evaluator.health = type("H", (), {"n_calls": 0, "n_tsm_fail": 0, "n_output_nonfinite": 0})()
+        evaluator.timing = type("T", (), {"get_s": lambda self, k: 0.0})()
 
         # Attach VE prior if enabled
         if ve_enabled:

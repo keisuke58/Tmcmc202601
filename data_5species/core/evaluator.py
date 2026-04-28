@@ -1127,6 +1127,84 @@ class SignPrior:
         return lp
 
 
+class HamiltonDirectEvaluator:
+    """
+    Log-likelihood evaluator that calls simulate_0d_nsp (Hamilton JAX ODE) directly.
+
+    Bypasses BiofilmNewtonSolver5S which uses different dynamics incompatible
+    with the Hamilton theta parametrization.
+
+    Interface: evaluator(theta_sub) -> float (log-likelihood)
+    """
+
+    def __init__(
+        self,
+        active_indices: List[int],
+        theta_base: np.ndarray,
+        data: np.ndarray,
+        idx_sparse: np.ndarray,
+        sigma_obs: float,
+        n_sp: int = 5,
+        n_steps: int = 2500,
+        weights: Optional[np.ndarray] = None,
+        sign_prior=None,
+        ve_prior=None,
+    ):
+        from hamilton_ode_jax_nsp import simulate_0d_nsp
+
+        self._simulate = simulate_0d_nsp
+        self.active_indices = list(active_indices)
+        self.theta_base = theta_base.copy()
+        self.data = np.array(data, dtype=np.float64)
+        self.idx_sparse = np.array(idx_sparse, dtype=int)
+        self.sigma_obs = float(sigma_obs)
+        self.n_sp = n_sp
+        self.n_steps = n_steps
+        self.weights = weights
+        self.sign_prior = sign_prior
+        self.ve_prior = ve_prior
+
+    def __call__(self, theta_sub: np.ndarray) -> float:
+        # Reconstruct full theta
+        full_theta = self.theta_base.copy()
+        for i, idx in enumerate(self.active_indices):
+            full_theta[idx] = theta_sub[i]
+
+        # Run Hamilton ODE
+        try:
+            traj = np.array(self._simulate(full_theta[:20], n_sp=self.n_sp, n_steps=self.n_steps))
+        except Exception:
+            return -1e20
+
+        if not np.all(np.isfinite(traj)):
+            return -1e20
+
+        # Extract predicted phi at observation times
+        phi_pred = traj[self.idx_sparse, : self.n_sp]  # (n_obs, n_sp)
+        phi_obs = self.data  # (n_obs, n_sp)
+
+        # Sanity check
+        if phi_pred.shape != phi_obs.shape:
+            return -1e20
+
+        # Gaussian log-likelihood
+        residuals = phi_pred - phi_obs
+        s2 = self.sigma_obs**2
+        if self.weights is not None:
+            w = self.weights[: phi_obs.shape[0], : phi_obs.shape[1]]
+            logL = float(-0.5 * np.sum(w * residuals**2 / s2))
+        else:
+            logL = float(-0.5 * np.sum(residuals**2) / s2)
+
+        # Attach priors
+        if self.sign_prior is not None:
+            logL += self.sign_prior.log_prior(theta_sub)
+        if self.ve_prior is not None:
+            logL += self.ve_prior.log_prior(theta_sub)
+
+        return logL
+
+
 class DeepONetEvaluator:
     """
     Log-likelihood evaluator using DeepONet surrogate (drop-in replacement for
