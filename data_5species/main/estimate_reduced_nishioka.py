@@ -2545,15 +2545,27 @@ def run_estimation(
             from core.evaluator import SignPrior
             import pandas as _pd
 
-            _sf1 = (
-                Path(__file__).resolve().parents[3]
-                / "nife"
-                / "Szafranski_Published_Work"
+            _sf1_tail = (
+                Path("Szafranski_Published_Work")
                 / "Szafranski_Published_Work"
                 / "public_data"
                 / "Dieckow"
                 / "Supplementary_File_1_microbe_metabolite_enzyme_interactions.tsv"
             )
+            _nife_root = next(
+                (
+                    p / "nife"
+                    for p in [
+                        Path(__file__).resolve().parents[3],  # IKM_Hiwi/ (local)
+                        Path(__file__).resolve().parents[2],  # Tmcmc202601/ (vancouver01 submodule)
+                    ]
+                    if (p / "nife").exists()
+                ),
+                None,
+            )
+            if _nife_root is None:
+                raise FileNotFoundError("Cannot locate nife/ directory for Dieckow SF1 data")
+            _sf1 = _nife_root / _sf1_tail
             _genus_sp = {
                 "Streptococcus": 0,
                 "Schaalia": 0,
