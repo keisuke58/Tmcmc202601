@@ -2515,6 +2515,11 @@ def run_estimation(
         # Override active_species from data (HamiltonDirectEvaluator defaults to range(n_sp))
         evaluator.active_species = list(active_species)
 
+        # JAX objects can't be safely pickled to forked processes; force threading
+        if not getattr(args, "use_threads", False):
+            args.use_threads = True
+            logger.info("Auto-enabled --use-threads for JAX/Hamilton compatibility")
+
         # Attach VE prior if enabled
         if ve_enabled:
             from core.evaluator import ViscoelasticPrior
