@@ -1153,6 +1153,9 @@ class HamiltonDirectEvaluator:
     Bypasses BiofilmNewtonSolver5S which uses different dynamics incompatible
     with the Hamilton theta parametrization.
 
+    Supports batch evaluation via jax.vmap for efficient GPU usage:
+        evaluator.batch_logL(theta_batch) -> np.ndarray  (n_particles,)
+
     Interface: evaluator(theta_sub) -> float (log-likelihood)
     """
 
@@ -1168,7 +1171,10 @@ class HamiltonDirectEvaluator:
         weights: Optional[np.ndarray] = None,
         sign_prior=None,
         ve_prior=None,
+        phi_init: Optional[np.ndarray] = None,
     ):
+        import jax
+        import jax.numpy as jnp
         from hamilton_ode_jax_nsp import simulate_0d_nsp
 
         self._simulate = simulate_0d_nsp
@@ -1183,6 +1189,7 @@ class HamiltonDirectEvaluator:
         self.weights = weights
         self.sign_prior = sign_prior
         self.ve_prior = ve_prior
+        self.phi_init = np.array(phi_init, dtype=np.float64) if phi_init is not None else None
         self.active_species = list(range(n_sp))
         # TMCMC-compat counters and flags
         self.call_count = 0
@@ -1191,6 +1198,53 @@ class HamiltonDirectEvaluator:
         self.debug_logger = None
         self.timing = _NullTiming()
         self.health = _NullHealth()
+
+        # --- Build vmap batch evaluator (pure JAX, no sign/ve prior) ---
+        # All constants are captured in the closure as JAX arrays.
+        _theta_base_jax = jnp.array(theta_base, dtype=jnp.float64)
+        _active_idx = jnp.array(self.active_indices, dtype=jnp.int32)
+        _idx_sparse_jax = jnp.array(self.idx_sparse, dtype=jnp.int32)
+        _data_jax = jnp.array(self.data, dtype=jnp.float64)
+        _s2 = float(self.sigma_obs) ** 2
+        _weights_jax = (
+            jnp.array(weights[: self.data.shape[0], : self.data.shape[1]], dtype=jnp.float64)
+            if weights is not None
+            else None
+        )
+        _phi_init_jax = jnp.array(self.phi_init) if self.phi_init is not None else None
+        _n_sp = n_sp
+        _n_steps = n_steps
+
+        def _single_logL(theta_active: "jnp.ndarray") -> "jnp.ndarray":
+            full = _theta_base_jax.at[_active_idx].set(theta_active)
+            traj = simulate_0d_nsp(
+                full[:20],
+                n_sp=_n_sp,
+                n_steps=_n_steps,
+                phi_init=_phi_init_jax,
+            )
+            phi_pred = traj[_idx_sparse_jax, :_n_sp]
+            residuals = phi_pred - _data_jax
+            if _weights_jax is not None:
+                logL = -0.5 * jnp.sum(_weights_jax * residuals**2 / _s2)
+            else:
+                logL = -0.5 * jnp.sum(residuals**2) / _s2
+            return jnp.where(jnp.isfinite(logL), logL, jnp.array(-1e20))
+
+        self._batch_eval_jax = jax.jit(jax.vmap(_single_logL))
+
+    def batch_logL(self, theta_batch: np.ndarray) -> np.ndarray:
+        """Evaluate all particles in one GPU call via jax.vmap."""
+        import jax.numpy as jnp
+
+        logL = np.array(self._batch_eval_jax(jnp.array(theta_batch, dtype=jnp.float64)))
+        if self.sign_prior is not None:
+            for i, theta_sub in enumerate(theta_batch):
+                logL[i] += self.sign_prior.log_prior(theta_sub)
+        if self.ve_prior is not None:
+            for i, theta_sub in enumerate(theta_batch):
+                logL[i] += self.ve_prior.log_prior(theta_sub)
+        return logL
 
     def __call__(self, theta_sub: np.ndarray) -> float:
         self.call_count += 1
@@ -1202,7 +1256,14 @@ class HamiltonDirectEvaluator:
 
         # Run Hamilton ODE
         try:
-            traj = np.array(self._simulate(full_theta[:20], n_sp=self.n_sp, n_steps=self.n_steps))
+            traj = np.array(
+                self._simulate(
+                    full_theta[:20],
+                    n_sp=self.n_sp,
+                    n_steps=self.n_steps,
+                    phi_init=self.phi_init,
+                )
+            )
         except Exception:
             self.health.n_tsm_fail += 1
             return -1e20

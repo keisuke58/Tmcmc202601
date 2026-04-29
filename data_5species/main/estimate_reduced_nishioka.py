@@ -2511,6 +2511,7 @@ def run_estimation(
             n_sp=5,
             n_steps=args.maxtimestep,
             weights=likelihood_weights,
+            phi_init=phi_init_array,
         )
         # Override active_species from data (HamiltonDirectEvaluator defaults to range(n_sp))
         evaluator.active_species = list(active_species)
