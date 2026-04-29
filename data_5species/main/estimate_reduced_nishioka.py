@@ -2614,9 +2614,10 @@ def run_estimation(
                 sigma=kegg_sigma,
                 symmetric=True,
             )
-            print(
-                f"  KEGG/HMDB sign prior attached (sigma={kegg_sigma}, "
-                f"non-zero pairs: {int((_net_flow != 0).sum() - _n_sp)})"
+            logger.info(
+                "KEGG/HMDB sign prior attached (sigma=%s, non-zero pairs: %d)",
+                kegg_sigma,
+                int((_net_flow != 0).sum() - _n_sp),
             )
 
         # Override active_indices/theta_base for TMCMC sampling (includes VE params)
@@ -4308,8 +4309,17 @@ def main():
         runs_base = output_dir.parent
         found = {}
         for prefix in ["CS", "CH", "DS", "DH"]:
-            candidates = sorted(runs_base.glob(f"{prefix}_*p_expIC_repSigma_*"))
-            # Pick latest that has samples.npy
+            alias = {
+                "CS": ["CS", "Commensal_Static"],
+                "CH": ["CH", "Commensal_HOBIC"],
+                "DS": ["DS", "Dysbiotic_Static"],
+                "DH": ["DH", "Dysbiotic_HOBIC"],
+            }[prefix]
+            candidates = []
+            for a in alias:
+                candidates.extend(runs_base.glob(f"{a}_*p_expIC_repSigma_*"))
+                candidates.extend(runs_base.glob(f"{a}_*"))
+            candidates = sorted(set(candidates), key=lambda p: p.stat().st_mtime)
             for c in reversed(candidates):
                 if (c / "samples.npy").exists() and (c / "results_summary.json").exists():
                     found[prefix] = c

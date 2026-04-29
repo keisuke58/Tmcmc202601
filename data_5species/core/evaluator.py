@@ -1051,33 +1051,34 @@ class SignPrior:
     Penalises A[i,j] if it has the wrong sign relative to net_flow[i,j]:
         log_prior -= w * max(0, -sign(f) * A[i,j])^2 / (2 sigma^2)
 
-    Uses the actual 5-species Hamilton theta layout (block structure, NOT sequential
-    upper-triangle):
-        theta[0]=A[0,0]  theta[1]=A[0,1]  theta[2]=A[1,1]  theta[3]=b0  theta[4]=b1
-        theta[5]=A[2,2]  theta[6]=A[2,3]  theta[7]=A[3,3]  theta[8]=b2  theta[9]=b3
-        theta[10]=A[0,2] theta[11]=A[0,3] theta[12]=A[1,2] theta[13]=A[1,3]
-        theta[14]=A[4,4] theta[15]=b4
-        theta[16]=A[0,4] theta[17]=A[1,4] theta[18]=A[2,4] theta[19]=A[3,4]
+    Uses the Hamilton column-major upper-triangle theta layout:
+        A[i,j] (i<=j) -> theta[j*(j+1)//2 + i]
+        theta[0]=A[0,0]  theta[1]=A[0,1]  theta[2]=A[1,1]
+        theta[3]=A[0,2]  theta[4]=A[1,2]  theta[5]=A[2,2]
+        theta[6]=A[0,3]  theta[7]=A[1,3]  theta[8]=A[2,3]  theta[9]=A[3,3]
+        theta[10]=A[0,4] theta[11]=A[1,4] theta[12]=A[2,4] theta[13]=A[3,4] theta[14]=A[4,4]
+        theta[15]=b[0] .. theta[19]=b[4]
     """
 
     # Full-theta index for each symmetric A-matrix pair (0-based species indices).
     # Keys are frozenset({i,j}) so order doesn't matter; value is theta index.
+    # Hamilton column-major upper-triangle: A[i,j] (i<=j) -> j*(j+1)//2 + i
     _PAIR_TO_THETA_5SP: dict = {
-        frozenset({0, 0}): 0,
-        frozenset({0, 1}): 1,
-        frozenset({1, 1}): 2,
-        frozenset({2, 2}): 5,
-        frozenset({2, 3}): 6,
-        frozenset({3, 3}): 7,
-        frozenset({0, 2}): 10,
-        frozenset({0, 3}): 11,
-        frozenset({1, 2}): 12,
-        frozenset({1, 3}): 13,
-        frozenset({4, 4}): 14,
-        frozenset({0, 4}): 16,
-        frozenset({1, 4}): 17,
-        frozenset({2, 4}): 18,
-        frozenset({3, 4}): 19,
+        frozenset({0, 0}): 0,  # A[0,0]
+        frozenset({0, 1}): 1,  # A[0,1]
+        frozenset({1, 1}): 2,  # A[1,1]
+        frozenset({0, 2}): 3,  # A[0,2]
+        frozenset({1, 2}): 4,  # A[1,2]
+        frozenset({2, 2}): 5,  # A[2,2]
+        frozenset({0, 3}): 6,  # A[0,3]
+        frozenset({1, 3}): 7,  # A[1,3]
+        frozenset({2, 3}): 8,  # A[2,3]
+        frozenset({3, 3}): 9,  # A[3,3]
+        frozenset({0, 4}): 10,  # A[0,4]
+        frozenset({1, 4}): 11,  # A[1,4]
+        frozenset({2, 4}): 12,  # A[2,4]
+        frozenset({3, 4}): 13,  # A[3,4]
+        frozenset({4, 4}): 14,  # A[4,4]
     }
 
     def __init__(
@@ -1112,9 +1113,12 @@ class SignPrior:
                     continue  # parameter locked / inactive
                 self._penalties.append((sub_pos, float(f)))
 
-        print(
-            f"  SignPrior: {len(self._penalties)} active A-pairs with KEGG/HMDB prior "
-            f"(sigma={sigma})"
+        import logging as _logging
+
+        _logging.getLogger(__name__).info(
+            "SignPrior: %d active A-pairs with KEGG/HMDB prior (sigma=%s)",
+            len(self._penalties),
+            sigma,
         )
 
     def log_prior(self, theta_sub: np.ndarray) -> float:
