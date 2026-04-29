@@ -273,6 +273,10 @@ def evaluate_particles_parallel(
     """
     n_particles = theta.shape[0]
 
+    # Batch evaluation via vmap (e.g. JAX Hamilton evaluator): single GPU call.
+    if hasattr(log_likelihood, "batch_logL"):
+        return np.asarray(log_likelihood.batch_logL(theta), dtype=float)
+
     # Sequential evaluation if n_jobs=1 or None and small number of particles
     if n_jobs == 1 or (n_jobs is None and n_particles < 100):
         return np.array([log_likelihood(t) for t in theta])
