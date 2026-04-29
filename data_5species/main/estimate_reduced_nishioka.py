@@ -2515,11 +2515,6 @@ def run_estimation(
         # Override active_species from data (HamiltonDirectEvaluator defaults to range(n_sp))
         evaluator.active_species = list(active_species)
 
-        # JAX objects can't be safely pickled to forked processes; force threading
-        if not getattr(args, "use_threads", False):
-            args.use_threads = True
-            logger.info("Auto-enabled --use-threads for JAX/Hamilton compatibility")
-
         # Attach VE prior if enabled
         if ve_enabled:
             from core.evaluator import ViscoelasticPrior
@@ -2663,6 +2658,12 @@ def run_estimation(
     # Run TMCMC
     logger.info("Starting TMCMC estimation...")
     start_time = time.time()
+
+    # Hamilton JAX evaluator: forked worker processes each try to claim GPU memory → OOM.
+    # Force threading so JAX runs in the main process only.
+    if not getattr(args, "use_threads", False):
+        args.use_threads = True
+        logger.info("Auto-enabled --use-threads (Hamilton JAX evaluator requires shared process)")
 
     mutation_kwargs = {}
     if getattr(args, "n_mutation_steps", None) is not None:
