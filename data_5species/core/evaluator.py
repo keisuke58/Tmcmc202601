@@ -1173,11 +1173,6 @@ class HamiltonDirectEvaluator:
         ve_prior=None,
         phi_init: Optional[np.ndarray] = None,
     ):
-        import jax
-        import jax.numpy as jnp
-        from hamilton_ode_jax_nsp import simulate_0d_nsp
-
-        self._simulate = simulate_0d_nsp
         self.active_indices = list(active_indices)
         self.theta_base = theta_base.copy()
         self._linearization_point = theta_base.copy()
@@ -1199,62 +1194,144 @@ class HamiltonDirectEvaluator:
         self.timing = _NullTiming()
         self.health = _NullHealth()
 
-        # --- Build vmap batch evaluator (pure JAX, no sign/ve prior) ---
-        # All constants are captured in the closure as JAX arrays.
-        _theta_base_jax = jnp.array(theta_base, dtype=jnp.float64)
-        _active_idx = jnp.array(self.active_indices, dtype=jnp.int32)
-        _idx_sparse_jax = jnp.array(self.idx_sparse, dtype=jnp.int32)
-        _data_jax = jnp.array(self.data, dtype=jnp.float64)
-        _s2 = float(self.sigma_obs) ** 2
-        _weights_jax = (
-            jnp.array(weights[: self.data.shape[0], : self.data.shape[1]], dtype=jnp.float64)
-            if weights is not None
-            else None
-        )
-        _phi_init_jax = jnp.array(self.phi_init) if self.phi_init is not None else None
-        _n_sp = n_sp
-        _n_steps = n_steps
+        # --- Backend selection ---
+        # Prefer Numba (CPU, nogil=True → true thread parallelism, ~2 ms/particle).
+        # Fall back to JAX (GPU vmap) when Numba is unavailable.
+        self._use_numba = False
+        if n_sp == 5:
+            try:
+                import sys as _sys
+                from pathlib import Path as _Path
 
-        def _single_logL(theta_active: "jnp.ndarray") -> "jnp.ndarray":
-            full = _theta_base_jax.at[_active_idx].set(theta_active)
-            traj = simulate_0d_nsp(
-                full[:20],
-                n_sp=_n_sp,
-                n_steps=_n_steps,
-                phi_init=_phi_init_jax,
+                _main_dir = _Path(__file__).resolve().parent.parent / "main"
+                if str(_main_dir) not in _sys.path:
+                    _sys.path.insert(0, str(_main_dir))
+                from hamilton_ode_numba_5sp import simulate_0d_5sp_numba
+
+                # Trigger Numba JIT warmup on a zero theta to avoid first-call latency.
+                _phi0 = self.phi_init if self.phi_init is not None else np.full(5, 0.2)
+                simulate_0d_5sp_numba(
+                    np.zeros(20, dtype=np.float64),
+                    n_steps=min(n_steps, 50),
+                    phi_init=_phi0,
+                )
+                self._simulate_numba = simulate_0d_5sp_numba
+                self._use_numba = True
+            except Exception:
+                pass
+
+        if not self._use_numba:
+            import jax
+            import jax.numpy as jnp
+            from hamilton_ode_jax_nsp import simulate_0d_nsp
+
+            self._simulate = simulate_0d_nsp
+
+            # JAX vmap batch evaluator (pure-JAX, no sign/ve prior).
+            _theta_base_jax = jnp.array(theta_base, dtype=jnp.float64)
+            _active_idx = jnp.array(self.active_indices, dtype=jnp.int32)
+            _idx_sparse_jax = jnp.array(self.idx_sparse, dtype=jnp.int32)
+            _data_jax = jnp.array(self.data, dtype=jnp.float64)
+            _s2 = float(self.sigma_obs) ** 2
+            _weights_jax = (
+                jnp.array(weights[: self.data.shape[0], : self.data.shape[1]], dtype=jnp.float64)
+                if weights is not None
+                else None
             )
-            phi_pred = traj[_idx_sparse_jax, :_n_sp]
-            residuals = phi_pred - _data_jax
-            if _weights_jax is not None:
-                logL = -0.5 * jnp.sum(_weights_jax * residuals**2 / _s2)
-            else:
-                logL = -0.5 * jnp.sum(residuals**2) / _s2
-            return jnp.where(jnp.isfinite(logL), logL, jnp.array(-1e20))
+            _phi_init_jax = jnp.array(self.phi_init) if self.phi_init is not None else None
+            _n_sp, _n_steps = n_sp, n_steps
 
-        self._batch_eval_jax = jax.jit(jax.vmap(_single_logL))
+            def _single_logL(theta_active: "jnp.ndarray") -> "jnp.ndarray":
+                full = _theta_base_jax.at[_active_idx].set(theta_active)
+                traj = simulate_0d_nsp(
+                    full[:20], n_sp=_n_sp, n_steps=_n_steps, phi_init=_phi_init_jax
+                )
+                phi_pred = traj[_idx_sparse_jax, :_n_sp]
+                residuals = phi_pred - _data_jax
+                if _weights_jax is not None:
+                    logL = -0.5 * jnp.sum(_weights_jax * residuals**2 / _s2)
+                else:
+                    logL = -0.5 * jnp.sum(residuals**2) / _s2
+                return jnp.where(jnp.isfinite(logL), logL, jnp.array(-1e20))
+
+            self._batch_eval_jax = jax.jit(jax.vmap(_single_logL))
+
+    # --- Numba helpers -------------------------------------------------------
+
+    def _numba_single_logL(self, theta_sub: np.ndarray) -> float:
+        """Evaluate one particle using the Numba ODE (called from threads)."""
+        full = self.theta_base.copy()
+        for i, idx in enumerate(self.active_indices):
+            full[idx] = theta_sub[i]
+        try:
+            phibar = self._simulate_numba(
+                full[:20],
+                n_steps=self.n_steps,
+                phi_init=self.phi_init,
+            )
+        except Exception:
+            return -1e20
+        if not np.all(np.isfinite(phibar)):
+            return -1e20
+        phi_pred = phibar[self.idx_sparse, : self.n_sp]
+        phi_obs = self.data
+        if phi_pred.shape != phi_obs.shape:
+            return -1e20
+        residuals = phi_pred - phi_obs
+        s2 = self.sigma_obs**2
+        if self.weights is not None:
+            w = self.weights[: phi_obs.shape[0], : phi_obs.shape[1]]
+            logL = float(-0.5 * np.sum(w * residuals**2 / s2))
+        else:
+            logL = float(-0.5 * np.sum(residuals**2) / s2)
+        if self.sign_prior is not None:
+            logL += self.sign_prior.log_prior(theta_sub)
+        if self.ve_prior is not None:
+            logL += self.ve_prior.log_prior(theta_sub)
+        return logL
 
     def batch_logL(self, theta_batch: np.ndarray) -> np.ndarray:
-        """Evaluate all particles in one GPU call via jax.vmap."""
-        import jax.numpy as jnp
+        """Evaluate all particles in parallel.
 
-        logL = np.array(self._batch_eval_jax(jnp.array(theta_batch, dtype=jnp.float64)))
-        if self.sign_prior is not None:
-            for i, theta_sub in enumerate(theta_batch):
-                logL[i] += self.sign_prior.log_prior(theta_sub)
-        if self.ve_prior is not None:
-            for i, theta_sub in enumerate(theta_batch):
-                logL[i] += self.ve_prior.log_prior(theta_sub)
-        return logL
+        Numba backend: ThreadPoolExecutor (Numba releases GIL → true parallelism).
+        JAX backend: jax.vmap single GPU call.
+        """
+        import os
+        from concurrent.futures import ThreadPoolExecutor
+
+        if self._use_numba:
+            n_jobs = int(os.environ.get("HAMILTON_THREADS", os.cpu_count() or 1))
+            n_jobs = min(n_jobs, theta_batch.shape[0])
+            with ThreadPoolExecutor(max_workers=n_jobs) as ex:
+                logL = list(ex.map(self._numba_single_logL, theta_batch))
+            return np.array(logL, dtype=float)
+        else:
+            import jax.numpy as jnp
+
+            logL = np.array(self._batch_eval_jax(jnp.array(theta_batch, dtype=jnp.float64)))
+            if self.sign_prior is not None:
+                for i, theta_sub in enumerate(theta_batch):
+                    logL[i] += self.sign_prior.log_prior(theta_sub)
+            if self.ve_prior is not None:
+                for i, theta_sub in enumerate(theta_batch):
+                    logL[i] += self.ve_prior.log_prior(theta_sub)
+            return logL
 
     def __call__(self, theta_sub: np.ndarray) -> float:
         self.call_count += 1
         self.health.n_calls += 1
-        # Reconstruct full theta
+
+        if self._use_numba:
+            logL = self._numba_single_logL(theta_sub)
+            if not np.isfinite(logL):
+                self.health.n_output_nonfinite += 1
+            return logL
+
+        # JAX fallback
         full_theta = self.theta_base.copy()
         for i, idx in enumerate(self.active_indices):
             full_theta[idx] = theta_sub[i]
 
-        # Run Hamilton ODE
         try:
             traj = np.array(
                 self._simulate(
