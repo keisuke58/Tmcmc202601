@@ -1195,9 +1195,10 @@ class HamiltonDirectEvaluator:
         self.health = _NullHealth()
 
         # --- Backend selection ---
-        # Prefer Numba (CPU, nogil=True → true thread parallelism, ~2 ms/particle).
+        # Prefer Numba prange (OpenMP parallelism, no GIL).
         # Fall back to JAX (GPU vmap) when Numba is unavailable.
         self._use_numba = False
+        self._batch_logL_numba = None
         if n_sp == 5:
             try:
                 import sys as _sys
@@ -1206,17 +1207,24 @@ class HamiltonDirectEvaluator:
                 _main_dir = _Path(__file__).resolve().parent.parent / "main"
                 if str(_main_dir) not in _sys.path:
                     _sys.path.insert(0, str(_main_dir))
-                from hamilton_ode_numba_5sp import simulate_0d_5sp_numba
-
-                # Trigger Numba JIT warmup on a zero theta to avoid first-call latency.
-                _phi0 = self.phi_init if self.phi_init is not None else np.full(5, 0.2)
-                simulate_0d_5sp_numba(
-                    np.zeros(20, dtype=np.float64),
-                    n_steps=min(n_steps, 50),
-                    phi_init=_phi0,
+                from hamilton_ode_numba_5sp import (
+                    batch_logL_numba,
+                    simulate_0d_5sp_numba,
                 )
+
                 self._simulate_numba = simulate_0d_5sp_numba
+                self._batch_logL_numba = batch_logL_numba
                 self._use_numba = True
+                # JIT warmup via the batch kernel (triggers prange compilation)
+                _phi0 = self.phi_init if self.phi_init is not None else np.full(5, 0.2)
+                batch_logL_numba(
+                    np.zeros((1, 20), dtype=np.float64),
+                    _phi0,
+                    self.idx_sparse[:1],
+                    self.data[:1],
+                    self.sigma_obs**2,
+                    n_steps=min(n_steps, 10),
+                )
             except Exception:
                 pass
 
@@ -1293,18 +1301,27 @@ class HamiltonDirectEvaluator:
     def batch_logL(self, theta_batch: np.ndarray) -> np.ndarray:
         """Evaluate all particles in parallel.
 
-        Numba backend: ThreadPoolExecutor (Numba releases GIL → true parallelism).
+        Numba backend: single prange kernel (OpenMP/TBB, no Python GIL).
         JAX backend: jax.vmap single GPU call.
         """
-        import os
-        from concurrent.futures import ThreadPoolExecutor
-
-        if self._use_numba:
-            n_jobs = int(os.environ.get("HAMILTON_THREADS", os.cpu_count() or 1))
-            n_jobs = min(n_jobs, theta_batch.shape[0])
-            with ThreadPoolExecutor(max_workers=n_jobs) as ex:
-                logL = list(ex.map(self._numba_single_logL, theta_batch))
-            return np.array(logL, dtype=float)
+        if self._use_numba and self._batch_logL_numba is not None:
+            phi_init = self.phi_init if self.phi_init is not None else np.full(5, 0.2)
+            logL = self._batch_logL_numba(
+                np.asarray(theta_batch, dtype=np.float64),
+                phi_init,
+                self.idx_sparse,
+                self.data,
+                self.sigma_obs**2,
+                n_steps=self.n_steps,
+                weights=self.weights,
+            )
+            if self.sign_prior is not None:
+                for i, theta_sub in enumerate(theta_batch):
+                    logL[i] += self.sign_prior.log_prior(theta_sub)
+            if self.ve_prior is not None:
+                for i, theta_sub in enumerate(theta_batch):
+                    logL[i] += self.ve_prior.log_prior(theta_sub)
+            return np.asarray(logL, dtype=float)
         else:
             import jax.numpy as jnp
 
