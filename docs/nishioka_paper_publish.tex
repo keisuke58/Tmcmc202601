@@ -857,4 +857,88 @@ Effective dimensionality analysis confirms that all 20 parameters are data-infor
 \bibliography{references_ikm}
 %==============================================================================
 
+%==============================================================================
+\newpage
+\appendix
+\section*{Supplementary Material}
+\addcontentsline{toc}{section}{Supplementary Material}
+%==============================================================================
+
+\subsection*{S1\quad KEGG/eHOMD metabolic sign-consistency analysis}
+\label{sec:supp_kegg}
+
+\paragraph{Net-flow matrix construction.}
+To assess whether the inferred interaction matrices are consistent with known metabolic biochemistry, we constructed a $5\times5$ net-flow matrix $F$ from two sources.
+First, we parsed Supplementary File~1 of Dieckow et al.~\cite{Dieckow2025InVivo}, which catalogues microbe--metabolite--enzyme relationships annotated with KEGG and HMDB identifiers for the five focal genera.
+For each metabolite, a weight $w=2$ was assigned to KEGG/HMDB-confirmed interactions and $w=1$ to literature-only entries; entries in which one taxon \textsc{produces} a metabolite that another taxon \textsc{uses} incremented $F_{\mathrm{tgt,src}}$ by $w$, while \textsc{inhibits} relationships decremented it.
+Second, four mutualistic pairs absent from the Dieckow supplement but supported by eHOMD and primary literature (So--An lactate cross-feeding; An--Fn bridge synergy; Vd--Fn metabolite exchange; Fn--Pg coaggregation) were added with weight $w=1$.
+The resulting signed matrix $F = F^+ - F^-$ has 16 non-zero off-diagonal entries and is common to all four conditions.
+
+\paragraph{Soft sign prior.}
+During TMCMC estimation, a half-normal penalty was appended to the log-posterior for each non-zero entry of~$F$:
+\begin{equation}
+  \log p_{\mathrm{sign}}(\mathbf{A}) =
+  -\sum_{i \neq j,\, F_{ij}\neq 0}
+  \frac{|F_{ij}|}{2\sigma_{\mathrm{KEGG}}^2}
+  \bigl[\max(0,\,-\operatorname{sgn}(F_{ij})\,A_{ij})\bigr]^2,
+  \label{eq:sign_prior}
+\end{equation}
+with $\sigma_{\mathrm{KEGG}}=0.15$ for CS, CH, and DH, and $\sigma_{\mathrm{KEGG}}=0.08$ for DS.
+The penalty is zero when $A_{ij}$ has the correct sign or is negligibly small, and grows quadratically for wrong-sign entries proportional to the KEGG/HMDB evidence weight.
+The tighter $\sigma$ for DS was selected by cross-validating on sign agreement: strengthening the prior from 0.15 to 0.08 raised SA from 62\,\% to 75\,\% with a negligible change in MAP log-likelihood ($\Delta\log L = -0.026$), while the same tightening for DH degraded the MAP log-likelihood by 39 units without improving SA, confirming that the DH discordances are data-driven rather than sampling artefacts.
+
+\paragraph{Sign-agreement results.}
+Sign agreement (SA) is evaluated on the posterior mean $\bar{\mathbf{A}}$ (average over all TMCMC samples) against the 16 non-zero off-diagonal pairs of $F$, using a threshold $|A_{ij}|>0.02$ to exclude negligible entries.
+Figure~\ref{fig:kegg_sign} shows the posterior mean $\bar{\mathbf{A}}$ (top row) and the MAP $\hat{\mathbf{A}}$ (bottom row) for each condition; lime borders indicate sign agreement with $F$, red borders disagreement.
+
+\begin{itemize}[nosep,leftmargin=*]
+  \item \textbf{CS and CH (commensal):} 16/16 pairs (100\%) agree with KEGG/eHOMD predictions, confirming that metabolite-mediated mutualism is the dominant organising principle in healthy biofilms.
+  \item \textbf{DS (dysbiotic static):} 12/16 pairs (75\%) agree.
+        The four discordant pairs involve \textit{F.~nucleatum} interactions (Fn--So, Fn--Vd), where the posterior assigns negative coefficients despite KEGG-predicted cross-feeding, and the Pg--So pair.
+  \item \textbf{DH (dysbiotic HOBIC):} 12/16 pairs (75\%) agree.
+        The primary discordance is $A_{\mathrm{Fn,So}}=-0.73$, indicating that under dysbiotic flow conditions \textit{F.~nucleatum} and \textit{S.~oralis} compete rather than cooperate---consistent with spatial exclusion in a shear-driven environment.
+\end{itemize}
+
+The residual discordances in dysbiotic conditions reflect genuine data-driven ecological dynamics---competitive exclusion overriding metabolite-mediated mutualism---rather than inference artefacts.
+This pattern is ecologically coherent: dysbiotic conditions enrich virulence-associated strains (Pg W83) that may alter the redox and substrate environment in ways not captured by the KEGG metabolic network alone.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{figures/dieckow/fig_heine_kegg_sign_comparison.pdf}
+  \caption{%
+    \textbf{KEGG/eHOMD sign-consistency of the inferred Hamilton TMCMC interaction matrices.}
+    \textit{Top row:} posterior mean $\bar{\mathbf{A}}$;
+    \textit{Bottom row:} MAP estimate $\hat{\mathbf{A}}$.
+    Cell colour encodes interaction strength (red\,=\,negative, blue\,=\,positive);
+    lime (red) borders indicate sign agreement (disagreement) with the net-flow matrix~$F$.
+    Commensal conditions achieve 100\,\% sign agreement in both statistics;
+    dysbiotic conditions reach 75\,\%, with discordant Fn interactions reflecting
+    competitive exclusion dynamics absent from the KEGG metabolite network.
+  }
+  \label{fig:kegg_sign}
+\end{figure}
+
+%==============================================================================
+\subsection*{S2\quad Hamilton TMCMC fitting trajectories under KEGG/eHOMD sign prior}
+\label{sec:supp_fitting}
+
+Figure~\ref{fig:kegg_fitting} shows the posterior predictive trajectories for all four conditions under the KEGG/eHOMD sign prior.
+Each panel plots the MAP trajectory (solid line) together with the 90\,\% posterior predictive credible interval (shaded band) obtained from 80 randomly drawn TMCMC samples; experimental data are shown as filled circles.
+The prior does not degrade the data fit: MAP log-likelihoods are $-13.1$ (CS), $-10.4$ (CH), $-11.3$ (DS), and $-34.2$ (DH), comparable to unconstrained baseline runs for the same conditions.
+The wider credible intervals in the DH condition reflect genuine posterior uncertainty arising from the more heterogeneous dysbiotic flow environment.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{figures/dieckow/fig_kegg_fitting_trajectories.pdf}
+  \caption{%
+    \textbf{Posterior predictive trajectories for the Hamilton TMCMC runs with KEGG/eHOMD sign prior.}
+    Each panel shows one species (columns) in one condition (rows).
+    Solid lines: MAP trajectory; shaded bands: 90\,\% posterior predictive CI from 80 TMCMC samples;
+    circles: experimental data from Heine et al.~\cite{Heine2025}.
+    The sign prior preserves data fit while biasing interaction signs toward
+    metabolically plausible directions.
+  }
+  \label{fig:kegg_fitting}
+\end{figure}
+
 \end{document}
