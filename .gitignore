@@ -128,6 +128,9 @@ Open-Full-Jaw/
 FEM_legacy/
 BiofiIm_2025/
 .venv_jax/
+external_repos/
+arxiv-research-tracker/
+real-estate-tracker/
 
 # =========================
 # Wiki / local clones
@@ -145,4 +148,3 @@ career_*.md
 # Environment variables (sensitive)
 # =========================
 .env
-
