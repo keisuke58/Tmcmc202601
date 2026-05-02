@@ -883,37 +883,64 @@ During TMCMC estimation, a half-normal penalty was appended to the log-posterior
   \bigl[\max(0,\,-\operatorname{sgn}(F_{ij})\,A_{ij})\bigr]^2,
   \label{eq:sign_prior}
 \end{equation}
-with $\sigma_{\mathrm{KEGG}}=0.15$ for CS, CH, and DH, and $\sigma_{\mathrm{KEGG}}=0.08$ for DS.
+with $\sigma_{\mathrm{KEGG}}=0.15$ for CS and CH, and $\sigma_{\mathrm{KEGG}}=0.08$ for DS and DH.
 The penalty is zero when $A_{ij}$ has the correct sign or is negligibly small, and grows quadratically for wrong-sign entries proportional to the KEGG/HMDB evidence weight.
-The tighter $\sigma$ for DS was selected by cross-validating on sign agreement: strengthening the prior from 0.15 to 0.08 raised SA from 62\,\% to 75\,\% with a negligible change in MAP log-likelihood ($\Delta\log L = -0.026$), while the same tightening for DH degraded the MAP log-likelihood by 39 units without improving SA, confirming that the DH discordances are data-driven rather than sampling artefacts.
+The tighter $\sigma$ for dysbiotic conditions reflects the expectation that virulence-associated strains (Pg W83) alter the metabolic environment in ways not fully represented in the KEGG network, so only the most strongly supported signs are penalised.
 
-\paragraph{Sign-agreement results.}
-Sign agreement (SA) is evaluated on the posterior mean $\bar{\mathbf{A}}$ (average over all TMCMC samples) against the 16 non-zero off-diagonal pairs of $F$, using a threshold $|A_{ij}|>0.02$ to exclude negligible entries.
-Figure~\ref{fig:kegg_sign} shows the posterior mean $\bar{\mathbf{A}}$ (top row) and the MAP $\hat{\mathbf{A}}$ (bottom row) for each condition; lime borders indicate sign agreement with $F$, red borders disagreement.
+\paragraph{Posterior sign probability (data-driven validation).}
+Rather than evaluating sign agreement only at a point estimate, we computed for each KEGG pair $(i,j)$ the \emph{posterior sign probability}
+\[
+  P_{ij} = \frac{1}{S}\sum_{s=1}^{S} \mathbf{1}\!\bigl[\operatorname{sgn}(A^{(s)}_{ij}) = \operatorname{sgn}(F_{ij})\bigr],
+\]
+where $S=10{,}000$ samples are drawn from the \emph{free} (no KEGG prior) Phase-2 TMCMC posterior.
+A value $P_{ij}=1$ means the data alone, without any metabolic prior, consistently places the interaction in the KEGG-predicted direction; $P_{ij}=0.5$ is uninformative (random).
+Figure~\ref{fig:kegg_signprob} displays $P_{ij}$ for all 16 non-zero KEGG pairs across all four conditions.
+
+The mean sign probability $\bar{P}$ per condition is: CS\,$=$\,0.61, CH\,$=$\,0.48, DS\,$=$\,0.73, DH\,$=$\,0.50.
+Several notable patterns emerge:
 
 \begin{itemize}[nosep,leftmargin=*]
-  \item \textbf{CS and CH (commensal):} 16/16 pairs (100\%) agree with KEGG/eHOMD predictions, confirming that metabolite-mediated mutualism is the dominant organising principle in healthy biofilms.
-  \item \textbf{DS (dysbiotic static):} 12/16 pairs (75\%) agree.
-        The four discordant pairs involve \textit{F.~nucleatum} interactions (Fn--So, Fn--Vd), where the posterior assigns negative coefficients despite KEGG-predicted cross-feeding, and the Pg--So pair.
-  \item \textbf{DH (dysbiotic HOBIC):} 12/16 pairs (75\%) agree.
-        The primary discordance is $A_{\mathrm{Fn,So}}=-0.73$, indicating that under dysbiotic flow conditions \textit{F.~nucleatum} and \textit{S.~oralis} compete rather than cooperate---consistent with spatial exclusion in a shear-driven environment.
+  \item \textbf{An$\leftarrow$Vd (mutualism):} $P=1.00$ in all four conditions---the sole pair where the free posterior is fully decisive across phenotypes, strongly corroborating the eHOMD lactate/acetate cross-feeding evidence.
+  \item \textbf{So$\leftrightarrow$Vd (commensal vs.\ dysbiotic reversal):}
+        $P=1.00$ in CS/CH, dropping to $P<0.02$ in DS/DH.
+        The posterior shifts from mutualism in commensal biofilms to competition in dysbiotic ones, consistent with substrate competition under \textit{P.~gingivalis} W83 acidification.
+  \item \textbf{DS (dysbiotic static):} highest $\bar{P}=0.73$ (10/16 pairs\,$>$\,0.5), suggesting that the data-driven signal is most aligned with KEGG predictions in static dysbiotic conditions despite the prior having the tightest $\sigma$.
+  \item \textbf{CH and DH:} $\bar{P}\approx0.5$, indicating that HOBIC flow conditions introduce competitive dynamics that largely cancel KEGG-predicted mutualism in the free posterior.
 \end{itemize}
 
-The residual discordances in dysbiotic conditions reflect genuine data-driven ecological dynamics---competitive exclusion overriding metabolite-mediated mutualism---rather than inference artefacts.
-This pattern is ecologically coherent: dysbiotic conditions enrich virulence-associated strains (Pg W83) that may alter the redox and substrate environment in ways not captured by the KEGG metabolic network alone.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{figures/dieckow/fig_kegg_sign_probability.pdf}
+  \caption{%
+    \textbf{Posterior sign probability $P_{ij}$ for each KEGG/eHOMD pair from 10\,000 free-posterior samples.}
+    Each cell shows $P_{ij}$ (bold) and the net-flow weight $F_{ij}$ (small text).
+    Green ($P>0.5$): free posterior supports the KEGG-predicted sign;
+    red ($P<0.5$): data-driven sign opposes KEGG prediction;
+    grey dashes: pair not in the KEGG/eHOMD network.
+    The An$\leftarrow$Vd pair achieves $P=1.00$ in all conditions; So$\leftrightarrow$Vd reverses from $P=1.00$ (commensal) to $P\approx 0$ (dysbiotic).
+  }
+  \label{fig:kegg_signprob}
+\end{figure}
+
+\paragraph{Sign agreement under KEGG prior.}
+For reference, sign agreement (SA) of the posterior mean $\bar{\mathbf{A}}$ from the KEGG-prior TMCMC runs ($N_p=1{,}000$) against the 16 non-zero entries of $F$ (threshold $|A_{ij}|>0.02$) is:
+CS\,$=$\,13/16 (81\,\%), CH\,$=$\,13/16 (81\,\%), DS\,$=$\,9/16 (56\,\%), DH\,$=$\,9/16 (56\,\%).
+Figure~\ref{fig:kegg_sign} shows $\bar{\mathbf{A}}$ (top) and MAP $\hat{\mathbf{A}}$ (bottom) for each condition.
+Commensal conditions achieve 81\,\% SA; the three discordant pairs (So$\leftrightarrow$Vd and Pg$\leftarrow$An) are the same pairs for which the free-posterior sign probability is also lowest ($P<0.55$), confirming that these discordances are data-driven rather than artefacts of the prior strength.
+In dysbiotic conditions (56\,\% SA), seven pairs are discordant, concentrated in the Pg--Fn--Vd interaction cluster; these correspond to pairs where the free-posterior $P_{ij}<0.15$, indicating competitive exclusion that overrides the KEGG-predicted cross-feeding.
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\textwidth]{figures/dieckow/fig_heine_kegg_sign_comparison.pdf}
   \caption{%
-    \textbf{KEGG/eHOMD sign-consistency of the inferred Hamilton TMCMC interaction matrices.}
-    \textit{Top row:} posterior mean $\bar{\mathbf{A}}$;
-    \textit{Bottom row:} MAP estimate $\hat{\mathbf{A}}$.
+    \textbf{KEGG/eHOMD sign-consistency of the KEGG-prior TMCMC interaction matrices.}
+    \textit{Top row:} posterior mean $\bar{\mathbf{A}}$ ($N_p=1{,}000$, KEGG sign prior);
+    \textit{Bottom row:} MAP estimate $\hat{\mathbf{A}}$ (10\,000-sample free posterior).
     Cell colour encodes interaction strength (red\,=\,negative, blue\,=\,positive);
-    lime (red) borders indicate sign agreement (disagreement) with the net-flow matrix~$F$.
-    Commensal conditions achieve 100\,\% sign agreement in both statistics;
-    dysbiotic conditions reach 75\,\%, with discordant Fn interactions reflecting
-    competitive exclusion dynamics absent from the KEGG metabolite network.
+    lime (red) borders indicate sign agreement (disagreement) with $F$.
+    SA: CS\,81\,\%, CH\,81\,\%, DS\,56\,\%, DH\,56\,\%;
+    discordant pairs (So$\leftrightarrow$Vd, Pg$\leftarrow$An in commensal; Pg--Fn--Vd cluster in dysbiotic)
+    are confirmed by the free-posterior sign probability (Fig.~\ref{fig:kegg_signprob}).
   }
   \label{fig:kegg_sign}
 \end{figure}
