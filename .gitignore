@@ -148,3 +148,6 @@ career_*.md
 # Environment variables (sensitive)
 # =========================
 .env
+# Compiled slide PDFs and PPTX (regenerated from .tex)
+docs/slides_nishioka*.pdf
+docs/slides_nishioka*.pptx
