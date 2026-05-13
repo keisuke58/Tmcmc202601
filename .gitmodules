@@ -13,3 +13,6 @@
 [submodule "nife"]
 	path = nife
 	url = https://github.com/keisuke58/nife_intern.git
+[submodule "blockchain_resistance"]
+	path = blockchain_resistance
+	url = https://github.com/keisuke58/blockchain_resistance.git
