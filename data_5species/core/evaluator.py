@@ -576,6 +576,7 @@ class LogLikelihoodEvaluator:
             False  # Start with linearization disabled (non-linear exploration)
         )
         self.ve_prior = None  # Optional ViscoelasticPrior, set externally
+        self.sign_prior = None  # Optional SignPrior, set externally
         logger.info("TSM initialized (linearization disabled initially for exploration)")
 
     def update_linearization_point(self, theta_new_full: np.ndarray):
@@ -974,6 +975,10 @@ class LogLikelihoodEvaluator:
         if self.ve_prior is not None:
             logL += self.ve_prior.log_prior(theta_sub)
 
+        # Add metabolic sign prior penalty if configured
+        if self.sign_prior is not None:
+            logL += self.sign_prior.log_prior(theta_sub)
+
         # Track evaluation
         self.theta_history.append(theta_sub.copy())
         self.logL_history.append(logL)
@@ -1036,6 +1041,96 @@ class ViscoelasticPrior:
         for ve_idx, sub_pos in self._sub_positions.items():
             val = theta_sub[sub_pos]
             lp -= 0.5 * ((val - self.mu[ve_idx]) / self.sigma[ve_idx]) ** 2
+        return lp
+
+
+class SignPrior:
+    """
+    Soft sign prior for symmetric A matrix based on COMETS metabolic exchange profiles.
+
+    Penalty: log_prior = -lam * Σ max(0, -sign[k] * theta[k])^2
+
+    Signs are derived from net crossfeed count minus competition count between species pairs
+    using COMETS FBA (oral_biofilm.metabolic_interaction_prior). Condition-specific:
+    - Commensal: all off-diagonal pairs show competition dominance (sign = -1)
+    - Dysbiotic:  mostly competitive; A[So,An] is unconstrained (net crossfeed = 0)
+
+    Theta index → A matrix element mapping (symmetric, 5-species model):
+        theta[1]  = A[So,An]   theta[6]  = A[Vp,Fn]
+        theta[10] = A[So,Vp]   theta[11] = A[So,Fn]
+        theta[12] = A[An,Vp]   theta[13] = A[An,Fn]
+        theta[16] = A[So,Pg]   theta[17] = A[An,Pg]
+        theta[18] = A[Vp,Pg]   theta[19] = A[Fn,Pg]
+    """
+
+    # (theta_index → expected_sign) per condition class
+    # Derived from COMETS FBA net crossfeed counts (2026-05-20)
+    _CONSTRAINTS: Dict[str, Dict[int, int]] = {
+        "commensal": {
+            1: -1,  # A[So,An]: cross=1 comp=2  net=-1
+            6: -1,  # A[Vp,Fn]: cross=0 comp=4  net=-4
+            10: -1,  # A[So,Vp]: cross=1 comp=2  net=-1
+            11: -1,  # A[So,Fn]: cross=0 comp=2  net=-2
+            12: -1,  # A[An,Vp]: cross=0 comp=6  net=-6
+            13: -1,  # A[An,Fn]: cross=0 comp=4  net=-4
+            16: -1,  # A[So,Pg]: cross=0 comp=2  net=-2
+            17: -1,  # A[An,Pg]: cross=0 comp=2  net=-2
+            18: -1,  # A[Vp,Pg]: cross=0 comp=2  net=-2
+            19: -1,  # A[Fn,Pg]: cross=0 comp=2  net=-2
+        },
+        "dysbiotic": {
+            # theta[1] A[So,An]: cross=2 comp=2  net=0 → no constraint
+            6: -1,  # A[Vp,Fn]: cross=0 comp=4  net=-4
+            10: -1,  # A[So,Vp]: cross=1 comp=2  net=-1
+            11: -1,  # A[So,Fn]: cross=0 comp=2  net=-2
+            12: -1,  # A[An,Vp]: cross=1 comp=6  net=-5
+            13: -1,  # A[An,Fn]: cross=1 comp=4  net=-3
+            16: -1,  # A[So,Pg]: cross=1 comp=2  net=-1
+            17: -1,  # A[An,Pg]: cross=0 comp=4  net=-4
+            18: -1,  # A[Vp,Pg]: cross=1 comp=2  net=-1
+            19: -1,  # A[Fn,Pg]: cross=1 comp=2  net=-1
+        },
+    }
+
+    def __init__(
+        self,
+        condition: str,
+        active_indices: List[int],
+        lam: float = 1.0,
+    ):
+        """
+        Parameters
+        ----------
+        condition : str
+            Condition label, e.g. "Commensal_Static", "Dysbiotic_HOBIC".
+            Case-insensitive; "commensal" → commensal class, else dysbiotic.
+        active_indices : list of int
+            Active parameter indices (positions in theta_sub).
+        lam : float
+            Penalty strength. 0 = no constraint, higher = stricter.
+        """
+        cond_class = "commensal" if "commensal" in condition.lower() else "dysbiotic"
+        self.lam = float(lam)
+        self.active_indices = list(active_indices)
+
+        # Precompute: global_idx → (sub_position, expected_sign)
+        constraints = self._CONSTRAINTS[cond_class]
+        self._active_constraints: List[Tuple[int, int]] = []
+        for global_idx, sign in constraints.items():
+            if global_idx in self.active_indices:
+                sub_pos = self.active_indices.index(global_idx)
+                self._active_constraints.append((sub_pos, sign))
+
+        logger.info(
+            f"SignPrior [{cond_class}]: {len(self._active_constraints)} active constraints, lam={lam}"
+        )
+
+    def log_prior(self, theta_sub: np.ndarray) -> float:
+        """Compute log-prior penalty. Returns ≤ 0; 0 when all signs are correct."""
+        lp = 0.0
+        for sub_pos, sign in self._active_constraints:
+            violation = max(0.0, -sign * theta_sub[sub_pos])
+            lp -= self.lam * violation * violation
         return lp
 
 

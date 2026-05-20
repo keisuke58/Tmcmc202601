@@ -10,6 +10,8 @@ case2_tmcmc_linearization.py:
 
 from .evaluator import (
     LogLikelihoodEvaluator,
+    SignPrior,
+    ViscoelasticPrior,
     log_likelihood_sparse,
     build_likelihood_weights,
     build_species_sigma,
@@ -34,6 +36,8 @@ from .mcmc import (
 __all__ = [
     # Evaluator
     "LogLikelihoodEvaluator",
+    "SignPrior",
+    "ViscoelasticPrior",
     "log_likelihood_sparse",
     "build_likelihood_weights",
     "build_species_sigma",

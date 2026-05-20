@@ -50,6 +50,8 @@ USE_EXP_INIT="${USE_EXP_INIT:-0}"
 REPLICATE_SIGMA="${REPLICATE_SIGMA:-0}"
 MULTICHANNEL="${MULTICHANNEL:-0}"
 N_MUTATION_STEPS="${N_MUTATION_STEPS:-}"
+SIGN_PRIOR="${SIGN_PRIOR:-0}"
+SIGN_LAMBDA="${SIGN_LAMBDA:-0.1}"
 
 # --- Environment ---
 cd /home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/main
@@ -62,6 +64,7 @@ SUFFIX="${NPART}p"
 [ "${USE_EXP_INIT}" = "1" ] && SUFFIX="${SUFFIX}_expIC"
 [ "${REPLICATE_SIGMA}" = "1" ] && SUFFIX="${SUFFIX}_repSigma"
 [ "${MULTICHANNEL}" = "1" ] && SUFFIX="${SUFFIX}_mc"
+[ "${SIGN_PRIOR}" = "1" ] && SUFFIX="${SUFFIX}_sp${SIGN_LAMBDA}"
 OUTDIR="_runs/${SHORT}_${SUFFIX}_${NCHAINS}ch_${TS}"
 
 echo "=============================================="
@@ -92,6 +95,10 @@ fi
 if [ -n "${N_MUTATION_STEPS}" ]; then
     EXTRA_ARGS="${EXTRA_ARGS} --n-mutation-steps ${N_MUTATION_STEPS}"
     echo "  Mutation steps: ${N_MUTATION_STEPS}"
+fi
+if [ "${SIGN_PRIOR}" = "1" ]; then
+    EXTRA_ARGS="${EXTRA_ARGS} --sign-prior --sign-lambda ${SIGN_LAMBDA}"
+    echo "  Sign prior enabled (lam=${SIGN_LAMBDA})"
 fi
 
 $PYTHON estimate_reduced_nishioka.py \

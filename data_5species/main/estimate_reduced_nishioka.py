@@ -2539,6 +2539,16 @@ def run_estimation(
 
             evaluator.ve_prior = ViscoelasticPrior(active_indices=active_indices)
 
+        # Attach metabolic sign prior if enabled
+        if getattr(args, "sign_prior", False):
+            from core.evaluator import SignPrior
+
+            evaluator.sign_prior = SignPrior(
+                condition=f"{args.condition}_{args.cultivation}",
+                active_indices=ode_active_indices,
+                lam=getattr(args, "sign_lambda", 1.0),
+            )
+
         # Override active_indices/theta_base for TMCMC sampling (includes VE params)
         evaluator.active_indices = list(active_indices)
         evaluator.theta_base = theta_base.copy()
@@ -3123,6 +3133,23 @@ Examples:
         action="store_true",
         help="Enable viscoelastic (SLS) parameter estimation: theta[20]=log_tau_relax, theta[21]=E0_Einf_ratio. "
         "Currently adds informative prior penalty (no mechanical measurement data available).",
+    )
+
+    # Metabolic sign prior (COMETS-derived)
+    parser.add_argument(
+        "--sign-prior",
+        action="store_true",
+        help="Enable soft sign prior on A matrix off-diagonal entries based on COMETS metabolic exchange. "
+        "Penalizes biologically inconsistent signs (competition vs. cross-feeding). "
+        "Condition-specific: commensal=all negative, dysbiotic=mostly negative.",
+    )
+    parser.add_argument(
+        "--sign-lambda",
+        type=float,
+        default=0.1,
+        help="Penalty strength for sign prior (default: 0.1). "
+        "Penalty = lam * max(0, -sign*theta)^2. "
+        "lam=0.1: soft nudge; lam=1.0: strong enforcement.",
     )
 
     return parser.parse_args()
