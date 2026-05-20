@@ -78,6 +78,22 @@ from core.nishioka_model import get_condition_bounds
 from tmcmc_nuts_engine import tmcmc_engine
 
 
+# eHOMD/Dieckow SF1 sign constraints (global theta index, sign, weight)
+# Same as SignPrior._CONSTRAINTS_EHOMD in core/evaluator.py
+_EHOMD_CONSTRAINTS = [
+    (1, +1, 2.0),  # A[So,An]
+    (6, +1, 2.0),  # A[Vd,Fn]
+    (10, +1, 4.0),  # A[So,Vd]
+    (11, +1, 2.0),  # A[So,Fn]
+    (12, +1, 2.0),  # A[An,Vd]
+    (13, +1, 2.0),  # A[An,Fn]
+    (16, -1, 1.0),  # A[So,Pg]
+    (17, +1, 1.0),  # A[An,Pg]
+    (18, +1, 3.0),  # A[Vd,Pg]
+    (19, +1, 2.0),  # A[Fn,Pg]
+]
+
+
 def make_log_likelihood_jax_ode(
     data: np.ndarray,
     t_days: np.ndarray,
@@ -92,6 +108,9 @@ def make_log_likelihood_jax_ode(
     lambda_pg: float = 1.0,
     lambda_late: float = 1.0,
     n_late: int = 2,
+    sign_prior: bool = False,
+    sign_lambda: float = 0.1,
+    lambda_bc: float = 0.0,
 ):
     """
     Build JAX-differentiable log-likelihood using Hamilton ODE.
@@ -130,6 +149,19 @@ def make_log_likelihood_jax_ode(
         phi_pred = phi_pred / jnp.maximum(phi_sum, 1e-12)
         residual = obs - phi_pred
         logL = -0.5 * jnp.sum(weights * (residual / sigma_obs) ** 2)
+
+        # eHOMD sign prior: logL -= lam * weight * max(0, -sign*theta)^2
+        if sign_prior:
+            for idx_c, sign, weight in _EHOMD_CONSTRAINTS:
+                violation = jnp.maximum(0.0, -sign * theta[idx_c])
+                logL -= sign_lambda * weight * violation * violation
+
+        # Bray-Curtis dissimilarity penalty
+        if lambda_bc > 0.0:
+            q_norm = obs / jnp.maximum(jnp.sum(obs, axis=1, keepdims=True), 1e-12)
+            bc_per_t = 1.0 - jnp.sum(jnp.minimum(phi_pred, q_norm), axis=1)
+            logL -= lambda_bc * jnp.mean(bc_per_t)
+
         return logL
 
     return log_likelihood
@@ -159,13 +191,21 @@ def main():
     parser.add_argument("--n-steps", type=int, default=2500)
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--mutation", default="nuts", choices=["rw", "hmc", "nuts"])
-    parser.add_argument("--n-mutation-steps", type=int, default=1,
-                        help="Mutation steps per particle per stage")
-    parser.add_argument("--external-data", type=str, default=None,
-                        help="Path to JSON with external data (e.g. Sanz-Martin). "
-                             "Keys: t_days, data (n_obs x 5), phi_init (5,), sigma_obs")
-    parser.add_argument("--wide-prior", action="store_true",
-                        help="Use wide prior bounds [-1,3] instead of condition-specific")
+    parser.add_argument(
+        "--n-mutation-steps", type=int, default=1, help="Mutation steps per particle per stage"
+    )
+    parser.add_argument(
+        "--external-data",
+        type=str,
+        default=None,
+        help="Path to JSON with external data (e.g. Sanz-Martin). "
+        "Keys: t_days, data (n_obs x 5), phi_init (5,), sigma_obs",
+    )
+    parser.add_argument(
+        "--wide-prior",
+        action="store_true",
+        help="Use wide prior bounds [-1,3] instead of condition-specific",
+    )
     parser.add_argument("--quick", action="store_true", help="Test run: 50p, 500 steps")
     parser.add_argument(
         "--benchmark",
@@ -177,6 +217,18 @@ def main():
         choices=["auto", "cpu", "gpu"],
         default="auto",
         help="Device: auto (use GPU if available), cpu, gpu",
+    )
+    parser.add_argument(
+        "--sign-prior", action="store_true", help="Enable eHOMD/Dieckow SF1 metabolic sign prior"
+    )
+    parser.add_argument(
+        "--sign-lambda", type=float, default=0.1, help="Sign prior penalty weight (default: 0.1)"
+    )
+    parser.add_argument(
+        "--bc-lambda",
+        type=float,
+        default=0.0,
+        help="Bray-Curtis dissimilarity penalty weight (0=disabled, recommend 5-20)",
     )
     args = parser.parse_args()
 
@@ -247,7 +299,16 @@ def main():
         n_hill=args.n_hill,
         lambda_pg=args.lambda_pg,
         lambda_late=args.lambda_late,
+        sign_prior=args.sign_prior,
+        sign_lambda=args.sign_lambda,
+        lambda_bc=args.bc_lambda,
     )
+    if args.sign_prior:
+        logger.info(
+            f"Sign prior enabled (eHOMD, lam={args.sign_lambda}, {len(_EHOMD_CONSTRAINTS)} constraints)"
+        )
+    if args.bc_lambda > 0:
+        logger.info(f"Bray-Curtis penalty enabled (lam={args.bc_lambda})")
 
     if args.wide_prior or args.external_data:
         prior_bounds = np.zeros((20, 2), dtype=np.float64)
