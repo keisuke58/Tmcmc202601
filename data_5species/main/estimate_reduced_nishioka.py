@@ -2544,9 +2544,8 @@ def run_estimation(
             from core.evaluator import SignPrior
 
             evaluator.sign_prior = SignPrior(
-                condition=f"{args.condition}_{args.cultivation}",
                 active_indices=ode_active_indices,
-                lam=getattr(args, "sign_lambda", 1.0),
+                lam=getattr(args, "sign_lambda", 0.1),
             )
 
         # Override active_indices/theta_base for TMCMC sampling (includes VE params)

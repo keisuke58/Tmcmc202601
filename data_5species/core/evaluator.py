@@ -1046,91 +1046,83 @@ class ViscoelasticPrior:
 
 class SignPrior:
     """
-    Soft sign prior for symmetric A matrix based on COMETS metabolic exchange profiles.
+    Soft sign prior for symmetric A matrix based on eHOMD/Dieckow SF1 net metabolic flow.
 
-    Penalty: log_prior = -lam * Σ max(0, -sign[k] * theta[k])^2
+    Source: eHOMD (Extended Human Oral Microbiome Database) microbe-metabolite-enzyme
+    interactions compiled in Dieckow Supplementary File 1. KEGG/HMDB IDs weight metabolites
+    with stronger annotation at 2× vs. 1×. Same database as guild gLV fit (nife intern work).
 
-    Signs are derived from net crossfeed count minus competition count between species pairs
-    using COMETS FBA (oral_biofilm.metabolic_interaction_prior). Condition-specific:
-    - Commensal: all off-diagonal pairs show competition dominance (sign = -1)
-    - Dysbiotic:  mostly competitive; A[So,An] is unconstrained (net crossfeed = 0)
+    Penalty per pair: lam * weight * max(0, -sign(net_flow_sym) * theta[k])^2
+
+    Symmetrized net flow = net_flow[i,j] + net_flow[j,i]:
+        A[So,An]=+2  A[So,Vd]=+4  A[So,Fn]=+2  A[So,Pg]=-1
+        A[An,Vd]=+2  A[An,Fn]=+2  A[An,Pg]=+1
+        A[Vd,Fn]=+2  A[Vd,Pg]=+3
+        A[Fn,Pg]=+2
+
+    Condition-independent: same sign prior for all 4 TMCMC conditions.
+    Only the magnitudes (theta values) differ per condition.
 
     Theta index → A matrix element mapping (symmetric, 5-species model):
-        theta[1]  = A[So,An]   theta[6]  = A[Vp,Fn]
-        theta[10] = A[So,Vp]   theta[11] = A[So,Fn]
-        theta[12] = A[An,Vp]   theta[13] = A[An,Fn]
+        theta[1]  = A[So,An]   theta[6]  = A[Vd,Fn]
+        theta[10] = A[So,Vd]   theta[11] = A[So,Fn]
+        theta[12] = A[An,Vd]   theta[13] = A[An,Fn]
         theta[16] = A[So,Pg]   theta[17] = A[An,Pg]
-        theta[18] = A[Vp,Pg]   theta[19] = A[Fn,Pg]
+        theta[18] = A[Vd,Pg]   theta[19] = A[Fn,Pg]
     """
 
-    # (theta_index → expected_sign) per condition class
-    # Derived from COMETS FBA net crossfeed counts (2026-05-20)
-    _CONSTRAINTS: Dict[str, Dict[int, int]] = {
-        "commensal": {
-            1: -1,  # A[So,An]: cross=1 comp=2  net=-1
-            6: -1,  # A[Vp,Fn]: cross=0 comp=4  net=-4
-            10: -1,  # A[So,Vp]: cross=1 comp=2  net=-1
-            11: -1,  # A[So,Fn]: cross=0 comp=2  net=-2
-            12: -1,  # A[An,Vp]: cross=0 comp=6  net=-6
-            13: -1,  # A[An,Fn]: cross=0 comp=4  net=-4
-            16: -1,  # A[So,Pg]: cross=0 comp=2  net=-2
-            17: -1,  # A[An,Pg]: cross=0 comp=2  net=-2
-            18: -1,  # A[Vp,Pg]: cross=0 comp=2  net=-2
-            19: -1,  # A[Fn,Pg]: cross=0 comp=2  net=-2
-        },
-        "dysbiotic": {
-            # theta[1] A[So,An]: cross=2 comp=2  net=0 → no constraint
-            6: -1,  # A[Vp,Fn]: cross=0 comp=4  net=-4
-            10: -1,  # A[So,Vp]: cross=1 comp=2  net=-1
-            11: -1,  # A[So,Fn]: cross=0 comp=2  net=-2
-            12: -1,  # A[An,Vp]: cross=1 comp=6  net=-5
-            13: -1,  # A[An,Fn]: cross=1 comp=4  net=-3
-            16: -1,  # A[So,Pg]: cross=1 comp=2  net=-1
-            17: -1,  # A[An,Pg]: cross=0 comp=4  net=-4
-            18: -1,  # A[Vp,Pg]: cross=1 comp=2  net=-1
-            19: -1,  # A[Fn,Pg]: cross=1 comp=2  net=-1
-        },
-    }
+    # (theta_idx, expected_sign, weight) — eHOMD/Dieckow SF1 symmetrized net flow
+    # weight = |net_flow_sym[i,j]|; KEGG/HMDB-annotated metabolites weighted 2× vs 1×
+    _CONSTRAINTS_EHOMD: List[Tuple[int, int, float]] = [
+        (1, +1, 2.0),  # A[So,An]:  lactate/nitrite cross-feeding (eHOMD + Dieckow SF1)
+        (6, +1, 2.0),  # A[Vd,Fn]:  metabolite cross-feeding (eHOMD)
+        (10, +1, 4.0),  # A[So,Vd]:  lactate + succinate → Vd (strongest, 2 KEGG mets ×2)
+        (11, +1, 2.0),  # A[So,Fn]:  broad cross-feeding (Dieckow SF1)
+        (12, +1, 2.0),  # A[An,Vd]:  lactate/succinate → Vd + vitamins → An
+        (13, +1, 2.0),  # A[An,Fn]:  early colonizer bridge synergy (eHOMD)
+        (16, -1, 1.0),  # A[So,Pg]:  Pg IS_INHIBITED_BY So products (net=-1, Dieckow SF1)
+        (17, +1, 1.0),  # A[An,Pg]:  weak net positive (Dieckow SF1)
+        (18, +1, 3.0),  # A[Vd,Pg]:  cross-feeding (eHOMD + Dieckow SF1)
+        (19, +1, 2.0),  # A[Fn,Pg]:  Fn-Pg coaggregation + cross-feeding (Kapatral 2002)
+    ]
 
     def __init__(
         self,
-        condition: str,
         active_indices: List[int],
-        lam: float = 1.0,
+        lam: float = 0.1,
+        condition: str = "",  # accepted for API compatibility; sign prior is condition-independent
     ):
         """
         Parameters
         ----------
-        condition : str
-            Condition label, e.g. "Commensal_Static", "Dysbiotic_HOBIC".
-            Case-insensitive; "commensal" → commensal class, else dysbiotic.
         active_indices : list of int
             Active parameter indices (positions in theta_sub).
         lam : float
-            Penalty strength. 0 = no constraint, higher = stricter.
+            Base penalty strength (default 0.1). Effective penalty per pair =
+            lam × weight × violation².  weight encodes eHOMD metabolic evidence strength.
+        condition : str
+            Accepted but ignored; sign prior is condition-independent.
         """
-        cond_class = "commensal" if "commensal" in condition.lower() else "dysbiotic"
         self.lam = float(lam)
         self.active_indices = list(active_indices)
 
-        # Precompute: global_idx → (sub_position, expected_sign)
-        constraints = self._CONSTRAINTS[cond_class]
-        self._active_constraints: List[Tuple[int, int]] = []
-        for global_idx, sign in constraints.items():
+        # Precompute: (sub_position, sign, weight) for each active constrained theta
+        self._active_constraints: List[Tuple[int, int, float]] = []
+        for global_idx, sign, weight in self._CONSTRAINTS_EHOMD:
             if global_idx in self.active_indices:
                 sub_pos = self.active_indices.index(global_idx)
-                self._active_constraints.append((sub_pos, sign))
+                self._active_constraints.append((sub_pos, sign, weight))
 
         logger.info(
-            f"SignPrior [{cond_class}]: {len(self._active_constraints)} active constraints, lam={lam}"
+            f"SignPrior [eHOMD/Dieckow SF1]: {len(self._active_constraints)} active constraints, lam={lam}"
         )
 
     def log_prior(self, theta_sub: np.ndarray) -> float:
         """Compute log-prior penalty. Returns ≤ 0; 0 when all signs are correct."""
         lp = 0.0
-        for sub_pos, sign in self._active_constraints:
+        for sub_pos, sign, weight in self._active_constraints:
             violation = max(0.0, -sign * theta_sub[sub_pos])
-            lp -= self.lam * violation * violation
+            lp -= self.lam * weight * violation * violation
         return lp
 
 
