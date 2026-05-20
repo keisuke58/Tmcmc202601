@@ -230,6 +230,17 @@ def main():
         default=0.0,
         help="Bray-Curtis dissimilarity penalty weight (0=disabled, recommend 5-20)",
     )
+    parser.add_argument(
+        "--no-polish",
+        action="store_true",
+        help="Skip L-BFGS-B MAP polish step after TMCMC",
+    )
+    parser.add_argument(
+        "--polish-top-k",
+        type=int,
+        default=2,
+        help="Number of top particles to use as L-BFGS-B starting points (default: 2)",
+    )
     args = parser.parse_args()
 
     if args.quick:
@@ -338,12 +349,64 @@ def main():
     )
 
     theta_MAP = result["theta_MAP"]
+    logL_tmcmc = float(result["log_likelihoods"].max())
     logger.info(
         f"Done: {result['n_stages']} stages, "
         f"total_time={result['total_time']:.1f}s, "
         f"accept={np.mean(result['accept_rates']):.2f}, "
-        f"max logL={result['log_likelihoods'].max():.1f}"
+        f"max logL={logL_tmcmc:.1f}"
     )
+
+    # MAP polish: L-BFGS-B refines MAP starting from top-K TMCMC particles.
+    # Uses scipy finite-difference gradient (avoids 30+ min JAX gradient JIT).
+    if not args.no_polish and not args.quick and not args.benchmark:
+        logger.info(f"MAP polishing (L-BFGS-B + FD grad, top-{args.polish_top_k} starts)...")
+        from scipy.optimize import minimize as scipy_minimize
+
+        log_likelihood_jit = jax.jit(log_likelihood)
+        # Warmup already done above (forward pass only)
+
+        def _neg_logL(theta_np):
+            return float(-log_likelihood_jit(jnp.array(theta_np, dtype=jnp.float64)))
+
+        bounds_list = [(float(prior_bounds[i, 0]), float(prior_bounds[i, 1])) for i in range(20)]
+        top_k = min(args.polish_top_k, args.n_particles)
+        top_idx = np.argsort(result["log_likelihoods"])[-top_k:]
+        best_logL = logL_tmcmc
+        best_theta = theta_MAP.copy()
+
+        for rank, idx in enumerate(top_idx[::-1]):
+            theta0 = result["samples"][idx].astype(np.float64)
+            try:
+                # jac="3-point": scipy computes numerical gradient (3-point FD, ~60 evals/step).
+                # Each eval ~5-10ms on GPU → ~30-60 min total for 500 iters is OK post-TMCMC.
+                # Much faster than waiting for JAX gradient JIT compilation (30+ min).
+                opt = scipy_minimize(
+                    _neg_logL,
+                    theta0,
+                    method="L-BFGS-B",
+                    jac="3-point",
+                    bounds=bounds_list,
+                    options={"maxiter": 50, "ftol": 1e-9},
+                )
+                candidate_logL = -float(opt.fun)
+                if candidate_logL > best_logL and np.all(np.isfinite(opt.x)):
+                    best_logL = candidate_logL
+                    best_theta = opt.x.copy()
+                    logger.info(
+                        f"  Polish start #{rank+1}: logL {logL_tmcmc:.2f} → {candidate_logL:.2f} "
+                        f"(+{candidate_logL - logL_tmcmc:.3f}) ✓"
+                    )
+                else:
+                    logger.info(f"  Polish start #{rank+1}: {-opt.fun:.2f} (no improvement)")
+            except Exception as e:
+                logger.warning(f"  Polish start #{rank+1} failed: {e}")
+
+        if best_logL > logL_tmcmc:
+            logger.info(f"MAP polish improved logL by {best_logL - logL_tmcmc:.3f}")
+            theta_MAP = best_theta
+        else:
+            logger.info("MAP polish: no improvement over TMCMC MAP")
 
     from datetime import datetime
 
