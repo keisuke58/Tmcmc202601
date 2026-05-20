@@ -264,7 +264,7 @@ def main():
         phi_init = np.array(ext["phi_init"], dtype=np.float64)
         phi_init = np.clip(phi_init, 0.01, 0.99)
         phi_init = phi_init / phi_init.sum()
-        logger.info(f"External data: {data.shape}, sigma_obs={sigma_obs:.4f}")
+        logger.info(f"External data: {data.shape}, sigma_obs={np.mean(sigma_obs):.4f}")
     else:
         logger.info("Loading experimental data...")
         data, t_days, sigma_obs_est, phi_init_exp, metadata = load_experimental_data(
@@ -281,7 +281,7 @@ def main():
             if total > 0:
                 phi_init = phi_init / total
             phi_init = np.clip(phi_init, 0.01, 0.99)
-    logger.info(f"Data: {data.shape}, sigma_obs={sigma_obs:.4f}")
+    logger.info(f"Data: {data.shape}, sigma_obs={np.mean(sigma_obs):.4f}")
 
     t_model, idx_sparse = convert_days_to_model_time(t_days, args.dt, args.n_steps, day_scale=None)
     idx_sparse = np.clip(idx_sparse, 0, args.n_steps)
@@ -321,10 +321,9 @@ def main():
         prior_bounds = load_prior_bounds(args.condition, args.cultivation)
     prior_bounds = np.array(prior_bounds, dtype=np.float32)
 
-    logger.info("JIT warmup...")
+    logger.info("JIT warmup (forward pass)...")
     _ = jax.jit(log_likelihood)(jnp.zeros(20, dtype=jnp.float64))
-    _ = jax.jit(jax.value_and_grad(log_likelihood))(jnp.zeros(20, dtype=jnp.float64))
-    logger.info("Warmup OK")
+    logger.info("Warmup OK (forward). Grad warmup deferred to first mutation step.")
 
     logger.info(f"Running NUTS-TMCMC ({args.n_particles} particles)...")
     result = tmcmc_engine(
@@ -364,7 +363,7 @@ def main():
                 "cultivation": args.cultivation,
                 "n_particles": args.n_particles,
                 "mutation": args.mutation,
-                "sigma_obs": sigma_obs,
+                "sigma_obs": float(np.mean(sigma_obs)),
             },
             f,
             indent=2,
