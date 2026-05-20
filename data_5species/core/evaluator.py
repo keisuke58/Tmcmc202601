@@ -577,6 +577,7 @@ class LogLikelihoodEvaluator:
         )
         self.ve_prior = None  # Optional ViscoelasticPrior, set externally
         self.sign_prior = None  # Optional SignPrior, set externally
+        self.lambda_bc = 0.0  # Bray-Curtis penalty weight (0 = disabled)
         logger.info("TSM initialized (linearization disabled initially for exploration)")
 
     def update_linearization_point(self, theta_new_full: np.ndarray):
@@ -978,6 +979,24 @@ class LogLikelihoodEvaluator:
         # Add metabolic sign prior penalty if configured
         if self.sign_prior is not None:
             logL += self.sign_prior.log_prior(theta_sub)
+
+        # Add Bray-Curtis dissimilarity penalty (compositional fit quality)
+        # BC(p,q) = 1 - sum(min(p_i, q_i))  for normalized compositions
+        # logL -= lambda_bc * mean_t(BC(phi_pred(t), phi_obs(t)))
+        if self.lambda_bc > 0.0:
+            bc_sum = 0.0
+            n_bc = 0
+            for t in range(len(self.idx_sparse)):
+                p = mu[t].copy()
+                q = self.data[t]
+                p = np.maximum(p, 0.0)
+                q = np.maximum(q, 0.0)
+                ps, qs = p.sum(), q.sum()
+                if ps > 1e-10 and qs > 1e-10:
+                    bc_sum += 1.0 - np.sum(np.minimum(p / ps, q / qs))
+                    n_bc += 1
+            if n_bc > 0:
+                logL -= self.lambda_bc * bc_sum / n_bc
 
         # Track evaluation
         self.theta_history.append(theta_sub.copy())

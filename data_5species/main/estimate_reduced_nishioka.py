@@ -2548,6 +2548,11 @@ def run_estimation(
                 lam=getattr(args, "sign_lambda", 0.1),
             )
 
+        # Bray-Curtis dissimilarity penalty
+        bc_lam = getattr(args, "bc_lambda", 0.0)
+        if bc_lam > 0.0:
+            evaluator.lambda_bc = float(bc_lam)
+
         # Override active_indices/theta_base for TMCMC sampling (includes VE params)
         evaluator.active_indices = list(active_indices)
         evaluator.theta_base = theta_base.copy()
@@ -3149,6 +3154,16 @@ Examples:
         help="Penalty strength for sign prior (default: 0.1). "
         "Penalty = lam * max(0, -sign*theta)^2. "
         "lam=0.1: soft nudge; lam=1.0: strong enforcement.",
+    )
+
+    # Bray-Curtis compositional fit penalty
+    parser.add_argument(
+        "--bc-lambda",
+        type=float,
+        default=0.0,
+        help="Bray-Curtis dissimilarity penalty weight (default: 0 = disabled). "
+        "logL -= bc_lambda * mean_t BC(phi_pred(t), phi_obs(t)). "
+        "BC in [0,1]; typical logL ~ -30...-5; recommend bc_lambda=5..20.",
     )
 
     return parser.parse_args()

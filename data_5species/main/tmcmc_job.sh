@@ -52,6 +52,7 @@ MULTICHANNEL="${MULTICHANNEL:-0}"
 N_MUTATION_STEPS="${N_MUTATION_STEPS:-}"
 SIGN_PRIOR="${SIGN_PRIOR:-0}"
 SIGN_LAMBDA="${SIGN_LAMBDA:-0.1}"
+BC_LAMBDA="${BC_LAMBDA:-0}"
 
 # --- Environment ---
 cd /home/nishioka/IKM_Hiwi/Tmcmc202601/data_5species/main
@@ -99,6 +100,10 @@ fi
 if [ "${SIGN_PRIOR}" = "1" ]; then
     EXTRA_ARGS="${EXTRA_ARGS} --sign-prior --sign-lambda ${SIGN_LAMBDA}"
     echo "  Sign prior enabled (lam=${SIGN_LAMBDA})"
+fi
+if [ "$(echo "${BC_LAMBDA} > 0" | bc -l 2>/dev/null)" = "1" ]; then
+    EXTRA_ARGS="${EXTRA_ARGS} --bc-lambda ${BC_LAMBDA}"
+    echo "  Bray-Curtis penalty enabled (lam=${BC_LAMBDA})"
 fi
 
 $PYTHON estimate_reduced_nishioka.py \
