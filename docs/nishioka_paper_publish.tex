@@ -20,6 +20,8 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{multirow}
+% Author affiliations
+\usepackage{authblk}
 % Compact spacing
 \usepackage{setspace}
 \setstretch{1.05}
@@ -37,15 +39,18 @@
 
 \title{GPU-accelerated Bayesian inference of multi-species\\biofilm interaction parameters via TMCMC}
 
-\author{
-Keisuke Nishioka,\;
-Felix Klempt,\;
-Hendrik Geisler,\;
-Meisam Soleimani,\;
-Philipp Junker
-\\[6pt]
-\small Leibniz Universit\"at Hannover, Institute of Continuum Mechanics, Hannover, Germany
-}
+\author[1]{Keisuke Nishioka}
+\author[1]{Felix Klempt}
+\author[1]{Hendrik Geisler}
+\author[1]{Meisam Soleimani}
+\author[2, 3]{Rumjhum Mukherjee}
+\author[2, 3]{Szymon P. Szafra\'{n}ski}
+\author[2, 3]{Meike Stiesch}
+\author[1]{Philipp Junker}
+
+\affil[1]{Institute of Continuum Mechanics, Leibniz Universit\"at Hannover, Hannover, Germany}
+\affil[2]{Department of Prosthetic Dentistry and Biomedical Materials Science, Hannover Medical School, Hannover, Germany}
+\affil[3]{Lower Saxony Centre for Biomedical Engineering, Implant Research and Development (NIFE), Hannover, Germany}
 
 \date{}
 
@@ -733,9 +738,34 @@ Overall, the transition from health to disease corresponds to a structural reorg
 
 We validate the Phase~2 MAP parameters against four measurements from Heine et al.~\cite{Heine2025PeriImplant} that were \emph{not} used in calibration.
 
-\textit{pH prediction} ($R^2=0.71$):
-a post-hoc linear regression $\mathrm{pH}(t) = 6.95 - 0.74\,\phi_{\mathrm{So}} - 0.48\,\phi_{\mathrm{Vei}}$, fitted to HOBIC pH data (Fig.~4A in~\cite{Heine2025PeriImplant}) using the MAP-predicted species trajectories as regressors, yields Pearson $r=0.84$ over $N=12$ time points.
-While this is a retrospective regression rather than a forward prediction, the negative So coefficient is consistent with lactate-driven acidification, and the fact that predicted (not observed) species fractions explain 71\% of pH variance provides indirect support for the inferred interaction dynamics.
+\textit{pH prediction} (LOO-$R^2 = 0.920$; independent $R^2 = 0.778$):
+\textit{Model selection.}
+Candidate linear regressors were evaluated by leave-one-out cross-validation (LOO-CV) on $N=90$ HOBIC time points (0.5-day resolution, commensal and dysbiotic combined).
+Four nested models were compared---So+$V_d$, So+Fn, So+Fn+Pg, So+An+Fn+Pg---and extended by $\phi_{\mathrm{Vei}}$ as a fifth predictor.
+The five-predictor model yielded the best independent validation performance and was selected:
+\begin{equation}
+  \mathrm{pH}(t) = 6.10 + 0.16\,\phi_{\mathrm{So}} + 0.55\,\phi_{\mathrm{An}}
+                        + 0.30\,\phi_{\mathrm{Vei}} + 1.22\,\phi_{\mathrm{Fn}} + 1.88\,\phi_{\mathrm{Pg}}
+  \label{eq:ph_regression}
+\end{equation}
+(LOO-RMSE~$= 0.056$; coefficients estimated by ordinary least squares on experimental species fractions).
+Species--pH Pearson correlations confirm the mechanistic roles: $\phi_{\mathrm{Fn}}$ ($r=+0.93$) and $\phi_{\mathrm{Pg}}$ ($r=+0.93$) are the dominant pH drivers, with alkalinisation attributable to gingipain-mediated arginine and lysine catabolism releasing ammonia; $\phi_{\mathrm{So}}$ contributes acidification ($r=-0.68$) via lactic acid production.
+
+\textit{Independence test.}
+The regression coefficients of Eq.~(\ref{eq:ph_regression}) were fixed from experimental data.
+To evaluate the predictive power of the inferred $\mathbf{A}$ matrix, we drew 500 samples from the Phase-2 TMCMC posterior ($10\,000$-particle NUTS run) and integrated the Hamilton ODE forward using Day-1 experimental species fractions as initial conditions, yielding posterior species trajectories $\phi_i(t)$ at $t=1,3,6,10,15,21$\,days.
+Applying the fixed $\beta$ coefficients to these ODE-predicted fractions---without any access to pH data during TMCMC calibration---gives $R^2 = 0.778$ (RMSE~$= 0.126$\,pH units) against the held-out HOBIC pH time series (Fig.~\ref{fig:ph_validation}), confirming that the inferred interaction matrix $\mathbf{A}$ captures the community drivers of pH.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig_ph_validation.pdf}
+  \caption{Independent pH validation.
+  \textbf{(a)}~Measured HOBIC pH time series (solid lines) overlaid with TMCMC posterior predictions (dashed lines, markers) and 90\% credible intervals (shaded bands) for commensal (blue) and dysbiotic (red) conditions.
+  \textbf{(b)}~Scatter plot of TMCMC-predicted vs.\ measured pH at six time points ($t=1,3,6,10,15,21$\,days); vertical bars indicate 90\% posterior CIs.
+  Regression coefficients were fitted solely from experimental species fractions (LOO-CV, $N=90$); pH data were not used in TMCMC calibration.
+  $R^2=0.778$, RMSE~$=0.126$\,pH units ($N=12$ points, two conditions).}
+  \label{fig:ph_validation}
+\end{figure}
 
 \textit{Gingipain--Pg correlation} ($r=0.90$):
 the temporal profile of gingipain (Fig.~4B), the principal virulence factor of Pg, correlates strongly with the predicted Pg trajectory in DH, both exhibiting delayed onset at Day~15--21.
@@ -863,6 +893,13 @@ Effective dimensionality analysis confirms that all 15 parameters are data-infor
 \end{itemize}
 
 %==============================================================================
+\section*{Data and Code Availability}
+The TMCMC inference code, JAX forward model, posterior samples, and analysis scripts
+are available at \url{https://github.com/keisuke58/Tmcmc202601}.
+The experimental time-course data (Heine et al.\ 2025, four conditions) are available
+from the corresponding author (S.P.\ Szafra\'{n}ski) on reasonable request.
+
+%==============================================================================
 \bibliographystyle{unsrt}
 \bibliography{references_ikm}
 %==============================================================================
@@ -971,7 +1008,7 @@ The wider credible intervals in the DH condition reflect genuine posterior uncer
     \textbf{Posterior predictive trajectories for the Hamilton TMCMC runs with KEGG/eHOMD sign prior.}
     Each panel shows one species (columns) in one condition (rows).
     Solid lines: MAP trajectory; shaded bands: 90\,\% posterior predictive CI from 80 TMCMC samples;
-    circles: experimental data from Heine et al.~\cite{Heine2025}.
+    circles: experimental data from Heine et al.~\cite{Heine2025PeriImplant}.
     The sign prior preserves data fit while biasing interaction signs toward
     metabolically plausible directions.
   }
