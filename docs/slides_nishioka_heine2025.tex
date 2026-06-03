@@ -741,9 +741,9 @@
       \vspace{3pt}
       \begin{itemize}\setlength{\itemsep}{3pt}
         \item[\hlg{$\checkmark$}] \textbf{pH prediction}:
-          $R^2=\hlg{0.71}$, $r=0.84$ ($N=12$ held-out)\\
-          {\scriptsize $\mathrm{pH}=6.95-0.74\,\phi_{\mathrm{So}}-0.48\,\phi_{\mathrm{Vei}}$\;
-           (lactate-driven acidification)}
+          independent $R^2=\hlg{0.78}$, RMSE\,$=0.13$ ($N=12$ held-out; LOO $R^2=0.92$)\\
+          {\scriptsize $\mathrm{pH}=\beta_0+\sum_i\beta_i\,\phi_i$ ($\beta$ from exp.\ LOO-CV, $N=90$;
+           pH not used in TMCMC calibration) --- lactate-driven acidification}
         \item[\hlg{$\checkmark$}] \textbf{Gingipain--Pg correlation}:
           $r=\hlg{0.90}$ (5 time points, DH)\\
           {\scriptsize Both show delayed onset at Day 15--21}
@@ -755,6 +755,17 @@
           {\scriptsize Differences arise from interactions, not individual fitness}
       \end{itemize}
   \end{columns}
+\end{frame}
+
+% ── pH prediction figure (updated, 10,000-particle posterior) ────────────────
+\begin{frame}[plain]{Independent Validation: pH Prediction \small(updated --- 10{,}000-particle posterior)}
+  \centering
+  \includegraphics[width=0.95\textwidth,keepaspectratio]{figures/fig_ph_validation.pdf}
+  \par\vspace{3pt}
+  {\color{midgray}\rule{0.88\textwidth}{0.3pt}}\par\vspace{1pt}
+  {\scriptsize pH from the Phase-2 ($N_p=10{,}000$) Hamilton-ODE posterior via experimental
+   LOO-CV ($N=90$); pH was \emph{not} used in TMCMC calibration. \quad
+   independent $R^2=0.78$, RMSE\,$=0.13$\,pH units.}
 \end{frame}
 
 % =============================================================================
