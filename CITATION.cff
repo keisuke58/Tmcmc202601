@@ -1,42 +1,78 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
+
 type: software
-title: "Bayesian Identification of Interspecies Interaction Parameters in a 5-Species Oral Biofilm Model and Propagation of Posterior Uncertainty to 3D Finite Element Stress Analysis"
+
+title: >-
+  Bayesian Identification of Interspecies Interaction Parameters
+  in a 5-Species Oral Biofilm Model and Propagation of Posterior
+  Uncertainty to 3D Finite Element Stress Analysis
+
+doi: "10.5281/zenodo.18790007"
+
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.18790007"
+    description: "Zenodo archive DOI (v2.0.0-paper)"
+
+version: "v2.0.0-paper"
+
 authors:
   - family-names: Nishioka
     given-names: Keisuke
-    affiliation: "Keio University / IKM Leibniz Universität Hannover"
+    affiliation: >-
+      Faculty of Science and Technology, Keio University /
+      Institut für Kontinuumsmechanik (IKM),
+      Leibniz Universität Hannover
+    email: kei128608@gmail.com
   - family-names: Klempt
     given-names: Henrike
-    affiliation: "IKM Leibniz Universität Hannover"
+    affiliation: >-
+      Institut für Kontinuumsmechanik (IKM),
+      Leibniz Universität Hannover
   - family-names: Junker
     given-names: Philipp
-    affiliation: "IKM Leibniz Universität Hannover"
-date-released: "2026-02-25"
-url: "https://github.com/keisuke58/Tmcmc202601"
+    affiliation: >-
+      Institut für Kontinuumsmechanik (IKM),
+      Leibniz Universität Hannover
+
+date-released: "2026-02-26"
+
+url: "https://zenodo.org/records/18790007"
 repository-code: "https://github.com/keisuke58/Tmcmc202601"
+
 license: MIT
+
 keywords:
   - biofilm
-  - bayesian-inference
+  - Bayesian inference
   - TMCMC
-  - finite-element-method
-  - oral-microbiome
+  - finite element method
+  - oral microbiome
   - dysbiosis
-  - Hamilton-ODE
-  - uncertainty-propagation
-  - multiscale-modeling
-  - periodontal-disease
+  - Hamilton ODE
+  - uncertainty propagation
+  - multiscale modeling
+  - periodontal disease
   - DeepONet
-  - neural-operator
+  - neural operator
+  - reaction-diffusion PDE
+  - growth eigenstrain
+  - Abaqus
+  - Dysbiotic Index
+
 abstract: >-
-  End-to-end computational pipeline for Bayesian identification of interspecies
-  interaction parameters in a 5-species oral biofilm Hamilton ODE model using
-  Transitional Markov Chain Monte Carlo (TMCMC), and propagation of posterior
-  uncertainty through Dysbiotic Index (DI) mapping to 3D finite element stress
-  analysis (Abaqus). Includes multiscale coupling (0D ODE → 1D/2D reaction-diffusion
-  PDE → 3D FEM) with spatially non-uniform growth eigenstrain derived from
-  Monod-type nutrient consumption.
+  End-to-end computational pipeline for Bayesian identification of
+  interspecies interaction parameters in a 5-species oral biofilm
+  Hamilton ODE model using Transitional Markov Chain Monte Carlo
+  (TMCMC), and propagation of posterior uncertainty through Dysbiotic
+  Index (DI) mapping to 3D finite element stress analysis (Abaqus).
+  Includes multiscale coupling (0D ODE → 1D/2D reaction-diffusion
+  PDE → 3D FEM) with spatially non-uniform growth eigenstrain derived
+  from Monod-type nutrient consumption. Species modelled: Streptococcus
+  oralis, Actinomyces naeslundii, Veillonella dispar, Fusobacterium
+  nucleatum, Porphyromonas gingivalis.
+
 references:
   - type: article
     authors:
@@ -48,24 +84,35 @@ references:
         given-names: P.
       - family-names: Junker
         given-names: P.
-    title: "A Hamilton principle-based model for diffusion-driven biofilm growth"
+    title: >-
+      A Hamilton principle-based model for diffusion-driven biofilm growth
     journal: "Biomechanics and Modeling in Mechanobiology"
     volume: 23
     start: 2091
     end: 2113
     year: 2024
     doi: "10.1007/s10237-024-01883-x"
+
   - type: article
     authors:
       - family-names: Heine
         given-without-names: true
     title: "5-species oral biofilm interaction network (in vitro)"
     year: 2025
+
   - type: article
     authors:
       - family-names: Ching
         given-names: J.
       - family-names: Chen
         given-names: Y.-C.
-    title: "Transitional Markov Chain Monte Carlo method for Bayesian model updating, model class selection, and model averaging"
+    title: >-
+      Transitional Markov Chain Monte Carlo method for Bayesian model
+      updating, model class selection, and model averaging
+    journal: "Journal of Engineering Mechanics"
+    volume: 133
+    issue: 7
+    start: 816
+    end: 832
     year: 2007
+    doi: "10.1061/(ASCE)0733-9399(2007)133:7(816)"

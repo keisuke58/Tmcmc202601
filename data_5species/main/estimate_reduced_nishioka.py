@@ -2253,8 +2253,15 @@ def run_estimation(
 
     # Tighten decay priors if requested
     # Decay parameters: b1=3, b2=4, b3=8, b4=9, b5=15
+    # These enter the ψ equation only via α* b_i ψ_i.  When α*=0 (default,
+    # no antibiotic), they have no effect on the ODE and are unidentifiable.
     DECAY_INDICES = [3, 4, 8, 9, 15]
-    if args.prior_decay_max is not None:
+    if args.alpha_const == 0.0:
+        logger.info(f"alpha_const=0: fixing decay params {DECAY_INDICES} to 0 (unidentifiable)")
+        for idx in DECAY_INDICES:
+            prior_bounds[idx] = (0.0, 0.0)
+            theta_base[idx] = 0.0
+    elif args.prior_decay_max is not None:
         decay_max = args.prior_decay_max
         logger.info(
             f"Tightening decay priors (b1-b5, indices {DECAY_INDICES}) to [0.0, {decay_max}]"
