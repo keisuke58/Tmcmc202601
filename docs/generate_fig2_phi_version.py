@@ -247,6 +247,13 @@ def generate_fig2_phi_transposed():
         }
     )
     plt.rcParams.update(pub_style)
+    import sys as _s; _s.path.insert(0, '/home/nishioka/IKM_Hiwi/nife')
+    from thesis_style import use as _ts; _ts()   # unified usetex/lmodern thesis style
+
+    # Phase-2 metrics fallback (config.json archived after run reorg; values from
+    # the thesis Table tab:heine_rmse). Used only for the subtitle row.
+    _RMSE_FB = {"CS": 0.119, "CH": 0.104, "DS": 0.033, "DH": 0.087}
+    _LOGL_FB = {"CS": -21.6, "CH": -112.3, "DS": -93.4, "DH": -170.4}
 
     rep_df = pd.read_csv(REP_CSV)
     model_days = np.linspace(1, 21, 2501)  # Day 1 start (IC is Day 1)
@@ -265,9 +272,12 @@ def generate_fig2_phi_transposed():
         data_norm = d["data_norm"]
         d1n = d["d1n"]
         t_days = d["t_days"]
-        cfg = json.load(open(RUNS / P2_DIRS[ck] / "config.json"))
-        rmse = cfg.get("rmse", 0)
-        logL = cfg.get("max_logL", 0)
+        try:
+            cfg = json.load(open(RUNS / P2_DIRS[ck] / "config.json"))
+            rmse = cfg.get("rmse", _RMSE_FB.get(ck, 0))
+            logL = cfg.get("max_logL", _LOGL_FB.get(ck, 0))
+        except FileNotFoundError:          # config.json archived after run reorg
+            rmse, logL = _RMSE_FB.get(ck, 0), _LOGL_FB.get(ck, 0)
         metrics[ck] = (rmse, logL)
         cond, cult = CK_MAP[ck]
 
