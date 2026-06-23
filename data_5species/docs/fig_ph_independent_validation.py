@@ -26,6 +26,10 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from pathlib import Path
 
+# thesis_style — lmodern 9pt
+sys.path.insert(0, str(Path.home() / "IKM_Hiwi/nife"))
+import thesis_style as _ts
+
 # ── Paths ──────────────────────────────────────────────────────────────────
 REPO_DIR = Path(__file__).resolve().parent.parent  # data_5species/
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -371,41 +375,7 @@ def main():
     from matplotlib.patches import Patch
     from matplotlib.lines import Line2D
 
-    plt.rcParams.update(
-        {
-            # ── Serif / Times-style ──────────────────────────────────────────
-            "font.family": "serif",
-            "font.serif": ["Times New Roman", "STIXGeneral", "DejaVu Serif", "serif"],
-            "mathtext.fontset": "stix",  # Times-compatible math
-            # ── Sizes ────────────────────────────────────────────────────────
-            "font.size": 13,
-            "axes.titlesize": 13,
-            "axes.labelsize": 13,
-            "xtick.labelsize": 12,
-            "ytick.labelsize": 12,
-            "legend.fontsize": 11,
-            "legend.title_fontsize": 11,
-            # ── Lines / ticks ─────────────────────────────────────────────────
-            "axes.linewidth": 0.8,
-            "xtick.major.width": 0.8,
-            "ytick.major.width": 0.8,
-            "xtick.minor.width": 0.5,
-            "ytick.minor.width": 0.5,
-            "xtick.major.size": 4.5,
-            "ytick.major.size": 4.5,
-            "xtick.minor.size": 2.5,
-            "ytick.minor.size": 2.5,
-            "xtick.direction": "out",
-            "ytick.direction": "out",
-            "lines.linewidth": 1.8,
-            "patch.linewidth": 0.7,
-            # ── Output ───────────────────────────────────────────────────────
-            "pdf.fonttype": 42,
-            "ps.fonttype": 42,
-            "savefig.dpi": 600,
-            "figure.dpi": 150,
-        }
-    )
+    _ts.use(width_frac=1.0, aspect=0.50)  # thesis_style: lmodern 9pt
 
     # ── 5-sp posteriors ────────────────────────────────────────────────────
     ph5_ch = ph_from_phi(phi_ch.reshape(-1, 6, 5), beta5, use_vei=True)
@@ -423,7 +393,7 @@ def main():
             1.05,
             lbl,
             transform=ax.transAxes,
-            fontsize=16,
+            fontsize=9,
             fontweight="bold",
             va="top",
             ha="left",
@@ -431,7 +401,8 @@ def main():
         )
 
     # ── Layout ────────────────────────────────────────────────────────────
-    fig = plt.figure(figsize=(11.0, 5.6))
+    figsize = _ts.use(width_frac=1.0, aspect=0.50)
+    fig = plt.figure(figsize=figsize)
     gs_main = gridspec.GridSpec(
         1,
         2,

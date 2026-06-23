@@ -2,6 +2,7 @@
 """Phase 1 vs Phase 2 MAP scatter — validates two-phase strategy.
 15-param version: µᵢ removed 2026-03-30.
 """
+import sys
 import json
 from pathlib import Path
 import numpy as np
@@ -10,22 +11,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-plt.rcParams.update(
-    {
-        "font.family": "serif",
-        "font.serif": ["STIXGeneral", "Nimbus Roman", "DejaVu Serif"],
-        "mathtext.fontset": "cm",
-        "font.size": 22,
-        "axes.labelsize": 24,
-        "axes.titlesize": 20,
-        "legend.fontsize": 18,
-        "xtick.labelsize": 20,
-        "ytick.labelsize": 20,
-        "figure.dpi": 300,
-        "savefig.bbox": "tight",
-        "savefig.pad_inches": 0.05,
-    }
-)
+# thesis_style — lmodern 9pt (must come before any plt.subplots call)
+sys.path.insert(0, str(Path.home() / "IKM_Hiwi/nife"))
+import thesis_style as _ts
 
 RUNS = Path.home() / "IKM_Hiwi/Tmcmc202601/data_5species/main/_runs"
 FIG_DIR = Path.home() / "IKM_Hiwi/Tmcmc202601/docs/figures"
@@ -86,7 +74,8 @@ def load_map(run_name):
 
 
 def main():
-    fig, axes = plt.subplots(1, 4, figsize=(16, 4.5), sharey=False)
+    figsize = _ts.use(width_frac=1.0, aspect=0.28)
+    fig, axes = plt.subplots(1, 4, figsize=figsize, sharey=False)
 
     all_corrs = {}
     for ax_idx, cond in enumerate(["CS", "CH", "DS", "DH"]):
@@ -101,7 +90,7 @@ def main():
         color = COND_COLORS[cond]
 
         # Plot all 15 params
-        ax.scatter(m1, m2, s=80, c=color, edgecolors="k", linewidths=0.5, zorder=3, alpha=0.85)
+        ax.scatter(m1, m2, s=20, c=color, edgecolors="k", linewidths=0.4, zorder=3, alpha=0.85)
 
         # Annotate outliers (|diff| > 1.5)
         for i in range(15):
@@ -109,7 +98,7 @@ def main():
                 ax.annotate(
                     PARAM_LABELS[i],
                     (m1[i], m2[i]),
-                    fontsize=17,
+                    fontsize=6,
                     ha="left",
                     va="bottom",
                     xytext=(5, 5),
@@ -127,15 +116,15 @@ def main():
         rmse = np.sqrt(np.mean((m1 - m2) ** 2))
         all_corrs[cond] = (r, rmse)
 
-        ax.set_title(f"{COND_FULL[cond]}\n$r = {r:.3f}$,  RMSD $= {rmse:.2f}$", fontweight="bold")
-        ax.set_xlabel(r"Phase 1 (fix-$\psi$)")
+        ax.set_title(f"{COND_FULL[cond]}\n$r = {r:.3f}$,  RMSD $= {rmse:.2f}$", fontsize=8)
+        ax.set_xlabel(r"Phase 1 (fix-$\psi$)", fontsize=8)
         ax.set_xlim(lo, hi)
         ax.set_ylim(lo, hi)
         ax.set_aspect("equal")
         ax.grid(True, alpha=0.15, lw=0.5)
 
         if ax_idx == 0:
-            ax.set_ylabel(r"Phase 2 (free $\psi$)")
+            ax.set_ylabel(r"Phase 2 (free $\psi$)", fontsize=8)
 
     fig.tight_layout(w_pad=0.15)
     out = FIG_DIR / "phase1_vs_phase2_map.pdf"
