@@ -1303,7 +1303,7 @@ We therefore adopt a hybrid approach that preserves both condition-specific diff
   \varepsilon_\mathrm{growth}(\mathbf{x}) = \frac{\alpha_\mathrm{Monod}(x)}{3}
   \label{eq:hybrid}
 \end{equation}
-where $\mathrm{DI}_\text{0D}^{(c)}$ is the 0D condition-dependent dysbiosis index and $\alpha_\mathrm{Monod}(x)$ is the 1D spatially resolved Monod growth integral.
+where $\mathrm{DI}_\text{0D}^{(c)}$ is the 0D condition-dependent dysbiosis index and $\alpha_\mathrm{Monod}(x)$ is the 1D spatially resolved Monod growth integral. Here $\alpha_\mathrm{Monod}$ is a \emph{volumetric} growth measure (the time-integrated Monod biomass production); for isotropic growth the volume ratio is $J_g = 1+\alpha_\mathrm{Monod}$, so the corresponding per-direction linear eigenstrain is $\varepsilon_\mathrm{growth} = J_g^{1/3}-1 \approx \alpha_\mathrm{Monod}/3$ (small-strain limit of the isotropic multiplicative growth split $\mathbf{F}_g = J_g^{1/3}\,\mathbf{I}$), which is why the factor $1/3$ appears in Eq.~\eqref{eq:hybrid}.
 Three material models are considered:
 \begin{itemize}
   \item \textbf{DI model}: $E = E_{\max}(1-r)^2 + E_{\min}\, r$,\; $r = \mathrm{DI}_{\text{0D}} / s$
