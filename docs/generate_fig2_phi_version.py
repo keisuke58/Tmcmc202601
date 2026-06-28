@@ -66,8 +66,8 @@ STYLE = {
     "axes.linewidth": 0.6,
     "grid.linewidth": 0.4,
     "grid.alpha": 0.2,
-    "figure.dpi": 300,
-    "savefig.dpi": 300,
+    "figure.dpi": 150,
+    "savefig.dpi": 1200,
     "savefig.bbox": "tight",
     "savefig.pad_inches": 0.03,
 }
@@ -78,16 +78,23 @@ STYLE = {
 SPECIES_ITALIC = [
     r"$\it{S.\ oralis}$",
     r"$\it{A.\ naeslundii}$",
-    r"$\it{V.\ dispar}$",
+    r"Vei",
     r"$\it{F.\ nucleatum}$",
     r"$\it{P.\ gingivalis}$",
 ]
 # Pg strain differs by condition
 PG_STRAIN = {
-    "CS": r"$\it{P.\ gingivalis}$ ATCC 20709",
-    "CH": r"$\it{P.\ gingivalis}$ ATCC 20709",
+    "CS": r"$\it{P.\ gingivalis}$ ATCC\,20709",
+    "CH": r"$\it{P.\ gingivalis}$ ATCC\,20709",
     "DS": r"$\it{P.\ gingivalis}$ W83",
     "DH": r"$\it{P.\ gingivalis}$ W83",
+}
+# Vei species differs by condition (V. dispar commensal, V. parvula dysbiotic)
+VEI_STRAIN = {
+    "CS": r"$\it{V.\ dispar}$",
+    "CH": r"$\it{V.\ dispar}$",
+    "DS": r"$\it{V.\ parvula}$",
+    "DH": r"$\it{V.\ parvula}$",
 }
 SP_COLORS = {
     "C": ["#2166AC", "#1B7837", "#DAA520", "#7B3294", "#E07070"],  # Pg: light red (avirulent 20709)
@@ -383,30 +390,38 @@ def generate_fig2_phi_transposed():
                     pad=6,
                 )
 
-            # Row label: species name on left + φ unit
+            # Row label: species name on left + φ unit (all 5 rows)
             if col_idx == 0:
                 sp_label = SPECIES_ITALIC[row_idx]
-                # Pg row: show strain per condition (handled per-cell below)
-                if row_idx < 4:
+                if row_idx == 4:
+                    # Pg: show species name (strain shown inside panel per condition)
+                    ax.set_ylabel(
+                        r"$\it{P.\ gingivalis}$" + r"$\quad \varphi_i\;[-]$",
+                        fontsize=10,
+                    )
+                else:
                     ax.set_ylabel(
                         sp_label + r"$\quad \varphi_i\;[-]$",
                         fontsize=10,
                     )
-                else:
-                    ax.set_ylabel(r"$\varphi_i\;[-]$", fontsize=10)
 
-            # Pg row (row_idx=4): show strain name inside panel
+            # Pg row (row_idx=4): show strain name inside panel (top-center)
             if row_idx == 4:
                 strain = PG_STRAIN[ck]
                 ax.text(
-                    0.5,
-                    0.92,
-                    strain,
-                    transform=ax.transAxes,
-                    fontsize=7.5,
-                    ha="center",
-                    va="top",
-                    fontstyle="italic",
+                    0.5, 0.92, strain,
+                    transform=ax.transAxes, fontsize=7.5,
+                    ha="center", va="top", fontstyle="italic",
+                    bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.8),
+                )
+
+            # Vei row (row_idx=2): show species (V. dispar / V. parvula) inside panel
+            if row_idx == 2:
+                vei_label = VEI_STRAIN[ck]
+                ax.text(
+                    0.5, 0.92, vei_label,
+                    transform=ax.transAxes, fontsize=7.5,
+                    ha="center", va="top",
                     bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.8),
                 )
 
@@ -427,8 +442,8 @@ def generate_fig2_phi_transposed():
             alpha=0.6,
             label=r"MAP $\bar{\varphi}_i = \varphi_i\psi_i$",
         ),
-        Patch(facecolor=_lc, alpha=0.25, label="50% CI"),
-        Patch(facecolor=_lc, alpha=0.12, label="80% CI"),
+        Patch(facecolor=_lc, alpha=0.25, label=r"50\% CI"),
+        Patch(facecolor=_lc, alpha=0.12, label=r"80\% CI"),
         Line2D(
             [0],
             [0],
