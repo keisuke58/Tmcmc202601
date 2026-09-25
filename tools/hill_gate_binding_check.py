@@ -18,13 +18,19 @@ Usage
 
 import json
 import sys
+from pathlib import Path
 
 import numpy as np
-from pathlib import Path
 
 R = str(Path(__file__).resolve().parent.parent) + "/"
 sys.path.insert(0, R + "tmcmc/program2602")
-from improved_5species_jit import BiofilmNewtonSolver5S
+from improved_5species_jit import BiofilmNewtonSolver5S  # noqa: E402
+
+
+def _load_json(path):
+    with open(path) as f:
+        return json.load(f)
+
 
 RUNS = {
     "DH 1k30 (2000)": R + "_runs/Dysbiotic_HOBIC_K0.05_n4.0_1k30",
@@ -38,28 +44,28 @@ NSUB = int(sys.argv[1]) if len(sys.argv) > 1 else 200
 rng = np.random.default_rng(0)
 out = {}
 for name, d in RUNS.items():
-    cfg = json.load(open(d + "/config.json"))
+    cfg = _load_json(d + "/config.json")
     S = np.load(d + "/samples.npy")
     data = np.load(d + "/data.npy")
     idx = np.load(d + "/idx_sparse.npy").astype(int)
     K, n = cfg["K_hill"], cfg["n_hill"]
-    kw = dict(
-        dt=cfg["dt"],
-        maxtimestep=cfg["maxtimestep"],
-        c_const=cfg["c_const"],
-        alpha_const=cfg["alpha_const"],
-        phi_init=cfg["phi_init"],
-        Kp1=cfg["Kp1"],
-    )
+    kw = {
+        "dt": cfg["dt"],
+        "maxtimestep": cfg["maxtimestep"],
+        "c_const": cfg["c_const"],
+        "alpha_const": cfg["alpha_const"],
+        "phi_init": cfg["phi_init"],
+        "Kp1": cfg["Kp1"],
+    }
     on = BiofilmNewtonSolver5S(**kw, K_hill=K, n_hill=n)
     off = BiofilmNewtonSolver5S(**kw, K_hill=0.0, n_hill=n)
     sel = rng.choice(len(S), min(NSUB, len(S)), replace=False)
     try:
-        MAP = json.load(open(d + "/theta_MAP.json"))
+        MAP = _load_json(d + "/theta_MAP.json")
         MAP = np.array(
             MAP["theta_full"] if "theta_full" in MAP else [MAP[str(i)] for i in range(20)]
         )
-    except Exception:
+    except (OSError, KeyError, ValueError):
         MAP = None
     rows = []
     thetas = [("MAP", MAP)] if MAP is not None else []
@@ -72,21 +78,21 @@ for name, d in RUNS.items():
         fn = np.maximum(pb1[:, 3], 0)
         h = fn**n / (K**n + fn**n)
         rows.append(
-            dict(
-                tag=tag,
-                h_obs=h[idx].tolist(),
-                frac_h_lt_05=float(np.mean(h < 0.5)),
-                frac_h_lt_09=float(np.mean(h < 0.9)),
-                pg_on=pb1[idx, 4].tolist(),
-                pg_off=pb0[idx, 4].tolist(),
-                dmax_obs=float(np.max(np.abs(pb1[idx] - pb0[idx]))),
-                dmax_pg_obs=float(np.max(np.abs(pb1[idx, 4] - pb0[idx, 4]))),
-                rmse_on=float(np.sqrt(np.mean((pb1[idx] - data) ** 2))),
-                rmse_off=float(np.sqrt(np.mean((pb0[idx] - data) ** 2))),
-                finite=bool(np.all(np.isfinite(pb1)) and np.all(np.isfinite(pb0))),
-            )
+            {
+                "tag": tag,
+                "h_obs": h[idx].tolist(),
+                "frac_h_lt_05": float(np.mean(h < 0.5)),
+                "frac_h_lt_09": float(np.mean(h < 0.9)),
+                "pg_on": pb1[idx, 4].tolist(),
+                "pg_off": pb0[idx, 4].tolist(),
+                "dmax_obs": float(np.max(np.abs(pb1[idx] - pb0[idx]))),
+                "dmax_pg_obs": float(np.max(np.abs(pb1[idx, 4] - pb0[idx, 4]))),
+                "rmse_on": float(np.sqrt(np.mean((pb1[idx] - data) ** 2))),
+                "rmse_off": float(np.sqrt(np.mean((pb0[idx] - data) ** 2))),
+                "finite": bool(np.all(np.isfinite(pb1)) and np.all(np.isfinite(pb0))),
+            }
         )
-    out[name] = dict(K=K, n=n, n_eval=len(rows), rows=rows)
+    out[name] = {"K": K, "n": n, "n_eval": len(rows), "rows": rows}
     post = [r for r in rows if r["tag"] != "MAP"]
     H = np.array([r["h_obs"] for r in post])
     dm = np.array([r["dmax_pg_obs"] for r in post])
@@ -104,7 +110,7 @@ for name, d in RUNS.items():
         )
     print("  posterior h@obs median =", np.round(np.median(H, 0), 3))
     print(
-        "  posterior h@obs 5–95%  =",
+        "  posterior h@obs 5-95%  =",
         np.round(np.percentile(H, 5, 0), 3),
         "…",
         np.round(np.percentile(H, 95, 0), 3),
@@ -115,8 +121,10 @@ for name, d in RUNS.items():
         f"  max|Pg_on - Pg_off| @obs: median {np.median(dm):.3g}, 95% {np.percentile(dm, 95):.3g}"
     )
     print(
-        f"  RMSE(off) - RMSE(on): median {np.median(dr):+.4f}, 5–95% [{np.percentile(dr, 5):+.4f}, {np.percentile(dr, 95):+.4f}]"
+        f"  RMSE(off) - RMSE(on): median {np.median(dr):+.4f}, "
+        f"5-95% [{np.percentile(dr, 5):+.4f}, {np.percentile(dr, 95):+.4f}]"
     )
 OUT = Path(R) / "tools" / "_hill_binding"
 OUT.mkdir(parents=True, exist_ok=True)
-json.dump(out, open(OUT / "hill_gate_binding.json", "w"))
+with open(OUT / "hill_gate_binding.json", "w") as f:
+    json.dump(out, f)
