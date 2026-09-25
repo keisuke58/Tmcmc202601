@@ -24,7 +24,7 @@ import numpy as np
 
 R = str(Path(__file__).resolve().parent.parent) + "/"
 sys.path.insert(0, R + "tmcmc/program2602")
-from improved_5species_jit import BiofilmNewtonSolver5S  # noqa: E402
+from improved_5species_jit import BiofilmNewtonSolver5S
 
 
 def _load_json(path):
