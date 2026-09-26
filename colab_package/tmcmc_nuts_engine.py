@@ -510,12 +510,22 @@ def tmcmc_engine(
 
         # Importance weights for this stage
         lw_raw = (beta_new - beta) * logL
-        lw_shifted = lw_raw - np.max(lw_raw)
+        lw_max = np.max(lw_raw)
+        lw_shifted = lw_raw - lw_max
         w = np.exp(np.clip(lw_shifted, -500, 500))
 
         # Log evidence accumulation (Ching & Chen 2007, Eq. 17):
-        # log Z = sum_j log(1/N * sum_i w_i^j)
-        log_evidence += np.log(np.mean(w) + 1e-300)
+        #   log Z += log( (1/N) sum_i w_i ),   w_i = L_i^(beta_new - beta)
+        #
+        # w は数値安定化のため lw_max を引いてある。log-sum-exp の恒等式
+        #   log((1/N) sum_i exp(lw_i)) = lw_max + log((1/N) sum_i exp(lw_i - lw_max))
+        # により lw_max を足し戻す必要がある。落とすと各ステージで
+        # delta_beta * max(logL) だけずれ、logL が負の領域では log_evidence が
+        # 過大に出て、恒等的に成り立つはずの ln Z <= max logL を破る。
+        #
+        # lw_max を引く操作は w_normalized / ESS / CV では約分されるので、
+        # 事後分布そのものには影響しない。影響するのはこの evidence だけ。
+        log_evidence += lw_max + np.log(np.mean(w) + 1e-300)
 
         ess_val = (np.sum(w) ** 2) / np.sum(w**2)
         w_normalized = w / w.sum()
