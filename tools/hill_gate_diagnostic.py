@@ -98,7 +98,7 @@ def run_trajectory(theta, K_hill, n_hill, n_steps, fn_active=True):
     """0D Hamilton ODE を走らせ、軌道とゲート値の履歴を返す。"""
     import jax
     import jax.numpy as jnp
-    from JAXFEM.core_hamilton_1d import theta_to_matrices, newton_step, make_initial_state
+    from JAXFEM.core_hamilton_1d import make_initial_state, newton_step, theta_to_matrices
 
     jax.config.update("jax_enable_x64", True)
 

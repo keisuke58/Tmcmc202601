@@ -82,7 +82,8 @@ def main() -> int:
 
     print("\n【3】ln Z <= max logL（恒等式）を満たすか")
     print(
-        f"{'scale':>6} {'max logL':>12} {'修正後 ln Z':>13} {'修正前 ln Z':>13} {'修正前の違反':>14}"
+        f"{'scale':>6} {'max logL':>12} {'修正後 ln Z':>13} "
+        f"{'修正前 ln Z':>13} {'修正前の違反':>14}"
     )
     for scale in (1.0, 20.0, 120.0):
         logL = -rng.random(3000) * scale
