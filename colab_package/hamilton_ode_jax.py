@@ -138,11 +138,21 @@ def residual(g_new, g_prev, params):
     psidot = (psi_new - psi_old) / dt
 
     Ia = A @ (phi_new * psi_new)
-    hill_mask = (K_hill > 1e-9).astype(jnp.float64) * (active_mask[4] == 1).astype(jnp.float64)
+    # Hill gate on the P. gingivalis row (species 4), driven by F. nucleatum.
+    #
+    # K_hill <= 0 means the gate is OFF, so the factor must be 1.0 -- not 0.0.
+    # This code previously multiplied the Hill factor by a (K_hill > 1e-9) mask,
+    # which made K_hill=0 zero the entire Pg interaction row rather than disable
+    # the gate. a45 was then multiplied by zero, so estimating it was meaningless
+    # and any "gate-free" run was silently a "Pg has no interactions" run.
+    # The numba implementation (tmcmc/program2602/improved_5species_jit.py) guards
+    # the multiplication with `if K_hill > 0.0:`, so the two now agree.
+    gate_on = jnp.logical_and(K_hill > 1e-9, active_mask[4] == 1)
     fn = jnp.maximum(phi_new[3] * psi_new[3], 0.0)
     num = fn**n_hill
     den = K_hill**n_hill + num
-    factor = jnp.where(den > eps, num / den, 0.0) * hill_mask
+    hill = jnp.where(den > eps, num / den, 0.0)
+    factor = jnp.where(gate_on, hill, 1.0)
     Ia = Ia.at[4].set(Ia[4] * factor)
 
     Q = jnp.zeros(12, dtype=jnp.float64)
