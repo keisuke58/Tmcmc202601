@@ -61,8 +61,28 @@ PG = 4  # P. gingivalis
 
 # core_hamilton_1d の fallback と同じ dysbiotic 寄りの theta
 THETA_FALLBACK = np.array(
-    [1.34, -0.18, 1.79, 1.17, 2.58, 3.51, 2.73, 0.71, 2.10, 0.37,
-     2.05, -0.15, 3.56, 0.16, 0.12, 0.32, 1.49, 2.10, 2.41, 2.50]
+    [
+        1.34,
+        -0.18,
+        1.79,
+        1.17,
+        2.58,
+        3.51,
+        2.73,
+        0.71,
+        2.10,
+        0.37,
+        2.05,
+        -0.15,
+        3.56,
+        0.16,
+        0.12,
+        0.32,
+        1.49,
+        2.10,
+        2.41,
+        2.50,
+    ]
 )
 
 
@@ -115,7 +135,7 @@ def run_trajectory(theta, K_hill, n_hill, n_steps, fn_active=True):
     for t in range(n_steps):
         g = step(g, params)
         gn = np.asarray(g)
-        fn_hist[t] = gn[FN] * gn[6 + FN]      # phi_Fn * psi_Fn
+        fn_hist[t] = gn[FN] * gn[6 + FN]  # phi_Fn * psi_Fn
         pg_hist[t] = gn[PG]
 
     phi_final = np.asarray(g[0:5])
@@ -143,8 +163,12 @@ def run_trajectory(theta, K_hill, n_hill, n_steps, fn_active=True):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--theta", type=str, default=None,
-                    help="theta_MAP.json / theta_mean.json へのパス。省略時は THETA_DEMO")
+    ap.add_argument(
+        "--theta",
+        type=str,
+        default=None,
+        help="theta_MAP.json / theta_mean.json へのパス。省略時は THETA_DEMO",
+    )
     ap.add_argument("--k-hill", type=float, nargs="+", default=[0.0, 0.02, 0.05, 0.10, 0.20])
     ap.add_argument("--n-hill", type=float, nargs="+", default=[2.0, 4.0])
     ap.add_argument("--n-steps", type=int, default=2500)
@@ -168,8 +192,10 @@ def main() -> int:
 
     results = []
     print(f"theta: {theta_src}   n_steps: {args.n_steps}\n")
-    print(f"{'K':>6} {'n':>4} {'DI':>8} {'phi_Pg':>9} "
-          f"{'h_med':>8} {'h_min':>8} {'<0.99':>7} {'<0.90':>7} {'<0.50':>7}")
+    print(
+        f"{'K':>6} {'n':>4} {'DI':>8} {'phi_Pg':>9} "
+        f"{'h_med':>8} {'h_min':>8} {'<0.99':>7} {'<0.90':>7} {'<0.50':>7}"
+    )
     print("-" * 74)
     for K in args.k_hill:
         for n in args.n_hill:
@@ -177,10 +203,12 @@ def main() -> int:
                 continue  # K=0 は n に依らないので1回だけ
             r = run_trajectory(theta, K, n, args.n_steps)
             results.append(r)
-            print(f"{K:>6.3f} {n:>4.1f} {r['di']:>8.4f} {r['phi_pg_final']:>9.5f} "
-                  f"{r['gate_median']:>8.4f} {r['gate_min']:>8.4f} "
-                  f"{r['gate_frac_below_099']:>7.2%} {r['gate_frac_below_090']:>7.2%} "
-                  f"{r['gate_frac_below_050']:>7.2%}")
+            print(
+                f"{K:>6.3f} {n:>4.1f} {r['di']:>8.4f} {r['phi_pg_final']:>9.5f} "
+                f"{r['gate_median']:>8.4f} {r['gate_min']:>8.4f} "
+                f"{r['gate_frac_below_099']:>7.2%} {r['gate_frac_below_090']:>7.2%} "
+                f"{r['gate_frac_below_050']:>7.2%}"
+            )
 
     # --- Fn 除去の反実仮想: 予測がゲート由来か A 由来かの切り分け ---
     print("\nF. nucleatum 除去（active_mask[3]=0）")
@@ -194,15 +222,30 @@ def main() -> int:
         without = run_trajectory(theta, K, n, args.n_steps, fn_active=False)
         a, b = with_fn["phi_pg_final"], without["phi_pg_final"]
         rel = (b - a) / a if abs(a) > 1e-12 else float("nan")
-        counterfactual.append({"K_hill": K, "n_hill": n,
-                               "phi_pg_with_fn": a, "phi_pg_without_fn": b, "rel_change": rel})
+        counterfactual.append(
+            {
+                "K_hill": K,
+                "n_hill": n,
+                "phi_pg_with_fn": a,
+                "phi_pg_without_fn": b,
+                "rel_change": rel,
+            }
+        )
         print(f"{K:>6.3f} {n:>4.1f} {a:>13.5f} {b:>13.5f} {rel:>9.1%}")
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     out = args.out_dir / "diagnostic_results.json"
     with open(out, "w") as f:
-        json.dump({"theta_source": theta_src, "n_steps": args.n_steps,
-                   "sweep": results, "fn_removal": counterfactual}, f, indent=2)
+        json.dump(
+            {
+                "theta_source": theta_src,
+                "n_steps": args.n_steps,
+                "sweep": results,
+                "fn_removal": counterfactual,
+            },
+            f,
+            indent=2,
+        )
     print(f"\nsaved: {out}")
     return 0
 
