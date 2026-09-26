@@ -77,7 +77,6 @@ from core.nishioka_model import get_condition_bounds
 
 from tmcmc_nuts_engine import tmcmc_engine
 
-
 # eHOMD/Dieckow SF1 sign constraints (global theta index, sign, weight)
 # Same as SignPrior._CONSTRAINTS_EHOMD in core/evaluator.py
 _EHOMD_CONSTRAINTS = [
@@ -185,6 +184,17 @@ def main():
     parser.add_argument("--lambda-pg", type=float, default=5.0)
     parser.add_argument("--lambda-late", type=float, default=3.0)
     parser.add_argument("--sigma-scale", type=float, default=1.0)
+    parser.add_argument(
+        "--estimate-b",
+        action="store_true",
+        help=(
+            "b (theta[3,4,8,9,15]) も推定する。既定では 0 に固定して探索から外す。"
+            "論文 Sec.2 のとおり抗生物質が無い実験では alpha*=0 であり、"
+            "b は alpha を掛けられて動力学から完全に消えるため（hamilton_ode_jax.py: "
+            "t2 = b_diag[i] * alpha / Eta[i] * psi）、尤度に一切入らない。"
+            "推定すると 20 次元中 5 次元が尤度勾配ゼロのまま提案共分散に混ざる。"
+        ),
+    )
     parser.add_argument("--K-hill", type=float, default=0.05)
     parser.add_argument("--n-hill", type=float, default=2.0)
     parser.add_argument("--dt", type=float, default=1e-4)
@@ -330,6 +340,24 @@ def main():
         logger.info("Using wide prior bounds [-1,3] / b:[0,5]")
     else:
         prior_bounds = load_prior_bounds(args.condition, args.cultivation)
+
+    # b (theta[3,4,8,9,15]) は alpha*=0 では動力学に入らない（論文 Sec.2）。
+    # 下限=上限にすると tmcmc_engine の free_mask がこの次元を除外し、
+    # 粒子は 0 に固定されたまま提案されない（tmcmc_nuts_engine.py:414-420）。
+    B_DIMS = [3, 4, 8, 9, 15]
+    if not args.estimate_b:
+        for i in B_DIMS:
+            prior_bounds[i] = [0.0, 0.0]
+        logger.info(
+            "b (theta[3,4,8,9,15]) を 0 に固定。alpha*=0 で動力学に入らないため。"
+            "探索次元 20 -> 15"
+        )
+    else:
+        logger.warning(
+            "--estimate-b: b も推定する。alpha*=0 では尤度に入らないので "
+            "事後は事前分布のままになる"
+        )
+
     prior_bounds = np.array(prior_bounds, dtype=np.float32)
 
     logger.info("JIT warmup (forward pass)...")
@@ -420,13 +448,40 @@ def main():
     with open(out_dir / "theta_MAP.json", "w") as f:
         json.dump({str(i): float(v) for i, v in enumerate(theta_MAP)}, f, indent=2)
     with open(out_dir / "config.json", "w") as f:
+        # 結果を決める設定はすべて記録する。これが欠けていたために、ある run で
+        # Hill ゲートが有効だったかを成果物から確認できなかった。
         json.dump(
             {
                 "condition": args.condition,
                 "cultivation": args.cultivation,
                 "n_particles": args.n_particles,
+                "max_stages": args.max_stages,
                 "mutation": args.mutation,
+                "seed": args.seed,
                 "sigma_obs": float(np.mean(sigma_obs)),
+                "sigma_scale": args.sigma_scale,
+                # --- 前進モデル ---
+                "dt": args.dt,
+                "n_steps": args.n_steps,
+                "K_hill": args.K_hill,
+                "n_hill": args.n_hill,
+                "alpha_const": 0.0,  # 抗生物質なし。b を動力学から消す（論文 Sec.2）
+                # --- 尤度の重み（論文の式には無い。必ず記録する） ---
+                "lambda_pg": args.lambda_pg,
+                "lambda_late": args.lambda_late,
+                "sign_prior": args.sign_prior,
+                "sign_lambda": args.sign_lambda,
+                "bc_lambda": args.bc_lambda,
+                # --- 探索次元 ---
+                "estimate_b": args.estimate_b,
+                "n_free_dims": int((np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12).sum()),
+                "prior_bounds": np.asarray(prior_bounds, dtype=float).tolist(),
+                # --- 初期条件・データの扱い ---
+                "use_exp_init": args.use_exp_init,
+                "start_from_day": args.start_from_day,
+                "data_normalized": True,  # load_experimental_data(normalize=True)
+                "external_data": args.external_data,
+                "wide_prior": args.wide_prior,
             },
             f,
             indent=2,
