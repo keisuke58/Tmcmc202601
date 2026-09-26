@@ -67,7 +67,7 @@ TH = np.array(
     ]
 )
 PHI0 = jnp.array([0.04, 0.01, 0.94, 0.005, 0.005])  # DH Day-1 実測（正規化）
-KW = dict(n_steps=500, dt=1e-4, phi_init=PHI0, n_hill=2.0, c_const=25.0)
+KW = {"n_steps": 500, "dt": 1e-4, "phi_init": PHI0, "n_hill": 2.0, "c_const": 25.0}
 
 
 def traj(theta, K_hill):
