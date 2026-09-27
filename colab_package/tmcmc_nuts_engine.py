@@ -374,6 +374,7 @@ def tmcmc_engine(
     label: Optional[str] = None,
     verbose: bool = True,
     log_prior_fn: Optional[Callable] = None,
+    prior_sample_fn: Optional[Callable] = None,
     n_mutation_steps: int = 1,
     use_de_mc: bool = False,
     de_mc_gamma: float = 2.38,
@@ -415,26 +416,51 @@ def tmcmc_engine(
     free_dims = np.where(free_mask)[0]
     d_free = len(free_dims)
 
-    particles = np.zeros((n_particles, d), dtype=np.float64)
-    for i in range(d):
-        lo, hi = prior_bounds[i]
-        particles[:, i] = lo if abs(hi - lo) < 1e-12 else rng.uniform(lo, hi, n_particles)
-
+    # TMCMC は stage 0 の集団が事前分布からのサンプルであることを前提にする。
+    # 非一様な事前分布（log_prior_fn）を使うなら、初期化もそこから引かないと
+    # stage 0 の目標分布がずれ、事後もエビデンスも狂う。
     has_gnn_prior = log_prior_fn is not None
-    if has_gnn_prior:
-        log_prior_jit = jax.jit(log_prior_fn)
-        _lp = np.array([float(log_prior_jit(jnp.array(p))) for p in particles])
-        thresh = np.percentile(_lp, 30)
-        for idx in range(n_particles):
-            if _lp[idx] < thresh:
-                for _ in range(20):
-                    cand = particles[idx].copy()
-                    for dim_i in free_dims:
-                        lo, hi = prior_bounds[dim_i]
-                        cand[dim_i] = rng.uniform(lo, hi)
-                    if float(log_prior_jit(jnp.array(cand))) >= thresh:
-                        particles[idx] = cand
-                        break
+    if prior_sample_fn is not None:
+        particles = np.asarray(prior_sample_fn(rng, n_particles), dtype=np.float64)
+        if particles.shape != (n_particles, d):
+            raise ValueError(
+                f"prior_sample_fn が返した形 {particles.shape} が " f"({n_particles}, {d}) と違う"
+            )
+        # 固定次元（下限=上限）はその値に揃える
+        for i in range(d):
+            lo, hi = prior_bounds[i]
+            if abs(hi - lo) < 1e-12:
+                particles[:, i] = lo
+        if verbose:
+            print(f"  初期粒子を prior_sample_fn から生成（{n_particles} 個）")
+        log_prior_jit = jax.jit(log_prior_fn) if has_gnn_prior else None
+    else:
+        particles = np.zeros((n_particles, d), dtype=np.float64)
+        for i in range(d):
+            lo, hi = prior_bounds[i]
+            particles[:, i] = lo if abs(hi - lo) < 1e-12 else rng.uniform(lo, hi, n_particles)
+
+        if has_gnn_prior:
+            # prior_sample_fn が無い場合の間に合わせ。箱一様で引いた粒子のうち
+            # 事前確率が低いものを引き直すだけなので、厳密には事前分布から
+            # 引いたことにならない。prior_sample_fn を渡すのが正しい。
+            log_prior_jit = jax.jit(log_prior_fn)
+            print(
+                "  警告: log_prior_fn があるが prior_sample_fn が無い。"
+                "初期粒子は箱一様からの引き直しで近似する"
+            )
+            _lp = np.array([float(log_prior_jit(jnp.array(p))) for p in particles])
+            thresh = np.percentile(_lp, 30)
+            for idx in range(n_particles):
+                if _lp[idx] < thresh:
+                    for _ in range(20):
+                        cand = particles[idx].copy()
+                        for dim_i in free_dims:
+                            lo, hi = prior_bounds[dim_i]
+                            cand[dim_i] = rng.uniform(lo, hi)
+                        if float(log_prior_jit(jnp.array(cand))) >= thresh:
+                            particles[idx] = cand
+                            break
 
     t0 = time.time()
     logL_jit = jax.jit(log_likelihood)

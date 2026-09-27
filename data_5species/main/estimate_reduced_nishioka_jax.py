@@ -195,6 +195,19 @@ def main():
             "推定すると 20 次元中 5 次元が尤度勾配ゼロのまま提案共分散に混ざる。"
         ),
     )
+    parser.add_argument(
+        "--prior-scale",
+        type=float,
+        default=0.0,
+        help=(
+            "0 より大きいと A の15成分に平均0・標準偏差この値の正規事前分布を置く"
+            "（弱情報事前分布）。0 なら従来どおり箱一様。"
+            "尤度に縮退方向があり箱の端で止まる成分があるため導入した: "
+            "DH の a35 (Vei-Pg) は事前分布を [-4,8] から [-15,20] に広げても "
+            "新しい境界に張り付き chi が 0.6233 -> 0.5104 と改善し続ける。"
+            "有限の最適値を持たないので箱一様では事前分布の選択が結果を決めてしまう。"
+        ),
+    )
     parser.add_argument("--K-hill", type=float, default=0.05)
     parser.add_argument("--n-hill", type=float, default=2.0)
     parser.add_argument("--dt", type=float, default=1e-4)
@@ -360,6 +373,49 @@ def main():
 
     prior_bounds = np.array(prior_bounds, dtype=np.float32)
 
+    # 弱情報事前分布。A の15成分に N(0, prior_scale^2) を置く。
+    # 箱は support として残す（prior_bounds の外は engine 側で棄却される）。
+    log_prior_fn = None
+    prior_sample_fn = None
+    if args.prior_scale > 0.0:
+        _free = np.array([i for i in range(20) if i not in B_DIMS], dtype=np.int32)
+        _sd = float(args.prior_scale)
+        _lo = np.asarray(prior_bounds[:, 0], dtype=np.float64)
+        _hi = np.asarray(prior_bounds[:, 1], dtype=np.float64)
+        _free_j = jnp.array(_free)
+
+        def _log_prior(theta):
+            x = theta[_free_j]
+            return -0.5 * jnp.sum((x / _sd) ** 2)
+
+        def _sample_prior(rng, n):
+            # N(0, sd^2) を箱で truncate して棄却法で引く
+            out = np.zeros((n, 20), dtype=np.float64)
+            for i in _free:
+                lo_i, hi_i = _lo[i], _hi[i]
+                col = np.empty(n)
+                filled = 0
+                for _ in range(200):
+                    cand = rng.normal(0.0, _sd, size=max(n - filled, 1) * 2)
+                    cand = cand[(cand >= lo_i) & (cand <= hi_i)]
+                    take = min(len(cand), n - filled)
+                    if take > 0:
+                        col[filled : filled + take] = cand[:take]
+                        filled += take
+                    if filled >= n:
+                        break
+                if filled < n:  # 箱が事前分布に対して極端に狭い場合の保険
+                    col[filled:] = rng.uniform(lo_i, hi_i, n - filled)
+                out[:, i] = col
+            return out
+
+        log_prior_fn = _log_prior
+        prior_sample_fn = _sample_prior
+        logger.info(
+            f"弱情報事前分布: A の15成分に N(0, {_sd}^2)。箱 "
+            f"[{_lo[_free].min():.1f}, {_hi[_free].max():.1f}] は support として残す"
+        )
+
     logger.info("JIT warmup (forward pass)...")
     _ = jax.jit(log_likelihood)(jnp.zeros(20, dtype=jnp.float64))
     logger.info("Warmup OK (forward). Grad warmup deferred to first mutation step.")
@@ -368,6 +424,8 @@ def main():
     result = tmcmc_engine(
         log_likelihood,
         prior_bounds,
+        log_prior_fn=log_prior_fn,
+        prior_sample_fn=prior_sample_fn,
         mutation=args.mutation,
         n_particles=args.n_particles,
         max_stages=args.max_stages,
@@ -474,6 +532,7 @@ def main():
                 "bc_lambda": args.bc_lambda,
                 # --- 探索次元 ---
                 "estimate_b": args.estimate_b,
+                "prior_scale": args.prior_scale,
                 "n_free_dims": int((np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12).sum()),
                 "prior_bounds": np.asarray(prior_bounds, dtype=float).tolist(),
                 # --- 初期条件・データの扱い ---
