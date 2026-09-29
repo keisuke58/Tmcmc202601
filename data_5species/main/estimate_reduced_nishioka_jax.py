@@ -264,6 +264,18 @@ def main():
         default=2,
         help="Number of top particles to use as L-BFGS-B starting points (default: 2)",
     )
+    parser.add_argument(
+        "--box",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("LO", "HI"),
+        help=(
+            "A の15成分の事前分布の箱を [LO, HI] で上書きする。"
+            "条件ごとの既定の箱（DH の a35 は [-0.5, 5.0]）は尤度が動きたい向きを"
+            "許していないため、識別性の検証にはこれを使う。b の5次元は対象外。"
+        ),
+    )
     args = parser.parse_args()
 
     if args.quick:
@@ -353,6 +365,13 @@ def main():
         logger.info("Using wide prior bounds [-1,3] / b:[0,5]")
     else:
         prior_bounds = load_prior_bounds(args.condition, args.cultivation)
+
+    if args.box is not None:
+        lo, hi = float(args.box[0]), float(args.box[1])
+        for i in range(20):
+            if i not in [3, 4, 8, 9, 15]:
+                prior_bounds[i] = [lo, hi]
+        logger.info(f"--box: A の15成分の箱を [{lo}, {hi}] に上書き")
 
     # b (theta[3,4,8,9,15]) は alpha*=0 では動力学に入らない（論文 Sec.2）。
     # 下限=上限にすると tmcmc_engine の free_mask がこの次元を除外し、
@@ -533,6 +552,7 @@ def main():
                 # --- 探索次元 ---
                 "estimate_b": args.estimate_b,
                 "prior_scale": args.prior_scale,
+                "box": args.box,
                 "n_free_dims": int((np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12).sum()),
                 "prior_bounds": np.asarray(prior_bounds, dtype=float).tolist(),
                 # --- 初期条件・データの扱い ---
