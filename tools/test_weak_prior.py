@@ -156,18 +156,31 @@ def check_static(log_prior, sample_prior, fails):
 
 def check_engine(tag, engine, log_prior, sample_prior, fails):
     pb = bounds()
-    common = {"n_particles": 128, "max_stages": 3, "seed": 1,
-              "verbose": False, "n_mutation_steps": 1}
+    common = {
+        "n_particles": 128,
+        "max_stages": 3,
+        "seed": 1,
+        "verbose": False,
+        "n_mutation_steps": 1,
+    }
 
     # [3] prior_sample_fn が初期化に使われる
-    res = engine(cheap_logL, pb, mutation="rw", log_prior_fn=log_prior,
-                 prior_sample_fn=sample_prior, **common)
+    res = engine(
+        cheap_logL,
+        pb,
+        mutation="rw",
+        log_prior_fn=log_prior,
+        prior_sample_fn=sample_prior,
+        **common,
+    )
     S = res["samples"]
     b_fixed = bool((S[:, B_DIMS] == 0.0).all())
     in_box = bool(((S[:, FREE] >= LO - 1e-9) & (S[:, FREE] <= HI + 1e-9)).all())
     ok = b_fixed and in_box and S.shape == (128, 20)
-    print(f"\n[3] {tag}: samples {S.shape}  b 固定 {b_fixed}  箱の中 {in_box}  "
-          f"{'OK' if ok else 'FAIL'}")
+    print(
+        f"\n[3] {tag}: samples {S.shape}  b 固定 {b_fixed}  箱の中 {in_box}  "
+        f"{'OK' if ok else 'FAIL'}"
+    )
     if not ok:
         fails.append(f"3 [{tag}]: engine が prior_sample_fn を正しく扱っていない")
 
@@ -175,8 +188,10 @@ def check_engine(tag, engine, log_prior, sample_prior, fails):
     res0 = engine(cheap_logL, pb, mutation="rw", **common)
     m_prior, m_flat = float(S[:, 0].mean()), float(res0["samples"][:, 0].mean())
     ok = m_prior < m_flat
-    print(f"[4] theta[0] の事後平均: 事前分布あり {m_prior:+.3f} < 箱一様 {m_flat:+.3f}  "
-          f"{'OK' if ok else 'FAIL'}")
+    print(
+        f"[4] theta[0] の事後平均: 事前分布あり {m_prior:+.3f} < 箱一様 {m_flat:+.3f}  "
+        f"{'OK' if ok else 'FAIL'}"
+    )
     if not ok:
         fails.append(f"4 [{tag}]: 弱情報事前分布が効いていない")
 
@@ -189,8 +204,10 @@ def check_engine(tag, engine, log_prior, sample_prior, fails):
         b = engine(cheap_logL, pb, mutation=mut, **common)
         ma, mb = float(a["samples"][:, 0].mean()), float(b["samples"][:, 0].mean())
         ok = ma < mb - 1e-6
-        print(f"[5] {mut:<4} 初期化を揃えた比較: 事前分布あり {ma:+.3f} < なし {mb:+.3f}  "
-              f"{'OK' if ok else 'FAIL'}")
+        print(
+            f"[5] {mut:<4} 初期化を揃えた比較: 事前分布あり {ma:+.3f} < なし {mb:+.3f}  "
+            f"{'OK' if ok else 'FAIL'}"
+        )
         if not ok:
             fails.append(
                 f"5 [{tag}/{mut}]: 事前分布が MH 比に入っていない"

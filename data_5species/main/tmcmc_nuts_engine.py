@@ -347,9 +347,7 @@ def tmcmc_engine(
                     # 事前分布ありのとき new_logp = beta*logL + log_pi なので
                     # beta で割っても logL には戻らない。直接評価する。
                     logL[i] = (
-                        float(logL_jit(new_theta))
-                        if has_gnn_prior
-                        else float(new_logp) / beta_new
+                        float(logL_jit(new_theta)) if has_gnn_prior else float(new_logp) / beta_new
                     )
                     n_accept += 1
 
@@ -371,9 +369,7 @@ def tmcmc_engine(
                 if accepted:
                     particles[i] = np.array(new_theta)
                     logL[i] = (
-                        float(logL_jit(new_theta))
-                        if has_gnn_prior
-                        else float(new_logp) / beta_new
+                        float(logL_jit(new_theta)) if has_gnn_prior else float(new_logp) / beta_new
                     )
                     n_accept += 1
             if stage <= warmup_stages:
