@@ -69,6 +69,11 @@ stuttgart01 などの GPU ノードと同じファイルを直接編集できる
 - PBS ジョブスクリプトのテンプレート: `data_5species/main/tmcmc_job.sh`（numba/CPU 版の例）、
   `data_5species/main/dh_prior_check_job.sh`（JAX/GPU 版・上記の罠への対処込みの例、2026-09-30 作成）。
   新しい GPU ジョブはこれをコピーして書き換えるのが早い。
+- copaam の `~/.local/bin`（PATH 済み）に頻出操作のヘルパーを置いてある（2026-09-30 作成）:
+  - `gpufree [host...]` — GPU 空き確認（省略時は stuttgart01-03 + vancouver01-02）
+  - `pbsme` — 自分の PBS ジョブ一覧（`qstat -u -n1`）
+  - `pbslog <jobid> [行数]` — jobid から Job_Name/出力先を自動解決してログを tail
+    （PBS は実行中ジョブの stdout をバッファするため、完了/クラッシュ前はログが無いのが正常）
 
 ## 対話スタイル詳細
 
