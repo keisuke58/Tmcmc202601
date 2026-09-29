@@ -77,7 +77,7 @@ $PYTHON estimate_reduced_nishioka_jax.py \
     --box -15 20 \
     --prior-scale "${PRIOR_SCALE}" \
     --n-particles 50 --max-stages 30 --seed "${SEED}" \
-    --mutation rw --device gpu \
+    --mutation nuts --device gpu \
     --output-dir "${OUTDIR}"
 
 echo "=============================================="
