@@ -78,8 +78,8 @@ import jax
 import jax.numpy as jnp
 
 jax.config.update("jax_enable_x64", True)
-from build_condition_data import build, sigma_per_species  # noqa: E402
-from hamilton_ode_jax import simulate_0d  # noqa: E402
+from build_condition_data import build, sigma_per_species
+from hamilton_ode_jax import simulate_0d
 
 N, DT, C = 2500, 1e-4, 25.0
 IDX = jnp.array(np.load(ROOT / "_runs" / "Dysbiotic_HOBIC_K0.05_n4.0_1k30" / "idx_sparse.npy"))

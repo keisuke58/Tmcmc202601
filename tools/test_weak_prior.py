@@ -42,7 +42,7 @@ import jax
 import jax.numpy as jnp
 
 jax.config.update("jax_enable_x64", True)
-from tmcmc_nuts_engine import tmcmc_engine  # noqa: E402
+from tmcmc_nuts_engine import tmcmc_engine
 
 B_DIMS = [3, 4, 8, 9, 15]
 FREE = [i for i in range(20) if i not in B_DIMS]
