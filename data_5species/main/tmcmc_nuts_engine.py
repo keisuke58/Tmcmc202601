@@ -165,6 +165,7 @@ def tmcmc_engine(
     label: Optional[str] = None,
     verbose: bool = True,
     log_prior_fn: Optional[Callable] = None,
+    prior_sample_fn: Optional[Callable] = None,
 ) -> dict:
     """TMCMC with RW / HMC / NUTS mutation. No DeepONet dependency."""
     if label is None:
@@ -178,10 +179,14 @@ def tmcmc_engine(
     free_dims = np.where(free_mask)[0]
     d_free = len(free_dims)
 
-    particles = np.zeros((n_particles, d), dtype=np.float32)
-    for i in range(d):
-        lo, hi = prior_bounds[i]
-        particles[:, i] = lo if abs(hi - lo) < 1e-12 else rng.uniform(lo, hi, n_particles)
+    if prior_sample_fn is not None:
+        # stage 0 を弱情報事前分布から引く（一様な箱からではなく）。
+        particles = np.asarray(prior_sample_fn(rng, n_particles), dtype=np.float32)
+    else:
+        particles = np.zeros((n_particles, d), dtype=np.float32)
+        for i in range(d):
+            lo, hi = prior_bounds[i]
+            particles[:, i] = lo if abs(hi - lo) < 1e-12 else rng.uniform(lo, hi, n_particles)
 
     has_gnn_prior = log_prior_fn is not None
     if has_gnn_prior:
