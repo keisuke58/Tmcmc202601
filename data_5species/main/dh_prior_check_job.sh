@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N dh_prior_check
 #PBS -l nodes=1:ppn=4:gpus=1:stuttgart01
-#PBS -l walltime=02:00:00
+#PBS -l walltime=03:00:00
 #PBS -q default
 #PBS -j oe
 #PBS -o ${PBS_JOBNAME}_${PBS_JOBID}.log
@@ -25,6 +25,7 @@ RUNTAG="${RUNTAG:?RUNTAG must be set (noprior|sigma6)}"
 PRIOR_SCALE="${PRIOR_SCALE:?PRIOR_SCALE must be set (0 or 6)}"
 GPUIDX="${GPUIDX:-0}"
 SEED="${SEED:-42}"
+NPART="${NPART:-50}"
 
 cd /home/nishioka/Tmcmc202601/data_5species/main
 PYTHON=/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3
@@ -57,10 +58,10 @@ export JAX_PLATFORMS=
 unset LD_LIBRARY_PATH
 echo "LD_LIBRARY_PATH unset (was system CUDA under PBS batch env)"
 
-OUTDIR="_runs/dh_gateoff_${RUNTAG}_20260930"
+OUTDIR="_runs/dh_gateoff_${RUNTAG}_${NPART}p_seed${SEED}_20260930"
 
 echo "=============================================="
-echo "DH prior-check job: RUNTAG=${RUNTAG} PRIOR_SCALE=${PRIOR_SCALE}"
+echo "DH prior-check job: RUNTAG=${RUNTAG} PRIOR_SCALE=${PRIOR_SCALE} NPART=${NPART} SEED=${SEED}"
 echo "  Node: $(hostname)  CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}"
 echo "  PBS Job ID: ${PBS_JOBID:-local}"
 echo "  Output: ${OUTDIR}"
@@ -76,8 +77,9 @@ $PYTHON estimate_reduced_nishioka_jax.py \
     --dt 1e-4 --n-steps 2500 \
     --box -15 20 \
     --prior-scale "${PRIOR_SCALE}" \
-    --n-particles 50 --max-stages 30 --seed "${SEED}" \
+    --n-particles "${NPART}" --max-stages 30 --seed "${SEED}" \
     --mutation rw --device gpu \
+    --no-polish \
     --output-dir "${OUTDIR}"
 
 echo "=============================================="
