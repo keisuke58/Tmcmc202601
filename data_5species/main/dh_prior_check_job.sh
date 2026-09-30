@@ -27,6 +27,20 @@ GPUIDX="${GPUIDX:-0}"
 SEED="${SEED:-42}"
 NPART="${NPART:-50}"
 MUTATION="${MUTATION:-nuts}"
+# 既に投入済みのジョブと出力先が衝突しないよう、任意の接尾辞を付けられるようにする。
+OUTTAG="${OUTTAG:-}"
+# 他条件 (CS/CH/DS) も同じジョブで回せるようにする。既定は DH で従来と同じ出力先。
+CODE="${CODE:-dh}"
+COND="${COND:-Dysbiotic}"
+CULT="${CULT:-HOBIC}"
+# EXTDATA を指定すると、論文パイプライン由来のデータ (_extdata/*.json) を使う。
+# loader 既定の fig3_*.csv とは中身が違う（DH の正規化後で最大 0.30 ずれる）。
+EXTDATA="${EXTDATA:-}"
+if [ -n "${EXTDATA}" ]; then
+    DATA_ARGS="--external-data ${EXTDATA}"
+else
+    DATA_ARGS="--condition ${COND} --cultivation ${CULT} --use-exp-init"
+fi
 
 cd /home/nishioka/Tmcmc202601/data_5species/main
 PYTHON=/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3
@@ -59,13 +73,14 @@ export JAX_PLATFORMS=
 unset LD_LIBRARY_PATH
 echo "LD_LIBRARY_PATH unset (was system CUDA under PBS batch env)"
 
-OUTDIR="_runs/dh_gateoff_${RUNTAG}_${NPART}p_seed${SEED}_20260930"
+OUTDIR="_runs/${CODE}_gateoff_${RUNTAG}_${NPART}p_seed${SEED}${OUTTAG}_cpualign_20260930"
 
 echo "=============================================="
-echo "DH prior-check job: RUNTAG=${RUNTAG} PRIOR_SCALE=${PRIOR_SCALE} NPART=${NPART} SEED=${SEED} MUTATION=${MUTATION}"
+echo "prior-check job: ${CODE} (${COND}/${CULT}) RUNTAG=${RUNTAG} PRIOR_SCALE=${PRIOR_SCALE} NPART=${NPART} SEED=${SEED} MUTATION=${MUTATION}"
 echo "  Node: $(hostname)  CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}"
 echo "  PBS Job ID: ${PBS_JOBID:-local}"
 echo "  Output: ${OUTDIR}"
+echo "  Data: ${EXTDATA:-loader ${COND}/${CULT}}"
 echo "  Start: $(date)"
 echo "  git HEAD: $(git rev-parse --short HEAD 2>/dev/null)"
 echo "=============================================="
@@ -73,13 +88,14 @@ echo "=============================================="
 nvidia-smi --query-gpu=index,name,memory.used,utilization.gpu --format=csv
 
 $PYTHON estimate_reduced_nishioka_jax.py \
-    --condition Dysbiotic --cultivation HOBIC \
+    ${DATA_ARGS} \
     --K-hill 0.0 --n-hill 2.0 \
     --dt 1e-4 --n-steps 2500 \
     --box -15 20 \
     --prior-scale "${PRIOR_SCALE}" \
     --n-particles "${NPART}" --max-stages 30 --seed "${SEED}" \
     --mutation "${MUTATION}" --device gpu \
+    --lambda-pg 1 --lambda-late 1 \
     --no-polish \
     --output-dir "${OUTDIR}"
 
