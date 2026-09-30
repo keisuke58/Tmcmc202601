@@ -86,7 +86,9 @@ def main(patterns):
     if not dirs:
         print("評価できる run がありません（theta_MAP.json 待ち）")
         return
-    hdr = f"{'run':<42}{'RMSE':>8}{'chi':>8}{'PgD15':>8}{'PgD21':>8}{'D21/15':>8}{'a35':>8}{'a45':>8}"
+    hdr = (
+        f"{'run':<42}{'RMSE':>8}{'chi':>8}{'PgD15':>8}{'PgD21':>8}{'D21/15':>8}{'a35':>8}{'a45':>8}"
+    )
     print(hdr)
     print("-" * len(hdr))
     for d in dirs:
