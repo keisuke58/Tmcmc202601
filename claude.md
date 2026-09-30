@@ -59,6 +59,17 @@ stuttgart01 などの GPU ノードと同じファイルを直接編集できる
   （`qstat -f <jobid>` の `exec_gpus` で確認できる）。
 - **ノード構成**: stuttgart01-03 (RTX3090 x4/node), vancouver01-02 (RTX4090 x4/node),
   celtic01-04 (RTX2080Ti x4/node, celtic04 は down のことがある)。
+- **`ppn` は欲張らない。`ppn=1` が既定でよい**（2026-09-30 に判明）。
+  celtic01-03 は **CPU が 4 コアしかない**（`pbsnodes celtic01` の `np = 4`）ので、
+  他ユーザーが 1 コアでも使っていると `ppn=4` のジョブは永久に Q のまま動けない。
+  vancouver は np=12、stuttgart は余裕がある。JAX/GPU の TMCMC は GPU 1 枚 +
+  CPU 1 コアで足りるため、`-l nodes=1:ppn=1:gpus=1:<host>` にすること。
+  Q から動かないときは `pbsnodes <host>` の `np` と `jobs` を見る。
+- **同時に投げる GPU ジョブは 10 本程度まで**（共有サーバーのため）。
+  条件 × seed × arm でジョブ数が増える設計のときはバッチを分ける。
+- **`--mutation nuts` は GPU で極端に遅い**（2026-09-30 実測）。
+  5000 粒子 15 次元・n_steps=2500 で rw は約 6 分、nuts は 1 時間 51 分経っても
+  1 stage も終わらず walltime 前に打ち切った。prior-check の用途では rw で十分。
 - **既知の罠: PBS バッチジョブは `LD_LIBRARY_PATH=/usr/local/cuda/lib64`（システム CUDA）を
   自動設定しており、pip の `nvidia-cusparse-cu12` 等と衝突して JAX が GPU を見つけられなくなる**
   （`RuntimeError: Unable to load cuSPARSE`）。対話 ssh セッションではこの変数が未設定なので
