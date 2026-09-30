@@ -306,7 +306,8 @@ def main():
             ext = json.load(f)
         data = np.array(ext["data"], dtype=np.float64)
         t_days = np.array(ext["t_days"], dtype=np.float64)
-        sigma_obs = ext.get("sigma_obs", 0.05) * args.sigma_scale
+        # 種ごとの sigma をリストで渡せるようにする（list * float は TypeError）
+        sigma_obs = np.asarray(ext.get("sigma_obs", 0.05), dtype=np.float64) * args.sigma_scale
         phi_init = np.array(ext["phi_init"], dtype=np.float64)
         phi_init = np.clip(phi_init, 0.01, 0.99)
         phi_init = phi_init / phi_init.sum()
