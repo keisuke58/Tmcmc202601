@@ -616,9 +616,22 @@ def tmcmc_engine(
                 idx = rng.choice(n_particles, size=n_particles, p=w_normalized)
             particles, logL = particles[idx].copy(), logL[idx].copy()
 
-        def tempered_vg(theta):
-            val, grad = grad_jit(theta)
-            return beta_new * val, beta_new * grad
+        # stage m の目標は pi(theta) * L(theta)^beta なので、HMC/NUTS の
+        # 勾配にも log pi を **beta を掛けずに** 足す。RW 側は MH 比で
+        # 同じことをしている（log_alpha += lp_new - lp_old）。
+        if has_gnn_prior:
+            _lp_vg = jax.jit(jax.value_and_grad(log_prior_fn))
+
+            def tempered_vg(theta):
+                val, grad = grad_jit(theta)
+                lp_val, lp_grad = _lp_vg(theta)
+                return beta_new * val + lp_val, beta_new * grad + lp_grad
+
+        else:
+
+            def tempered_vg(theta):
+                val, grad = grad_jit(theta)
+                return beta_new * val, beta_new * grad
 
         # Only reset counters if waste-free didn't already handle mutation
         _skip_mutation = waste_free and mutation == "rw" and n_mutation_steps > 1
@@ -818,7 +831,11 @@ def tmcmc_engine(
             logp_np = np.array(logp_proposed)
             acc_idx = np.where(accepted_mask)[0]
             particles[acc_idx] = q_np[acc_idx]
-            logL[acc_idx] = logp_np[acc_idx] / beta_new
+            if has_gnn_prior:
+                # logp = beta*logL + log_pi なので beta で割っても logL に戻らない
+                logL[acc_idx] = np.array(logL_vmap(jnp.array(particles[acc_idx])))
+            else:
+                logL[acc_idx] = logp_np[acc_idx] / beta_new
             n_accept = int(accepted_mask.sum())
 
         elif mutation == "nuts":
