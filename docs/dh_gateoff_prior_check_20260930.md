@@ -136,3 +136,27 @@ MAP polishing が終わらず 7231s で kill、結果は 1 ファイルも保存
   GPU の利点が消え、CPU より遅くなりうる。
 - 長い後処理を挟むなら、**主結果は後処理の前に保存する**。
 - PBS の walltime 超過は無警告で全損するので、未実測の処理には広めの walltime を取る。
+
+## 5. データの出所（2026-09-30 追記）
+
+**論文の図表と論文 MAP は `fig3_species_distribution_summary.csv` 側で作られている。**
+`species_distribution_data.csv`（色キー）は 2月時点のレガシーで、DH では正規化後で
+最大 0.30 ずれ、実測 Pg の Day21/Day15 が 7.76（fig3 は 2.74）になる。
+
+根拠:
+
+1. loader の fig3 優先は `d4bbd07`(2026-03-14) で入った。コミット済みの
+   `_runs/Dysbiotic_HOBIC_K0.05_n4.0_1k30/data.npy` は `9c7fdca`(2026-02-27) で、
+   それ以前なのでレガシー側になるのは必然。
+2. 論文 MAP の `ultimate_10000p` は 2026-04-19 実行。`run_ultimate_10000p.sh:79-93` は
+   `--external-data` を使わず `--condition/--cultivation` で loader を通すので fig3 側。
+3. 論文図の生成スクリプトも fig3 を直読み
+   (`docs/regenerate_all_figures.py:70`, `data_5species/main/plot_paper_fig2.py:55`)。
+
+したがって **estimator の既定 loader で回している GPU run は、論文と同じデータ**。
+`_extdata/*_legacy.json` はレガシー側での再現用であり、論文との比較には使わない。
+
+論文 MAP はさらに `--multichannel --lambda-ch1 1.0 --lambda-ch3 2.0`（DH は
+`--lambda-ch5 0.3`）、`--posterior-prior-nsigma 2`、Phase 2 からの warm start で
+得られている。単一チャネルの RMSE で論文値 0.087 と一致しないのはこのため。
+実行ログは `.gitignore` の `*.log` で残っていない。

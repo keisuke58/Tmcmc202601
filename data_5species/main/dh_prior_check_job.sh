@@ -33,8 +33,9 @@ OUTTAG="${OUTTAG:-}"
 CODE="${CODE:-dh}"
 COND="${COND:-Dysbiotic}"
 CULT="${CULT:-HOBIC}"
-# EXTDATA を指定すると、論文パイプライン由来のデータ (_extdata/*.json) を使う。
-# loader 既定の fig3_*.csv とは中身が違う（DH の正規化後で最大 0.30 ずれる）。
+# EXTDATA を指定すると 2月時点のレガシーデータ (_extdata/*_legacy.json) を使う。
+# 既定（未指定）の loader は fig3_*.csv を読み、こちらが論文 MAP と同じ側。
+# 両者は DH の正規化後で最大 0.30 ずれる。詳細は tools/build_condition_data.py。
 EXTDATA="${EXTDATA:-}"
 if [ -n "${EXTDATA}" ]; then
     DATA_ARGS="--external-data ${EXTDATA}"

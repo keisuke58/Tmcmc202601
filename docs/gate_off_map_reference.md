@@ -5,6 +5,48 @@ GPU の TMCMC（`dh_prior_check_job.sh` ほか）の結果を読むときの**�
 
 ---
 
+## ⚠️ 2026-09-30 訂正: この表は論文のデータで作られていない
+
+この文書はもともと出所を「論文のパイプライン（`species_distribution_data.csv`）」と
+書いていたが、copaam 側で調べ直した結果、**それは 2月時点のレガシーデータ**だった。
+
+| 日付 | 出来事 |
+|---|---|
+| 2026-02-24 `bfd5c27` | 両方の CSV がリポジトリに入る |
+| 2026-02-27 `9c7fdca` | `_runs/Dysbiotic_HOBIC_K0.05_n4.0_1k30/data.npy` をコミット（fig3 優先はまだ無い） |
+| **2026-03-14 `d4bbd07`** | **loader の探索順の先頭に `fig3_species_distribution_summary.csv` を追加** |
+| 2026-04-19 | 論文 MAP（`ultimate_10000p`）を実行 |
+
+根拠:
+
+1. **`run_ultimate_10000p.sh:79-93` は `--external-data` を使わず `--condition/--cultivation`
+   で loader を通す。** 4月実行なので fig3 側になる。
+2. **論文図の生成スクリプトも fig3 を直接読む** — `docs/regenerate_all_figures.py:70`、
+   `data_5species/main/plot_paper_fig2.py:55`。
+3. 論文 MAP を前進計算した RMSE は fig3 の方が論文値 0.087 に近い
+   （fig3 + Day1 + ゲート ON n=4 で 0.0814、レガシー側は 0.0691）。
+
+したがって **この表の CPU 参照値は、論文の図表とは別のデータで出したもの**である。
+`_runs/.../data.npy` と一致するのは、その run が 2月（fig3 優先の前）だからにすぎない。
+
+### さらに: 論文 MAP は多チャネル尤度で得られている
+
+`run_ultimate_10000p.sh` は `--multichannel --lambda-ch1 1.0 --lambda-ch3 2.0`、
+DH（HOBIC）には `--lambda-ch5 0.3`、加えて `--posterior-prior-nsigma 2` と
+Phase 2 からの warm start を使っている。この文書も `tools/map_gateoff.py` も
+単一チャネルで評価しているので、**論文の RMSE 0.087 と一致しないのは当然**。
+
+### 実行ログは残っていない
+
+`*_ultimate_10000p_*.log` は `.gitignore:114` の `*.log` で除外されており、
+ホーム全体を検索しても 0 件。ただし run ディレクトリの実体は
+`~/IKM_Hiwi/nife/results/ultimate_10000p/`（4/19 17:08、オリジナルに近い）と
+`~/Tmcmc202601/nife/results/ultimate_10000p/`（4/29 コピー）にあり、
+`dh_baseline/theta_MAP.json` の a45 = 5.630625138883289 が論文値と一致する。
+`config.json` はどちらにも無い（Drive にも無い）。
+
+---
+
 ## ⚠️ 先に: GPU ジョブと尤度の設定が 3 点違う
 
 この表の値は CPU の点推定で、`estimate_reduced_nishioka_jax.py` の既定とは尤度が違う。
@@ -91,4 +133,6 @@ GPU の TMCMC（`dh_prior_check_job.sh` ほか）の結果を読むときの**�
 CPU スクリプト（セッションの作業領域、未コミット）: `gate_free_all4.py`（narrow）、
 `refine_bounds.py`（wide）。データは `species_distribution_data.csv`（色キー）から組み立てたもので、
 コミット済みの DH `data.npy` と 5.55e-17 で一致（`tools/build_condition_data.py`）。
+**ただしこれは 2月時点のレガシーデータで、論文の図表が使う fig3 側ではない**（冒頭の訂正を参照）。
+同じ値の JSON は `data_5species/main/_extdata/*_legacy.json`。
 原稿への差し替え文は `LUH_summer_2026/1030_Masterarbeit/notes/paper_edits_pasteready.md`。

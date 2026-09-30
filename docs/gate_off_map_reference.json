@@ -32,7 +32,8 @@
    "a25",
    "a35",
    "a45"
-  ]
+  ],
+  "correction_20260930": "この参照値は species_distribution_data.csv (2月時点のレガシー) 由来であり、論文の図表・論文 MAP が使う fig3_species_distribution_summary.csv ではない。根拠: run_ultimate_10000p.sh が loader を通すこと、論文図スクリプトが fig3 を直読みすること、loader の fig3 優先が d4bbd07 (2026-03-14) で入り論文 run (2026-04-19) より前であること。詳細は docs/gate_off_map_reference.md 冒頭の訂正節。"
  },
  "conditions": {
   "CS": {

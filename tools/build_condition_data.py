@@ -1,13 +1,26 @@
 #!/usr/bin/env python3
 """4条件の観測データと種ごとの sigma を experiment_data の CSV から組み立てる。
 
-_runs/ にコミットされているのは Dysbiotic/HOBIC だけなので、他の3条件を
-論文のパイプラインと同じ手順で作り直せるようにする。DH については
-コミット済み data.npy と一致するかを検証する（既定で実行される）。
+出所は species_distribution_data.csv（色名キー）。2026-02-27 にコミットされた
+_runs/Dysbiotic_HOBIC_K0.05_n4.0_1k30/data.npy と一致する（DH で検証、既定で実行）。
 
-出所は species_distribution_data.csv（色名キー）。
-fig3_species_distribution_summary.csv（種名キー）ではない — そちらを使うと
-DH で正規化後 0.30 もずれる。
+⚠️ これは **論文のデータではない**（2026-09-30 訂正）
+--------------------------------------------------
+かつてこれを「論文のパイプライン」と呼んでいたが、調べ直すと違った。
+
+  - 2026-02-24 bfd5c27: 両方の CSV がリポジトリに入る
+  - 2026-02-27 9c7fdca: 上記 data.npy をコミット（この時点で fig3 優先は存在しない）
+  - 2026-03-14 d4bbd07: loader の探索順の先頭に fig3_species_distribution_summary.csv
+  - 2026-04-19 論文 MAP (ultimate_10000p) を実行
+
+run_ultimate_10000p.sh は --external-data ではなく --condition/--cultivation を
+使うので loader を通る。つまり **論文 MAP は fig3 側**。論文図の生成スクリプト
+(docs/regenerate_all_figures.py:70, data_5species/main/plot_paper_fig2.py:55) も
+fig3 を直接読んでいる。
+
+このファイルが作るのは **2月時点のレガシーデータ**で、DH では正規化後で fig3 と
+最大 0.30 ずれ、実測 Pg の Day21/Day15 が 7.76（fig3 は 2.74）になる。
+論文の数字と突き合わせたいときは fig3 側、つまり estimator の既定 loader を使う。
 
   data_abs[k, i] = total_vol_median[day_k] * median_pct[day_k, i] / 100
   data           = data_abs / row_sums
