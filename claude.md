@@ -46,6 +46,8 @@
 
 ## GPU クラスタ運用（copaam / stuttgart 等）— クラウド Claude 連携用
 
+**クラウド側からの指示は `docs/handoff/LATEST.md` にある。`git pull` したら最初に読むこと。**
+
 このリポジトリの `~/Tmcmc202601` は **copaam を含む全ノードで NFS 共有のホームディレクトリ**にある。
 クラウド上の Claude セッションが `ssh copaam` で入った場合、`cd ~/Tmcmc202601` は
 stuttgart01 などの GPU ノードと同じファイルを直接編集できる（rsync 不要）。
