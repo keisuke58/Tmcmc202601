@@ -55,9 +55,13 @@ WATCH = {"a35": 18, "a45": 19}
 
 
 def load(d):
-    rec = json.load(open(d / "run_record.json"))
+    with open(d / "run_record.json") as f:
+        rec = json.load(f)
     s, ll = np.load(d / "samples.npy"), np.load(d / "logL.npy")
-    cfg = json.load(open(d / "config.json")) if (d / "config.json").exists() else {}
+    cfg = {}
+    if (d / "config.json").exists():
+        with open(d / "config.json") as f:
+            cfg = json.load(f)
     return rec, s, ll, cfg
 
 

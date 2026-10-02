@@ -67,7 +67,8 @@ def check(cond, msg):
 def paper_maps():
     src = (ROOT / "tools" / "table5_check.py").read_text()
     return {
-        k: np.array(v) for k, v in eval(re.search(r"MAP = (\{.*?\n\})", src, re.S).group(1)).items()
+        k: np.array(v)
+        for k, v in eval(re.search(r"MAP = (\{.*?\n\})", src, re.DOTALL).group(1)).items()
     }
 
 

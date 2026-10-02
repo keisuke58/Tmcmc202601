@@ -334,7 +334,8 @@ def load_prior_bounds(condition: str, cultivation: str) -> np.ndarray:
     core.nishioka_model.get_condition_bounds と同じ規則（既定値 → locks → 個別 bounds）。
     model_config/prior_bounds.json は 2026-03-30 に 15 次元用へ並べ替えられているので使わない。
     """
-    cfg = json.load(open(PAPER_BOUNDS_JSON))
+    with open(PAPER_BOUNDS_JSON) as f:
+        cfg = json.load(f)
     bounds = [tuple(cfg.get("default_bounds", [-1.0, 1.0]))] * 20
     strat = cfg["strategies"][f"{condition}_{cultivation}"]
     locked = list(strat.get("locks", []))
@@ -615,18 +616,17 @@ def main():
         }
         # Auto-tune: Dysbiotic HOBIC benefits from higher viability weight
         # (Pg viability drops significantly, key diagnostic signal)
-        if args.condition == "Dysbiotic" and args.cultivation == "HOBIC":
-            if args.lambda_ch3 == 2.0:  # only if user didn't override
-                lambda_ch[3] = 3.0
-                logger.info("Auto-tuned: lambda_ch3=3.0 for DH (Pg viability signal)")
+        # only if user didn't override
+        if args.condition == "Dysbiotic" and args.cultivation == "HOBIC" and args.lambda_ch3 == 2.0:
+            lambda_ch[3] = 3.0
+            logger.info("Auto-tuned: lambda_ch3=3.0 for DH (Pg viability signal)")
         # Commensal conditions: rare Pg/Fn have minimal viability signal,
         # reduce Ch3 weight to avoid noise amplification
-        if args.condition == "Commensal":
-            if args.lambda_ch3 == 2.0:  # only if user didn't override
-                lambda_ch[3] = 1.5
-                logger.info(
-                    f"Auto-tuned: lambda_ch3=1.5 for {args.condition} (less Pg/Fn viability info)"
-                )
+        if args.condition == "Commensal" and args.lambda_ch3 == 2.0:  # only if not overridden
+            lambda_ch[3] = 1.5
+            logger.info(
+                f"Auto-tuned: lambda_ch3=1.5 for {args.condition} (less Pg/Fn viability info)"
+            )
         mc_kwargs = {
             "data_total": mc_data.get("data_total"),
             "sigma_obs_total": mc_data.get("sigma_obs_total"),
@@ -759,7 +759,8 @@ def main():
         prev_map_file = prev_dir / "theta_MAP.json"
         prev_map = None
         if prev_map_file.exists():
-            _mj = json.load(open(prev_map_file))
+            with open(prev_map_file) as f:
+                _mj = json.load(f)
             prev_map = np.array([_mj[str(i)] for i in range(20)])
         logger.info(f"Warm-start: loaded {prev_samples.shape[0]} samples from {prev_dir.name}")
 
