@@ -36,6 +36,13 @@ TAG="${TAG:?TAG must be CS|CH|DS|DH}"
 SEED="${SEED:-42}"
 PREV="${PREV:-}"
 PRIOR_SCALE="${PRIOR_SCALE:-0}"
+# GATE=off（既定）: K_hill=0（ゲート OFF）／ GATE=on: 論文と同じ K_hill=0.05, n_hill=4（対照）
+GATE="${GATE:-off}"
+case "$GATE" in
+  off) K_HILL=0.0 ;;
+  on)  K_HILL=0.05 ;;
+  *) echo "unknown GATE $GATE (off|on)"; exit 1 ;;
+esac
 
 case "$TAG" in
   CS) COND=Commensal; CULT=Static ;;
@@ -50,8 +57,8 @@ LAMBDA_CH5=0.0
 cd "$HOME/Tmcmc202601/data_5species/main"
 PYTHON=/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3
 
-# 共通: ゲート OFF（論文は K=0.05, n=4）、実験 Day1 の初期値、DE-MC
-COMMON=(--condition "$COND" --cultivation "$CULT" --K-hill 0.0 --n-hill 4.0
+# 共通: ゲートは GATE で切り替え（既定 OFF）、実験 Day1 の初期値、DE-MC
+COMMON=(--condition "$COND" --cultivation "$CULT" --K-hill "$K_HILL" --n-hill 4.0
         --use-exp-init --use-de-mc --mutation rw --seed "$SEED" --device gpu)
 
 need_prev() { [ -n "$PREV" ] && [ -f "$PREV/samples.npy" ] || { echo "PREV が無い: '$PREV'"; exit 1; }; }
@@ -73,6 +80,7 @@ esac
 
 SUFFIX=""
 [ "$STAGE" = "ident" ] && SUFFIX="_prior${PRIOR_SCALE}"
+[ "$GATE" = "on" ] && SUFFIX="${SUFFIX}_gateon"
 OUTDIR="_runs/paper_gateoff/${TAG}_${STAGE}${SUFFIX}_seed${SEED}"
 
 # GPU の割り当ては PBS に任せる（PBS_GPUFILE）。無ければ 0。
@@ -85,7 +93,7 @@ export XLA_PYTHON_CLIENT_PREALLOCATE=false
 # JAX が GPU を見失う（対話 ssh では再現しない）。
 unset LD_LIBRARY_PATH
 
-echo "=== $STAGE $TAG seed=$SEED prior=$PRIOR_SCALE  $(hostname) GPU=$CUDA_VISIBLE_DEVICES"
+echo "=== $STAGE $TAG seed=$SEED prior=$PRIOR_SCALE gate=$GATE(K=$K_HILL)  $(hostname) GPU=$CUDA_VISIBLE_DEVICES"
 echo "    PREV=$PREV  OUT=$OUTDIR  git=$(git rev-parse --short HEAD)  $(date)"
 
 "$PYTHON" estimate_paper_jax.py "${COMMON[@]}" "${ARGS[@]}" --output-dir "$OUTDIR"
