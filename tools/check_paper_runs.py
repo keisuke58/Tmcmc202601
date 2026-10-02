@@ -66,13 +66,21 @@ def load(d):
 
 
 def main(root):
+    root = Path(root)
+    if not root.is_dir():
+        print(f"判定できない: {root} が無い")
+        return 1
     groups = defaultdict(list)
-    for d in sorted(Path(root).glob("*_seed*")):
+    for d in sorted(root.glob("*_seed*")):
         if not (d / "run_record.json").exists():
             print(f"skip（run_record.json 無し）: {d.name}")
             continue
         key = re.sub(r"_seed\d+$", "", d.name)
         groups[key].append(d)
+
+    if not groups:
+        print(f"判定できない: {root} に run が無い（空の PASS を返さない）")
+        return 1
 
     maxll_by_group = {}
     any_fail = False
@@ -80,6 +88,7 @@ def main(root):
         print(f"\n=== {key}  ({len(dirs)} seeds)")
         recs, samples, maxll, med = [], [], [], []
         for d in dirs:
+            seed = re.search(r"_seed(\d+)$", d.name).group(1)
             rec, s, _ll, cfg = load(d)
             pb = np.array(rec["prior_bounds_final"])
             free = rec["free_dims"]
@@ -102,7 +111,7 @@ def main(root):
             bf = rec.get("beta_final")
             rec["beta_final"] = bf  # 古い記録（beta_final 無し）は不明 = FAIL 扱い
             print(
-                f"  {d.name[-7:]:>7} beta={'?' if bf is None else f'{bf:.3f}'} st={rec['n_stages']:2d} "
+                f"  seed{seed:>3} beta={'?' if bf is None else f'{bf:.3f}'} st={rec['n_stages']:2d} "
                 f"acc={rec['mean_accept']:.2f} maxlogL={rec['max_logL']:9.2f} "
                 f"lnZ={rec['log_evidence']:9.2f} rmse={cfg.get('rmse', float('nan')):.4f}  {w}"
             )
