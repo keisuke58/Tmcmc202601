@@ -77,7 +77,6 @@ from core.nishioka_model import get_condition_bounds
 
 from tmcmc_nuts_engine import tmcmc_engine
 
-
 # eHOMD/Dieckow SF1 sign constraints (global theta index, sign, weight)
 # Same as SignPrior._CONSTRAINTS_EHOMD in core/evaluator.py
 _EHOMD_CONSTRAINTS = [
@@ -185,6 +184,30 @@ def main():
     parser.add_argument("--lambda-pg", type=float, default=5.0)
     parser.add_argument("--lambda-late", type=float, default=3.0)
     parser.add_argument("--sigma-scale", type=float, default=1.0)
+    parser.add_argument(
+        "--estimate-b",
+        action="store_true",
+        help=(
+            "b (theta[3,4,8,9,15]) も推定する。既定では 0 に固定して探索から外す。"
+            "論文 Sec.2 のとおり抗生物質が無い実験では alpha*=0 であり、"
+            "b は alpha を掛けられて動力学から完全に消えるため（hamilton_ode_jax.py: "
+            "t2 = b_diag[i] * alpha / Eta[i] * psi）、尤度に一切入らない。"
+            "推定すると 20 次元中 5 次元が尤度勾配ゼロのまま提案共分散に混ざる。"
+        ),
+    )
+    parser.add_argument(
+        "--prior-scale",
+        type=float,
+        default=0.0,
+        help=(
+            "0 より大きいと A の15成分に平均0・標準偏差この値の正規事前分布を置く"
+            "（弱情報事前分布）。0 なら従来どおり箱一様。"
+            "尤度に縮退方向があり箱の端で止まる成分があるため導入した: "
+            "DH の a35 (Vei-Pg) は事前分布を [-4,8] から [-15,20] に広げても "
+            "新しい境界に張り付き chi が 0.6233 -> 0.5104 と改善し続ける。"
+            "有限の最適値を持たないので箱一様では事前分布の選択が結果を決めてしまう。"
+        ),
+    )
     parser.add_argument("--K-hill", type=float, default=0.05)
     parser.add_argument("--n-hill", type=float, default=2.0)
     parser.add_argument("--dt", type=float, default=1e-4)
@@ -241,6 +264,18 @@ def main():
         default=2,
         help="Number of top particles to use as L-BFGS-B starting points (default: 2)",
     )
+    parser.add_argument(
+        "--box",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("LO", "HI"),
+        help=(
+            "A の15成分の事前分布の箱を [LO, HI] で上書きする。"
+            "条件ごとの既定の箱（DH の a35 は [-0.5, 5.0]）は尤度が動きたい向きを"
+            "許していないため、識別性の検証にはこれを使う。b の5次元は対象外。"
+        ),
+    )
     args = parser.parse_args()
 
     if args.quick:
@@ -271,7 +306,8 @@ def main():
             ext = json.load(f)
         data = np.array(ext["data"], dtype=np.float64)
         t_days = np.array(ext["t_days"], dtype=np.float64)
-        sigma_obs = ext.get("sigma_obs", 0.05) * args.sigma_scale
+        # 種ごとの sigma をリストで渡せるようにする（list * float は TypeError）
+        sigma_obs = np.asarray(ext.get("sigma_obs", 0.05), dtype=np.float64) * args.sigma_scale
         phi_init = np.array(ext["phi_init"], dtype=np.float64)
         phi_init = np.clip(phi_init, 0.01, 0.99)
         phi_init = phi_init / phi_init.sum()
@@ -330,7 +366,75 @@ def main():
         logger.info("Using wide prior bounds [-1,3] / b:[0,5]")
     else:
         prior_bounds = load_prior_bounds(args.condition, args.cultivation)
+
+    if args.box is not None:
+        lo, hi = float(args.box[0]), float(args.box[1])
+        for i in range(20):
+            if i not in [3, 4, 8, 9, 15]:
+                prior_bounds[i] = [lo, hi]
+        logger.info(f"--box: A の15成分の箱を [{lo}, {hi}] に上書き")
+
+    # b (theta[3,4,8,9,15]) は alpha*=0 では動力学に入らない（論文 Sec.2）。
+    # 下限=上限にすると tmcmc_engine の free_mask がこの次元を除外し、
+    # 粒子は 0 に固定されたまま提案されない（tmcmc_nuts_engine.py:414-420）。
+    B_DIMS = [3, 4, 8, 9, 15]
+    if not args.estimate_b:
+        for i in B_DIMS:
+            prior_bounds[i] = [0.0, 0.0]
+        logger.info(
+            "b (theta[3,4,8,9,15]) を 0 に固定。alpha*=0 で動力学に入らないため。"
+            "探索次元 20 -> 15"
+        )
+    else:
+        logger.warning(
+            "--estimate-b: b も推定する。alpha*=0 では尤度に入らないので "
+            "事後は事前分布のままになる"
+        )
+
     prior_bounds = np.array(prior_bounds, dtype=np.float32)
+
+    # 弱情報事前分布。A の15成分に N(0, prior_scale^2) を置く。
+    # 箱は support として残す（prior_bounds の外は engine 側で棄却される）。
+    log_prior_fn = None
+    prior_sample_fn = None
+    if args.prior_scale > 0.0:
+        _free = np.array([i for i in range(20) if i not in B_DIMS], dtype=np.int32)
+        _sd = float(args.prior_scale)
+        _lo = np.asarray(prior_bounds[:, 0], dtype=np.float64)
+        _hi = np.asarray(prior_bounds[:, 1], dtype=np.float64)
+        _free_j = jnp.array(_free)
+
+        def _log_prior(theta):
+            x = theta[_free_j]
+            return -0.5 * jnp.sum((x / _sd) ** 2)
+
+        def _sample_prior(rng, n):
+            # N(0, sd^2) を箱で truncate して棄却法で引く
+            out = np.zeros((n, 20), dtype=np.float64)
+            for i in _free:
+                lo_i, hi_i = _lo[i], _hi[i]
+                col = np.empty(n)
+                filled = 0
+                for _ in range(200):
+                    cand = rng.normal(0.0, _sd, size=max(n - filled, 1) * 2)
+                    cand = cand[(cand >= lo_i) & (cand <= hi_i)]
+                    take = min(len(cand), n - filled)
+                    if take > 0:
+                        col[filled : filled + take] = cand[:take]
+                        filled += take
+                    if filled >= n:
+                        break
+                if filled < n:  # 箱が事前分布に対して極端に狭い場合の保険
+                    col[filled:] = rng.uniform(lo_i, hi_i, n - filled)
+                out[:, i] = col
+            return out
+
+        log_prior_fn = _log_prior
+        prior_sample_fn = _sample_prior
+        logger.info(
+            f"弱情報事前分布: A の15成分に N(0, {_sd}^2)。箱 "
+            f"[{_lo[_free].min():.1f}, {_hi[_free].max():.1f}] は support として残す"
+        )
 
     logger.info("JIT warmup (forward pass)...")
     _ = jax.jit(log_likelihood)(jnp.zeros(20, dtype=jnp.float64))
@@ -340,6 +444,8 @@ def main():
     result = tmcmc_engine(
         log_likelihood,
         prior_bounds,
+        log_prior_fn=log_prior_fn,
+        prior_sample_fn=prior_sample_fn,
         mutation=args.mutation,
         n_particles=args.n_particles,
         max_stages=args.max_stages,
@@ -420,13 +526,42 @@ def main():
     with open(out_dir / "theta_MAP.json", "w") as f:
         json.dump({str(i): float(v) for i, v in enumerate(theta_MAP)}, f, indent=2)
     with open(out_dir / "config.json", "w") as f:
+        # 結果を決める設定はすべて記録する。これが欠けていたために、ある run で
+        # Hill ゲートが有効だったかを成果物から確認できなかった。
         json.dump(
             {
                 "condition": args.condition,
                 "cultivation": args.cultivation,
                 "n_particles": args.n_particles,
+                "max_stages": args.max_stages,
                 "mutation": args.mutation,
+                "seed": args.seed,
                 "sigma_obs": float(np.mean(sigma_obs)),
+                "sigma_scale": args.sigma_scale,
+                # --- 前進モデル ---
+                "dt": args.dt,
+                "n_steps": args.n_steps,
+                "K_hill": args.K_hill,
+                "n_hill": args.n_hill,
+                "alpha_const": 0.0,  # 抗生物質なし。b を動力学から消す（論文 Sec.2）
+                # --- 尤度の重み（論文の式には無い。必ず記録する） ---
+                "lambda_pg": args.lambda_pg,
+                "lambda_late": args.lambda_late,
+                "sign_prior": args.sign_prior,
+                "sign_lambda": args.sign_lambda,
+                "bc_lambda": args.bc_lambda,
+                # --- 探索次元 ---
+                "estimate_b": args.estimate_b,
+                "prior_scale": args.prior_scale,
+                "box": args.box,
+                "n_free_dims": int((np.abs(prior_bounds[:, 1] - prior_bounds[:, 0]) > 1e-12).sum()),
+                "prior_bounds": np.asarray(prior_bounds, dtype=float).tolist(),
+                # --- 初期条件・データの扱い ---
+                "use_exp_init": args.use_exp_init,
+                "start_from_day": args.start_from_day,
+                "data_normalized": True,  # load_experimental_data(normalize=True)
+                "external_data": args.external_data,
+                "wide_prior": args.wide_prior,
             },
             f,
             indent=2,

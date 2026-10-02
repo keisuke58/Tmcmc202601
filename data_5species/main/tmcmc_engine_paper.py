@@ -1,5 +1,26 @@
-# -*- coding: utf-8 -*-
+# ruff: noqa: B023
+# B023（ループ内で定義した関数がループ変数を参照）はこのファイルでは誤検知。該当する関数
+# （lax.cond の分岐・ステージ内の compute_ess・その場で vmap する lambda・ステージごとに
+# JIT する _jit_nuts / tempered_vg）はすべて定義したその回のうちに呼ばれる。論文の数値を
+# 再現したコード（ba1c285）の中身は変えないため、書き換えずに除外する。
 """
+tmcmc_engine_paper.py — 論文パイプライン用の TMCMC エンジン（固定版）。
+
+論文の MAP（2026-03-20, commit ba1c285）を作った data_5species/main/tmcmc_nuts_engine.py
+をそのまま取り出し、その後に見つかった不具合の修正だけを当てたもの。
+
+なぜ別名のファイルにしたか:
+  data_5species/main/tmcmc_nuts_engine.py と colab_package/tmcmc_nuts_engine.py は同名で
+  中身が違い、どちらが使われるかは sys.path の順で暗黙に決まっていた。2026-09 にこれで
+  推定と評価が別のコードを使う事故が起きたので、論文パイプラインは固有名のモジュールだけを使う。
+
+ba1c285 からの変更点:
+  1. log evidence の log-sum-exp 補正（lw_max の足し戻し）
+  2. prior_sample_fn: 非一様な事前分布では stage 0 を事前分布から引く
+  3. HMC/NUTS の目標にも log prior を beta を掛けずに足す
+  4. 3 に伴い、HMC 受理後の logL を logp/beta ではなく直接評価する
+
+(以下は元の説明)
 tmcmc_nuts_engine.py — Standalone TMCMC engine with NUTS/HMC/RW.
 
 Extracted from deeponet/gradient_tmcmc_nuts.py for use with JAX ODE.
@@ -15,7 +36,8 @@ References:
 from __future__ import annotations
 
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
+from typing import Optional
 
 import jax
 import jax.numpy as jnp
@@ -40,7 +62,7 @@ def _compute_hamiltonian(logp, p):
 def nuts_step(key, theta, log_prob_and_grad, step_size, bounds_lo, bounds_hi, max_depth=6):
     """Original Python-loop NUTS (for CPU / debugging)."""
     d = theta.shape[0]
-    logp0, grad0 = log_prob_and_grad(theta)
+    logp0, _grad0 = log_prob_and_grad(theta)
     key, k_mom = jr.split(key)
     p0 = jr.normal(k_mom, (d,))
     H0 = _compute_hamiltonian(logp0, p0)
@@ -306,7 +328,7 @@ def _de_mc_proposal(
 
     Much more efficient than independent RW for correlated posteriors.
     """
-    n, d_full = particles.shape
+    n, _d_full = particles.shape
     d_free = len(free_dims)
     proposals = particles.copy()
 
@@ -371,10 +393,9 @@ def tmcmc_engine(
     nuts_max_depth: int = 6,
     warmup_stages: int = 3,
     seed: int = 42,
-    label: Optional[str] = None,
+    label: str | None = None,
     verbose: bool = True,
-    log_prior_fn: Optional[Callable] = None,
-    prior_sample_fn: Optional[Callable] = None,
+    log_prior_fn: Callable | None = None,
     n_mutation_steps: int = 1,
     use_de_mc: bool = False,
     de_mc_gamma: float = 2.38,
@@ -389,6 +410,11 @@ def tmcmc_engine(
     flow_mix_ratio: float = 0.8,
     # --- Waste-free SMC (Dau & Chopin 2022) ---
     waste_free: bool = False,
+    # --- Warm-start from previous run ---
+    init_particles: np.ndarray | None = None,
+    init_logL: np.ndarray | None = None,
+    # --- 非一様な事前分布からの初期化（2026-09 追加） ---
+    prior_sample_fn: Callable | None = None,
 ) -> dict:
     """
     TMCMC with RW / HMC / NUTS mutation.
@@ -416,51 +442,55 @@ def tmcmc_engine(
     free_dims = np.where(free_mask)[0]
     d_free = len(free_dims)
 
-    # TMCMC は stage 0 の集団が事前分布からのサンプルであることを前提にする。
-    # 非一様な事前分布（log_prior_fn）を使うなら、初期化もそこから引かないと
-    # stage 0 の目標分布がずれ、事後もエビデンスも狂う。
-    has_gnn_prior = log_prior_fn is not None
-    if prior_sample_fn is not None:
+    # --- Initialize particles: warm-start or from prior ---
+    if init_particles is not None:
+        # Warm-start: use provided particles (e.g. from previous run)
+        assert init_particles.shape == (
+            n_particles,
+            d,
+        ), f"init_particles shape {init_particles.shape} != ({n_particles}, {d})"
+        particles = init_particles.copy().astype(np.float64)
+        # Clamp to bounds
+        for i in range(d):
+            particles[:, i] = np.clip(particles[:, i], prior_bounds[i, 0], prior_bounds[i, 1])
+        if verbose:
+            print(f"  Warm-start: {n_particles} particles from previous run")
+    elif prior_sample_fn is not None:
+        # TMCMC は stage 0 の集団が事前分布からのサンプルであることを前提にする。
+        # 非一様な事前分布では、初期化もそこから引かないと事後もエビデンスも狂う。
         particles = np.asarray(prior_sample_fn(rng, n_particles), dtype=np.float64)
         if particles.shape != (n_particles, d):
-            raise ValueError(
-                f"prior_sample_fn が返した形 {particles.shape} が " f"({n_particles}, {d}) と違う"
-            )
-        # 固定次元（下限=上限）はその値に揃える
+            raise ValueError(f"prior_sample_fn の形 {particles.shape} != ({n_particles}, {d})")
         for i in range(d):
             lo, hi = prior_bounds[i]
             if abs(hi - lo) < 1e-12:
                 particles[:, i] = lo
         if verbose:
             print(f"  初期粒子を prior_sample_fn から生成（{n_particles} 個）")
-        log_prior_jit = jax.jit(log_prior_fn) if has_gnn_prior else None
     else:
         particles = np.zeros((n_particles, d), dtype=np.float64)
         for i in range(d):
             lo, hi = prior_bounds[i]
             particles[:, i] = lo if abs(hi - lo) < 1e-12 else rng.uniform(lo, hi, n_particles)
 
-        if has_gnn_prior:
-            # prior_sample_fn が無い場合の間に合わせ。箱一様で引いた粒子のうち
-            # 事前確率が低いものを引き直すだけなので、厳密には事前分布から
-            # 引いたことにならない。prior_sample_fn を渡すのが正しい。
-            log_prior_jit = jax.jit(log_prior_fn)
-            print(
-                "  警告: log_prior_fn があるが prior_sample_fn が無い。"
-                "初期粒子は箱一様からの引き直しで近似する"
-            )
-            _lp = np.array([float(log_prior_jit(jnp.array(p))) for p in particles])
-            thresh = np.percentile(_lp, 30)
-            for idx in range(n_particles):
-                if _lp[idx] < thresh:
-                    for _ in range(20):
-                        cand = particles[idx].copy()
-                        for dim_i in free_dims:
-                            lo, hi = prior_bounds[dim_i]
-                            cand[dim_i] = rng.uniform(lo, hi)
-                        if float(log_prior_jit(jnp.array(cand))) >= thresh:
-                            particles[idx] = cand
-                            break
+    has_gnn_prior = log_prior_fn is not None
+    log_prior_jit = jax.jit(log_prior_fn) if has_gnn_prior else None
+    if has_gnn_prior and init_particles is None and prior_sample_fn is None:
+        # 間に合わせ: 箱一様の粒子のうち事前確率の低いものを引き直すだけ。
+        # 厳密には事前分布から引いたことにならないので prior_sample_fn を渡すこと。
+        print("  警告: log_prior_fn があるが prior_sample_fn が無い。初期化は近似")
+        _lp = np.array([float(log_prior_jit(jnp.array(p))) for p in particles])
+        thresh = np.percentile(_lp, 30)
+        for idx in range(n_particles):
+            if _lp[idx] < thresh:
+                for _ in range(20):
+                    cand = particles[idx].copy()
+                    for dim_i in free_dims:
+                        lo, hi = prior_bounds[dim_i]
+                        cand[dim_i] = rng.uniform(lo, hi)
+                    if float(log_prior_jit(jnp.array(cand))) >= thresh:
+                        particles[idx] = cand
+                        break
 
     t0 = time.time()
     logL_jit = jax.jit(log_likelihood)
@@ -489,7 +519,7 @@ def tmcmc_engine(
     flow_params = None
     if use_flow:
         try:
-            from normalizing_flow import init_flow, train_flow, flow_proposal_mh
+            from normalizing_flow import flow_proposal_mh, init_flow, train_flow
 
             flow_key = jr.PRNGKey(seed + 9999)
             flow_params = init_flow(
@@ -541,16 +571,9 @@ def tmcmc_engine(
         w = np.exp(np.clip(lw_shifted, -500, 500))
 
         # Log evidence accumulation (Ching & Chen 2007, Eq. 17):
-        #   log Z += log( (1/N) sum_i w_i ),   w_i = L_i^(beta_new - beta)
-        #
-        # w は数値安定化のため lw_max を引いてある。log-sum-exp の恒等式
-        #   log((1/N) sum_i exp(lw_i)) = lw_max + log((1/N) sum_i exp(lw_i - lw_max))
-        # により lw_max を足し戻す必要がある。落とすと各ステージで
-        # delta_beta * max(logL) だけずれ、logL が負の領域では log_evidence が
-        # 過大に出て、恒等的に成り立つはずの ln Z <= max logL を破る。
-        #
-        # lw_max を引く操作は w_normalized / ESS / CV では約分されるので、
-        # 事後分布そのものには影響しない。影響するのはこの evidence だけ。
+        #   log Z += log((1/N) sum_i w_i),  w_i = L_i^(beta_new - beta)
+        # w は lw_max を引いて安定化してあるので、log-sum-exp の恒等式どおり lw_max を
+        # 足し戻す。落とすと ln Z <= max logL が破れる（事後分布そのものには影響しない）。
         log_evidence += lw_max + np.log(np.mean(w) + 1e-300)
 
         ess_val = (np.sum(w) ** 2) / np.sum(w**2)
@@ -616,9 +639,8 @@ def tmcmc_engine(
                 idx = rng.choice(n_particles, size=n_particles, p=w_normalized)
             particles, logL = particles[idx].copy(), logL[idx].copy()
 
-        # stage m の目標は pi(theta) * L(theta)^beta なので、HMC/NUTS の
-        # 勾配にも log pi を **beta を掛けずに** 足す。RW 側は MH 比で
-        # 同じことをしている（log_alpha += lp_new - lp_old）。
+        # stage m の目標は pi(theta) * L(theta)^beta。HMC/NUTS の勾配にも log pi を
+        # beta を掛けずに足す（RW/DE-MC は MH 比で同じことをしている）。
         if has_gnn_prior:
             _lp_vg = jax.jit(jax.value_and_grad(log_prior_fn))
 
@@ -646,7 +668,8 @@ def tmcmc_engine(
 
         if mutation == "rw" and not _skip_mutation:
             # --- Batched RW + optional DE-MC mutation (vmap) with adaptive scale ---
-            _n_mut = n_mutation_steps
+            # Adaptive mutation steps: fewer at low beta, more at high beta
+            _n_mut = max(3, int(n_mutation_steps * max(0.3, beta_new)))
 
             # --- Flow-enhanced proposals (Gabrie et al. 2022) ---
             _use_flow_this_stage = (
@@ -684,7 +707,7 @@ def tmcmc_engine(
                 if _use_flow_step:
                     # --- Flow proposal with MH correction ---
                     flow_key, key = jr.split(key)
-                    from normalizing_flow import flow_sample, flow_log_prob
+                    from normalizing_flow import flow_log_prob, flow_sample
 
                     # Sample in free-dim space
                     props_free, log_q_props = flow_sample(flow_key, flow_params, n_particles)
@@ -775,14 +798,18 @@ def tmcmc_engine(
                         logL[accepted_idx] = logL_proposals[accepted_j]
                         n_acc_step = int(accept_mask.sum())
                         n_accept += n_acc_step
-                # Adaptive scale: target ~23% acceptance for RW
+                # Adaptive scale: target ~23% acceptance (Roberts et al. 1997)
                 acc_rate = n_acc_step / max(n_particles, 1)
                 if not _use_demc and not _use_flow_step:
-                    if acc_rate < 0.15:
+                    if acc_rate < 0.10:
+                        _adapt_factor *= 0.5  # aggressive shrink for very low accept
+                    elif acc_rate < 0.18:
                         _adapt_factor *= 0.8
                     elif acc_rate > 0.35:
-                        _adapt_factor *= 1.2
-                    _adapt_factor = np.clip(_adapt_factor, 0.01, 10.0)
+                        _adapt_factor *= 1.3
+                    elif acc_rate > 0.50:
+                        _adapt_factor *= 1.5  # aggressive grow for very high accept
+                    _adapt_factor = np.clip(_adapt_factor, 0.001, 50.0)
                 # Update cov every few steps using current particles
                 if _mut_step % 3 == 2 and _n_mut > 3:
                     cov_base = np.cov(particles[:, free_dims].T)
@@ -862,7 +889,7 @@ def tmcmc_engine(
 
             accepted_list = []
             for i in range(n_particles):
-                new_th, new_lp, acc = _jit_nuts(keys[i], particles_jax[i])
+                new_th, _new_lp, acc = _jit_nuts(keys[i], particles_jax[i])
                 if bool(acc):
                     particles[i] = np.array(new_th)
                     n_accept += 1

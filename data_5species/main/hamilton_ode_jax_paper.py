@@ -1,5 +1,23 @@
-# -*- coding: utf-8 -*-
+# ruff: noqa: B023
+# B023（ループ内で定義した関数がループ変数を参照）はこのファイルでは誤検知。該当する関数
+# （lax.cond の分岐・ステージ内の compute_ess・その場で vmap する lambda・ステージごとに
+# JIT する _jit_nuts / tempered_vg）はすべて定義したその回のうちに呼ばれる。論文の数値を
+# 再現したコード（ba1c285）の中身は変えないため、書き換えずに除外する。
 """
+hamilton_ode_jax_paper.py — 論文パイプライン用の前進モデル（固定版）。
+
+論文の MAP（2026-03-20, commit ba1c285）を作った data_5species/main/hamilton_ode_jax.py
+そのもの。違いは Hill ゲートの K_hill=0 の扱いだけ（K_hill<=0 は真のゲート OFF で
+factor=1。元は Pg の相互作用行を丸ごと 0 倍していた）。
+
+このモデルの約束（tools/test_paper_pipeline.py で固定）:
+  - θ は 20 次元: a11,a12,a22,b1,b2,a33,a34,a44,b3,b4,a13,a14,a23,a24,a55,b5,a15,a25,a35,a45
+  - b（θ[3,4,8,9,15]）は alpha=0 で動力学に入らない
+  - simulate_0d は φ（体積分率）を返す。phibar=φ·ψ ではない
+    （data_5species/main/hamilton_ode_jax.py は 2026-03-22 に phibar、2026-03-30 に
+    15 次元へ変わっており、論文の MAP とは別のモデル）
+
+(以下は元の説明)
 hamilton_ode_jax.py — Pure JAX 0D Hamilton ODE for TMCMC.
 
 Provides θ → φ(t;θ) with jax.grad support for NUTS/HMC.

@@ -165,6 +165,7 @@ def tmcmc_engine(
     label: Optional[str] = None,
     verbose: bool = True,
     log_prior_fn: Optional[Callable] = None,
+    prior_sample_fn: Optional[Callable] = None,
 ) -> dict:
     """TMCMC with RW / HMC / NUTS mutation. No DeepONet dependency."""
     if label is None:
@@ -178,14 +179,26 @@ def tmcmc_engine(
     free_dims = np.where(free_mask)[0]
     d_free = len(free_dims)
 
-    particles = np.zeros((n_particles, d), dtype=np.float32)
-    for i in range(d):
-        lo, hi = prior_bounds[i]
-        particles[:, i] = lo if abs(hi - lo) < 1e-12 else rng.uniform(lo, hi, n_particles)
+    if prior_sample_fn is not None:
+        # stage 0 を弱情報事前分布から引く（一様な箱からではなく）。
+        particles = np.asarray(prior_sample_fn(rng, n_particles), dtype=np.float32)
+    else:
+        particles = np.zeros((n_particles, d), dtype=np.float32)
+        for i in range(d):
+            lo, hi = prior_bounds[i]
+            particles[:, i] = lo if abs(hi - lo) < 1e-12 else rng.uniform(lo, hi, n_particles)
 
     has_gnn_prior = log_prior_fn is not None
-    if has_gnn_prior:
-        log_prior_jit = jax.jit(log_prior_fn)
+    log_prior_jit = jax.jit(log_prior_fn) if has_gnn_prior else None
+    log_prior_vmap = jax.jit(jax.vmap(log_prior_fn)) if has_gnn_prior else None
+    if has_gnn_prior and prior_sample_fn is None:
+        # prior_sample_fn が無い場合の間に合わせ。箱一様で引いた粒子のうち
+        # 事前確率が低いものを引き直すだけなので、厳密には事前分布から引いた
+        # ことにならない。prior_sample_fn を渡すのが正しい。
+        print(
+            "  警告: log_prior_fn があるが prior_sample_fn が無い。"
+            "初期粒子は箱一様からの引き直しで近似する"
+        )
         _lp = np.array([float(log_prior_jit(jnp.array(p))) for p in particles])
         thresh = np.percentile(_lp, 30)
         for idx in range(n_particles):
@@ -258,9 +271,21 @@ def tmcmc_engine(
         idx = rng.choice(n_particles, size=n_particles, p=w)
         particles, logL = particles[idx].copy(), logL[idx].copy()
 
-        def tempered_vg(theta):
-            val, grad = grad_jit(theta)
-            return beta_new * val, beta_new * grad
+        # stage m の目標は pi(theta) * L(theta)^beta なので、
+        # 勾配にも log pi を **beta を掛けずに** 足す。
+        if has_gnn_prior:
+            _lp_vg = jax.jit(jax.value_and_grad(log_prior_fn))
+
+            def tempered_vg(theta):
+                val, grad = grad_jit(theta)
+                lp_val, lp_grad = _lp_vg(theta)
+                return beta_new * val + lp_val, beta_new * grad + lp_grad
+
+        else:
+
+            def tempered_vg(theta):
+                val, grad = grad_jit(theta)
+                return beta_new * val, beta_new * grad
 
         n_accept, n_leapfrog_stage = 0, 0
         key = jr.PRNGKey(seed + stage * 1000)
@@ -292,6 +317,11 @@ def tmcmc_engine(
                 if len(valid_idx) > 0:
                     logL_proposals = np.array(logL_vmap(jnp.array(proposals[valid_idx])))
                     log_alpha = beta_new * (logL_proposals - logL[valid_idx])
+                    if has_gnn_prior:
+                        # log pi の差は beta を掛けずに足す（目標が pi * L^beta のため）
+                        lp_new = np.array(log_prior_vmap(jnp.array(proposals[valid_idx])))
+                        lp_old = np.array(log_prior_vmap(jnp.array(particles[valid_idx])))
+                        log_alpha = log_alpha + (lp_new - lp_old)
                     log_u = np.log(rng.random(len(valid_idx)))
                     accept_mask = log_u < log_alpha
                     acc_idx = valid_idx[accept_mask]
@@ -314,7 +344,11 @@ def tmcmc_engine(
                 n_leapfrog_stage += hmc_n_leapfrog
                 if bool(accepted):
                     particles[i] = np.array(new_theta)
-                    logL[i] = float(new_logp) / beta_new
+                    # 事前分布ありのとき new_logp = beta*logL + log_pi なので
+                    # beta で割っても logL には戻らない。直接評価する。
+                    logL[i] = (
+                        float(logL_jit(new_theta)) if has_gnn_prior else float(new_logp) / beta_new
+                    )
                     n_accept += 1
 
         elif mutation == "nuts":
@@ -334,7 +368,9 @@ def tmcmc_engine(
                 accept_probs.append(1.0 if accepted else 0.0)
                 if accepted:
                     particles[i] = np.array(new_theta)
-                    logL[i] = float(new_logp) / beta_new
+                    logL[i] = (
+                        float(logL_jit(new_theta)) if has_gnn_prior else float(new_logp) / beta_new
+                    )
                     n_accept += 1
             if stage <= warmup_stages:
                 da_state = dual_averaging_update(da_state, np.mean(accept_probs))

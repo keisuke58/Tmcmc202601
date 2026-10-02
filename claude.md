@@ -44,6 +44,50 @@
 - ローカルでは主に可視化・軽い検証だけ行う
 - 生データは上書き禁止。派生データは別ディレクトリに保存する
 
+## GPU クラスタ運用（copaam / stuttgart 等）— クラウド Claude 連携用
+
+**クラウド側からの指示は `docs/handoff/LATEST.md` にある。`git pull` したら最初に読むこと。**
+
+このリポジトリの `~/Tmcmc202601` は **copaam を含む全ノードで NFS 共有のホームディレクトリ**にある。
+クラウド上の Claude セッションが `ssh copaam` で入った場合、`cd ~/Tmcmc202601` は
+stuttgart01 などの GPU ノードと同じファイルを直接編集できる（rsync 不要）。
+
+- **実体パスは `~/Tmcmc202601` であって `~/IKM_Hiwi/Tmcmc202601` ではない。**
+  後者は 2026-03-05 で止まっている古いコピーで git 管理下にもない。混同注意。
+- **このクラスタには PBS/Torque ジョブスケジューラがある（`qsub`/`qstat`/`pbsnodes`、server: copaam）。**
+  GPU ジョブは `ssh` して直接バックグラウンド実行せず、必ず `qsub` を使うこと。
+  他ユーザーのジョブと GPU が衝突しないよう、`nvidia-smi` の手動確認だけに頼らず
+  `-l nodes=1:ppn=N:gpus=1:<hostname>` で GPU を要求すると Torque が空き GPU を自動割当する
+  （`qstat -f <jobid>` の `exec_gpus` で確認できる）。
+- **ノード構成**: stuttgart01-03 (RTX3090 x4/node), vancouver01-02 (RTX4090 x4/node),
+  celtic01-04 (RTX2080Ti x4/node, celtic04 は down のことがある)。
+- **`ppn` は欲張らない。`ppn=1` が既定でよい**（2026-09-30 に判明）。
+  celtic01-03 は **CPU が 4 コアしかない**（`pbsnodes celtic01` の `np = 4`）ので、
+  他ユーザーが 1 コアでも使っていると `ppn=4` のジョブは永久に Q のまま動けない。
+  vancouver は np=12、stuttgart は余裕がある。JAX/GPU の TMCMC は GPU 1 枚 +
+  CPU 1 コアで足りるため、`-l nodes=1:ppn=1:gpus=1:<host>` にすること。
+  Q から動かないときは `pbsnodes <host>` の `np` と `jobs` を見る。
+- **同時に投げる GPU ジョブは 10 本程度まで**（共有サーバーのため）。
+  条件 × seed × arm でジョブ数が増える設計のときはバッチを分ける。
+- **`--mutation nuts` は GPU で極端に遅い**（2026-09-30 実測）。
+  5000 粒子 15 次元・n_steps=2500 で rw は約 6 分、nuts は 1 時間 51 分経っても
+  1 stage も終わらず walltime 前に打ち切った。prior-check の用途では rw で十分。
+- **既知の罠: PBS バッチジョブは `LD_LIBRARY_PATH=/usr/local/cuda/lib64`（システム CUDA）を
+  自動設定しており、pip の `nvidia-cusparse-cu12` 等と衝突して JAX が GPU を見つけられなくなる**
+  （`RuntimeError: Unable to load cuSPARSE`）。対話 ssh セッションではこの変数が未設定なので
+  再現せず気づきにくい。ジョブスクリプト内で `unset LD_LIBRARY_PATH` してから python を呼ぶこと。
+  診断は `data_5species/main/check_cuda_jax.py`。
+- Python は miniforge/conda 管理。JAX 系は `klempt_fem2` env
+  (`/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3`)。
+- PBS ジョブスクリプトのテンプレート: `data_5species/main/tmcmc_job.sh`（numba/CPU 版の例）、
+  `data_5species/main/dh_prior_check_job.sh`（JAX/GPU 版・上記の罠への対処込みの例、2026-09-30 作成）。
+  新しい GPU ジョブはこれをコピーして書き換えるのが早い。
+- copaam の `~/.local/bin`（PATH 済み）に頻出操作のヘルパーを置いてある（2026-09-30 作成）:
+  - `gpufree [host...]` — GPU 空き確認（省略時は stuttgart01-03 + vancouver01-02）
+  - `pbsme` — 自分の PBS ジョブ一覧（`qstat -u -n1`）
+  - `pbslog <jobid> [行数]` — jobid から Job_Name/出力先を自動解決してログを tail
+    （PBS は実行中ジョブの stdout をバッファするため、完了/クラッシュ前はログが無いのが正常）
+
 ## 対話スタイル詳細
 
 - 日本語で回答する（論文テキストだけ英語にする場合は指示する）
