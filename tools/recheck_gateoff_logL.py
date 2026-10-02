@@ -23,23 +23,23 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
 import jax
+import numpy as np
 
 jax.config.update("jax_enable_x64", True)
-import jax.numpy as jnp  # noqa: E402
+import jax.numpy as jnp
 
 REPO = Path(__file__).resolve().parent.parent
 MAIN = REPO / "data_5species" / "main"
 sys.path.insert(0, str(MAIN))
 sys.path.insert(0, str(REPO / "colab_package"))
 
-from estimate_reduced_nishioka import (  # noqa: E402
+import estimate_reduced_nishioka_jax as R
+from estimate_reduced_nishioka import (
     convert_days_to_model_time,
     load_experimental_data,
 )
-from hamilton_ode_jax import simulate_0d  # noqa: E402
-import estimate_reduced_nishioka_jax as R  # noqa: E402
+from hamilton_ode_jax import simulate_0d
 
 CODE2COND = {
     "dh": ("Dysbiotic", "HOBIC"),
@@ -162,7 +162,8 @@ def main():
             f"{r:8.3f}{mt['rmse']:8.4f}{mm['rmse']:9.4f}{mt['chi']:7.2f}{mt['pg_ratio']:9.2f}",
             flush=True,
         )
-        json.dump(rows, open(args.out + ".json", "w"), indent=1)
+        with open(args.out + ".json", "w") as fj:
+            json.dump(rows, fj, indent=1)
 
     keys = [k for k in rows[0] if k != "theta_true_best"]
     with open(args.out + ".csv", "w", newline="") as fh:
