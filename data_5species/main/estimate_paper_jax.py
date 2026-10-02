@@ -929,6 +929,16 @@ def main():
     }
     if run_record["beta_final"] is not None and run_record["beta_final"] < 1.0 - 1e-9:
         logger.warning(f"beta={run_record['beta_final']:.4f} で打ち切り。事後として使えない")
+    # 保存した logL が保存した粒子に本当に対応しているかを、全粒子で計算し直して確かめる。
+    # 2026-09 に「logL.npy と samples.npy が食い違う」run が出たので、毎回ここで照合する。
+    _recalc = np.asarray(jax.jit(jax.vmap(log_likelihood))(jnp.array(result["samples"])))
+    _diff = float(np.max(np.abs(_recalc - result["log_likelihoods"])))
+    run_record["logL_recheck_maxabs"] = _diff
+    run_record["logL_consistent"] = bool(_diff < 1e-6)
+    if not run_record["logL_consistent"]:
+        logger.error(
+            f"保存 logL と粒子の再計算が一致しない（max|差| = {_diff:.3e}）。この run は使えない"
+        )
     with open(out_dir / "run_record.json", "w") as f:
         json.dump(run_record, f, indent=2, ensure_ascii=False, default=str)
     logger.info(f"主結果を保存: {out_dir}")

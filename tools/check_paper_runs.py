@@ -12,6 +12,8 @@ run 以上になるはずで、これは「探索が主要なモードに届い�
     python3 tools/check_paper_runs.py data_5species/main/_runs/paper_gateoff
 
 判定（同じ TAG・STAGE・事前分布の seed 違いを 1 群とする）:
+  0. 保存した logL が保存した粒子の再計算と一致している（estimator が run の最後に照合して
+     run_record.json の logL_consistent に記録。記録が無い run も FAIL）
   1. 全 run が beta=1 に到達している
   2. 平均受理率が 0.10〜0.60
   3. seed 間で max logL の幅が 1 nat 以内
@@ -126,6 +128,7 @@ def main(root):
         pooled_sd = np.concatenate(samples)[:, free].std(axis=0)
         med_spread = np.ptp(np.array(med), axis=0) / np.maximum(pooled_sd, 1e-12)
         checks = {
+            "0 logL と粒子の対応": all(r.get("logL_consistent") is True for r in recs),
             "1 beta=1": all(
                 r["beta_final"] is not None and r["beta_final"] > 1 - 1e-9 for r in recs
             ),
