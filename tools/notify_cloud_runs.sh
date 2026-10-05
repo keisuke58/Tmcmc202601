@@ -25,12 +25,22 @@ RUN_GLOB="${RUN_GLOB:-*mut80*}"
 # 同じ日に複数回通知するときに report が上書きされないようにする識別子（波ごとに渡す）
 LABEL="${LABEL:-runs}"
 DRY_RUN="${DRY_RUN:-0}"
+# 判定と回収は numpy / jax が要る。PBS バッチのシステム python3 には入っていない
+# （2026-10-05 の pilot_w1b 通知が ModuleNotFoundError: numpy で空振りした）。
+# GPU ジョブと同じ conda 環境を使う。評価は CPU で十分なので GPU は掴まない。
+PYTHON="${PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3}"
+[ -x "$PYTHON" ] || PYTHON=python3
+export JAX_PLATFORMS=cpu
+unset LD_LIBRARY_PATH
 cd "$REPO" || exit 1
+if ! "$PYTHON" -c "import numpy, jax" 2>/dev/null; then
+  echo "警告: $PYTHON に numpy / jax が無い。判定と回収は失敗する"
+fi
 
 TODAY="$(date +%Y-%m-%d)"
 REPORT="docs/handoff/gpu_${TODAY}_${LABEL}.md"
 CSV="docs/handoff/gpu_${TODAY}_${LABEL}.csv"
-CHECK_OUT="$(python3 tools/check_paper_runs.py "$RUNS_ROOT" --glob "$RUN_GLOB" 2>&1)"
+CHECK_OUT="$("$PYTHON" tools/check_paper_runs.py "$RUNS_ROOT" --glob "$RUN_GLOB" 2>&1)"
 VERDICT="$(echo "$CHECK_OUT" | grep -E "^(全群 PASS|FAIL を含む群)" | tail -1)"
 [ -z "$VERDICT" ] && VERDICT="（判定スクリプトが結論行を出さなかった。出力をそのまま読むこと）"
 
@@ -62,7 +72,7 @@ PY
 # 予測するので、論文パイプラインの run（とくにゲート ON）では数字が別物になる。
 # eval_paper_runs.py は run_record の実効値と estimator と同じモジュールで予測し、
 # estimator の RMSE と照合する。
-EVAL_OUT="$(timeout 1800 python3 tools/eval_paper_runs.py "$RUNS_ROOT" --glob "$RUN_GLOB" \
+EVAL_OUT="$(timeout 1800 "$PYTHON" tools/eval_paper_runs.py "$RUNS_ROOT" --glob "$RUN_GLOB" \
   --csv "$REPO/$CSV" 2>&1 | grep -v -E '^(INFO|WARNING):' | tail -40)"
 [ -z "$EVAL_OUT" ] && EVAL_OUT="（eval_paper_runs.py が出力なし）"
 
