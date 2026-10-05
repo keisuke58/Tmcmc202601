@@ -15,7 +15,10 @@ run 以上になるはずで、これは「探索が主要なモードに届い�
   0. 保存した logL が保存した粒子の再計算と一致している（estimator が run の最後に照合して
      run_record.json の logL_consistent に記録。記録が無い run も FAIL）
   1. 全 run が beta=1 に到達している
-  2. 1 粒子が 1 ステージで平均 2 回以上動く（平均受理率 × mutation 回数 >= 2、かつ受理率 <= 0.60）
+  2. 1 粒子が 1 ステージで平均 2 回以上動く（run_record の moves_per_particle_mean。
+     記録が無い古い run は 平均受理率 × mutation 回数 で代用する）
+  2b. 1 粒子が run 全体で各自由次元あたり 5 回以上動く（移動回数 × ステージ数 / 自由次元数）
+     — 判定 2 を通っても、15 次元を 23 回の移動で埋めることはできない
   3. seed 間で max logL の幅が 1 nat 以内
   4. seed 間で各自由次元の中央値の幅が、プールした事後 sd の 0.5 倍以内
   5. (ident のみ) 事前分布なしの max logL >= 事前分布ありの max logL − 0.5
@@ -54,6 +57,24 @@ NAMES = [
     "a45",
 ]
 WATCH = {"a35": 18, "a45": 19}
+
+
+def _moves(rec):
+    """1 粒子が 1 ステージで動いた回数。実測があればそれを使う。
+
+    古い run は mean_accept が nominal な n_mutation_steps で割られているので、
+    掛け戻すと移動回数になる（2026-10-05 にエンジン側で実測を残すよう修正）。
+    """
+    m = rec.get("moves_per_particle_mean")
+    if m is not None:
+        return float(m)
+    return float(rec["mean_accept"]) * float(rec["args"]["n_mutation_steps"])
+
+
+def _moves_per_dim(rec):
+    """run 全体での 1 粒子あたりの移動回数を、自由次元数で割った値。"""
+    n_free = max(len(rec.get("free_dims") or []), 1)
+    return _moves(rec) * float(rec["n_stages"]) / n_free
 
 
 def load(d):
@@ -135,14 +156,22 @@ def main(root):
             # 受理率そのものではなく「1 粒子が 1 ステージで平均何回動いたか」を見る。
             # DE-MC と RW を交互に使い、提案の幅は γ/√(2d)・2.38²/d で正しく設定されている。
             # 細く曲がった事後や箱の外への提案で受理率は下がるが、mutation 回数が多ければ粒子は動く。
-            "2 粒子の移動(受理率×mutation>=2)": all(
-                r["mean_accept"] * r["args"]["n_mutation_steps"] >= 2.0 and r["mean_accept"] <= 0.60
-                for r in recs
+            "2 粒子の移動(>=2/stage)": all(
+                _moves(r) >= 2.0 and r["mean_accept"] <= 0.60 for r in recs
             ),
+            "2b 次元あたりの移動(>=5)": all(_moves_per_dim(r) >= 5.0 for r in recs),
             "3 maxlogL 幅<=1": len(maxll) < 2 or float(np.ptp(maxll)) <= 1.0,
             "4 中央値幅<=0.5sd": len(med) < 2 or float(med_spread.max()) <= 0.5,
         }
         worst = [f"{NAMES[free[k]]}({med_spread[k]:.1f})" for k in np.argsort(-med_spread)[:3]]
+        print(
+            "       1 粒子の移動: "
+            + ", ".join(
+                f"seed{r['args']['seed']} {_moves(r):.1f}/stage "
+                f"({_moves_per_dim(r):.1f}/次元)"
+                for r in recs
+            )
+        )
         for k, v in checks.items():
             print(f"  {'PASS' if v else 'FAIL'} {k}")
         print(f"       maxlogL 幅 = {np.ptp(maxll):.2f}、中央値幅/sd 上位: {', '.join(worst)}")

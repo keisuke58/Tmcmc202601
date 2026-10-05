@@ -43,6 +43,12 @@ case "$GATE" in
   on)  K_HILL=0.05 ;;
   *) echo "unknown GATE $GATE (off|on)"; exit 1 ;;
 esac
+# mutation 回数の上書き（空なら STAGE ごとの既定値）
+N_MUT="${N_MUT:-}"
+# 低 beta で mutation 回数を絞る下限。1.0 = 絞らない（2026-10-05 の修正、既定）
+THROTTLE_FLOOR="${THROTTLE_FLOOR:-1.0}"
+# 出力ディレクトリ名の末尾に付ける識別子。過去の run を上書きしないために使う
+RUNTAG="${RUNTAG:-}"
 
 case "$TAG" in
   CS) COND=Commensal; CULT=Static ;;
@@ -59,7 +65,8 @@ PYTHON=/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3
 
 # 共通: ゲートは GATE で切り替え（既定 OFF）、実験 Day1 の初期値、DE-MC
 COMMON=(--condition "$COND" --cultivation "$CULT" --K-hill "$K_HILL" --n-hill 4.0
-        --use-exp-init --use-de-mc --mutation rw --seed "$SEED" --device gpu)
+        --use-exp-init --use-de-mc --mutation rw --seed "$SEED" --device gpu
+        --mutation-throttle-floor "$THROTTLE_FLOOR")
 
 need_prev() { [ -n "$PREV" ] && [ -f "$PREV/samples.npy" ] || { echo "PREV が無い: '$PREV'"; exit 1; }; }
 
@@ -78,10 +85,24 @@ case "$STAGE" in
   *) echo "unknown STAGE $STAGE"; exit 1 ;;
 esac
 
+# N_MUT が指定されていれば --n-mutation-steps を差し替える
+if [ -n "$N_MUT" ]; then
+  for i in "${!ARGS[@]}"; do
+    [ "${ARGS[$i]}" = "--n-mutation-steps" ] && ARGS[$((i + 1))]="$N_MUT"
+  done
+fi
+
 SUFFIX=""
 [ "$STAGE" = "ident" ] && SUFFIX="_prior${PRIOR_SCALE}"
 [ "$GATE" = "on" ] && SUFFIX="${SUFFIX}_gateon"
+[ -n "$RUNTAG" ] && SUFFIX="${SUFFIX}_${RUNTAG}"
 OUTDIR="_runs/paper_gateoff/${TAG}_${STAGE}${SUFFIX}_seed${SEED}"
+
+# 既存の run は上書きしない（生データ上書き禁止）。意図的なら OVERWRITE=1 を渡す
+if [ -d "$OUTDIR" ] && [ "${OVERWRITE:-0}" != "1" ]; then
+  echo "既に存在する: $OUTDIR  （RUNTAG を変えるか OVERWRITE=1 を渡す）"
+  exit 1
+fi
 
 # GPU の割り当ては PBS に任せる（PBS_GPUFILE）。無ければ 0。
 if [ -n "${PBS_GPUFILE:-}" ] && [ -f "${PBS_GPUFILE}" ]; then

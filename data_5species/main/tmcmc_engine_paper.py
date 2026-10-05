@@ -397,6 +397,9 @@ def tmcmc_engine(
     verbose: bool = True,
     log_prior_fn: Callable | None = None,
     n_mutation_steps: int = 1,
+    # RW mutation は低 beta で n_mutation_steps を beta 倍に絞る（下限 = この値）。
+    # 1.0 にすると絞らない（全ステージで n_mutation_steps 回まわす）。
+    mutation_throttle_floor: float = 0.3,
     use_de_mc: bool = False,
     de_mc_gamma: float = 2.38,
     resample_method: str = "systematic",
@@ -509,6 +512,8 @@ def tmcmc_engine(
 
     beta, betas = 0.0, [0.0]
     stage_times, accept_rates, ess_history = [], [], []
+    # 実際にまわした mutation 回数と「1 粒子が動いた回数」をステージごとに残す
+    n_mut_history, moves_per_particle_history = [], []
     n_leapfrog_history, eps_history = [], []
     cv_weights_history = []  # Convergence diagnostic
     log_evidence = 0.0  # Ching & Chen 2007: cumulative log evidence
@@ -659,6 +664,8 @@ def tmcmc_engine(
         _skip_mutation = waste_free and mutation == "rw" and n_mutation_steps > 1
         if not _skip_mutation:
             n_accept, n_leapfrog_stage = 0, 0
+        # RW 以外は 1 提案/粒子/ステージ。waste-free は n_mutation_steps 回まわる。
+        _n_mut_actual = n_mutation_steps if _skip_mutation else 1
         key = jr.PRNGKey(seed + stage * 1000)
         current_eps = (
             np.exp(da_state["log_eps"])
@@ -669,7 +676,8 @@ def tmcmc_engine(
         if mutation == "rw" and not _skip_mutation:
             # --- Batched RW + optional DE-MC mutation (vmap) with adaptive scale ---
             # Adaptive mutation steps: fewer at low beta, more at high beta
-            _n_mut = max(3, int(n_mutation_steps * max(0.3, beta_new)))
+            _n_mut = max(3, int(n_mutation_steps * max(mutation_throttle_floor, beta_new)))
+            _n_mut_actual = _n_mut
 
             # --- Flow-enhanced proposals (Gabrie et al. 2022) ---
             _use_flow_this_stage = (
@@ -905,8 +913,12 @@ def tmcmc_engine(
         beta = beta_new
         betas.append(beta)
         stage_times.append(time.time() - t_stage)
-        _n_total_proposals = n_particles * (n_mutation_steps if mutation == "rw" else 1)
+        # 受理率は「実際に出した提案」で割る（nominal な n_mutation_steps で割ると
+        # 低 beta で絞った分だけ受理率が低く出る。2026-10-05 修正）
+        _n_total_proposals = n_particles * _n_mut_actual
         accept_rates.append(n_accept / _n_total_proposals)
+        n_mut_history.append(int(_n_mut_actual))
+        moves_per_particle_history.append(n_accept / n_particles)
         ess_history.append(ess_val)
         n_leapfrog_history.append(n_leapfrog_stage)
         eps_history.append(current_eps)
@@ -937,6 +949,8 @@ def tmcmc_engine(
         "total_time": time.time() - t0,
         "stage_times": stage_times,
         "accept_rates": accept_rates,
+        "n_mut_history": n_mut_history,
+        "moves_per_particle_history": moves_per_particle_history,
         "ess_history": ess_history,
         "n_stages": len(betas) - 1,
         "n_leapfrog_history": n_leapfrog_history,

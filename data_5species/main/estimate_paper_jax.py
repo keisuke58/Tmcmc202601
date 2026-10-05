@@ -426,6 +426,12 @@ def main():
     parser.add_argument(
         "--n-mutation-steps", type=int, default=1, help="RW mutation steps per stage"
     )
+    parser.add_argument(
+        "--mutation-throttle-floor",
+        type=float,
+        default=0.3,
+        help="低 beta で mutation 回数を beta 倍に絞るときの下限。1.0 で絞らない",
+    )
     # Accuracy improvements
     parser.add_argument(
         "--use-de-mc", action="store_true", help="Enable DE-MC proposals (alternating with RW)"
@@ -845,6 +851,7 @@ def main():
         seed=args.seed,
         nuts_max_depth=6,
         n_mutation_steps=args.n_mutation_steps,
+        mutation_throttle_floor=args.mutation_throttle_floor,
         use_de_mc=args.use_de_mc,
         de_mc_gamma=args.de_mc_gamma,
         resample_method=args.resample_method,
@@ -924,6 +931,21 @@ def main():
         ),
         "total_time_s": result["total_time"],
         "mean_accept": float(np.mean(result["accept_rates"])),
+        # ステージごとの実測値。判定 2（粒子が動いたか）はこれを見る
+        "stage_history": {
+            "beta": [float(b) for b in np.asarray(result["betas"])[1:]],
+            "accept_rate": [float(a) for a in result["accept_rates"]],
+            "n_mut": [int(n) for n in result.get("n_mut_history", [])],
+            "moves_per_particle": [
+                float(m) for m in result.get("moves_per_particle_history", [])
+            ],
+            "ess": [float(e) for e in result["ess_history"]],
+        },
+        "moves_per_particle_mean": (
+            float(np.mean(result["moves_per_particle_history"]))
+            if result.get("moves_per_particle_history")
+            else None
+        ),
         "max_logL": float(result["log_likelihoods"].max()),
         "log_evidence": float(log_evidence) if log_evidence is not None else None,
     }
