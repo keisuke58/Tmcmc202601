@@ -17,6 +17,8 @@ estimate_reduced_nishioka_jax.py:144-149 と同じ手順を踏む:
     python eval_gateoff_runs.py [_runs のグロブ ...]
 """
 
+import argparse
+import csv
 import glob
 import json
 import sys
@@ -81,39 +83,149 @@ def predict(theta, phi0, idx):
     return pred / pred.sum(axis=1, keepdims=True)  # 時点ごとに和 1
 
 
-def main(patterns):
+BOX_LO, BOX_HI = -15.0, 20.0
+EDGE_FRAC = 0.05  # 箱の端から幅の何割以内を「張り付き」とみなすか
+
+
+def parse_name(name):
+    """run 名から (code, arm, 粒子数, seed) を取る。
+
+    旧: dh_gateoff_sigma6_5000p_seed42_cpualign_20260930 -> (dh, sigma6, 5000, 42)
+    新: DH_pilot_gateon_mut80_seed42                      -> (dh, pilot/gateon, -1, 42)
+        DH_ident_prior6_mut80_seed123                     -> (dh, ident/prior6, -1, 123)
+    """
+    parts = name.split("_")
+    code = parts[0].lower()
+    npart = next((int(x[:-1]) for x in parts if x.endswith("p") and x[:-1].isdigit()), -1)
+    seed = next((int(x[4:]) for x in parts if x.startswith("seed") and x[4:].isdigit()), -1)
+    if len(parts) > 1 and parts[1] in ("pilot", "p1", "p2", "ult", "ident"):
+        # 新しい命名: STAGE と、それを修飾する部分（gateon / prior6 / mut80 …）を arm にする
+        mods = [x for x in parts[2:] if not x.startswith("seed")]
+        arm = "/".join([parts[1]] + mods) if mods else parts[1]
+    else:
+        arm = parts[2] if len(parts) > 2 else "?"
+    return code, arm, npart, seed
+
+
+def posterior_stats(samples, j, bounds=None):
+    """theta[j] の事後統計。箱の端は run 自身の箱（無ければ [BOX_LO, BOX_HI]）基準。"""
+    x = samples[:, j].astype(float)
+    BOX_LO, BOX_HI = bounds if bounds else (globals()["BOX_LO"], globals()["BOX_HI"])
+    m = EDGE_FRAC * (BOX_HI - BOX_LO)
+    lo, hi = np.percentile(x, [2.5, 97.5])
+    return {
+        "mean": float(x.mean()),
+        "sd": float(x.std()),
+        "ci_lo": float(lo),
+        "ci_hi": float(hi),
+        "edge_pct": float(np.mean((x < BOX_LO + m) | (x > BOX_HI - m)) * 100),
+        "p_pos": float(np.mean(x > 0)),
+    }
+
+
+def evaluate(d):
+    name = Path(d).name
+    code, arm, npart, seed = parse_name(name)
+    data, t_days, phi0, idx, sigma = setup(code)
+    th = json.load(open(Path(d, "theta_MAP.json")))
+    theta = np.array([th[str(i)] for i in range(20)], dtype=np.float64)
+    pred = predict(theta, phi0, idx)
+    res = data - pred
+    k15, k21 = t_days.tolist().index(15), t_days.tolist().index(21)
+    row = {
+        "run": name,
+        "cond": code,
+        "arm": arm,
+        "n_particles": npart,
+        "seed": seed,
+        "rmse": float(np.sqrt(np.mean(res**2))),
+        "chi": float(np.sqrt(np.mean((res / sigma) ** 2))),
+        "pg_d15": float(pred[k15, 4]),
+        "pg_d21": float(pred[k21, 4]),
+        "pg_ratio": float(pred[k21, 4] / max(pred[k15, 4], 1e-12)),
+        "obs_pg_ratio": float(data[k21, 4] / max(data[k15, 4], 1e-12)),
+        "a35_map": float(theta[18]),
+        "a45_map": float(theta[19]),
+    }
+    logl = Path(d, "logL.npy")
+    if logl.exists():
+        try:
+            row["max_logL"] = float(np.load(logl).max())
+        except ValueError:  # git-lfs のポインタなど
+            row["max_logL"] = float("nan")
+    smp = Path(d, "samples.npy")
+    if smp.exists():
+        try:
+            S = np.load(smp)
+            # run 自身の箱を config.json から読む（無ければ既定の [-15, 20]）
+            bounds_all = None
+            cfg = Path(d, "config.json")
+            if cfg.exists():
+                try:
+                    pb = json.load(open(cfg)).get("prior_bounds_final")
+                    bounds_all = pb
+                except (json.JSONDecodeError, OSError):
+                    pass
+            for label, j in (("a35", 18), ("a45", 19)):
+                bj = None
+                if bounds_all and len(bounds_all) > j:
+                    lo, hi = bounds_all[j]
+                    if hi > lo:
+                        bj = (float(lo), float(hi))
+                for k, v in posterior_stats(S, j, bj).items():
+                    row[f"{label}_{k}"] = v
+        except ValueError:
+            pass
+    return row
+
+
+COLUMNS = [
+    "run", "cond", "arm", "n_particles", "seed", "max_logL",
+    "rmse", "chi", "pg_d15", "pg_d21", "pg_ratio", "obs_pg_ratio",
+    "a35_map", "a35_mean", "a35_sd", "a35_ci_lo", "a35_ci_hi", "a35_edge_pct", "a35_p_pos",
+    "a45_map", "a45_mean", "a45_sd", "a45_ci_lo", "a45_ci_hi", "a45_edge_pct", "a45_p_pos",
+]
+
+
+def main(patterns, csv_path=None):
     dirs = sorted({d for p in patterns for d in glob.glob(p) if Path(d, "theta_MAP.json").exists()})
     if not dirs:
         print("評価できる run がありません（theta_MAP.json 待ち）")
         return
+    rows = [evaluate(d) for d in dirs if parse_name(Path(d).name)[0] in CODE2COND]
+
     hdr = (
-        f"{'run':<42}{'RMSE':>8}{'chi':>8}{'PgD15':>8}{'PgD21':>8}{'D21/15':>8}{'a35':>8}{'a45':>8}"
+        f"{'run':<44}{'RMSE':>8}{'chi':>7}{'D21/15':>8}"
+        f"{'a35MAP':>8}{'a35sd':>7}{'a35端%':>8}{'a45MAP':>8}{'P(a45>0)':>9}"
     )
     print(hdr)
     print("-" * len(hdr))
-    for d in dirs:
-        name = Path(d).name
-        code = name.split("_")[0]
-        if code not in CODE2COND:
-            continue
-        data, t_days, phi0, idx, sigma = setup(code)
-        th = json.load(open(Path(d, "theta_MAP.json")))
-        theta = np.array([th[str(i)] for i in range(20)], dtype=np.float64)
-        pred = predict(theta, phi0, idx)
-        res = data - pred
-        rmse = float(np.sqrt(np.mean(res**2)))
-        chi = float(np.sqrt(np.mean((res / sigma) ** 2)))
-        d15, d21 = pred[t_days.tolist().index(15), 4], pred[t_days.tolist().index(21), 4]
+    for r in rows:
         print(
-            f"{name:<42}{rmse:8.4f}{chi:8.3f}{d15:8.4f}{d21:8.4f}"
-            f"{d21/max(d15,1e-12):8.2f}{theta[18]:+8.2f}{theta[19]:+8.2f}"
+            f"{r['run']:<44}{r['rmse']:8.4f}{r['chi']:7.2f}{r['pg_ratio']:8.2f}"
+            f"{r['a35_map']:+8.2f}{r.get('a35_sd', float('nan')):7.2f}"
+            f"{r.get('a35_edge_pct', float('nan')):7.1f}%"
+            f"{r['a45_map']:+8.2f}{r.get('a45_p_pos', float('nan')):9.2f}"
         )
-    for code in sorted({Path(d).name.split("_")[0] for d in dirs} & set(CODE2COND)):
+    for code in sorted({r["cond"] for r in rows}):
         data, t_days, _, _, _ = setup(code)
-        d15, d21 = data[t_days.tolist().index(15), 4], data[t_days.tolist().index(21), 4]
-        print(f"[実測 {code}] Pg D15={d15:.4f} D21={d21:.4f} D21/15={d21/d15:.2f}")
+        k15, k21 = t_days.tolist().index(15), t_days.tolist().index(21)
+        print(
+            f"[実測 {code}] Pg D15={data[k15,4]:.4f} D21={data[k21,4]:.4f} "
+            f"D21/15={data[k21,4]/data[k15,4]:.2f}"
+        )
+
+    if csv_path:
+        with open(csv_path, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=COLUMNS, extrasaction="ignore")
+            w.writeheader()
+            w.writerows(rows)
+        print(f"\nCSV: {csv_path}  ({len(rows)} run)")
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:] or ["_runs/*_gateoff_*cpualign*"]
-    main(args)
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("patterns", nargs="*", default=None, help="_runs のグロブ")
+    ap.add_argument("--csv", default=None, help="CSV の書き出し先")
+    a = ap.parse_args()
+    main(a.patterns or ["_runs/*_gateoff_*cpualign*"], a.csv)

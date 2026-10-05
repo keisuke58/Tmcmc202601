@@ -22,11 +22,14 @@ set -uo pipefail
 REPO="$HOME/Tmcmc202601"
 RUNS_ROOT="${RUNS_ROOT:-data_5species/main/_runs/paper_gateoff}"
 RUN_GLOB="${RUN_GLOB:-*mut80*}"
+# 同じ日に複数回通知するときに report が上書きされないようにする識別子（波ごとに渡す）
+LABEL="${LABEL:-runs}"
 DRY_RUN="${DRY_RUN:-0}"
 cd "$REPO" || exit 1
 
 TODAY="$(date +%Y-%m-%d)"
-REPORT="docs/handoff/gpu_${TODAY}_runs.md"
+REPORT="docs/handoff/gpu_${TODAY}_${LABEL}.md"
+CSV="docs/handoff/gpu_${TODAY}_${LABEL}.csv"
 CHECK_OUT="$(python3 tools/check_paper_runs.py "$RUNS_ROOT" --glob "$RUN_GLOB" 2>&1)"
 VERDICT="$(echo "$CHECK_OUT" | grep -E "^(全群 PASS|FAIL を含む群)" | tail -1)"
 [ -z "$VERDICT" ] && VERDICT="（判定スクリプトが結論行を出さなかった。出力をそのまま読むこと）"
@@ -54,8 +57,13 @@ print("\n".join(rows) if rows else "| （出力ディレクトリが見つから
 PY
 )"
 
+# RMSE・Pg D21/D15・a35/a45 の事後を前進モデルから回収する（CSV も残す）
+EVAL_OUT="$(cd data_5species/main && timeout 1800 python3 eval_gateoff_runs.py \
+  "_runs/paper_gateoff/$RUN_GLOB" --csv "$REPO/$CSV" 2>&1 | tail -40)"
+[ -z "$EVAL_OUT" ] && EVAL_OUT="（eval_gateoff_runs.py が出力なし）"
+
 {
-  echo "# GPU 側 → クラウド側: run 終了の自動通知（${TODAY}）"
+  echo "# GPU 側 → クラウド側: run 終了の自動通知（${TODAY} / ${LABEL}）"
   echo
   echo "\`tools/notify_cloud_runs.sh\` が PBS の依存ジョブとして自動で書いた。"
   echo "監視対象: \`$RUNS_ROOT/$RUN_GLOB\`（出力ディレクトリ $FOUND 個）"
@@ -72,6 +80,17 @@ PY
   echo
   echo "判定 2b の目標は **5 回/次元**。下回っていれば混合不足なので解釈しない。"
   echo
+  echo "## 回収した数字（eval_gateoff_runs.py）"
+  echo
+  echo "RMSE・chi・Pg D21/15・a35/a45 の MAP と事後。箱の端は run 自身の箱で判定している。"
+  echo "**判定を通っていない群の数字は使わない**（seed ごとに別の領域を見ているだけなので比較にならない）。"
+  echo
+  echo '```'
+  echo "$EVAL_OUT"
+  echo '```'
+  echo
+  echo "全列は \`${CSV}\` にある。"
+  echo
   echo "## check_paper_runs.py の出力（そのまま）"
   echo
   echo '```'
@@ -87,7 +106,7 @@ PY
 if [ "$DRY_RUN" = "1" ]; then
   echo "=== DRY_RUN: $REPORT に書いた内容 ==="
   cat "$REPORT"
-  rm -f "$REPORT"
+  rm -f "$REPORT" "$CSV"
   exit 0
 fi
 
@@ -105,6 +124,7 @@ if head in s and row not in s:
 PY
 
 git add "$REPORT" docs/handoff/LATEST.md
+[ -f "$CSV" ] && git add "$CSV"
 git -c user.name="Keisuke Nishioka" -c user.email="kei128608@gmail.com" \
   commit -q -m "docs: run 終了の自動通知（${TODAY}）— ${VERDICT}" || {
     echo "commit するものが無い"; exit 0; }
