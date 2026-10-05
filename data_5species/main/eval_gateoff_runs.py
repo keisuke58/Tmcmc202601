@@ -30,15 +30,15 @@ MAIN_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(MAIN_DIR))
 sys.path.insert(0, str(MAIN_DIR.parent.parent / "colab_package"))
 
-import jax  # noqa: E402
+import jax
 
 jax.config.update("jax_enable_x64", True)
-import jax.numpy as jnp  # noqa: E402
-from estimate_reduced_nishioka import (  # noqa: E402
+import jax.numpy as jnp
+from estimate_reduced_nishioka import (
     convert_days_to_model_time,
     load_experimental_data,
 )
-from hamilton_ode_jax import simulate_0d  # noqa: E402
+from hamilton_ode_jax import simulate_0d
 
 DATA_DIR = MAIN_DIR.parent  # estimate_reduced_nishioka_jax.py:34 と同じ
 
@@ -127,7 +127,8 @@ def evaluate(d):
     name = Path(d).name
     code, arm, npart, seed = parse_name(name)
     data, t_days, phi0, idx, sigma = setup(code)
-    th = json.load(open(Path(d, "theta_MAP.json")))
+    with open(Path(d, "theta_MAP.json")) as f:
+        th = json.load(f)
     theta = np.array([th[str(i)] for i in range(20)], dtype=np.float64)
     pred = predict(theta, phi0, idx)
     res = data - pred
@@ -162,8 +163,8 @@ def evaluate(d):
             cfg = Path(d, "config.json")
             if cfg.exists():
                 try:
-                    pb = json.load(open(cfg)).get("prior_bounds_final")
-                    bounds_all = pb
+                    with open(cfg) as f:
+                        bounds_all = json.load(f).get("prior_bounds_final")
                 except (json.JSONDecodeError, OSError):
                     pass
             for label, j in (("a35", 18), ("a45", 19)):
@@ -180,10 +181,32 @@ def evaluate(d):
 
 
 COLUMNS = [
-    "run", "cond", "arm", "n_particles", "seed", "max_logL",
-    "rmse", "chi", "pg_d15", "pg_d21", "pg_ratio", "obs_pg_ratio",
-    "a35_map", "a35_mean", "a35_sd", "a35_ci_lo", "a35_ci_hi", "a35_edge_pct", "a35_p_pos",
-    "a45_map", "a45_mean", "a45_sd", "a45_ci_lo", "a45_ci_hi", "a45_edge_pct", "a45_p_pos",
+    "run",
+    "cond",
+    "arm",
+    "n_particles",
+    "seed",
+    "max_logL",
+    "rmse",
+    "chi",
+    "pg_d15",
+    "pg_d21",
+    "pg_ratio",
+    "obs_pg_ratio",
+    "a35_map",
+    "a35_mean",
+    "a35_sd",
+    "a35_ci_lo",
+    "a35_ci_hi",
+    "a35_edge_pct",
+    "a35_p_pos",
+    "a45_map",
+    "a45_mean",
+    "a45_sd",
+    "a45_ci_lo",
+    "a45_ci_hi",
+    "a45_edge_pct",
+    "a45_p_pos",
 ]
 
 
@@ -192,6 +215,17 @@ def main(patterns, csv_path=None):
     if not dirs:
         print("評価できる run がありません（theta_MAP.json 待ち）")
         return
+    # 論文パイプライン（estimate_paper_jax.py）の run はこの評価器で読まない。ここは
+    # colab_package の前進モデル（n_hill=2・K_hill=0 固定）で予測するので、別のモデルになる
+    # （ゲート ON の run で RMSE 0.126 → 0.272 にずれるのを確認済み）。tools/eval_paper_runs.py を使う
+    paper = [d for d in dirs if Path(d, "run_record.json").exists()]
+    if paper:
+        print(
+            f"論文パイプラインの run {len(paper)} 本は評価しない（tools/eval_paper_runs.py を使う）: "
+            + ", ".join(Path(d).name for d in paper[:5])
+            + (" …" if len(paper) > 5 else "")
+        )
+    dirs = [d for d in dirs if d not in paper]
     rows = [evaluate(d) for d in dirs if parse_name(Path(d).name)[0] in CODE2COND]
 
     hdr = (

@@ -57,10 +57,14 @@ print("\n".join(rows) if rows else "| （出力ディレクトリが見つから
 PY
 )"
 
-# RMSE・Pg D21/D15・a35/a45 の事後を前進モデルから回収する（CSV も残す）
-EVAL_OUT="$(cd data_5species/main && timeout 1800 python3 eval_gateoff_runs.py \
-  "_runs/paper_gateoff/$RUN_GLOB" --csv "$REPO/$CSV" 2>&1 | tail -40)"
-[ -z "$EVAL_OUT" ] && EVAL_OUT="（eval_gateoff_runs.py が出力なし）"
+# RMSE・Pg D21/D15・a33/a45 の事後を回収する（CSV も残す）。
+# eval_gateoff_runs.py は使わない: colab_package の前進モデル（n_hill=2・K_hill=0 固定）で
+# 予測するので、論文パイプラインの run（とくにゲート ON）では数字が別物になる。
+# eval_paper_runs.py は run_record の実効値と estimator と同じモジュールで予測し、
+# estimator の RMSE と照合する。
+EVAL_OUT="$(timeout 1800 python3 tools/eval_paper_runs.py "$RUNS_ROOT" --glob "$RUN_GLOB" \
+  --csv "$REPO/$CSV" 2>&1 | grep -v -E '^(INFO|WARNING):' | tail -40)"
+[ -z "$EVAL_OUT" ] && EVAL_OUT="（eval_paper_runs.py が出力なし）"
 
 {
   echo "# GPU 側 → クラウド側: run 終了の自動通知（${TODAY} / ${LABEL}）"
@@ -80,9 +84,9 @@ EVAL_OUT="$(cd data_5species/main && timeout 1800 python3 eval_gateoff_runs.py \
   echo
   echo "判定 2b の目標は **5 回/次元**。下回っていれば混合不足なので解釈しない。"
   echo
-  echo "## 回収した数字（eval_gateoff_runs.py）"
+  echo "## 回収した数字（tools/eval_paper_runs.py）"
   echo
-  echo "RMSE・chi・Pg D21/15・a35/a45 の MAP と事後。箱の端は run 自身の箱で判定している。"
+  echo "RMSE（estimator の値と照合）・Pg D21/15・a33/a45 の事後 5/50/95% と箱の端の割合（run 自身の箱）。"
   echo "**判定を通っていない群の数字は使わない**（seed ごとに別の領域を見ているだけなので比較にならない）。"
   echo
   echo '```'
