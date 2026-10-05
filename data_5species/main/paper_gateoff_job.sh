@@ -27,7 +27,9 @@
 #   qsub -l walltime=04:00:00 -v STAGE=p2,TAG=DH,SEED=42,PREV=<p1 の出力> paper_gateoff_job.sh
 #   qsub -l walltime=08:00:00 -v STAGE=ult,TAG=DH,SEED=42,PREV=<p2 の出力> paper_gateoff_job.sh
 #   qsub -l walltime=03:00:00 -v STAGE=ident,TAG=DH,SEED=42,PRIOR_SCALE=0 paper_gateoff_job.sh
-# 特定ノードに載せるときは -l nodes=1:ppn=1:gpus=1:stuttgart01 を上書きする。
+# ノードは必ず明示する: -l nodes=1:ppn=1:gpus=1:stuttgart01（stuttgart01-03 / celtic01 / celtic02）。
+# celtic03 は使わない。GPU が 1 枚落ちていて、割り当てられると起動時に死ぬ
+# （cuInit(0) failed: CUDA_ERROR_NO_DEVICE、2026-10-05）。省略すると Torque が celtic03 にも割り当てる。
 # ============================================================
 set -euo pipefail
 

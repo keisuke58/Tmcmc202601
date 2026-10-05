@@ -7,11 +7,21 @@
 **GPU / 重い計算は `qsub`（PBS/Torque, server: copaam）でしか投入しない。**
 `ssh` して裏で直接走らせることはしない。
 
+**`celtic03` は使わない。** ノードを明示して投入する（使えるのは `stuttgart01-03` と
+`celtic01` / `celtic02`。各ノード GPU 4 枚）。
+
 ```bash
 cd ~/Tmcmc202601/data_5species/main
-qsub -l walltime=05:00:00 -v STAGE=ident,TAG=DH,SEED=42 paper_gateoff_job.sh
+qsub -l nodes=1:ppn=1:gpus=1:stuttgart01 -l walltime=05:00:00 \
+     -v STAGE=ident,TAG=DH,SEED=42 paper_gateoff_job.sh
 qstat -u nishioka    # 自分のジョブを確認
 ```
+
+複数本は stuttgart01 → 02 → 03 → celtic01 → celtic02 と振り分ける。ノード指定を省くと
+Torque が celtic03 にも割り当てる。**celtic03 は GPU が 1 枚バスから落ちていて
+（`0000:1A:00.0`、`nvidia-smi` 自体がエラー）、割り当てられた GPU ジョブは `cuInit(0)` が
+`CUDA_ERROR_NO_DEVICE` で失敗して起動時に死ぬ**（2026-10-05 時点・管理者連絡済み）。
+celtic01 / celtic02 は正常。
 
 理由と効果:
 
