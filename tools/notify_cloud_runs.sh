@@ -20,6 +20,17 @@
 set -uo pipefail
 
 REPO="$HOME/Tmcmc202601"
+
+# PBS は qsub した時点のスクリプトを複製して持つので、キューで待っている間に repo を直しても
+# そのジョブには届かない（2026-10-06 の ident 通知は、修正前の版のまま numpy 無しで空振りした）。
+# 走り出したら最新を pull し、repo にある版で実行し直す。
+if [ -z "${NOTIFY_REEXEC:-}" ]; then
+  cd "$REPO" || exit 1
+  git pull --rebase --quiet origin "$(git rev-parse --abbrev-ref HEAD)" \
+    || echo "警告: 実行前の pull に失敗。手元の版で続ける"
+  NOTIFY_REEXEC=1 exec bash "$REPO/tools/notify_cloud_runs.sh"
+fi
+
 RUNS_ROOT="${RUNS_ROOT:-data_5species/main/_runs/paper_gateoff}"
 RUN_GLOB="${RUN_GLOB:-*mut80*}"
 # 同じ日に複数回通知するときに report が上書きされないようにする識別子（波ごとに渡す）
