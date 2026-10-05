@@ -936,9 +936,7 @@ def main():
             "beta": [float(b) for b in np.asarray(result["betas"])[1:]],
             "accept_rate": [float(a) for a in result["accept_rates"]],
             "n_mut": [int(n) for n in result.get("n_mut_history", [])],
-            "moves_per_particle": [
-                float(m) for m in result.get("moves_per_particle_history", [])
-            ],
+            "moves_per_particle": [float(m) for m in result.get("moves_per_particle_history", [])],
             "ess": [float(e) for e in result["ess_history"]],
         },
         "moves_per_particle_mean": (

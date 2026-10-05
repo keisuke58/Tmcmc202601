@@ -27,7 +27,7 @@ cd "$REPO" || exit 1
 
 TODAY="$(date +%Y-%m-%d)"
 REPORT="docs/handoff/gpu_${TODAY}_runs.md"
-CHECK_OUT="$(python3 tools/check_paper_runs.py "$RUNS_ROOT" 2>&1)"
+CHECK_OUT="$(python3 tools/check_paper_runs.py "$RUNS_ROOT" --glob "$RUN_GLOB" 2>&1)"
 VERDICT="$(echo "$CHECK_OUT" | grep -E "^(全群 PASS|FAIL を含む群)" | tail -1)"
 [ -z "$VERDICT" ] && VERDICT="（判定スクリプトが結論行を出さなかった。出力をそのまま読むこと）"
 

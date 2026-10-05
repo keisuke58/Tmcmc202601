@@ -10,6 +10,7 @@ run 以上になるはずで、これは「探索が主要なモードに届い�
 
 使い方:
     python3 tools/check_paper_runs.py data_5species/main/_runs/paper_gateoff
+    python3 tools/check_paper_runs.py data_5species/main/_runs/paper_gateoff --glob '*mut80*'
 
 判定（同じ TAG・STAGE・事前分布の seed 違いを 1 群とする）:
   0. 保存した logL が保存した粒子の再計算と一致している（estimator が run の最後に照合して
@@ -88,13 +89,20 @@ def load(d):
     return rec, s, ll, cfg
 
 
-def main(root):
+def _prior_free_key(key):
+    """ident の群名から事前分布の部分を伏せる（判定 5 で同じ設定の prior0 と priorX を組にする）。"""
+    return re.sub(r"_ident_prior[0-9.]+", "_ident_prior*", key)
+
+
+def main(root, pattern="*"):
     root = Path(root)
     if not root.is_dir():
         print(f"判定できない: {root} が無い")
         return 1
     groups = defaultdict(list)
-    for d in sorted(root.glob("*_seed*")):
+    for d in sorted(root.glob(pattern)):
+        if not re.search(r"_seed\d+$", d.name):
+            continue
         if not (d / "run_record.json").exists():
             print(f"skip（run_record.json 無し）: {d.name}")
             continue
@@ -167,8 +175,7 @@ def main(root):
         print(
             "       1 粒子の移動: "
             + ", ".join(
-                f"seed{r['args']['seed']} {_moves(r):.1f}/stage "
-                f"({_moves_per_dim(r):.1f}/次元)"
+                f"seed{r['args']['seed']} {_moves(r):.1f}/stage " f"({_moves_per_dim(r):.1f}/次元)"
                 for r in recs
             )
         )
@@ -182,7 +189,9 @@ def main(root):
     for key, m in maxll_by_group.items():
         if "_ident_prior0" in key:
             for other, m2 in maxll_by_group.items():
-                if other.startswith(key.replace("_prior0", "_prior")) and other != key:
+                # 事前分布以外（ゲート・RUNTAG など）が同じ群とだけ比べる。
+                # startswith で比べると mut80 の群が 10/2 の群と組になっていた
+                if other != key and _prior_free_key(other) == _prior_free_key(key):
                     ok = m >= m2 - 0.5
                     any_fail |= not ok
                     print(
@@ -195,4 +204,14 @@ def main(root):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "data_5species/main/_runs/paper_gateoff"))
+    import argparse
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("root", nargs="?", default="data_5species/main/_runs/paper_gateoff")
+    ap.add_argument(
+        "--glob",
+        default="*",
+        help="判定する run の glob（例 '*mut80*'）。古い run を混ぜて全体を FAIL にしないため",
+    )
+    a = ap.parse_args()
+    sys.exit(main(a.root, a.glob))

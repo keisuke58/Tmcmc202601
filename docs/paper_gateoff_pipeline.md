@@ -109,13 +109,17 @@ DH の 6 本から始める。PASS したら他の条件にも広げる。
 ## 5. 解釈の前に必ず通す判定
 
 ```bash
-python3 ~/Tmcmc202601/tools/check_paper_runs.py _runs/paper_gateoff
+python3 ~/Tmcmc202601/tools/check_paper_runs.py _runs/paper_gateoff --glob '*mut80*'
 ```
 
 同じ TAG・段・事前分布の seed 違いを 1 群として判定する:
 
+0. 保存した logL と粒子の対応（run_record の `logL_consistent`）
 1. 全 run が beta=1 に到達
-2. 平均受理率 0.10〜0.60
+2. 1 粒子が 1 ステージで平均 2 回以上動く（実測の `moves_per_particle_mean`）、受理率 ≤ 0.60
+2b. 1 粒子が run 全体で 1 自由次元あたり 5 回以上動く（移動回数 × ステージ数 / 自由次元数）。
+   RW の最適スケールでは 1 回の受理で各成分が事後 sd の約 2.38/√d 動くので、5d 回の移動で
+   各成分が約 2.38·√5 ≈ 5.3 sd 拡散する（d に依らない）
 3. seed 間の max logL の幅 ≤ 1 nat
 4. seed 間の各自由次元の中央値の幅 ≤ プールした事後 sd の 0.5 倍
 5. （ident のみ）事前分布なしの max logL ≥ 事前分布ありの max logL − 0.5
@@ -148,3 +152,4 @@ python3 ~/Tmcmc202601/tools/check_paper_runs.py _runs/paper_gateoff
 | 観測量 | ch1 は正規化した φ（コメントには φ·ψ とあるが実装は φ） | — |
 | CS / CH の箱 | 論文の本番（ultimate_10000p）では 20 次元すべてが自由。`prior_bounds.json` の locks は効いておらず、locks の次元は default_bounds [−1, 1] で推定されていた（`prior_bounds_paper_20d.json` もこれに合わせて locks を外した） | 「全条件で 15 成分を固定なしで推定」— 実装と一致 |
 | **§6.8 の識別性の基準** | 論文の本番で **CS の a55・a35 の事後は U(−1, 1) と区別できない**（sd 0.572 / 0.571、一様分布の sd 0.577、KS p = 0.06 / 0.28）。それでも r = sd/幅 = 0.29 で、基準 **r < 0.43 を満たす**。一様分布の r は常に 1/√12 ≈ 0.289 なので、**事後が事前とまったく同じでも「識別できている」と判定される** | 「全パラメータで r_i < 0.43 なので過剰パラメータではない」— **この基準では非識別を検出できない** |
+| mutation 回数 | エンジンは低 beta で `n_mutation_steps` を beta 倍に絞る（下限 0.3）。`--n-mutation-steps 40` でも低 beta のステージは 12 回。受理率も名目の 40 で割っていて約 3 倍過小。**論文の run も同じ絞りで回っている**（論文の run の移動回数は未確認。10/2 の pilot は 1 自由次元あたり約 1 回で判定 2b の 5 回に届かない）。再推定は `--mutation-throttle-floor 1.0`・mutation 80 で回す（2026-10-05） | 記載なし |
