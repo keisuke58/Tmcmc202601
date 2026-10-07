@@ -16,6 +16,7 @@ Meisam 氏の優先順: 1 BMB → 2 「生物力学ジャーナル」→ 3 JTB �
 | プレプリント | 可（投稿時に DOI 申告） | 可 | 可（DOI を引用） | 可 |
 | 最初の判断 | 中央値 8 日 | 未確認 | 7 日 | 未確認 |
 
+- **2 番のもう一つの候補: Journal of Biological Dynamics**（Taylor & Francis、Gold OA。「生物力学」は Biological Dynamics の訳としても成り立つ）。生物の動的モデルの数理が専門で、この論文の分野に最もよく合う。IF は第三者サイトで 2.23（2024）・2.85（2025）、APC は USD 1,680（全論文 OA）。**Taylor & Francis は DEAL の対象外**なので、LUH・TIB の個別契約で免除されるかは要確認。**どの誌かは元メールの原文（Show original）で確定する**
 - **2 番は誌名の確認が要る**: 日本語の直訳は *Journal of Biomechanics* だが、IF 2.7 は *Biomechanics and Modeling in Mechanobiology*（BMMB、2024 JCR）と一致。
   J Biomech は 3,500 語上限で実験・筋骨格寄りなので、この論文には BMMB の方が合う。Meisam 氏に確認する
 - **DEAL**: 責任著者（corresponding author）の所属を LUH か MHH にすると OA 費用が 0。**Gmail ではなく大学のアドレスで投稿する**
