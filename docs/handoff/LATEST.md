@@ -31,6 +31,7 @@
 
 | 日付 | ファイル | 要点 |
 |---|---|---|
+| 2026-10-07 | [gpu_2026-10-07_dh_p1.md](gpu_2026-10-07_dh_p1.md) | **自動通知**: run 終了。全群 PASS |
 | 2026-10-07 | [gpu_2026-10-07_pilot_cs_ch.md](gpu_2026-10-07_pilot_cs_ch.md) | **自動通知**: run 終了。全群 PASS |
 | 2026-10-07 | [gpu_2026-10-07_pilot_w1b_rerun.md](gpu_2026-10-07_pilot_w1b_rerun.md) | **自動通知**: run 終了。FAIL を含む群は回し直すまで解釈しない |
 | 2026-10-07 | [gpu_2026-10-07_dh_ident_rerun.md](gpu_2026-10-07_dh_ident_rerun.md) | **自動通知**: run 終了。FAIL を含む群は回し直すまで解釈しない |
