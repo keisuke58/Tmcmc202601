@@ -1,0 +1,49 @@
+\documentclass[11pt,a4paper]{letter}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+% Values awaiting the final runs or a co-author decision
+\newcommand{\TBD}[1]{\textcolor{red}{\textbf{[#1]}}}
+
+\signature{Keisuke Nishioka\\
+Institute of Continuum Mechanics, Leibniz Universit\"at Hannover\\
+\href{mailto:keisuke.nishioka@stud.uni-hannover.de}{keisuke.nishioka@stud.uni-hannover.de}\\
+ORCID: \href{https://orcid.org/0009-0001-9360-1336}{0009-0001-9360-1336}}
+\address{Institute of Continuum Mechanics\\Leibniz Universit\"at Hannover\\An der Universit\"at 1\\30823 Garbsen, Germany}
+\date{\TBD{date}}
+
+\begin{document}
+\begin{letter}{Editors\\Bulletin of Mathematical Biology}
+
+\opening{Dear Editors,}
+
+On behalf of all co-authors, I submit the manuscript
+``GPU-accelerated Bayesian inference of multi-species biofilm interaction parameters via TMCMC''
+by K.~Nishioka, F.~Klempt, H.~Geisler, R.~Mukherjee, N.~Heine, K.~Doll-Nikutta, M.~Stiesch, S.~P.~Szafra\'{n}ski, M.~Soleimani and P.~Junker
+for consideration as an Original Article in the \emph{Bulletin of Mathematical Biology}.
+
+Peri-implantitis is driven by multi-species biofilms in which a commensal community shifts towards a dysbiotic one dominated by \emph{Porphyromonas gingivalis}.
+Which interactions between the species sustain this shift is difficult to measure directly.
+We infer the full $5\times5$ interaction matrix of a thermodynamically consistent continuum biofilm model, derived from an extended Hamilton principle, from in-vitro time courses of five oral taxa under four combinations of community state and cultivation (Heine et al., \emph{Front.\ Oral Health} 2025, several of whom are co-authors of this work).
+No interaction is fixed a priori, and every inference stage is accepted only after explicit convergence checks across independent seeds.
+
+The main biological result is a testable prediction.
+The effective \emph{F.~nucleatum}--\emph{P.~gingivalis} coefficient is positive only under dysbiotic dynamic cultivation and indistinguishable from zero in both commensal conditions.
+In posterior predictive simulations, removing \emph{F.~nucleatum} from the consortium suppresses the late \emph{P.~gingivalis} increase with probability \TBD{0.87--0.90}; this can be tested directly by a leave-one-species-out co-culture.
+
+We believe the manuscript fits the scope of the \emph{Bulletin} because it connects a mechanistically derived mathematical model with quantitative data through Bayesian inference, and uses the inferred model to make a biological prediction rather than only to fit data.
+Methodologically, we report how identifiability was assessed (seed agreement, prior dependence on a wide box, posterior mass at the bounds), and we provide the GPU implementation that makes the repeated runs affordable.
+
+The manuscript has not been published and is not under consideration elsewhere.
+All authors have approved the submission \TBD{confirm}.
+Code, run configurations, convergence records and posterior samples are archived at Zenodo (\TBD{DOI}).
+The authors declare no competing interests.
+
+\TBD{optional: suggested reviewers, without conflicts of interest with any co-author}
+
+\closing{Sincerely,}
+
+\end{letter}
+\end{document}

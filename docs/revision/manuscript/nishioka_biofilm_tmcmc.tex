@@ -1,32 +1,23 @@
-\documentclass[11pt,a4paper]{article}
+%% Bulletin of Mathematical Biology submission (Springer Nature LaTeX template sn-jnl, v3.1 Dec 2024)
+%% lineno: continuous line numbers for review
+\documentclass[pdflatex,sn-mathphys-num,lineno]{sn-jnl}
 
-% inputenc not needed on UTF-8 engines (XeLaTeX/LuaLaTeX, modern pdfLaTeX); drop to silence warning
-% \usepackage[utf8]{inputenc}
-\usepackage{lmodern}
 \usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+\usepackage{graphicx}
+\usepackage{multirow}
 \usepackage{amsmath,amssymb,amsfonts}
+\usepackage{xcolor}
+\usepackage{textcomp}
 \usepackage{booktabs}
 \usepackage{array}
-\usepackage{xcolor}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
-\usepackage{graphicx}
-\usepackage{geometry}
-\geometry{margin=2.5cm}
-\usepackage{float}
-\usepackage{enumitem}
-\usepackage[hidelinks,pdfencoding=auto]{hyperref}
 \usepackage{algorithm}
 \usepackage{algorithmic}
-\usepackage{caption}
-\captionsetup{hypcap=false}  % \captionof inside minipage can't anchor hypcap; silence the warning
-\usepackage{subcaption}
-\usepackage{multirow}
-
-% Compact spacing
-\usepackage{setspace}
-\setstretch{0.95}
-\setlength{\emergencystretch}{3em}  % absorb occasional overfull \hbox without \sloppy
+\usepackage{capt-of}
+\usepackage{enumitem}
 
 \newcommand{\btheta}{\boldsymbol{\theta}}
 \newcommand{\bphi}{\boldsymbol{\phi}}
@@ -36,55 +27,41 @@
 % Values awaiting the final runs; red in the PDF so that none is left unnoticed
 \newcommand{\TBD}[1]{\textcolor{red}{\textbf{[#1]}}}
 
-\title{GPU-accelerated Bayesian inference of multi-species\\biofilm interaction parameters via TMCMC}
-
-% Add this in your preamble (before \begin{document})
-\usepackage{authblk}
-\renewcommand\Affilfont{\small} % Makes affiliations slightly smaller
-
-% Document body
-\author[1,2,3,4]{Keisuke Nishioka\thanks{Corresponding author: \href{mailto:keisuke.nishioka@stud.uni-hannover.de}{keisuke.nishioka@stud.uni-hannover.de}; ORCID: \href{https://orcid.org/0009-0001-9360-1336}{0009-0001-9360-1336}}}
-\author[1]{Felix Klempt}
-\author[1]{Hendrik Geisler}
-\author[2,3]{Rumjhum Mukherjee}
-\author[2,3]{Nils Heine}
-\author[2,3]{Katharina Doll-Nikutta}
-\author[2,3]{Meike Stiesch}
-\author[2,3]{Szymon P. Szafra\'{n}ski}
-\author[1]{Meisam Soleimani}
-\author[1]{Philipp Junker}
-
-\affil[1]{Institute of Continuum Mechanics, Leibniz Universit\"at Hannover, Hannover, Germany}
-\affil[2]{Department of Prosthetic Dentistry and Biomedical Materials Science, Hannover Medical School, Hannover, Germany}
-\affil[3]{Lower Saxony Centre for Biomedical Engineering, Implant Research and Development (NIFE), Hannover, Germany}
-\affil[4]{Center for Applied and Computational Mechanics, School of Science for Open and Environmental Systems, Graduate School of Science and Technology, Keio University, Yokohama, Japan}
-
-\date{}
+\raggedbottom
 
 \begin{document}
 
-\maketitle
+\title[Bayesian inference of oral biofilm interactions via TMCMC]{GPU-accelerated Bayesian inference of multi-species biofilm interaction parameters via TMCMC}
 
-\begin{abstract}
-We present a GPU-accelerated Bayesian framework for inferring the interaction parameters of a five-species oral biofilm model derived from the extended Hamilton principle.
+\author*[1,2,3,4]{\fnm{Keisuke} \sur{Nishioka}}\email{keisuke.nishioka@stud.uni-hannover.de}
+\author[1]{\fnm{Felix} \sur{Klempt}}
+\author[1]{\fnm{Hendrik} \sur{Geisler}}
+\author[2,3]{\fnm{Rumjhum} \sur{Mukherjee}}
+\author[2,3]{\fnm{Nils} \sur{Heine}}
+\author[2,3]{\fnm{Katharina} \sur{Doll-Nikutta}}
+\author[2,3]{\fnm{Meike} \sur{Stiesch}}
+\author[2,3]{\fnm{Szymon P.} \sur{Szafra\'{n}ski}}
+\author[1]{\fnm{Meisam} \sur{Soleimani}}
+\author[1]{\fnm{Philipp} \sur{Junker}}
+
+\affil*[1]{\orgdiv{Institute of Continuum Mechanics}, \orgname{Leibniz Universit\"at Hannover}, \orgaddress{\street{An der Universit\"at 1}, \city{Garbsen}, \postcode{30823}, \country{Germany}}}
+\affil[2]{\orgdiv{Department of Prosthetic Dentistry and Biomedical Materials Science}, \orgname{Hannover Medical School}, \orgaddress{\city{Hannover}, \country{Germany}}}
+\affil[3]{\orgname{Lower Saxony Centre for Biomedical Engineering, Implant Research and Development (NIFE)}, \orgaddress{\city{Hannover}, \country{Germany}}}
+\affil[4]{\orgdiv{Center for Applied and Computational Mechanics, School of Science for Open and Environmental Systems, Graduate School of Science and Technology}, \orgname{Keio University}, \orgaddress{\city{Yokohama}, \country{Japan}}}
+
+\abstract{We present a GPU-accelerated Bayesian framework for inferring the interaction parameters of a five-species oral biofilm model derived from the extended Hamilton principle.
 The symmetric $5\times5$ interaction matrix is parametrised by its 15 independent entries.
 Inference proceeds in stages: the likelihood first contains the species composition only, and the community viability (and, under dynamic cultivation, the pH) is then added as further channels.
 The forward model is compiled with JAX and evaluated for all particles in parallel on a GPU, giving a \TBD{$\sim$200}$\times$ speed-up over the CPU baseline.
 No interaction parameter is fixed to zero a priori, and every inference stage is checked with independent seeds against explicit convergence criteria.
 Applied to in-vitro time-course data of Heine et al.\ under four combinations of community state (commensal vs.\ dysbiotic) and cultivation (static vs.\ dynamic, the latter in a HOBIC flow reactor), the inferred effective parameters reproduce the observed trajectories, including the late \textit{P.~gingivalis} (Pg) increase under dysbiotic dynamic cultivation (RMSE \TBD{0.05--0.12}).
 The \textit{F.~nucleatum} (Fn)--Pg coefficient is positive only in that condition (90\% interval \TBD{[+0.8, +5.2]}) and indistinguishable from zero in both commensal conditions.
-Posterior predictive simulations without Fn suppress the late Pg increase with probability \TBD{0.87--0.90}, yielding a directly testable prediction.
+Posterior predictive simulations without Fn suppress the late Pg increase with probability \TBD{0.87--0.90}, yielding a directly testable prediction.}
 
-\vspace{4pt}
-\noindent\textbf{Keywords:}
-Bayesian inference,
-biofilm dynamics,
-TMCMC,
-GPU acceleration,
-parameter identification,
-multi-species interaction,
-peri-implantitis
-\end{abstract}
+\keywords{Bayesian inference, transitional Markov chain Monte Carlo, oral biofilm, multi-species interaction, parameter identification, peri-implantitis}
+
+\maketitle
+
 
 %==============================================================================
 \section{Introduction}
@@ -557,7 +534,7 @@ In Phase~2, DS has the best composition fit (RMSE$=$0.033, $R^2_{\text{\textit{P
 The composition RMSE increases by at most 0.035 from Phase~1 to Phase~2.
 
 \begin{table}[htbp]
-\centering\small
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
 \begin{tabular}{@{}l ccccc ccccc@{}}
 \toprule
 & \multicolumn{5}{c}{\textbf{Phase 1: composition only}} & \multicolumn{5}{c}{\textbf{Phase 2: with viability and pH --- final}}\\
@@ -585,7 +562,7 @@ So shows negative $R^2$ in most conditions in both phases; in Phase~2 this partl
 So also exhibits the highest replicate variability ($\sigma_{\mathrm{So}}\approx0.19$), which inflates $\mathrm{SS}_{\mathrm{tot}}$ and further depresses $R^2$.
 
 \begin{table}[htbp]
-\centering\small
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
 \begin{tabular}{@{}l ccccc ccccc@{}}
 \toprule
 & \multicolumn{5}{c}{\textbf{Phase 1 (composition only)}} & \multicolumn{5}{c}{\textbf{Phase 2 (with viability and pH) --- final}}\\
@@ -862,69 +839,45 @@ Identifiability is assessed by seed agreement, prior dependence on a wide box an
     \item \textbf{Spatially resolved inference:} coupling the framework to the continuum PDE biofilm model~\cite{Klempt2025ContinuumBiofilm} to exploit depth-resolved FISH/CLSM imaging.
 \end{itemize}
 
-\section*{Data and Code Availability}
-Code, run configurations, convergence records and posterior samples are archived at Zenodo (\TBD{DOI}) and developed at \url{https://github.com/keisuke58/Tmcmc202601}.
+\backmatter
+
+\bmhead{Acknowledgements}
+The authors acknowledge the Lower Saxony Centre for Biomedical Engineering, Implant Research and Development (NIFE), Hannover.
+Computational resources of the Multiphysics Materials Computation Research Group (Assoc.\ Prof.\ M.~Muramatsu), Department of Mechanical Engineering, Keio University, are gratefully acknowledged.
+
+\section*{Declarations}
+
+\bmhead{Funding}
+This work was funded by the German Research Foundation (Deutsche Forschungsgemeinschaft, DFG) through the project grant SFB/TRR-298-SIIRI -- Project-ID 426335750, and by the European Union (ERC, Gen-TSM, project number 101124463).
+Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.
+\TBD{confirm with M.~Stiesch and P.~Junker that both grants cover this work}
+
+\bmhead{Competing interests}
+The authors declare no competing interests.
+
+\bmhead{Ethics approval and consent to participate}
+Not applicable. This study analyses previously published in-vitro data and involves no human participants or animals.
+
+\bmhead{Data availability}
 The experimental data are those of Heine et al.~\cite{heine2025influence}.
-% The experimental time-course data (Heine et al.\ 2025, four conditions) are available
-% from the corresponding author (S.P.\ Szafra\'{n}ski) on reasonable request.
+\TBD{state whether the processed time series are redistributed in the archive -- confirm with N.~Heine}
 
-% Author Contributions — journal-dependent: many journals (e.g. Frontiers, PLoS)
-% want this statement in the manuscript; others collect CRediT roles in the
-% submission portal. Roles below are a DRAFT — confirm with all co-authors.
-% Uncomment if the target journal requires it in-text.
-% \section*{Author Contributions}
-% K.N.\ and P.J.\ conceived the study.
-% K.N.\ developed the inference framework, implemented the GPU/JAX forward model and the TMCMC sampler, performed the analyses, and drafted the manuscript.
-% F.K.\ and H.G.\ contributed the continuum biofilm model and its numerical formulation; M.So.\ contributed to the variational formulation and numerical methods.
-% N.H.\ designed and performed the in-vitro biofilm experiments and curated the time-course data.
-% K.D.-N.\ provided imaging resources and data and contributed to data interpretation.
-% R.M.\ and S.P.S.\ contributed experimental data and biological interpretation.
-% M.St.\ provided clinical context and resources.
-% P.J.\ supervised the study and acquired funding.
-% All authors critically reviewed and approved the final manuscript.
+\bmhead{Code availability}
+Code, run configurations, convergence records and posterior samples are archived at Zenodo (\TBD{DOI}) and developed at \url{https://github.com/keisuke58/Tmcmc202601}.
 
-% TODO (Funding) — confirm with M.\ Stiesch / P.\ Junker BEFORE submission.
-% Do NOT assert SFB/TRR-298 SIIRI support unless the grant actually covers this work.
-% If funded, uncomment and fill the project number:
-% \section*{Funding}
-% This work was supported by the Deutsche Forschungsgemeinschaft (DFG) through the
-% Collaborative Research Centre SFB/TRR~298 SIIRI (``Safety Integrated and Infection
-% Reactive Implants''; project number~[\,XXXXXXXXX\,]).
-% Otherwise use the journal's no-grant wording, e.g.:
-% \section*{Funding}
-% This research received no specific grant from any funding agency in the public,
-% commercial, or not-for-profit sectors.
-
-% \section*{Funding and acknowledgment}
-% The authors highly acknowledge the funding by the German Research Foundation (Deutsche
-% Forschungsgemeinschaft, DFG) through the project grant SFB/TRR-298-SIIRI– Project-ID
-% 426335750.
-% Funded by the European Union (ERC, Gen-TSM, project number 101124463). Views and opin
-% ions expressed are however those of the author(s) only and do not necessarily reflect those of the
-% European Union or the European Research Council Executive Agency. Neither the European
-% Union nor the granting authority can be held responsible for them.
-\section*{Acknowledgments}
-The authors acknowledge the Lower Saxony Centre for Biomedical Engineering,
-Implant Research and Development (NIFE), Hannover. Computational resources of
-the Multiphysics Materials Computation Research Group (Assoc.\ Prof.\ M.
-Muramatsu), Department of Mechanical Engineering, Keio University, are also
-gratefully acknowledged. The authors highly acknowledge the funding by the
-German Research Foundation (Deutsche Forschungsgemeinschaft, DFG) through the
-project grant SFB/TRR-298-SIIRI -- Project-ID 426335750.
-Funded by the European Union (ERC, Gen-TSM, project number 101124463).
-Views and opinions expressed are however those of the author(s) only and do
-not necessarily reflect those of the European Union or the European Research
-Council Executive Agency. Neither the European Union nor the granting
-authority can be held responsible for them.
-
-
-\section*{Conflict of Interest}
-The authors declare that the research was conducted in the absence of any commercial
-or financial relationships that could be construed as a potential conflict of interest.
-
+\bmhead{Author contributions}
+\TBD{draft, to be confirmed by all co-authors}
+K.N.\ and P.J.\ conceived the study.
+K.N.\ developed the inference framework, implemented the GPU/JAX forward model and the TMCMC sampler, performed the analyses, and drafted the manuscript.
+F.K.\ and H.G.\ contributed the continuum biofilm model and its numerical formulation; M.So.\ contributed to the variational formulation and numerical methods.
+N.H.\ designed and performed the in-vitro biofilm experiments and curated the time-course data.
+K.D.-N.\ provided imaging resources and data and contributed to data interpretation.
+R.M.\ and S.P.S.\ contributed experimental data and biological interpretation.
+M.St.\ provided clinical context and resources.
+P.J.\ supervised the study and acquired funding.
+All authors critically reviewed and approved the final manuscript.
 
 %==============================================================================
-\bibliographystyle{unsrt}
 \bibliography{references_ikm}
 %==============================================================================
 
