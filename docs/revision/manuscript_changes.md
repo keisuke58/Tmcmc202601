@@ -1,5 +1,21 @@
 # 原稿の書き直し — 差し替え用 LaTeX（v1, 2026-10-07）
 
+> **2026-10-07 追記: 0916 版のソースに適用済み** → `docs/revision/manuscript/nishioka_biofilm_tmcmc.tex`
+> （起点の無変更版は commit 015d627。差分は `git diff 015d627 -- docs/revision/manuscript/`）。
+> pdflatex でエラー・未定義参照なしでコンパイル済み（17 ページ、Abstract 203 語）。
+>
+> 適用時に**このメモに無かった修正**を 2 つ足した（実装を読んで確認）:
+> 1. **「ψ を実測に固定」は実装と違う。** fix-ψ の段では ψ が全種に同じ値で掛かるので正規化で消え、
+>    尤度は組成だけ。ODE の中の ψ も動く（「ヤコビアンを 2n+2 → n+2 に半減」は成り立たない）。
+>    → Phase 1 = 組成のみ、Phase 2 = 組成＋生存率（＋HOBIC は pH）と書き直した。Abstract・Intro・§5・
+>    Algorithm・表の見出し・Discussion・Conclusions すべて。
+> 2. **pH は Phase 2 の尤度に入っている**（`paper_gateoff_job.sh` で HOBIC は `--lambda-ch5 0.3`、
+>    観測モデルは `pH = 7.5 − 0.74·So − 0.48·Vei`（生きている割合）、σ=0.15）。
+>    → §6.7 の pH 検証（回帰式・図）は本文から外してコメントに残し、見出しを Post hoc consistency checks に。
+>    尤度の節に pH チャネルを明記。**pH 関係式の出典は要確認**（`\TBD{source of the pH relation}`）。
+>
+> 投稿前に決めること: Keywords が 7 個（BMB は 4–6）、タイトル（D1）、Funding の文言。
+
 **対象**: 共著者に回した 2026-09-16 版（Drive `Nishioka_biofilm_tmcmc_final_0916.pdf`）。
 その LaTeX ソースはこの repo にも Drive にも無い（`docs/nishioka_paper_publish.tex` は 06-04 版で、著者・所属・
 Introduction の文言が 0916 版と違う）。**最新のソースに下の段落を貼り替える形で使う。**
