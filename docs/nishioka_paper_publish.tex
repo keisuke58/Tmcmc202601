@@ -409,6 +409,7 @@ The noise is averaged over time points to yield a fixed $\sigma_i$ per species p
 The condition-averaged mean noise is $\bar{\sigma}\approx0.11$--$0.12$ across all conditions.
 
 \subsection{Constrained prior}
+\label{sec:prior}
 
 The prior is a product of independent uniform distributions:
 \begin{equation}
@@ -418,6 +419,9 @@ p(\btheta) = \prod_{k=0}^{14} \frac{1}{u_k-l_k}\,\mathbf{1}_{[l_k,u_k]}(\theta_k
 where the bounds $[l_k,u_k]$ are condition-specific and iteratively narrowed (Section~\ref{sec:gpu}).
 All 15 parameters are estimated for every condition; no parameters are locked to zero a priori.
 The prior bounds are initialised broadly ($[l_k,u_k]\approx[-1,1]$ for most parameters) and refined after an initial TMCMC run using the posterior quantile range plus $1.5\sigma$ padding.
+Where an initial run places posterior mass against a bound, that bound is widened rather than narrowed; in the dysbiotic conditions this applies to $a_{45}$ (and, for DS, also to $a_{33}$ and $a_{34}$, whose posteriors extend to $\approx-10$).
+The resulting boxes for $a_{45}$ are $[-1,1]$ (CS), $[-1,2]$ (CH), $[-0.5,6]$ (DH) and $[-15,20]$ (DS), with total log prior volumes $\ln\prod_k(u_k-l_k)$ of $12.9$, $14.2$, $21.1$ and $24.5$ respectively.
+These widths are stated explicitly because they enter the evidence additively (Section~\ref{sec:tmcmc}) and therefore govern how any Bayes factor involving $a_{45}$ must be read.
 
 %==============================================================================
 \section{TMCMC inference}
@@ -471,7 +475,9 @@ A by-product of TMCMC is the model evidence estimate
 \label{eq:evidence}
 \end{equation}
 enabling Bayesian model comparison via the Bayes factor $B_{10}=p(\yobs\mid\mathcal{M}_{\text{red}})/p(\yobs\mid\mathcal{M}_{\text{full}})$~\cite{KassRaftery1995BayesFactor}.
-The log-evidence values $\ln\hat{Z}$ reported in Section~\ref{sec:results} can be used for cross-condition model comparison.
+Because the prior in Eq.~\eqref{eq:prior} is uniform, $\ln\hat{Z}$ carries an additive $-\sum_k\ln(u_k-l_k)$ term: the evidence depends on the prior volume as well as on the fit.
+We therefore compare $\ln\hat{Z}$ only between models that share the same prior box, i.e.\ nested comparisons within one condition.
+Since the bounds are condition-specific (Section~\ref{sec:prior}), the prior volumes differ substantially between conditions---$\ln\prod_k(u_k-l_k)$ ranges from $12.9$ (CS) to $24.5$ (DS), a factor of $\mathrm{e}^{11.6}\approx10^{5}$---so the $\ln\hat{Z}$ values of different conditions are \emph{not} directly comparable and we do not interpret their differences.
 
 \subsection{Joint estimation in 15 dimensions}
 
@@ -801,7 +807,10 @@ DH & 0.342 & 0.212 & 0.289 & \textbf{0.087} \\
 \end{table}
 
 \paragraph{Effective dimensionality.}
-We quantify posterior informativeness as $r_i = \sigma_{\mathrm{post},i} / \Delta_{\mathrm{prior}}$ ($\Delta_{\mathrm{prior}}=6$, uniform baseline).
+We quantify posterior informativeness as $r_i = \sigma_{\mathrm{post},i} / (u_i-l_i)$, i.e.\ the posterior standard deviation relative to the width of that parameter's own prior box.
+A single nominal denominator must not be used here: the boxes are condition-specific and range from width $2$ to width $35$ (Section~\ref{sec:prior}), so dividing every parameter by a common $\Delta_{\mathrm{prior}}$ would flatter whichever condition has the widest bounds---precisely the dysbiotic ones.
+% TODO (before submission): the three numbers below predate this change of denominator
+% and must be regenerated from the final runs with tools/make_paper_figures.py.
 All 15 parameters satisfy $r_i < 0.43$ in every condition, with DS achieving the tightest posteriors (mean $r=0.07$).
 Even Pg-related parameters in commensal conditions satisfy $r_i \leq 0.10$, confirming that the data constrain them to near-zero rather than leaving them prior-dominated.
 The full 15-parameter model is therefore not over-parametrised.
@@ -847,8 +856,17 @@ The viability predictions themselves remain poor (RMSE 0.11--0.39), indicating t
 \end{figure}
 
 \paragraph{Model evidence.}
-The log-evidence $\ln\hat{Z}$ (Table~\ref{tab:rmse}) is higher for commensal conditions despite the same 15-parameter prior, because the posterior concentrates pathogen entries near zero, effectively reducing the Occam factor.
-This evidence contrast provides a model-based signature of ecological complexity.
+The log-evidence $\ln\hat{Z}$ (Table~\ref{tab:rmse}) is higher for commensal conditions, but this contrast must not be read as a signature of ecological complexity.
+All four conditions use the same 15 parameters, yet---by construction (Section~\ref{sec:prior})---not the same prior box: the log prior volume is $12.9$ for CS against $24.5$ for DS.
+Since a uniform prior contributes $-\sum_k\ln(u_k-l_k)$ to $\ln\hat{Z}$, this accounts for $11.6$ nats of the CS--DS gap on its own, which is of the same order as the gap itself.
+The commensal advantage is therefore confounded with the narrower dysbiosis-free bounds and we draw no ecological conclusion from it.
+A nested comparison within a condition is free of this confound.
+We therefore refit each condition with $a_{45}$ fixed to zero, all other settings unchanged, and report $\ln B = \ln\hat{Z}(a_{45}\ \text{free}) - \ln\hat{Z}(a_{45}=0)$ per condition over three seeds.
+Here too the prior width enters: $\ln B$ is reduced by $\ln$ of the $a_{45}$ box width, so the $[-15,20]$ box used for DS penalises the free model by $\approx\ln(35/2)\approx2.9$ nats relative to the $[-1,1]$ box used for CS.
+We therefore read $\ln B$ only within a condition and against the Kass--Raftery scale, and state the box width wherever $\ln B$ is quoted.
+% TODO (before submission): insert the per-condition ln B table from
+% tools/bayes_factor_a45.py once all four conditions x 3 seeds have completed.
+The posterior concentration of the pathogen entries near zero in CS and CH is reported directly instead (the posterior standard deviations under ``Effective dimensionality'' above), which does not require a cross-condition evidence comparison.
 
 \paragraph{Computational considerations.}
 The $\sim$170$\times$ per-stage GPU speedup (Table~\ref{tab:timing}) exploits the embarrassingly parallel RW mutation via \texttt{jax.vmap}.
