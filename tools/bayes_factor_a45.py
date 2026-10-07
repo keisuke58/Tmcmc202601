@@ -216,9 +216,7 @@ def main() -> int:
             else:
                 lo_b, hi_b = a45_box
                 box = f"$[{lo_b:g}, {hi_b:g}]$ & ${hi_b - lo_b:g}$"
-            rows.append(
-                f"{tag} & {box} & ${mean:+.2f}$ & ${hi - lo:.2f}$\\\\"
-            )
+            rows.append(f"{tag} & {box} & ${mean:+.2f}$ & ${hi - lo:.2f}$\\\\")
         else:
             print(f"  → {len(ln_bfs)}/{len(SEEDS)} seed のみ。全 seed 揃うまで解釈しない")
         print()
