@@ -60,7 +60,12 @@ stuttgart01 などの GPU ノードと同じファイルを直接編集できる
   `-l nodes=1:ppn=N:gpus=1:<hostname>` で GPU を要求すると Torque が空き GPU を自動割当する
   （`qstat -f <jobid>` の `exec_gpus` で確認できる）。
 - **ノード構成**: stuttgart01-03 (RTX3090 x4/node), vancouver01-02 (RTX4090 x4/node),
+  **vancouver03 (RTX4090 x2/node, 2026-10-08 に発見。`gpus = 2` で他 4090 ノードと枚数が違う)**,
   celtic01-04 (RTX2080Ti x4/node, celtic04 は down のことがある)。
+- **他ユーザーの放置 jupyterlab が GPU を確保したまま計算していないことがある**（2026-10-08 時点で
+  4090 を 4 枚、走行 280〜1200 時間・walltime 無制限）。Torque は GPU を 1 枚単位で排他確保するので
+  **`qsub -l gpus=1` で投げている限り相乗りは起きない**（空きが無ければ Q で止まるだけ）。
+  `pbsnodes` の `gpu_state=Shared` は NVIDIA の compute mode であって Torque の共有ではない。
 - **`ppn` は欲張らない。`ppn=1` が既定でよい**（2026-09-30 に判明）。
   celtic01-03 は **CPU が 4 コアしかない**（`pbsnodes celtic01` の `np = 4`）ので、
   他ユーザーが 1 コアでも使っていると `ppn=4` のジョブは永久に Q のまま動けない。
@@ -83,7 +88,12 @@ stuttgart01 などの GPU ノードと同じファイルを直接編集できる
   `data_5species/main/dh_prior_check_job.sh`（JAX/GPU 版・上記の罠への対処込みの例、2026-09-30 作成）。
   新しい GPU ジョブはこれをコピーして書き換えるのが早い。
 - copaam の `~/.local/bin`（PATH 済み）に頻出操作のヘルパーを置いてある（2026-09-30 作成）:
-  - `gpufree [host...]` — GPU 空き確認（省略時は stuttgart01-03 + vancouver01-02）
+  - `gpufree [host...]` — GPU 空き確認（省略時は stuttgart01-03 + vancouver01-02）。
+    **`nvidia-smi` のメモリしか見ないので、他ユーザーの放置 jupyterlab が PBS 上で確保
+    しているだけの GPU も「空き」に見える。投入先を決めるときは `gpualloc` を使うこと**
+  - `gpualloc [host...]` — PBS の実割り当てと実プロセスを突き合わせる（2026-10-08 作成）。
+    `FREE`（未割り当て＝実際に取れる） / `HELD-IDLE`（確保のみ・計算なし＝狙えない） /
+    `BUSY`（確保＋計算中）を GPU 1 枚ずつ表示する
   - `pbsme` — 自分の PBS ジョブ一覧（`qstat -u -n1`）
   - `pbslog <jobid> [行数]` — jobid から Job_Name/出力先を自動解決してログを tail
     （PBS は実行中ジョブの stdout をバッファするため、完了/クラッシュ前はログが無いのが正常）

@@ -8,7 +8,7 @@
 `ssh` して裏で直接走らせることはしない。
 
 **`celtic03` は使わない。** ノードを明示して投入する（使えるのは `stuttgart01-03`、
-`celtic01` / `celtic02`、`vancouver01` / `vancouver02`。各ノード GPU 4 枚）。
+`celtic01` / `celtic02`、`vancouver01` / `vancouver02` が各 4 枚、`vancouver03` が 2 枚）。
 **`vancouver01-02` は RTX4090 で一番速い**（stuttgart は 3090、celtic は 2080Ti）。
 急ぐときは vancouver から埋める（2026-10-08 に許可）。
 
