@@ -88,6 +88,16 @@ EVAL_OUT="$(timeout 1800 "$PYTHON" tools/eval_paper_runs.py "$RUNS_ROOT" --glob 
   --csv "$REPO/$CSV" 2>&1 | grep -v -E '^(INFO|WARNING):' | tail -40)"
 [ -z "$EVAL_OUT" ] && EVAL_OUT="（eval_paper_runs.py が出力なし）"
 
+# DS の a33 は +1 付近と -10 付近の二峰で、seed ごとに山の配分が違う（2026-10-08h）。
+# 中央値は重みが 50% 前後だと山の間を飛ぶので、判定 4 の代わりに「下の山の重み」で見る。
+# DS の run が含まれるときだけ出す（他条件では a33 は単峰なので意味が無い）。
+A33_OUT=""
+DS_DIRS="$(ls -d $RUNS_ROOT/$RUN_GLOB 2>/dev/null | grep -E '/DS_' || true)"
+if [ -n "$DS_DIRS" ]; then
+  A33_OUT="$("$PYTHON" tools/a33_mode_weight.py $DS_DIRS 2>&1)"
+  [ -z "$A33_OUT" ] && A33_OUT="（a33_mode_weight.py が出力なし）"
+fi
+
 {
   echo "# GPU 側 → クラウド側: run 終了の自動通知（${TODAY} / ${LABEL}）"
   echo
@@ -117,6 +127,19 @@ EVAL_OUT="$(timeout 1800 "$PYTHON" tools/eval_paper_runs.py "$RUNS_ROOT" --glob 
   echo
   echo "全列は \`${CSV}\` にある。"
   echo
+  if [ -n "$A33_OUT" ]; then
+    echo "## a33 の下の山の重み（DS の二峰判定・2026-10-08h）"
+    echo
+    echo "DS の a33 は +1 付近と −10 付近の二峰で、seed ごとに山の配分が違う。"
+    echo "**w(a33<-5) が 3 seed で ±0.10 以内にそろえば、判定 4 が二峰のせいで FAIL しても先へ進めてよい**"
+    echo "（原稿では a33 を「二峰・弱く同定」と書く）。そろわなければ止めて報告。"
+    echo "参考: pilot（1000 粒子）は 0.139 / 0.443 / 0.657 で幅 0.52 だった。"
+    echo
+    echo '```'
+    echo "$A33_OUT"
+    echo '```'
+    echo
+  fi
   echo "## check_paper_runs.py の出力（そのまま）"
   echo
   echo '```'
