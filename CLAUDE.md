@@ -7,8 +7,10 @@
 **GPU / 重い計算は `qsub`（PBS/Torque, server: copaam）でしか投入しない。**
 `ssh` して裏で直接走らせることはしない。
 
-**`celtic03` は使わない。** ノードを明示して投入する（使えるのは `stuttgart01-03` と
-`celtic01` / `celtic02`。各ノード GPU 4 枚）。
+**`celtic03` は使わない。** ノードを明示して投入する（使えるのは `stuttgart01-03`、
+`celtic01` / `celtic02`、`vancouver01` / `vancouver02`。各ノード GPU 4 枚）。
+**`vancouver01-02` は RTX4090 で一番速い**（stuttgart は 3090、celtic は 2080Ti）。
+急ぐときは vancouver から埋める（2026-10-08 に許可）。
 
 ```bash
 cd ~/Tmcmc202601/data_5species/main
@@ -28,7 +30,9 @@ celtic01 / celtic02 は正常。
 - **ターミナルを閉じても、ssh が切れても、Claude のセッションが終わってもジョブは死なない。**
   Torque の下で走るのでプロセスの親が端末やシェルではない（`setsid`/`nohup` も不要）
 - 共有サーバーなので GPU の二重確保を防げる。`-l nodes=1:ppn=N:gpus=1` で Torque が空き GPU を割り当てる
-- **同時 10 本まで。** 投入前に `qstat -u nishioka` で本数を確認する
+- **同時 15 本まで**（2026-10-08 に 10 → 15 に緩和。論文投稿〜10-16 を急ぐため）。
+  投入前に `qstat -u nishioka` で本数を確認し、`qstat -a` と `gpufree` で他ユーザーの
+  使用状況も見る。他ユーザーが混んでいるときは控える
 
 Claude Code の設定でバックグラウンドシェルを残すことはできない（そういう設定キーは存在しない）。
 ジョブの寿命は `qsub` で担保する、がこのリポジトリの方針。
