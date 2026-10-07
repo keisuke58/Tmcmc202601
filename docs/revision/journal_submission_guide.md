@@ -32,6 +32,9 @@ Meisam 氏の優先順（原文で確認済み）: 1 Bulletin of Mathematical Bi
 5. 責任著者は大学のアドレス（DEAL）
 6. Cover letter（生物学的な貢献と BMB に合う理由）。推薦査読者を求められたときの候補
 7. 最初の判断は 8 日前後（門前払いかどうかがすぐ分かる）
+12. ✅ Data availability: Heine データは**再配布しない**（論文の引用だけ、本人判断 2026-10-07）。
+    ⚠️ **Zenodo に上げるときは `experiment_data/` を除く。** なお公開の GitHub repo には既に `experiment_data/` の CSV が入っている
+    → 共著者（Heine 氏）に一言断るか、repo から外すかを投稿前に決める
 9. ✅ Editorial Manager (bmab) にユーザー登録済み（2026-10-07、`knishioka`、所属 LUH・IKM）
 10. ✅ 原稿を sn-jnl（v3.1、`sn-mathphys-num`、`lineno`）に変換済み → `docs/revision/BMB_submission/BMB_manuscript_nishioka.tex`
     （article 版は commit 8c92c42）。Declarations（Funding・Competing interests・Ethics・Data・Code・Author contributions）入り、keywords 6 個
