@@ -147,7 +147,11 @@ def main(root, pattern="*"):
                 f"lnZ={rec['log_evidence']:9.2f} rmse={cfg.get('rmse', float('nan')):.4f}  {w}"
             )
             if edgy:
-                print(f"          箱の端 5% に 10% 超: {edgy}")
+                # 両端それぞれ 5% の幅なので、事後が箱の中で一様なら 0.10 になる。
+                # 0.10〜0.15 は「一様に近い（その成分をデータがほとんど決めていない）」で、
+                # 箱で切られているわけではない。片側 5% に 0.20 以上、または前段より
+                # 0.1 以上増えた成分が「切られている」（2026-10-08d）。表示だけで判定はしない。
+                print(f"          箱の端 5% に 10% 超（一様なら 0.10）: {edgy}")
             recs.append(rec)
             samples.append(s)
             maxll.append(rec["max_logL"])
