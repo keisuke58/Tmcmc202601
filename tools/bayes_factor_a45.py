@@ -160,9 +160,7 @@ def main() -> int:
             d_zero = os.path.join(args.runs, f"{tag}_pilot_{zero_rt}_seed{seed}")
             full, zero = load(d_full), load(d_zero)
             missing = [
-                os.path.basename(d)
-                for d, r in ((d_full, full), (d_zero, zero))
-                if r is None
+                os.path.basename(d) for d, r in ((d_full, full), (d_zero, zero)) if r is None
             ]
             if missing:
                 print(f"  seed{seed:<4} 未完了: {', '.join(missing)}")
@@ -190,14 +188,10 @@ def main() -> int:
             mean = sum(ln_bfs) / len(ln_bfs)
             print(f"  → 3 seed: 平均 {mean:+.3f}、幅 {hi - lo:.3f}  {interpret(mean)}")
             if hi - lo > 2.0:
-                print(
-                    "     警告: seed 間の幅が 2 を超える。ln Z の推定が安定していない"
-                )
+                print("     警告: seed 間の幅が 2 を超える。ln Z の推定が安定していない")
                 exit_code = 1
         else:
-            print(
-                f"  → {len(ln_bfs)}/{len(SEEDS)} seed のみ。全 seed 揃うまで解釈しない"
-            )
+            print(f"  → {len(ln_bfs)}/{len(SEEDS)} seed のみ。全 seed 揃うまで解釈しない")
         print()
 
     return exit_code

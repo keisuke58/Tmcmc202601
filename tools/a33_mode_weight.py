@@ -26,6 +26,4 @@ for d in sys.argv[1:]:
         mx = float("nan")
     q5, q50, q95 = np.percentile(a33, [5, 50, 95])
     name = d.rstrip("/").split("/")[-1]
-    print(
-        f"{name:52s} {len(a33):6d} {w:10.3f} {q50:8.2f} {q5:8.2f} {q95:8.2f} {mx:10.2f}"
-    )
+    print(f"{name:52s} {len(a33):6d} {w:10.3f} {q50:8.2f} {q5:8.2f} {q95:8.2f} {mx:10.2f}")
