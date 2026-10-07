@@ -2,6 +2,7 @@
 """Phase 1 vs Phase 2 MAP scatter — validates two-phase strategy.
 15-param version: µᵢ removed 2026-03-30.
 """
+
 import sys
 import json
 from pathlib import Path
@@ -13,11 +14,15 @@ import matplotlib.pyplot as plt
 
 # thesis_style — lmodern 9pt (must come before any plt.subplots call)
 sys.path.insert(0, str(Path.home() / "IKM_Hiwi/nife"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))  # repo copy
 import thesis_style as _ts
 
 RUNS = Path.home() / "IKM_Hiwi/Tmcmc202601/data_5species/main/_runs"
 FIG_DIR = Path.home() / "IKM_Hiwi/Tmcmc202601/docs/figures"
-FIG_DIR.mkdir(exist_ok=True)
+FIG_DIR.mkdir(parents=True, exist_ok=True)
+# axis labels (tools/make_paper_figures.py overrides them for the revised manuscript)
+XLABEL = r"Phase 1 (fix-$\psi$)"
+YLABEL = r"Phase 2 (free $\psi$)"
 
 # Phase 1 (fix-psi, mc=False) best runs
 P1 = {
@@ -117,14 +122,14 @@ def main():
         all_corrs[cond] = (r, rmse)
 
         ax.set_title(f"{COND_FULL[cond]}\n$r = {r:.3f}$,  RMSD $= {rmse:.2f}$", fontsize=8)
-        ax.set_xlabel(r"Phase 1 (fix-$\psi$)", fontsize=8)
+        ax.set_xlabel(XLABEL, fontsize=8)
         ax.set_xlim(lo, hi)
         ax.set_ylim(lo, hi)
         ax.set_aspect("equal")
         ax.grid(True, alpha=0.15, lw=0.5)
 
         if ax_idx == 0:
-            ax.set_ylabel(r"Phase 2 (free $\psi$)", fontsize=8)
+            ax.set_ylabel(YLABEL, fontsize=8)
 
     fig.tight_layout(w_pad=0.15)
     out = FIG_DIR / "phase1_vs_phase2_map.pdf"

@@ -151,3 +151,4 @@ career_*.md
 # Compiled slide PDFs and PPTX (regenerated from .tex)
 docs/slides_nishioka*.pdf
 docs/slides_nishioka*.pptx
+docs/revision/BMB_submission/generated/_cache/

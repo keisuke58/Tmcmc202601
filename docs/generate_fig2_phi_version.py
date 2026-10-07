@@ -84,8 +84,8 @@ SPECIES_ITALIC = [
 ]
 # Pg strain differs by condition
 PG_STRAIN = {
-    "CS": r"$\it{P.\ gingivalis}$ ATCC\,20709",
-    "CH": r"$\it{P.\ gingivalis}$ ATCC\,20709",
+    "CS": r"$\it{P.\ gingivalis}$ DSM\,20709",
+    "CH": r"$\it{P.\ gingivalis}$ DSM\,20709",
     "DS": r"$\it{P.\ gingivalis}$ W83",
     "DH": r"$\it{P.\ gingivalis}$ W83",
 }
@@ -254,8 +254,13 @@ def generate_fig2_phi_transposed():
         }
     )
     plt.rcParams.update(pub_style)
-    import sys as _s; _s.path.insert(0, '/home/nishioka/IKM_Hiwi/nife')
-    from thesis_style import use as _ts; _ts()   # unified usetex/lmodern thesis style
+    import sys as _s
+
+    _s.path.insert(0, "/home/nishioka/IKM_Hiwi/nife")
+    _s.path.insert(0, str(ROOT / "tools"))  # repo copy of thesis_style (same file)
+    from thesis_style import use as _ts
+
+    _ts()  # unified usetex/lmodern thesis style
 
     # Phase-2 metrics fallback (config.json archived after run reorg; values from
     # the thesis Table tab:heine_rmse). Used only for the subtitle row.
@@ -283,7 +288,7 @@ def generate_fig2_phi_transposed():
             cfg = json.load(open(RUNS / P2_DIRS[ck] / "config.json"))
             rmse = cfg.get("rmse", _RMSE_FB.get(ck, 0))
             logL = cfg.get("max_logL", _LOGL_FB.get(ck, 0))
-        except FileNotFoundError:          # config.json archived after run reorg
+        except FileNotFoundError:  # config.json archived after run reorg
             rmse, logL = _RMSE_FB.get(ck, 0), _LOGL_FB.get(ck, 0)
         metrics[ck] = (rmse, logL)
         cond, cult = CK_MAP[ck]
@@ -409,9 +414,14 @@ def generate_fig2_phi_transposed():
             if row_idx == 4:
                 strain = PG_STRAIN[ck]
                 ax.text(
-                    0.5, 0.92, strain,
-                    transform=ax.transAxes, fontsize=7.5,
-                    ha="center", va="top", fontstyle="italic",
+                    0.5,
+                    0.92,
+                    strain,
+                    transform=ax.transAxes,
+                    fontsize=7.5,
+                    ha="center",
+                    va="top",
+                    fontstyle="italic",
                     bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.8),
                 )
 
@@ -419,9 +429,13 @@ def generate_fig2_phi_transposed():
             if row_idx == 2:
                 vei_label = VEI_STRAIN[ck]
                 ax.text(
-                    0.5, 0.92, vei_label,
-                    transform=ax.transAxes, fontsize=7.5,
-                    ha="center", va="top",
+                    0.5,
+                    0.92,
+                    vei_label,
+                    transform=ax.transAxes,
+                    fontsize=7.5,
+                    ha="center",
+                    va="top",
                     bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.8),
                 )
 
