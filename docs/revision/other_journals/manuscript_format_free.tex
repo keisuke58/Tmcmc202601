@@ -350,15 +350,15 @@ p(\btheta) = \prod_{k=0}^{14} \frac{1}{u_k-l_k}\,\mathbf{1}_{[l_k,u_k]}(\theta_k
 on condition-specific boxes $[l_k,u_k]$ (Supplementary Table~S\TBD{n}).
 All 15 entries of $\mathbf{A}$ are estimated in every condition; no entry is fixed a priori.
 The decay vector $\mathbf{b}$ does not enter the model without antibiotic treatment ($\alpha^*=0$) and is not estimated.
-For Dysbiotic Static, the boxes of $a_{33}$, $a_{34}$ and $a_{45}$ were widened to $[-15,20]$ because posterior mass accumulated at the bounds of the initial box.
+Where posterior mass accumulated at the bounds of the initial box, the box was widened to $[-15,20]$: $a_{33}$, $a_{34}$ and $a_{45}$ for Dysbiotic Static, and $a_{23}$, $a_{24}$, $a_{33}$, $a_{34}$ and $a_{35}$ for Dysbiotic HOBIC \TBD{confirm with the final runs}.
 
 Inference proceeds in four stages that share the same data:
 (i)~composition likelihood on the initial box;
-(ii)~composition likelihood, box narrowed to the stage-(i) MAP $\pm4$ posterior standard deviations (SDs);
-(iii)~composition, viability and pH likelihood, box narrowed to $\pm3$ SDs;
-(iv)~as (iii) with $\pm2$ SDs and \TBD{$N_p$} particles.
+(ii)~composition likelihood, box narrowed to the stage-(i) posterior mean $\pm4$ posterior standard deviations (SDs);
+(iii)~composition, viability and pH likelihood on the initial box, starting from the stage-(ii) particles (the box is not narrowed, because the likelihood changes between (ii) and (iii) and a box derived from the stage-(ii) posterior truncated the stage-(iii) posterior);
+(iv)~as (iii), with the box narrowed to the stage-(iii) posterior mean $\pm2$ SDs and $N_p=5{,}000$ particles.
 We refer to stages (i)--(ii) as Phase~1 and to stages (iii)--(iv) as Phase~2.
-Narrowing is clipped to the initial box and initialised from the previous stage's particles.
+Narrowing is clipped to the initial box. Stages (ii)--(iv) start from a mixture of particles drawn around the previous stage's MAP and draws from the stage prior; because the initial population is then not a sample from the prior, their log-evidence estimates are not used \TBD{drop the $\ln\hat{Z}$ columns of Table~\ref{tab:rmse} or report stage (i) only}.
 Because the data are reused across stages, we report alongside the final posterior the stage-(i) posterior, which involves no data-dependent narrowing, and an inference on a much wider box ($[-15,20]$ for all entries) with and without an additional $\mathcal{N}(0,6^2)$ prior (Section~\ref{sec:sensitivity}).
 We monitor the fraction of posterior mass within 5\% of each bound at every stage.
 
@@ -478,9 +478,9 @@ The procedure is summarised in Algorithm~\ref{alg:tmcmc}; Table~\ref{tab:timing}
     \ENDFOR
 \ENDWHILE
 \STATE Record MAP and posterior SD per parameter
-\STATE $\triangleright$ \textbf{Stage (ii): composition likelihood, box MAP $\pm4$\,SD}
+\STATE $\triangleright$ \textbf{Stage (ii): composition likelihood, box mean $\pm4$\,SD}
 \STATE Repeat lines 2--13 on the narrowed box, starting from the previous particles
-\STATE $\triangleright$ \textbf{Stages (iii)--(iv): add viability and pH channels, box MAP $\pm3$\,SD, then $\pm2$\,SD}
+\STATE $\triangleright$ \textbf{Stages (iii)--(iv): add viability and pH channels; initial box, then mean $\pm2$\,SD}
 \STATE Augment likelihood with the weighted viability and pH channels (Table~\ref{tab:weights})
 \STATE Repeat lines 2--13 for each stage
 \RETURN $\hat{\btheta}^{\mathrm{MAP}}$, posterior samples, $\ln\hat{Z}$
@@ -816,7 +816,7 @@ The interaction matrix is first inferred from the species composition and then r
 All 15 parameters are estimated without fixing any of them a priori; the Pg-related coefficients in the commensal conditions are not distinguishable from zero.
 
 \item \textbf{GPU-accelerated TMCMC.}
-Compiling the forward model via JAX and batching all particles on GPU achieves a \TBD{$\sim$200}$\times$ speedup (Table~\ref{tab:timing}), making repeated runs with \TBD{$N_p$} particles feasible.
+Compiling the forward model via JAX and batching all particles on GPU achieves a \TBD{$\sim$200}$\times$ speedup (Table~\ref{tab:timing}), making repeated runs with up to $N_p=5{,}000$ particles feasible.
 
 \item \textbf{Reproduction of four conditions and a testable prediction.}
 The framework reproduces commensal homeostasis (CS, CH), moderate dysbiosis (DS), and the late Pg increase (DH).
