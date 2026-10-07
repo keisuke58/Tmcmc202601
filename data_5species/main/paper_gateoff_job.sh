@@ -17,7 +17,9 @@
 #           p1 から warm start、**箱は絞らない**（論文の箱＋OVERRIDE）、2000 粒子
 #           （2026-10-08: p1 の事後で絞ると、多チャネル尤度の事後が箱の外に出て端に張り付いた。
 #            DH p2 で a23 の粒子が 100% 端。P2_NSIGMA を渡したときだけ絞る）
-#   ult   : 本番。p2 から warm start、平均 ± 2σ（同じ尤度なので絞ってよい）。
+#   ult   : 本番。p2 から warm start、平均 ± ULT_NSIGMA σ（既定 4）。
+#           （2026-10-08: ± 2σ だと、よく決まる成分ごとに事後の約 5% を切り落とし、10 成分で 3〜4 割になる。
+#            同じデータの事後で箱を作るので査読で指摘されやすい。± 4σ なら成分ごとに 0.01% 未満）
 #           粒子数は N_PART（既定 5000）、mutation は N_MUT（既定 80）。2026-10-08 の実測で決めた
 #   ident : 識別性の検証。ψ 固定・箱 [-15, 20]・2000 粒子・40 mutation・DE-MC。
 #           PRIOR_SCALE=0 で事前分布なし、6 で N(0, 6^2)
@@ -54,6 +56,11 @@ N_MUT="${N_MUT:-}"
 N_PART="${N_PART:-}"
 # p2 の箱の絞り込み（空 = 絞らない、2026-10-08 の既定）
 P2_NSIGMA="${P2_NSIGMA:-}"
+# ult の箱の絞り込み（平均 ± ULT_NSIGMA σ）。2026-10-08 に 2 → 4
+ULT_NSIGMA="${ULT_NSIGMA:-4}"
+# 尤度の重みの上書き（空なら estimator の既定 λPg=5・λlate=3）。重みの感度を見る run 用（2026-10-08f）
+LAMBDA_PG="${LAMBDA_PG:-}"
+LAMBDA_LATE="${LAMBDA_LATE:-}"
 # 低 beta で mutation 回数を絞る下限。1.0 = 絞らない（2026-10-05 の修正、既定）
 THROTTLE_FLOOR="${THROTTLE_FLOOR:-1.0}"
 # 出力ディレクトリ名の末尾に付ける識別子。過去の run を上書きしないために使う
@@ -95,7 +102,7 @@ case "$STAGE" in
          [ -n "$P2_NSIGMA" ] && ARGS+=(--posterior-prior-nsigma "$P2_NSIGMA") ;;
   ult)   need_prev; ARGS=(--multichannel --lambda-ch1 1.0 --lambda-ch2 0.0 --lambda-ch3 2.0
                           --lambda-ch5 "$LAMBDA_CH5" --n-particles 5000 --n-mutation-steps 80
-                          --init-from-dir "$PREV" --posterior-prior-nsigma 2) ;;
+                          --init-from-dir "$PREV" --posterior-prior-nsigma "$ULT_NSIGMA") ;;
   ident) ARGS=(--fix-psi --n-particles 2000 --n-mutation-steps 40 --box -15 20
                --prior-scale "$PRIOR_SCALE") ;;
   *) echo "unknown STAGE $STAGE"; exit 1 ;;
@@ -115,6 +122,8 @@ if [ -n "$N_PART" ]; then
 fi
 
 [ -n "$OVERRIDE" ] && ARGS+=(--override-bounds "$OVERRIDE")
+[ -n "$LAMBDA_PG" ] && ARGS+=(--lambda-pg "$LAMBDA_PG")
+[ -n "$LAMBDA_LATE" ] && ARGS+=(--lambda-late "$LAMBDA_LATE")
 
 SUFFIX=""
 [ "$STAGE" = "ident" ] && SUFFIX="_prior${PRIOR_SCALE}"

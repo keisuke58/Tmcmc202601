@@ -359,9 +359,9 @@ Inference proceeds in four stages that share the same data:
 (i)~composition likelihood on the initial box;
 (ii)~composition likelihood, box narrowed to the stage-(i) posterior mean $\pm4$ posterior standard deviations (SDs);
 (iii)~composition, viability and pH likelihood on the initial box, starting from the stage-(ii) particles (the box is not narrowed, because the likelihood changes between (ii) and (iii) and a box derived from the stage-(ii) posterior truncated the stage-(iii) posterior);
-(iv)~as (iii), with the box narrowed to the stage-(iii) posterior mean $\pm2$ SDs and $N_p=5{,}000$ particles.
+(iv)~as (iii), with the box narrowed to the stage-(iii) posterior mean $\pm4$ SDs and $N_p=5{,}000$ particles.
 We refer to stages (i)--(ii) as Phase~1 and to stages (iii)--(iv) as Phase~2.
-Narrowing is clipped to the initial box. Stages (ii)--(iv) start from a mixture of particles drawn around the previous stage's MAP and draws from the stage prior; because the initial population is then not a sample from the prior, their log-evidence estimates are not used \TBD{drop the $\ln\hat{Z}$ columns of Table~\ref{tab:rmse} or report stage (i) only}.
+Narrowing is clipped to the initial box; a $\pm4$\,SD box removes less than 0.01\% of a Gaussian marginal, so it shortens the tempering without truncating the posterior (a $\pm2$\,SD box would remove about 5\% of each well-determined marginal; results with $\pm2$\,SD are given in Supplementary Section~S\TBD{n}). Stages (ii)--(iv) start from a mixture of particles drawn around the previous stage's MAP and draws from the stage prior; because the initial population is then not a sample from the prior, their log-evidence estimates are not used \TBD{drop the $\ln\hat{Z}$ columns of Table~\ref{tab:rmse} or report stage (i) only}.
 Because the data are reused across stages, we report alongside the final posterior the stage-(i) posterior, which involves no data-dependent narrowing, and an inference on a much wider box ($[-15,20]$ for all entries) with and without an additional $\mathcal{N}(0,6^2)$ prior (Section~\ref{sec:sensitivity}).
 We monitor the fraction of posterior mass within 5\% of each bound at every stage.
 
@@ -483,7 +483,7 @@ The procedure is summarised in Algorithm~\ref{alg:tmcmc}; Table~\ref{tab:timing}
 \STATE Record MAP and posterior SD per parameter
 \STATE $\triangleright$ \textbf{Stage (ii): composition likelihood, box mean $\pm4$\,SD}
 \STATE Repeat lines 2--13 on the narrowed box, starting from the previous particles
-\STATE $\triangleright$ \textbf{Stages (iii)--(iv): add viability and pH channels; initial box, then mean $\pm2$\,SD}
+\STATE $\triangleright$ \textbf{Stages (iii)--(iv): add viability and pH channels; initial box, then mean $\pm4$\,SD}
 \STATE Augment likelihood with the weighted viability and pH channels (Table~\ref{tab:weights})
 \STATE Repeat lines 2--13 for each stage
 \RETURN $\hat{\btheta}^{\mathrm{MAP}}$, posterior samples, $\ln\hat{Z}$
@@ -767,6 +767,15 @@ The ratio $r_i=\sigma_{\mathrm{post},i}/\Delta_{\mathrm{prior}}$ cannot detect n
 We therefore assess identifiability by (i)~agreement across independent seeds (Section~\ref{sec:convergence}), (ii)~the dependence of each marginal on the prior, comparing inference on the wide box $[-15,20]$ with and without an $\mathcal{N}(0,6^2)$ prior, and (iii)~the fraction of posterior mass at the box bounds.
 \TBD{Result: which entries are determined by the data and which depend on the prior (DH and DS).}
 Parameters whose marginals change with the prior are reported as weakly identified, and no biological interpretation is based on them.
+
+\paragraph{Likelihood weights.}
+The weights $\lambda_{\mathrm{Pg}}=5$ and $\lambda_{\mathrm{late}}=3$ (Table~\ref{tab:weights}) are modelling choices.
+Repeating stage~(i) for DH with $\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}}=1$ \TBD{result: sign and 90\% interval of $a_{45}$, Pg D21/D15 ratio and RMSE, compared with the weighted run}.
+
+\paragraph{Necessity of the \textit{Fn}--\textit{Pg} interaction.}
+We compare the full model with a reduced model in which $a_{45}=0$, both inferred from stage~(i), whose particles are initialised from the prior so that the log-evidence estimate is valid.
+\TBD{Table: $\ln\hat Z$ (mean $\pm$ spread over three seeds) of both models and $\ln B=\ln\hat Z_{\mathrm{full}}-\ln\hat Z_{a_{45}=0}$ for the four conditions.}
+Because the prior on $a_{45}$ is uniform, $\ln B$ includes an Occam penalty proportional to the log of the box width and is therefore conservative for the full model.
 
 %==============================================================================
 \section{Discussion}
