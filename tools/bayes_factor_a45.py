@@ -25,12 +25,15 @@ import sys
 A45 = 19
 SEEDS = (42, 7, 123)
 
-# 条件 -> (a45 自由のベースラインの RUNTAG, a45=0 の RUNTAG)
+# 条件 -> (a45 自由のベースラインの RUNTAG, a45=0 の RUNTAG の候補)
+# a45=0 側は候補を先頭から順に見て、3 seed 揃っているものを使う。
+# CH / CS は mutation をベースライン (120) にそろえた a45zero_m120 を 2026-10-08i で
+# 回し直したので、揃えば古い a45zero (mut80) より優先する。
 PAIRS = {
-    "DH": ("mut80", "a45zero"),
-    "DS": ("wide80", "a45zero"),
-    "CH": ("mut120", "a45zero"),
-    "CS": ("mut120", "a45zero"),
+    "DH": ("mut80", ("a45zero",)),
+    "DS": ("wide80", ("a45zero",)),
+    "CH": ("mut120", ("a45zero_m120", "a45zero")),
+    "CS": ("mut120", ("a45zero_m120", "a45zero")),
 }
 
 # モデル・データが同じであることを担保する鍵。ここが違えば ln Z は比較できない
@@ -128,6 +131,17 @@ def check_pair(full: dict, zero: dict) -> tuple[list[str], list[str]]:
     return stop, warn
 
 
+def pick_zero_runtag(root: str, tag: str, cands: tuple[str, ...]) -> str:
+    """a45=0 側の RUNTAG を選ぶ。3 seed 揃っている最初の候補、無ければ最後の候補。"""
+    for rt in cands:
+        if all(
+            os.path.isfile(os.path.join(root, f"{tag}_pilot_{rt}_seed{s}", "config.json"))
+            for s in SEEDS
+        ):
+            return rt
+    return cands[-1]
+
+
 def interpret(ln_bf: float) -> str:
     """Kass & Raftery (1995) の目安。ln BF > 0 は a45 自由を支持。"""
     a = abs(ln_bf)
@@ -151,10 +165,13 @@ def main() -> int:
 
     print("ln BF = ln Z(a45 自由) - ln Z(a45 = 0)   正なら a45 自由を支持\n")
     exit_code = 0
+    rows: list[str] = []
 
-    for tag, (full_rt, zero_rt) in PAIRS.items():
+    for tag, (full_rt, zero_cands) in PAIRS.items():
+        zero_rt = pick_zero_runtag(args.runs, tag, zero_cands)
         print(f"[{tag}]  自由={full_rt}  a45=0={zero_rt}")
         ln_bfs = []
+        a45_box = None
         for seed in SEEDS:
             d_full = os.path.join(args.runs, f"{tag}_pilot_{full_rt}_seed{seed}")
             d_zero = os.path.join(args.runs, f"{tag}_pilot_{zero_rt}_seed{seed}")
@@ -176,6 +193,9 @@ def main() -> int:
             for w in warn:
                 print(f"  seed{seed:<4} 警告: {w}")
 
+            pb = full.get("prior_bounds_final")
+            if pb and len(pb) > A45:
+                a45_box = (float(pb[A45][0]), float(pb[A45][1]))
             ln_bf = full["log_evidence"] - zero["log_evidence"]
             ln_bfs.append(ln_bf)
             print(
@@ -190,9 +210,23 @@ def main() -> int:
             if hi - lo > 2.0:
                 print("     警告: seed 間の幅が 2 を超える。ln Z の推定が安定していない")
                 exit_code = 1
+            # 原稿の表にそのまま貼れる行。a45 の箱の幅を必ず併記する（2026-10-08i §3）
+            if a45_box is None:
+                box = "\\TBD{} & "
+            else:
+                lo_b, hi_b = a45_box
+                box = f"$[{lo_b:g}, {hi_b:g}]$ & ${hi_b - lo_b:g}$"
+            rows.append(
+                f"{tag} & {box} & ${mean:+.2f}$ & ${hi - lo:.2f}$\\\\"
+            )
         else:
             print(f"  → {len(ln_bfs)}/{len(SEEDS)} seed のみ。全 seed 揃うまで解釈しない")
         print()
+
+    if rows:
+        print("% 原稿の表に貼る行: cond & a45 box & width & mean ln B & spread over 3 seeds")
+        for r in rows:
+            print(r)
 
     return exit_code
 
