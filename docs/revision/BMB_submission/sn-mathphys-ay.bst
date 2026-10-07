@@ -1,8 +1,7 @@
-%% This is file `sn-mathphys-num.bst'
+%% This is file `sn-mathphys-ay.bst'
 %% Compatible with bibtex version 0.99d.
 %%
-%% Note: Per default sorting entries is done in the order of citation.
-%% If the journal requires alphabetical order of references, select the “alpha” option
+%% Sorting entries is done by name and year fields!
 %%
 %% You are free to use this style file as you see fit, provided
 %% that you do not make changes to the file.
@@ -19,8 +18,8 @@
 
 FUNCTION {identify.mathphys.version}
 { % Put identifying string in the .blg file
-  "sn-mathphys-num.bst"
-  " [2024/07/19 v1.1  bibliography style]"
+  "sn-mathphys-ay.bst"
+  " [2024/07/19 v1.1 bibliography style]"
   * top$
 }
 
@@ -2406,8 +2405,7 @@ FUNCTION {initialize.et.al.char.used}
 
 %%%%% setting default options
 FUNCTION {set.default.opt}
-{"unsort" 'list.string :=}
-%%{"alpha" 'list.string :=}
+{"alpha" 'list.string :=}
 
 EXECUTE {set.default.opt}
 
@@ -3204,4 +3202,4 @@ FUNCTION {export.xml}{
 %%ITERATE {export.xml}
 %%EXECUTE {end.bmcxmlcomment}
 
-%% End of file `sn-mathphys-num.bst'.
+%% End of file `sn-mathphys-ay.bst'.

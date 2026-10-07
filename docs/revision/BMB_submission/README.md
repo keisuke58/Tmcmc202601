@@ -4,10 +4,10 @@
 
 | ファイル | 中身 |
 |---|---|
-| `BMB_manuscript_nishioka.tex` | 原稿（sn-jnl v3.1、`sn-mathphys-num`、通し行番号）。赤字 `[...]`（`\TBD`）は ult の数値・共著者確認待ち |
+| `BMB_manuscript_nishioka.tex` | 原稿（sn-jnl v3.1、`sn-mathphys-ay` = BMB の著者・年の引用、通し行番号）。赤字 `[...]`（`\TBD`）は ult の数値・共著者確認待ち |
 | `BMB_cover_letter.tex` | Cover letter の下書き |
 | `references_ikm.bib` | 文献 |
-| `sn-jnl.cls`, `sn-mathphys-num.bst` | Springer Nature のテンプレート（Editorial Manager でのコンパイルに必要、そのまま一緒にアップロード） |
+| `sn-jnl.cls`, `sn-mathphys-ay.bst` | Springer Nature のテンプレート（Editorial Manager でのコンパイルに必要、そのまま一緒にアップロード） |
 | `figures/` | 本文で使う図だけ |
 
 コンパイル: `pdflatex → bibtex → pdflatex ×2`（`BMB_manuscript_nishioka`）

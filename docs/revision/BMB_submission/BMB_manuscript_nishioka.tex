@@ -1,6 +1,6 @@
 %% Bulletin of Mathematical Biology submission (Springer Nature LaTeX template sn-jnl, v3.1 Dec 2024)
 %% lineno: continuous line numbers for review
-\documentclass[pdflatex,sn-mathphys-num,lineno]{sn-jnl}
+\documentclass[pdflatex,sn-mathphys-ay,lineno]{sn-jnl}% BMB: author-year citations
 
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
@@ -68,19 +68,19 @@ Posterior predictive simulations without Fn suppress the late Pg increase with p
 \label{sec:intro}
 %==============================================================================
 
-Multi-species biofilms that form on dental implant surfaces are a principal etiological factor in peri-implantitis~\cite{Kolenbrander2010OralMultispecies, Marsh2003Dental}. Recent \textit{in vivo} characterisations indicate that these microbial communities are highly complex, individualized, and dynamically structured over time~\cite{dieckow2024structure, cui2025microbial}.
-In a controlled in vitro study, Heine et al.~\cite{heine2025influence} investigated the temporal dynamics of five representative oral taxa, \textit{Streptococcus oralis} (\textit{So}), \textit{Actinomyces naeslundii} (\textit{An}), \textit{Veillonella} spp.\ (\textit{Vei}; \textit{V.~dispar} in commensal, \textit{V.~parvula} in dysbiotic conditions), \textit{Fusobacterium nucleatum} (\textit{Fn}), and \textit{Porphyromonas gingivalis} (\textit{Pg}), across four experimental conditions defined by community state (commensal vs. dysbiotic) and cultivation mode (static vs. HOBIC reactor).
-Importantly, the two community states incorporated distinct \textit{Porphyromonas gingivalis} strains: the commensal consortium included the avirulent strain \textit{Pg} DSM\,20709, whereas the dysbiotic consortium employed the virulent strain \textit{Pg} W83, which harbors a full complement of gingipain and fimbrial virulence determinants~\cite{heine2025influence}.
-Building on the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamilton}, Klempt et al.~\cite{Klempt2025ContinuumBiofilm} formulated a continuum model in which a symmetric interaction matrix~$\mathbf{A}$ governs species growth, with an optional decay vector~$\mathbf{b}$ for antibiotic effects.
-Fritsch et al.~\cite{Fritsch2025BayesianMicrofilms} subsequently introduced Bayesian updating with surrogate models for biofilm parameter estimation under hybrid uncertainties.
+Multi-species biofilms that form on dental implant surfaces are a principal etiological factor in peri-implantitis~\citep{Kolenbrander2010OralMultispecies, Marsh2003Dental}. Recent \textit{in vivo} characterisations indicate that these microbial communities are highly complex, individualized, and dynamically structured over time~\citep{dieckow2024structure, cui2025microbial}.
+In a controlled in vitro study, \citet{heine2025influence} investigated the temporal dynamics of five representative oral taxa, \textit{Streptococcus oralis} (\textit{So}), \textit{Actinomyces naeslundii} (\textit{An}), \textit{Veillonella} spp.\ (\textit{Vei}; \textit{V.~dispar} in commensal, \textit{V.~parvula} in dysbiotic conditions), \textit{Fusobacterium nucleatum} (\textit{Fn}), and \textit{Porphyromonas gingivalis} (\textit{Pg}), across four experimental conditions defined by community state (commensal vs. dysbiotic) and cultivation mode (static vs. HOBIC reactor).
+Importantly, the two community states incorporated distinct \textit{Porphyromonas gingivalis} strains: the commensal consortium included the avirulent strain \textit{Pg} DSM\,20709, whereas the dysbiotic consortium employed the virulent strain \textit{Pg} W83, which harbors a full complement of gingipain and fimbrial virulence determinants~\citep{heine2025influence}.
+Building on the extended Hamilton principle~\citep{JunkerBalzani2021ExtendedHamilton}, \citet{Klempt2025ContinuumBiofilm} formulated a continuum model in which a symmetric interaction matrix~$\mathbf{A}$ governs species growth, with an optional decay vector~$\mathbf{b}$ for antibiotic effects.
+\citet{Fritsch2025BayesianMicrofilms} subsequently introduced Bayesian updating with surrogate models for biofilm parameter estimation under hybrid uncertainties.
 
 Despite these advances, estimating the 15-dimensional parameter vector (15 interaction parameters) from limited time-course data remains challenging.
-Two principal difficulties arise: (i) poor identifiability when data are sparse relative to the parameter dimension---with $N_t=5$ usable time points (Day~1 is consumed as initial condition) and 5 species, one has at most 25 observations for 15 unknowns---and (ii) multimodal posterior landscapes caused by the coupled $\phi_i$--$\psi_i$ dynamics, which render standard MCMC methods inefficient~\cite{RobertCasella2004MonteCarlo}.
+Two principal difficulties arise: (i) poor identifiability when data are sparse relative to the parameter dimension---with $N_t=5$ usable time points (Day~1 is consumed as initial condition) and 5 species, one has at most 25 observations for 15 unknowns---and (ii) multimodal posterior landscapes caused by the coupled $\phi_i$--$\psi_i$ dynamics, which render standard MCMC methods inefficient~\citep{RobertCasella2004MonteCarlo}.
 
 In this work we address these challenges through three complementary strategies.
 First, we introduce the data in two phases: the interaction matrix is first inferred from the species composition alone, and the viability (and, for HOBIC cultivation, pH) measurements are added only once the composition-based posterior is available.
-Second, we compile the forward model in JAX~\cite{jax2018github} and evaluate the entire particle ensemble on GPU via batched \texttt{vmap}, achieving a \TBD{$\sim$200}$\times$ speedup over the CPU baseline.
-Third, we infer the posterior with TMCMC~\cite{ChingChen2007TMCMC, Betz2016TMCMC} in stages with progressively narrowed prior boxes and verify every stage with independent seeds and explicit convergence criteria (Section~\ref{sec:convergence}).
+Second, we compile the forward model in JAX~\citep{jax2018github} and evaluate the entire particle ensemble on GPU via batched \texttt{vmap}, achieving a \TBD{$\sim$200}$\times$ speedup over the CPU baseline.
+Third, we infer the posterior with TMCMC~\citep{ChingChen2007TMCMC, Betz2016TMCMC} in stages with progressively narrowed prior boxes and verify every stage with independent seeds and explicit convergence criteria (Section~\ref{sec:convergence}).
 The framework is applied to all four experimental conditions of Heine et al.; it reproduces commensal homeostasis as well as the late pathogen increase of dysbiotic biofilms under HOBIC flow, and it yields a prediction that can be tested by a leave-one-species-out experiment.
 
 %==============================================================================
@@ -90,7 +90,7 @@ The framework is applied to all four experimental conditions of Heine et al.; it
 
 \subsection{State variables and kinematics}
 
-Following Klempt et al.~\cite{Klempt2025ContinuumBiofilm, Klempt2024ContinuumGrowth}, the biofilm is described at a material point by two sets of internal variables: the volume fraction $\phi_i \in [0,1]$ occupied by species~$i$ ($i=1,\dots,n$; here $n=5$), and the viability fraction $\psi_i \in [0,1]$ representing the proportion of living cells within species~$i$.
+Following \citet{Klempt2025ContinuumBiofilm, Klempt2024ContinuumGrowth}, the biofilm is described at a material point by two sets of internal variables: the volume fraction $\phi_i \in [0,1]$ occupied by species~$i$ ($i=1,\dots,n$; here $n=5$), and the viability fraction $\psi_i \in [0,1]$ representing the proportion of living cells within species~$i$.
 The living volume fraction is then
 \begin{equation}
 \bar{\phi}_i := \phi_i\,\psi_i,
@@ -105,7 +105,7 @@ An additional void fraction~$\phi_0$ closes the system via the holonomic constra
 
 % \subsection{Variational formulation}
 
-% The evolution equations are derived from the extended Hamilton principle~\cite{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic}
+% The evolution equations are derived from the extended Hamilton principle~\citep{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic}
 % \begin{equation}
 % \mathcal{H} = \int_\tau \bigl(\mathcal{G} + \mathcal{C} + \mathcal{D}\bigr)\,\mathrm{d}t \to \mathrm{stat}_{\boldsymbol{\xi},\gamma}\,,
 % \label{eq:hamilton}
@@ -123,7 +123,7 @@ An additional void fraction~$\phi_0$ closes the system via the holonomic constra
 % C = \gamma\Bigl(\sum_{l=0}^{n}\phi_l - 1\Bigr).
 % \label{eq:cfunc}
 % \end{equation}
-% The dissipation function is modeled as from the rate-dependent potential~\cite{Klempt2025ContinuumBiofilm}
+% The dissipation function is modeled as from the rate-dependent potential~\citep{Klempt2025ContinuumBiofilm}
 % \begin{equation}
 % \mathbf{\Delta} = \tfrac{1}{2}\,\dot{\bar{\bphi}}^T\boldsymbol{\eta}\,\dot{\bar{\bphi}}
 %           + \tfrac{1}{2}\,\dot{\bphi}^T\boldsymbol{\eta}\,\dot{\bphi},
@@ -131,10 +131,10 @@ An additional void fraction~$\phi_0$ closes the system via the holonomic constra
 % \end{equation}
 % with the diagonal viscosity matrix $\boldsymbol{\eta}=\mathrm{diag}(\eta_1,\dots,\eta_n)$.
 % The first term couples $\dot\phi_i$ and $\dot\psi_i$ through $\dot{\bar\phi}_i = \dot\phi_i\psi_i + \phi_i\dot\psi_i$, giving rise to non-linear dissipative interactions; the second term regularises the system to full rank.
-% Following Klempt et al.~\cite{Klempt2025ContinuumBiofilm}, the viscosity parameters are set to $\eta_i=1$ for all species, rendering them dimensionless scaling factors; the physical time scale is absorbed into the time-step size $\Delta t$.
+% Following \citet{Klempt2025ContinuumBiofilm}, the viscosity parameters are set to $\eta_i=1$ for all species, rendering them dimensionless scaling factors; the physical time scale is absorbed into the time-step size $\Delta t$.
 
 \subsection{Variational formulation}
-The evolution equations are derived from the principle of the minimum of the dissipation potential \cite{junker2014principle, hackl1997generalized}, which is a local form of
+The evolution equations are derived from the principle of the minimum of the dissipation potential \citep{junker2014principle, hackl1997generalized}, which is a local form of
 \begin{equation}
     \dot{\Psi} + \Delta + C \rightarrow \mathrm{stat}_{(\dot{\boldsymbol{\xi}}, \, \gamma)},
     \label{eq:variational_local}
@@ -147,13 +147,13 @@ where $\boldsymbol{\xi} = (\boldsymbol{\phi}, \boldsymbol{\psi})^T$ collects the
 \end{equation}
 where $c^*$ is the nutrient concentration, $\alpha^*$ the antibiotic concentration, $\mathbf{A}\in\Real^{n\times n}$ the symmetric growth coefficient matrix, and $\mathbf{B}=\mathrm{diag}(b_1,\dots,b_n)$ the antibiotic sensitivity matrix.
 
-The dissipation function is derived from the rate-dependent potential~\cite{Klempt2025ContinuumBiofilm}:
+The dissipation function is derived from the rate-dependent potential~\citep{Klempt2025ContinuumBiofilm}:
 \begin{equation}
 \Delta = \tfrac{1}{2}\,\dot{\bar{\bphi}}^T\boldsymbol{\eta}\,\dot{\bar{\bphi}}
           + \tfrac{1}{2}\,\dot{\bphi}^T\boldsymbol{\eta}\,\dot{\bphi},
 \label{eq:dissipation}
 \end{equation}
-with the diagonal viscosity matrix $\boldsymbol{\eta}=\mathrm{diag}(\eta_1,\dots,\eta_n)$. The first term couples $\dot\phi_i$ and $\dot\psi_i$ through $\dot{\bar\phi}_i = \dot\phi_i\psi_i + \phi_i\dot\psi_i$, giving rise to non-linear dissipative interactions; the second term regularises the system to full rank. Following Klempt et al.~\cite{Klempt2025ContinuumBiofilm}, the viscosity parameters are set to $\eta_i=1$ for all species, rendering them dimensionless scaling factors; the physical time scale is absorbed into the time-step size $\Delta t$.
+with the diagonal viscosity matrix $\boldsymbol{\eta}=\mathrm{diag}(\eta_1,\dots,\eta_n)$. The first term couples $\dot\phi_i$ and $\dot\psi_i$ through $\dot{\bar\phi}_i = \dot\phi_i\psi_i + \phi_i\dot\psi_i$, giving rise to non-linear dissipative interactions; the second term regularises the system to full rank. Following \citet{Klempt2025ContinuumBiofilm}, the viscosity parameters are set to $\eta_i=1$ for all species, rendering them dimensionless scaling factors; the physical time scale is absorbed into the time-step size $\Delta t$.
 
 The volume constraint~\eqref{eq:constraint} enters through a Lagrange multiplier~$\gamma$:
 \begin{equation}
@@ -164,9 +164,9 @@ C = \gamma\Bigl(\sum_{l=0}^{n}\phi_l - 1\Bigr).
 
 \subsection{Governing equations}
 
-% Evaluating $\delta\mathcal{H}=0$ with respect to variations $\delta\phi_i$, $\delta\psi_i$, and $\delta\gamma$ yields the coupled evolution equations~\cite{Klempt2025ContinuumBiofilm}:
+% Evaluating $\delta\mathcal{H}=0$ with respect to variations $\delta\phi_i$, $\delta\psi_i$, and $\delta\gamma$ yields the coupled evolution equations~\citep{Klempt2025ContinuumBiofilm}:
 
-Evaluating the stationarity conditions yields the coupled evolution equations~\cite{Klempt2025ContinuumBiofilm}:
+Evaluating the stationarity conditions yields the coupled evolution equations~\citep{Klempt2025ContinuumBiofilm}:
 
 \medskip\noindent
 \textit{Volume fraction} ($i=1,\dots,n$):
@@ -197,10 +197,10 @@ Evaluating the stationarity conditions yields the coupled evolution equations~\c
 0 = \sum_{l=0}^{n}\phi_l - 1,
 \label{eq:constraint_eq}
 \end{equation}
-In the numerical implementation, a logarithmic barrier penalty $\Psi_{\mathrm{bar}}$ with $K_p=\eta_i\times10^{-4}$ is added to enforce the box constraints $\phi_i,\psi_i\in[0,1]$~\cite{Klempt2025ContinuumBiofilm}; its contribution is omitted from Eqs.~\eqref{eq:phi}--\eqref{eq:phi0} for clarity.
+In the numerical implementation, a logarithmic barrier penalty $\Psi_{\mathrm{bar}}$ with $K_p=\eta_i\times10^{-4}$ is added to enforce the box constraints $\phi_i,\psi_i\in[0,1]$~\citep{Klempt2025ContinuumBiofilm}; its contribution is omitted from Eqs.~\eqref{eq:phi}--\eqref{eq:phi0} for clarity.
 The system~\eqref{eq:phi}--\eqref{eq:constraint_eq} constitutes $2n+2$ coupled non-linear equations for the unknowns $(\phi_1,\dots,\phi_n,\phi_0,\psi_1,\dots,\psi_n,\gamma)$, solved at each time step via Newton's method with an implicit Euler discretisation ($\Delta t = 10^{-4}$, $N_{\mathrm{step}}=2{,}500$ steps, $t_{\max}=0.25$ corresponding to the 21-day experimental window).
 
-The variational derivation automatically ensures symmetry $A_{ij}=A_{ji}$ and thermodynamic consistency~\cite{JunkerBalzani2021ExtendedHamilton}.
+The variational derivation automatically ensures symmetry $A_{ij}=A_{ji}$ and thermodynamic consistency~\citep{JunkerBalzani2021ExtendedHamilton}.
 Since $c^*$ enters the evolution equations only through the product $c^*A_{ij}$, its absolute value is non-identifiable; we fix $c^*=25$ so that the inferred $A_{ij}$ remain $\mathcal{O}(1)$.
 The Heine et al.\ experiments do not involve antibiotic agents, so we set $\alpha^*=0$, which eliminates the decay term $\alpha^*b_i\psi_i$ from Eq.~\eqref{eq:psi_evol}; the antibiotic sensitivity matrix~$\mathbf{B}$ is therefore inactive and excluded from estimation.
 The symmetric interaction matrix~$\mathbf{A}$ has 15 independent entries (Section~\ref{sec:model_matrix}); these form the 15-dimensional parameter vector~$\btheta$.
@@ -234,7 +234,7 @@ organised into five biologically motivated blocks:
 
 \subsection{Biological interaction network}
 
-Figure~\ref{fig:network} summarises previously reported or biologically supported interactions among the five taxa, compiled from Heine et al.~\cite{heine2025influence} and the literature; it is used only to interpret the inferred parameters, not as a constraint.
+Figure~\ref{fig:network} summarises previously reported or biologically supported interactions among the five taxa, compiled from \citet{heine2025influence} and the literature; it is used only to interpret the inferred parameters, not as a constraint.
 The listed pairs rest on different kinds of evidence (co-aggregation, metabolic cross-feeding, pH modification, peptide utilisation), which Table~\ref{tab:active} states for each pair.
 Because $\mathbf{A}$ is symmetric by construction, an inferred coefficient $a_{ij}$ describes an undirected effective interaction between species $i$ and $j$; the arrow in Figure~\ref{fig:network} represents a metabolite flow reported in the literature, not a direction recovered by the model.
 All 15 entries of $\mathbf{A}$ are estimated (i.e., no $\theta_k\equiv0$), so that no reported interaction is imposed and no unreported one is excluded.
@@ -282,14 +282,14 @@ Vei--Pg & pH elevation & Vei to Pg\\
 Fn--Pg & Peptide supply & mutual\\
 \bottomrule
 \end{tabular}
-\captionof{table}{Previously reported or biologically supported interactions~\cite{heine2025influence} used to interpret the inferred coefficients. The model coefficients $a_{ij}$ are symmetric; the last column refers to the reported metabolite flow, not to the model. All 15 parameters are estimated; none is fixed a priori.}
+\captionof{table}{Previously reported or biologically supported interactions~\citep{heine2025influence} used to interpret the inferred coefficients. The model coefficients $a_{ij}$ are symmetric; the last column refers to the reported metabolite flow, not to the model. All 15 parameters are estimated; none is fixed a priori.}
 \label{tab:active}
 \end{minipage}
-\caption{Species interaction network~\cite{heine2025influence}. Solid: previously reported or biologically supported interactions considered in the interpretation of the model. Dotted grey: no reported pathway. All pairs are estimated with the same prior.}
+\caption{Species interaction network~\citep{heine2025influence}. Solid: previously reported or biologically supported interactions considered in the interpretation of the model. Dotted grey: no reported pathway. All pairs are estimated with the same prior.}
 \label{fig:network}
 \end{figure}
 
-The block symbols $a_{ij}$ follow the 1-based notation of Klempt et al.~\cite{Klempt2025ContinuumBiofilm}; the matrix entries $A_{ij}$ use 0-based indexing consistent with Eqs.~\eqref{eq:phi}--\eqref{eq:psi_evol}.
+The block symbols $a_{ij}$ follow the 1-based notation of \citet{Klempt2025ContinuumBiofilm}; the matrix entries $A_{ij}$ use 0-based indexing consistent with Eqs.~\eqref{eq:phi}--\eqref{eq:psi_evol}.
 
 %==============================================================================
 \section{Bayesian inference framework}
@@ -321,12 +321,12 @@ For the species composition we use a weighted Gaussian log-likelihood
 \frac{\bigl(y_{\mathrm{obs},i}(t_k)-\hat{y}_i(t_k;\btheta)\bigr)^2}{\sigma_i^2} + \text{const},
 \label{eq:likelihood}
 \end{equation}
-where $\sigma_{i}$ is a species-specific observation noise derived from the replicate standard deviation of the normalised species fractions~\cite{heine2025influence} ($N=8$ biological replicates per condition), averaged over time points.
+where $\sigma_{i}$ is a species-specific observation noise derived from the replicate standard deviation of the normalised species fractions~\citep{heine2025influence} ($N=8$ biological replicates per condition), averaged over time points.
 The weights $w_{ik}$ are listed in Table~\ref{tab:weights}: Pg is up-weighted ($\lambda_{\mathrm{Pg}}=5$) because it is a low-abundance species whose late increase is the main dynamic feature of the dysbiotic data; the last two time points are up-weighted ($\lambda_{\mathrm{late}}=3$); and species whose mean fraction is below 5\% are down-weighted ($\lambda_{\mathrm{rare}}=0.1$).
 
 In Phase~2 (Section~\ref{sec:prior}) two further Gaussian channels are added with the weights of Table~\ref{tab:weights}.
-The \emph{viability channel} compares the predicted community viability $\sum_i\phi_i\psi_i/\sum_i\phi_i$ with the measured fraction of membrane-intact cells~\cite{heine2025influence}, with $\sigma_\psi$ the mean reported measurement error.
-For HOBIC cultivation, the \emph{pH channel} compares the measured pH time series~\cite{heine2025influence} with $\mathrm{pH}=7.5-0.74\,\bar{y}_{\mathrm{So}}-0.48\,\bar{y}_{\mathrm{Vei}}$, where $\bar{y}_i$ are the normalised living fractions $\phi_i\psi_i/\sum_j\phi_j\psi_j$, with $\sigma_{\mathrm{pH}}=0.15$ \TBD{source of the pH relation}.
+The \emph{viability channel} compares the predicted community viability $\sum_i\phi_i\psi_i/\sum_i\phi_i$ with the measured fraction of membrane-intact cells~\citep{heine2025influence}, with $\sigma_\psi$ the mean reported measurement error.
+For HOBIC cultivation, the \emph{pH channel} compares the measured pH time series~\citep{heine2025influence} with $\mathrm{pH}=7.5-0.74\,\bar{y}_{\mathrm{So}}-0.48\,\bar{y}_{\mathrm{Vei}}$, where $\bar{y}_i$ are the normalised living fractions $\phi_i\psi_i/\sum_j\phi_j\psi_j$, with $\sigma_{\mathrm{pH}}=0.15$ \TBD{source of the pH relation}.
 Treating the compositional data with independent Gaussian errors ignores the unit-sum constraint; \TBD{effect assessed in a sensitivity analysis -- to be agreed with M.S.}.
 
 \begin{table}[htbp]\centering\small
@@ -372,7 +372,7 @@ We monitor the fraction of posterior mass within 5\% of each bound at every stag
 
 \subsection{Tempered likelihood sequence}
 
-TMCMC~\cite{ChingChen2007TMCMC, DelMoral2006SMC, Chopin2002SMC} constructs a sequence of intermediate distributions
+TMCMC~\citep{ChingChen2007TMCMC, DelMoral2006SMC, Chopin2002SMC} constructs a sequence of intermediate distributions
 \begin{equation}
 p_m(\btheta) \propto p(\yobs\mid\btheta)^{\beta_m}\,p(\btheta),
 \qquad
@@ -386,7 +386,7 @@ w_j^{(m)} = p(\yobs\mid\btheta_j^{(m)})^{\beta_{m+1}-\beta_m},
 \qquad j=1,\dots,N,
 \label{eq:weights}
 \end{equation}
-satisfies $\mathrm{CoV}[\{w_j^{(m)}\}]=\delta_{\mathrm{target}}$, solved by bisection on $(\beta_m,1]$~\cite{Betz2016TMCMC}.
+satisfies $\mathrm{CoV}[\{w_j^{(m)}\}]=\delta_{\mathrm{target}}$, solved by bisection on $(\beta_m,1]$~\citep{Betz2016TMCMC}.
 
 \subsection{Resampling and mutation}
 
@@ -410,7 +410,7 @@ At each stage~$m$:
 \end{equation}
 Proposals outside the prior box are rejected without evaluating the likelihood.
 \end{enumerate}
-Random-walk proposals alternate with differential-evolution proposals~\cite{terBraak2006DEMC}, $\btheta^*=\btheta_j+\gamma_{\mathrm{DE}}(\btheta_a-\btheta_b)+\boldsymbol{\epsilon}$ with $\gamma_{\mathrm{DE}}=2.38/\sqrt{2d}$, which adapt to strongly correlated posteriors.
+Random-walk proposals alternate with differential-evolution proposals~\citep{terBraak2006DEMC}, $\btheta^*=\btheta_j+\gamma_{\mathrm{DE}}(\btheta_a-\btheta_b)+\boldsymbol{\epsilon}$ with $\gamma_{\mathrm{DE}}=2.38/\sqrt{2d}$, which adapt to strongly correlated posteriors.
 Each stage applies $K$ mutation steps to every particle (Table~\TBD{runs}).
 
 A by-product of TMCMC is the model evidence estimate
@@ -418,7 +418,7 @@ A by-product of TMCMC is the model evidence estimate
 \hat{p}(\yobs) = \prod_{m=0}^{M-1}\Bigl(\frac{1}{N}\sum_{j=1}^{N}w_j^{(m)}\Bigr),
 \label{eq:evidence}
 \end{equation}
-which can be used for Bayesian model comparison between models fitted to the same data~\cite{KassRaftery1995BayesFactor}.
+which can be used for Bayesian model comparison between models fitted to the same data~\citep{KassRaftery1995BayesFactor}.
 The estimate satisfies $\ln\hat{Z}\le\max_j\ln p(\yobs\mid\btheta_j)$, which we check for every run.
 Because the likelihoods of different conditions involve different data, $\ln\hat{Z}$ is not compared across conditions.
 
@@ -449,7 +449,7 @@ Each TMCMC run requires $\mathcal{O}(10^5)$--$\mathcal{O}(10^6)$ forward ODE sol
 We address the resulting computational cost through GPU parallelism and a two-phase introduction of the data.
 
 \paragraph{GPU-parallel TMCMC.}
-The forward model (Eqs.~\ref{eq:phi}--\ref{eq:constraint_eq}) is implemented in JAX~\cite{jax2018github}: the implicit Euler Newton solver---including Jacobian assembly and linear solve---is compiled via \texttt{jax.jit} into a single fused XLA kernel.
+The forward model (Eqs.~\ref{eq:phi}--\ref{eq:constraint_eq}) is implemented in JAX~\citep{jax2018github}: the implicit Euler Newton solver---including Jacobian assembly and linear solve---is compiled via \texttt{jax.jit} into a single fused XLA kernel.
 All $N$ particle trajectories are evaluated simultaneously via \texttt{jax.vmap} on GPU (NVIDIA RTX\,4090 for the benchmark in Table~\ref{tab:timing}), replacing the $\lceil N/12\rceil$ serial batches required on CPU.
 This yields a $\sim$200$\times$ end-to-end speedup (Table~\ref{tab:timing}).
 
@@ -512,16 +512,18 @@ $^\dagger$Extrapolated from the 500-particle CPU benchmark assuming linear scali
 \label{tab:timing}
 \end{table}
 
+\TBD{Springer policy: if large language models were used beyond copy editing (e.g.\ for code or text drafting), state how here in the Methods; otherwise delete this note.}
+
 %==============================================================================
 \section{Results}
 \label{sec:results}
 %==============================================================================
 
-The inference is performed under four experimental conditions from Heine et al.~\cite{heine2025influence}: Commensal Static (CS), Commensal HOBIC (CH), Dysbiotic Static (DS), and Dysbiotic HOBIC (DH).
+The inference is performed under four experimental conditions from \citet{heine2025influence}: Commensal Static (CS), Commensal HOBIC (CH), Dysbiotic Static (DS), and Dysbiotic HOBIC (DH).
 Species distribution data ($N=8$ biological replicates per condition, Days~1, 3, 6, 10, 15, 21) were normalised to unit sum at each time point; Day~1 serves as initial condition.
 All 15 interaction parameters are estimated simultaneously for every condition, following the staged procedure of Section~\ref{sec:prior} and Algorithm~\ref{alg:tmcmc}.
 Each stage is run with three seeds; Table~\TBD{runs} lists particles, mutation steps and number of tempering stages per condition, together with the outcome of the convergence criteria of Section~\ref{sec:convergence}.
-All runs use a coefficient-of-variation target $\delta_{\mathrm{target}}=1.0$ for the adaptive $\beta$-schedule~\cite{Betz2016TMCMC} and an initial random-walk scale $\gamma^2=2.38^2/d$~\cite{RobertsRosenthal2001Optimal}.
+All runs use a coefficient-of-variation target $\delta_{\mathrm{target}}=1.0$ for the adaptive $\beta$-schedule~\citep{Betz2016TMCMC} and an initial random-walk scale $\gamma^2=2.38^2/d$~\citep{RobertsRosenthal2001Optimal}.
 The proposal scale is adapted online: $\gamma$ is halved when the acceptance rate drops below 5\% and increased by 50\% when it exceeds 40\%.
 
 \TBD{All numbers in this section are from the previous runs and will be replaced by the final stage-(iv) runs.}
@@ -585,7 +587,7 @@ DS maintains $R^2\geq0.85$ for Vei and Pg in both phases; DH reproduces the Pg t
 \subsection{Convergence diagnostics}
 
 All stages of all conditions satisfy the convergence criteria of Section~\ref{sec:convergence} \TBD{table of runs: seeds, moves per parameter, spread of max log-likelihood and medians}.
-The acceptance rates of \TBD{x--y}\% are below the optimum $\bar\alpha\approx23\%$ for Gaussian targets~\cite{RobertsRosenthal2001Optimal}, reflecting the non-Gaussianity and bounded support of the posterior; criterion~(iii) therefore counts accepted moves rather than relying on the acceptance rate.
+The acceptance rates of \TBD{x--y}\% are below the optimum $\bar\alpha\approx23\%$ for Gaussian targets~\citep{RobertsRosenthal2001Optimal}, reflecting the non-Gaussianity and bounded support of the posterior; criterion~(iii) therefore counts accepted moves rather than relying on the acceptance rate.
 
 \subsection{Posterior fits across conditions}
 
@@ -597,7 +599,7 @@ DS (column~3) achieves the best fit (RMSE\,$=$\,0.033) with clear pathogen succe
 In DH (column~4), the model captures the non-linear amplification of \textit{Vei} and \textit{Pg}, including the late increase of \textit{Pg}.
 The credible bands widen from CS to DH, reflecting the increasing effective dimensionality.
 The bottom row highlights the distinct \textit{Pg} strains: the avirulent DSM\,20709 used in commensal conditions remains near zero, whereas the virulent W83 in dysbiotic conditions increases late.
-Similarly, the \textit{Veillonella} row corresponds to \textit{V.~dispar} in commensal and \textit{V.~parvula} in dysbiotic conditions~\cite{heine2025influence}.
+Similarly, the \textit{Veillonella} row corresponds to \textit{V.~dispar} in commensal and \textit{V.~parvula} in dysbiotic conditions~\citep{heine2025influence}.
 
 \begin{figure}[p]
 \centering
@@ -607,7 +609,7 @@ Solid lines: MAP $\varphi_i$ trajectory; dashed lines: living fraction $\bar{\va
 Shaded bands: 50\% (dark) and 80\% (light) credible intervals from 100 posterior samples.
 Circles: experimental median ($N=8$ replicates); box plots: inter-replicate variability (IQR).
 Note that \textit{P.~gingivalis} employs different strains: avirulent DSM\,20709 in commensal conditions and virulent W83 in dysbiotic conditions (indicated by colour).
-\textit{Veillonella} species also differ: \textit{V.~dispar} (commensal) and \textit{V.~parvula} (dysbiotic)~\cite{heine2025influence}.}
+\textit{Veillonella} species also differ: \textit{V.~dispar} (commensal) and \textit{V.~parvula} (dysbiotic)~\citep{heine2025influence}.}
 \label{fig:fits_all}
 \end{figure}
 
@@ -681,18 +683,18 @@ CS & DS & $-0.27$ & $\mathbf{1.36}$ & $5.88$\\
 \end{minipage}
 
 The results (Table~\ref{tab:pairwise}) show that matrices within the same health state share a common backbone ($\rho_{\text{CH--CS}}=+0.26$, $\rho_{\text{DH--DS}}=+0.40$), whereas cross-state comparisons yield negative correlations ($\rho_{\text{DH--CS}}=-0.49$) and large Frobenius distances ($\Delta_F\geq0.88$).
-The UMAP embedding of the full posterior (Figure~\ref{fig:umap}) confirms that all four conditions form well-separated clusters with no overlap~\cite{McInnes2018UMAP}; centroid distances in 15D space mirror the MAP ordering (CS--CH closest at $d\!=\!3.38$; CS--DH most distant at $d\!=\!7.77$).
+The UMAP embedding of the full posterior (Figure~\ref{fig:umap}) confirms that all four conditions form well-separated clusters with no overlap~\citep{McInnes2018UMAP}; centroid distances in 15D space mirror the MAP ordering (CS--CH closest at $d\!=\!3.38$; CS--DH most distant at $d\!=\!7.77$).
 Overall, the transition from health to disease corresponds to a structural reorganisation of the interaction landscape, not merely a rescaling of existing coefficients.
 
 \subsection{Post hoc consistency checks}
 \label{sec:validation}
 
-We compare the inferred trajectories with measurements of Heine et al.~\cite{heine2025influence} that are related to, but not identical with, the composition data.
+We compare the inferred trajectories with measurements of \citet{heine2025influence} that are related to, but not identical with, the composition data.
 These comparisons are consistency checks rather than independent validation.
 The HOBIC pH time series enters the Phase~2 likelihood (Section~\ref{sec:likelihood}) and is therefore not used as a check.
 
 \textit{Gingipain--\textit{Pg} correlation} ($r=\TBD{0.90}$):
-the temporal profile of gingipain (Heine et al.~\cite{heine2025influence}, Fig.~4B), the principal virulence factor of \textit{Pg}, correlates with the predicted Pg trajectory in DH, both increasing at Day~15--21; this is a temporal correlation, not a test of a mechanism.
+the temporal profile of gingipain (\citealp{heine2025influence}, Fig.~4B), the principal virulence factor of \textit{Pg}, correlates with the predicted Pg trajectory in DH, both increasing at Day~15--21; this is a temporal correlation, not a test of a mechanism.
 
 \textit{Metabolic sign consistency}:
 the MAP \textit{So}--\textit{An} coefficient ($a_{12}=\TBD{+0.76}$) is consistent with co-aggregation and cross-feeding between these early colonisers, while the \textit{So}--\textit{Vei} coefficient is negative ($a_{13}=\TBD{-2.73}$); this is a property of the effective model and should not be read as evidence against the well-established lactate cross-feeding between streptococci and \textit{Veillonella}.
@@ -701,7 +703,7 @@ the MAP \textit{So}--\textit{An} coefficient ($a_{12}=\TBD{+0.76}$) is consisten
 % \subsection{Independent validation}
 % \label{sec:validation}
 %
-% We validate the Phase~2 MAP parameters against four measurements from Heine et al.~\cite{heine2025influence} that were \emph{not} used in calibration.
+% We validate the Phase~2 MAP parameters against four measurements from \citet{heine2025influence} that were \emph{not} used in calibration.
 %
 % \textit{pH prediction} (LOO-$R^2 = 0.920$; independent $R^2 = 0.777$):\textit{Model selection.}
 % Candidate linear regressors were evaluated by leave-one-out cross-validation (LOO-CV) on $N=90$ HOBIC time points (0.5-day resolution, commensal and dysbiotic combined).
@@ -783,7 +785,7 @@ Together with the cross-condition transfer (Table~\ref{tab:cross_prediction}), i
 Beyond reproducing the observed community states, the inferred model yields a specific prediction.
 In posterior predictive simulations of the dysbiotic dynamic condition, the late Pg increase (Day-21/Day-15 ratio $\ge1.5$) occurs in \TBD{99--100}\% of posterior samples.
 Removing \textit{F.~nucleatum} from the consortium (its volume fraction held at zero) reduces this to \TBD{10--13}\%, and setting only the Fn--Pg coefficient $a_{45}$ to zero reduces it to \TBD{2--6}\%.
-The late increase thus arises in the model from a delayed rise of \textit{F.~nucleatum} transmitted to Pg through $a_{45}$, consistent with the bridging role of \textit{F.~nucleatum}~\cite{Kolenbrander2010OralMultispecies}.
+The late increase thus arises in the model from a delayed rise of \textit{F.~nucleatum} transmitted to Pg through $a_{45}$, consistent with the bridging role of \textit{F.~nucleatum}~\citep{Kolenbrander2010OralMultispecies}.
 The model therefore predicts, with posterior probability \TBD{0.87--0.90}, that a leave-\textit{F.~nucleatum}-out co-culture under otherwise identical dynamic cultivation suppresses the late Pg increase.
 Because commensal and dysbiotic consortia differ in \textit{Veillonella} species and Pg strain as well as in community state, the prediction concerns this consortium and should not be generalised to other strain combinations.
 
@@ -802,8 +804,8 @@ The viability predictions themselves remain approximate (RMSE \TBD{0.11--0.39}),
 
 \paragraph{Computational considerations.}
 The \TBD{$\sim$200}$\times$ GPU speedup (Table~\ref{tab:timing}) exploits the embarrassingly parallel mutation step via \texttt{jax.vmap}.
-For this solver and workload, gradient-based samplers (HMC, NUTS) were less efficient on the GPU, because trajectories of variable length limit batched evaluation~\cite{Dance2025FSM}.
-Combining the direct-ODE approach with surrogate acceleration~\cite{Fritsch2025BayesianMicrofilms} is a natural extension.
+For this solver and workload, gradient-based samplers (HMC, NUTS) were less efficient on the GPU, because trajectories of variable length limit batched evaluation~\citep{Dance2025FSM}.
+Combining the direct-ODE approach with surrogate acceleration~\citep{Fritsch2025BayesianMicrofilms} is a natural extension.
 
 %==============================================================================
 \section{Conclusions}
@@ -835,8 +837,8 @@ Identifiability is assessed by seed agreement, prior dependence on a wide box an
 \paragraph{Future work.}
 \begin{itemize}[nosep,leftmargin=*]
     \item \textbf{Experimental test of the prediction:} a leave-\textit{F.~nucleatum}-out co-culture under dysbiotic dynamic cultivation.
-    \item \textbf{External validation:} testing the inferred interactions against independent in-vivo datasets (e.g., Dieckow et al.~\cite{dieckow2024structure}).
-    \item \textbf{Spatially resolved inference:} coupling the framework to the continuum PDE biofilm model~\cite{Klempt2025ContinuumBiofilm} to exploit depth-resolved FISH/CLSM imaging.
+    \item \textbf{External validation:} testing the inferred interactions against independent in-vivo datasets (e.g., \citet{dieckow2024structure}).
+    \item \textbf{Spatially resolved inference:} coupling the framework to the continuum PDE biofilm model~\citep{Klempt2025ContinuumBiofilm} to exploit depth-resolved FISH/CLSM imaging.
 \end{itemize}
 
 \backmatter
@@ -845,12 +847,11 @@ Identifiability is assessed by seed agreement, prior dependence on a wide box an
 The authors acknowledge the Lower Saxony Centre for Biomedical Engineering, Implant Research and Development (NIFE), Hannover.
 Computational resources of the Multiphysics Materials Computation Research Group (Assoc.\ Prof.\ M.~Muramatsu), Department of Mechanical Engineering, Keio University, are gratefully acknowledged.
 
-\section*{Declarations}
+\section*{Statements and Declarations}
 
 \bmhead{Funding}
-This work was funded by the German Research Foundation (Deutsche Forschungsgemeinschaft, DFG) through the project grant SFB/TRR-298-SIIRI -- Project-ID 426335750, and by the European Union (ERC, Gen-TSM, project number 101124463).
-Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.
-\TBD{confirm with M.~Stiesch and P.~Junker that both grants cover this work}
+This work was funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) under the Collaborative Research Center SFB/TRR-298-SIIRI -- Project ID 426335750.
+Funded by the European Union (ERC, Gen-TSM, project number 101124463). Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.
 
 \bmhead{Competing interests}
 The authors declare no competing interests.
@@ -859,7 +860,7 @@ The authors declare no competing interests.
 Not applicable. This study analyses previously published in-vitro data and involves no human participants or animals.
 
 \bmhead{Data availability}
-The experimental data are those of Heine et al.~\cite{heine2025influence}.
+The experimental data are those of \citet{heine2025influence}.
 \TBD{state whether the processed time series are redistributed in the archive -- confirm with N.~Heine}
 
 \bmhead{Code availability}
@@ -893,7 +894,7 @@ All authors critically reviewed and approved the final manuscript.
 
 % \paragraph{Net-flow matrix construction.}
 % To assess whether the inferred interaction matrices are consistent with known metabolic biochemistry, we constructed a $5\times5$ net-flow matrix $F$ from two sources.
-% First, we parsed Supplementary File~1 of Dieckow et al.~\cite{Dieckow2025InVivo}, which catalogues microbe--metabolite--enzyme relationships annotated with KEGG and HMDB identifiers for the five focal genera.
+% First, we parsed Supplementary File~1 of \citet{Dieckow2025InVivo}, which catalogues microbe--metabolite--enzyme relationships annotated with KEGG and HMDB identifiers for the five focal genera.
 % For each metabolite, a weight $w=2$ was assigned to KEGG/HMDB-confirmed interactions and $w=1$ to literature-only entries; entries in which one taxon \textsc{produces} a metabolite that another taxon \textsc{uses} incremented $F_{\mathrm{tgt,src}}$ by $w$, while \textsc{inhibits} relationships decremented it.
 % Second, four mutualistic pairs absent from the Dieckow supplement but supported by eHOMD and primary literature (So--An lactate cross-feeding; An--Fn bridge synergy; Vd--Fn metabolite exchange; Fn--Pg coaggregation) were added with weight $w=1$.
 % The resulting signed matrix $F = F^+ - F^-$ has 16 non-zero off-diagonal entries and is common to all four conditions.
