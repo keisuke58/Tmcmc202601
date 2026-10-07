@@ -510,6 +510,111 @@ def run_table(groups):
     return rows
 
 
+def phase_consistency(g1, g2):
+    """Phase 1 と Phase 2 の MAP の相関と RMSD（原稿の Discussion と Phase 散布図の数字）。"""
+    out = {}
+    for t in CONDS:
+        if t in g1 and t in g2:
+            m1 = g1[t]["best"]["theta"][KEEP_IDX]
+            m2 = g2[t]["best"]["theta"][KEEP_IDX]
+            out[t] = {
+                "r": float(np.corrcoef(m1, m2)[0, 1]),
+                "rmsd": float(np.sqrt(np.mean((m1 - m2) ** 2))),
+            }
+    return out
+
+
+def channel_fit(g2):
+    """Phase 2 の生存率・pH チャネルの当てはまり（estimator が config.json に書いた値）。"""
+    out = {}
+    for t, g in g2.items():
+        mc = g["best"]["cfg"].get("multichannel_rmse") or {}
+        out[t] = {
+            "viability_rmse": (mc.get("ch3_viability") or {}).get("rmse"),
+            "viability_r2": (mc.get("ch3_viability") or {}).get("r2"),
+            "pH_rmse": (mc.get("ch5_pH") or {}).get("rmse"),
+            "pH_r2": (mc.get("ch5_pH") or {}).get("r2"),
+        }
+    return out
+
+
+def timing(groups):
+    """段・条件ごとの 1 seed あたりの計算時間（時間）と GPU。原稿の Table 2 の最終段の行。"""
+    out = {}
+    for stage, gs in groups.items():
+        for t, g in gs.items():
+            hrs = [r["rec"].get("total_time_s") for r in g["runs"]]
+            hrs = [h / 3600 for h in hrs if h is not None]
+            dev = sorted({str(r["cfg"].get("device", "?")) for r in g["runs"]})
+            out[f"{stage}_{t}"] = {
+                "hours_mean": float(np.mean(hrs)) if hrs else None,
+                "hours_max": float(np.max(hrs)) if hrs else None,
+                "n_particles": g["best"]["rec"]["args"]["n_particles"],
+                "devices": dev,
+            }
+    return out
+
+
+def knockout(g2, n_samples):
+    """論文の予測（Fn を除くと Pg の後期増加が消える）を Phase 2 の全 seed で計算する（tools/knockout_fn.py）。"""
+    import knockout_fn as KO
+
+    out = {}
+    for t, g in g2.items():
+        rows = [KO.run_dir(r["dir"], n_samples, 0) for r in g["runs"]]
+        fr = {
+            k: [r[k] for r in rows]
+            for k in ("frac_surge_base", "frac_surge_noFn", "frac_surge_a45_0")
+        }
+        out[t] = {
+            "per_seed": rows,
+            "frac_surge_base": [min(fr["frac_surge_base"]), max(fr["frac_surge_base"])],
+            "frac_surge_noFn": [min(fr["frac_surge_noFn"]), max(fr["frac_surge_noFn"])],
+            "frac_surge_a45_0": [min(fr["frac_surge_a45_0"]), max(fr["frac_surge_a45_0"])],
+            # 予測の確率 = 「そのまま」でサージが出て、「Fn を除く」と消える割合（seed ごとの差の範囲）
+            "prob_suppressed": [
+                min(b - n for b, n in zip(fr["frac_surge_base"], fr["frac_surge_noFn"])),
+                max(b - n for b, n in zip(fr["frac_surge_base"], fr["frac_surge_noFn"])),
+            ],
+            "fn_D21_noFn_max": max(r["fn_D21_noFn_max"] for r in rows),
+        }
+    return out
+
+
+def identifiability(root, ident_glob, tags):
+    """広い箱 [-15, 20] での推定を事前分布なし（prior0）と N(0, 6^2)（prior6）で比べる（原稿 §6.8）。
+
+    成分ごとに: 両者の中央値の差 / 事後 SD、90% 区間、箱の端 5% にある粒子の割合。
+    「データで決まる」の目安: 中央値の差が 0.5 SD 以下 かつ 端の割合が 10% 未満（判定 4 と同じ 0.5 SD）。
+    """
+    out = {}
+    for t in tags:
+        g0 = group(root, ident_glob.format(tag=t, prior="0"), t)
+        g6 = group(root, ident_glob.format(tag=t, prior="6"), t)
+        if not (g0 and g6):
+            continue
+        pb = np.array(g0["best"]["rec"]["prior_bounds_final"], dtype=float)
+        res = {}
+        for name, col in zip(KEEP_NAME, KEEP_IDX):
+            x0, x6 = g0["pooled"][:, col], g6["pooled"][:, col]
+            sd = float(np.sqrt(0.5 * (x0.var() + x6.var())))
+            lo, hi = pb[col]
+            w = hi - lo
+            edge = float(np.mean((x0 < lo + 0.05 * w) | (x0 > hi - 0.05 * w)))
+            shift = float(abs(np.median(x0) - np.median(x6)) / max(sd, 1e-12))
+            res[name] = {
+                "median_prior0": float(np.median(x0)),
+                "median_prior6": float(np.median(x6)),
+                "q05_prior0": float(np.percentile(x0, 5)),
+                "q95_prior0": float(np.percentile(x0, 95)),
+                "shift_over_sd": shift,
+                "edge_frac_prior0": edge,
+                "identified": bool(shift <= 0.5 and edge < 0.10),
+            }
+        out[t] = res
+    return out
+
+
 def fmt(x, nd=3):
     return "--" if x is None else f"{x:.{nd}f}"
 
@@ -565,6 +670,47 @@ def tables_tex(num):
             for t in CONDS
         ]
         L.append(f"{src} & " + " & ".join(cells) + " \\\\")
+    L += [
+        "",
+        "% Table tab:runs: stage & cond & seed run & N_p & K & stages & moves/param & max lnL & hours",
+    ]
+    for r in num["runs"]:
+        run_tt = r["run"].replace("_", "\\_")
+        L.append(
+            f"{r['stage']} & {r['cond']} & \\texttt{{{run_tt}}} & {r['n_particles']} & "
+            f"{r['n_mutation_steps']} & {r['n_stages']} & {fmt(r['moves_per_dim'], 1)} & "
+            f"${fmt(r['max_logL'], 1)}$ & {fmt((r['total_time_s'] or 0) / 3600, 1)}\\\\"
+        )
+    if num.get("identifiability"):
+        L += [
+            "",
+            "% Table identifiability: param & (cond: median prior0 / prior6, shift/SD, edge, identified)",
+        ]
+        tags = list(num["identifiability"])
+        for name in KEEP_NAME:
+            cells = []
+            for t in tags:
+                d = num["identifiability"][t][name]
+                mark = "" if d["identified"] else "$^\\ast$"
+                cells.append(
+                    f"${d['median_prior0']:+.2f}$ / ${d['median_prior6']:+.2f}${mark} & {d['shift_over_sd']:.2f}"
+                )
+            L.append(f"$a_{{{name[1:]}}}$ & " + " & ".join(cells) + "\\\\")
+        L.append(
+            "% $^\\ast$: weakly identified (median shifts by > 0.5 SD with the prior, or >= 10% of mass at the box bounds)"
+        )
+    if num.get("knockout"):
+        L += [
+            "",
+            "% Knockout (Discussion, A testable prediction): frac. of posterior samples with Pg D21/D15 >= 1.5",
+        ]
+        for t, k in num["knockout"].items():
+            L.append(
+                f"% {t}: baseline {k['frac_surge_base'][0]:.2f}--{k['frac_surge_base'][1]:.2f}, "
+                f"no Fn {k['frac_surge_noFn'][0]:.2f}--{k['frac_surge_noFn'][1]:.2f}, "
+                f"a45=0 {k['frac_surge_a45_0'][0]:.2f}--{k['frac_surge_a45_0'][1]:.2f}, "
+                f"P(suppressed) {k['prob_suppressed'][0]:.2f}--{k['prob_suppressed'][1]:.2f}"
+            )
     return "\n".join(L) + "\n"
 
 
@@ -585,7 +731,22 @@ def main():
         "--out-dir", default=str(ROOT / "docs" / "revision" / "BMB_submission" / "figures")
     )
     ap.add_argument(
-        "--skip", nargs="*", default=[], choices=["fig2", "heatmap", "violin", "phase", "umap"]
+        "--skip",
+        nargs="*",
+        default=[],
+        choices=["fig2", "heatmap", "violin", "phase", "umap", "knockout", "ident"],
+    )
+    ap.add_argument(
+        "--ident-glob",
+        default="{tag}_ident_prior{prior}_*",
+        help="識別性の run（{tag} と {prior}=0/6 を埋める）",
+    )
+    ap.add_argument("--ident-tags", nargs="*", default=["DH", "DS"])
+    ap.add_argument(
+        "--knockout-tags", nargs="*", default=["DH", "DS"], help="ノックアウトを計算する条件"
+    )
+    ap.add_argument(
+        "--knockout-n", type=int, default=500, help="ノックアウトに使う事後サンプル数（seed ごと）"
     )
     args = ap.parse_args()
 
@@ -619,7 +780,16 @@ def main():
         "pairwise": pairwise(g2),
         "cross_prediction": cross_prediction(g2),
         "runs": run_table({"phase1": g1, "phase2": g2}),
+        "phase_consistency": phase_consistency(g1, g2),
+        "channel_fit_phase2": channel_fit(g2),
+        "timing": timing({"phase1": g1, "phase2": g2}),
     }
+    if "knockout" not in args.skip:
+        num["knockout"] = knockout(
+            {t: g2[t] for t in args.knockout_tags if t in g2}, args.knockout_n
+        )
+    if "ident" not in args.skip:
+        num["identifiability"] = identifiability(args.root, args.ident_glob, args.ident_tags)
     for t, p in num["phase2"].items():
         if p["rmse_estimator"] is not None and abs(p["rmse"] - p["rmse_estimator"]) > 1e-6:
             print(
@@ -650,6 +820,14 @@ def main():
                 f"  {t}: RMSE {p['rmse']:.3f}  Pg D21/D15 {p['pg_ratio_D21_D15']:.2f}  "
                 f"a45 MAP {a45['map']:+.2f} 90% [{a45['q05']:+.2f}, {a45['q95']:+.2f}]"
             )
+    for t, k in (num.get("knockout") or {}).items():
+        print(
+            f"  knockout {t}: surge base {k['frac_surge_base']}, no Fn {k['frac_surge_noFn']}, "
+            f"a45=0 {k['frac_surge_a45_0']}, P(suppressed) {k['prob_suppressed']}"
+        )
+    for t, d in (num.get("identifiability") or {}).items():
+        weak = [n for n, v in d.items() if not v["identified"]]
+        print(f"  identifiability {t}: weakly identified {weak}")
     return 0
 
 
