@@ -51,6 +51,10 @@ N_MUT="${N_MUT:-}"
 THROTTLE_FLOOR="${THROTTLE_FLOOR:-1.0}"
 # 出力ディレクトリ名の末尾に付ける識別子。過去の run を上書きしないために使う
 RUNTAG="${RUNTAG:-}"
+# 成分ごとの箱の上書き（estimator の --override-bounds にそのまま渡す。"idx:lo:hi,idx:lo:hi"）。
+# 論文の箱が事後を切っている成分に使う（2026-10-07: DS の a33 は [1, 3] だが ident DS の事後は [−13, −1]）。
+# p1 以降の絞り込みは元の箱で clip されるので、連鎖の全段で同じ値を渡すこと。
+OVERRIDE="${OVERRIDE:-}"
 
 case "$TAG" in
   CS) COND=Commensal; CULT=Static ;;
@@ -93,6 +97,8 @@ if [ -n "$N_MUT" ]; then
     [ "${ARGS[$i]}" = "--n-mutation-steps" ] && ARGS[$((i + 1))]="$N_MUT"
   done
 fi
+
+[ -n "$OVERRIDE" ] && ARGS+=(--override-bounds "$OVERRIDE")
 
 SUFFIX=""
 [ "$STAGE" = "ident" ] && SUFFIX="_prior${PRIOR_SCALE}"
