@@ -70,6 +70,10 @@ You are right that ln Ẑ ≤ max ln L must hold for the same likelihood. Two ca
 (i) the evidence accumulator in the TMCMC engine omitted the log-sum-exp offset of the
 incremental weights, and (ii) in Phase 2 the reported max ln L and ln Ẑ were computed from
 different likelihood definitions. Both are fixed; the inequality is now checked automatically
+
+> 内部メモ: (i) はエンジンで修正済み・テストで確認済み。**(ii) は未確認**（Table 3 の脚注からの推測）。
+> 原論文の run ログが無いので確かめられない。確かめられなければ (ii) は削って「(i) を修正し、全 run で不等式を確認した」だけにする。
+
 for every run (unit test and per-run check). The corrected Table 3 will be regenerated directly
 from the saved run outputs `[[FINAL: ult]]`.
 
