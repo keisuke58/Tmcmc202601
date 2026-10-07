@@ -14,8 +14,11 @@
 #   pilot : Phase 1 の出発点。ψ 固定・論文の箱・1000 粒子・40 mutation・DE-MC
 #   p1    : Phase 1 本番。pilot から warm start、箱を MAP ± 4σ に絞る、2000 粒子
 #   p2    : Phase 2。ψ 自由・多チャネル（ch1 1.0 / ch2 0 / ch3 2.0 / ch5 0.3）、
-#           p1 から warm start、MAP ± 3σ、2000 粒子
-#   ult   : 本番。p2 から warm start、MAP ± 2σ、10000 粒子・50 mutation
+#           p1 から warm start、**箱は絞らない**（論文の箱＋OVERRIDE）、2000 粒子
+#           （2026-10-08: p1 の事後で絞ると、多チャネル尤度の事後が箱の外に出て端に張り付いた。
+#            DH p2 で a23 の粒子が 100% 端。P2_NSIGMA を渡したときだけ絞る）
+#   ult   : 本番。p2 から warm start、平均 ± 2σ（同じ尤度なので絞ってよい）。
+#           粒子数は N_PART（既定 5000）、mutation は N_MUT（既定 80）。2026-10-08 の実測で決めた
 #   ident : 識別性の検証。ψ 固定・箱 [-15, 20]・2000 粒子・40 mutation・DE-MC。
 #           PRIOR_SCALE=0 で事前分布なし、6 で N(0, 6^2)
 # pilot〜ult は 2026-03 の論文の手順（run_production_2000p.sh / run_phase2_free_psi.sh /
@@ -47,6 +50,10 @@ case "$GATE" in
 esac
 # mutation 回数の上書き（空なら STAGE ごとの既定値）
 N_MUT="${N_MUT:-}"
+# 粒子数の上書き（空なら STAGE ごとの既定値）
+N_PART="${N_PART:-}"
+# p2 の箱の絞り込み（空 = 絞らない、2026-10-08 の既定）
+P2_NSIGMA="${P2_NSIGMA:-}"
 # 低 beta で mutation 回数を絞る下限。1.0 = 絞らない（2026-10-05 の修正、既定）
 THROTTLE_FLOOR="${THROTTLE_FLOOR:-1.0}"
 # 出力ディレクトリ名の末尾に付ける識別子。過去の run を上書きしないために使う
@@ -84,9 +91,10 @@ case "$STAGE" in
                           --init-from-dir "$PREV" --posterior-prior-nsigma 4) ;;
   p2)    need_prev; ARGS=(--multichannel --lambda-ch1 1.0 --lambda-ch2 0.0 --lambda-ch3 2.0
                           --lambda-ch5 "$LAMBDA_CH5" --n-particles 2000 --n-mutation-steps 40
-                          --init-from-dir "$PREV" --posterior-prior-nsigma 3) ;;
+                          --init-from-dir "$PREV")
+         [ -n "$P2_NSIGMA" ] && ARGS+=(--posterior-prior-nsigma "$P2_NSIGMA") ;;
   ult)   need_prev; ARGS=(--multichannel --lambda-ch1 1.0 --lambda-ch2 0.0 --lambda-ch3 2.0
-                          --lambda-ch5 "$LAMBDA_CH5" --n-particles 10000 --n-mutation-steps 50
+                          --lambda-ch5 "$LAMBDA_CH5" --n-particles 5000 --n-mutation-steps 80
                           --init-from-dir "$PREV" --posterior-prior-nsigma 2) ;;
   ident) ARGS=(--fix-psi --n-particles 2000 --n-mutation-steps 40 --box -15 20
                --prior-scale "$PRIOR_SCALE") ;;
@@ -97,6 +105,12 @@ esac
 if [ -n "$N_MUT" ]; then
   for i in "${!ARGS[@]}"; do
     [ "${ARGS[$i]}" = "--n-mutation-steps" ] && ARGS[$((i + 1))]="$N_MUT"
+  done
+fi
+
+if [ -n "$N_PART" ]; then
+  for i in "${!ARGS[@]}"; do
+    [ "${ARGS[$i]}" = "--n-particles" ] && ARGS[$((i + 1))]="$N_PART"
   done
 fi
 
