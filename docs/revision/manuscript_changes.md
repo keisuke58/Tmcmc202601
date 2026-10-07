@@ -124,7 +124,7 @@ We monitor the fraction of posterior mass within 5\% of each bound at every stag
 
 ## 6. §4 TMCMC（A5、A1、B3）
 
-- §4.2 の `All parameters are clipped to their prior bounds after each proposal.` → 
+- §4.2 の `All parameters are clipped to their prior bounds after each proposal.` →
   `Proposals outside the prior box are rejected without evaluating the likelihood.`
 - 変異（mutation）の記述に足す:
 
@@ -174,10 +174,10 @@ Each stage is run with three seeds; Table~\ref{tab:runs} lists particles, mutati
 ## 9. §6.7 Independent validation → Post hoc consistency checks（C6、C7、C8）
 
 - 見出し: `Independent validation` → `Post hoc consistency checks`
-- 冒頭文: `… four measurements … that were not used in calibration.` → 
+- 冒頭文: `… four measurements … that were not used in calibration.` →
   `We compare the inferred trajectories with measurements of Heine et al.\ that are related to, but not identical with, the calibration data. These comparisons are consistency checks rather than independent validation: the pH regression is fitted to the same species-fraction data, and the gingipain comparison is a temporal correlation with the predicted Pg abundance.`
 - **pH**: p2・ult で pH チャネル（λ=0.3）を尤度に入れるので、「pH は較正に使っていない」は成り立たない → **この小節の pH 部分は削除**（または「pH チャネルとの整合」に書き換える）。要判断
-- `Metabolic sign consistency`（C8）: `So→Vei (… ) indicates niche competition dominates` → 
+- `Metabolic sign consistency`（C8）: `So→Vei (… ) indicates niche competition dominates` →
   `the So–Vei coefficient is negative (\TBD{値}); this is a property of the effective model and should not be read as evidence against the well-established lactate cross-feeding between streptococci and \textit{Veillonella}.`
 
 ## 10. §6.8 Effective dimensionality → Identifiability（B2、§6.8 の基準）— 段落を全面差し替え
@@ -196,9 +196,9 @@ Parameters whose marginals change with the prior are reported as weakly identifi
 ## 11. §7 Discussion
 
 **Biological interpretation**（A4、C1）:
-- `the transition to dysbiosis activates cooperative Vei→Pg and Fn→Pg pathways` → 
+- `the transition to dysbiosis activates cooperative Vei→Pg and Fn→Pg pathways` →
   `the effective Vei--Pg and Fn--Pg coefficients become positive under dysbiotic conditions`
-- `the posterior … recover the biologically expected sparsity … as an emergent property` → 
+- `the posterior … recover the biologically expected sparsity … as an emergent property` →
   `Pg-related coefficients in both commensal conditions are not distinguishable from zero`
 - Table 5 の within/cross 相関（C9）と転移表（C10）は ult で作り直し、`\TBD{}`
 
@@ -216,7 +216,7 @@ Because commensal and dysbiotic consortia differ in \textit{Veillonella} species
 
 **Model evidence** 段落（A1）: `higher for commensal conditions … Occam factor` は条件間比較なので**削除**。
 
-**Computational considerations**（C11）: `Gradient-based alternatives (NUTS, HMC) fail on GPU due to …` → 
+**Computational considerations**（C11）: `Gradient-based alternatives (NUTS, HMC) fail on GPU due to …` →
 `For this solver and workload, gradient-based samplers (HMC, NUTS) were less efficient on the GPU, because trajectories of variable length limit batched evaluation.`
 
 **交絡（C15）** — Biological interpretation の末尾に 1 文:
