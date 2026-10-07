@@ -24,7 +24,9 @@ MAXITER="${MAXITER:-300}"
 PYTHON="${PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3}"
 
 cd "$REPO" || exit 1
-git pull --rebase --quiet origin "$(git rev-parse --abbrev-ref HEAD)" || echo "警告: pull に失敗。手元の版で続ける"
+# shellcheck source=tools/git_sync.sh
+source "$REPO/tools/git_sync.sh"
+git_sync_latest
 
 if [ -n "${PBS_GPUFILE:-}" ] && [ -f "${PBS_GPUFILE}" ]; then
   export CUDA_VISIBLE_DEVICES="$(grep -oE 'gpu[0-9]+' "$PBS_GPUFILE" | head -1 | grep -oE '[0-9]+')"
@@ -36,11 +38,22 @@ unset LD_LIBRARY_PATH
 TODAY="$(date +%Y-%m-%d)"
 REPORT="docs/handoff/gpu_${TODAY}_polish_${LABEL}.md"
 JSON="docs/handoff/gpu_${TODAY}_polish_${LABEL}.json"
+# 出力は必ず先にファイルへ流す。PBS は実行中ジョブの stdout をバッファするので、
+# `OUT="$(...)"` でため込むと walltime で殺されたときに何も残らない
+# （2026-10-07 のジョブ 3129 は 8 時間走って進捗ゼロのログだけを残した）。
+# python -u で行ごとに吐かせ、tee で随時 RAWLOG に落とす。
+RAWLOG="polish_maxlogL_${PBS_JOBID:-local}_raw.log"
+echo "生ログ: $REPO/$RAWLOG（実行中も読める）"
 # POLISH_DEVICE=gpu: estimator の早期デバイス判定に gpu を渡す（既定 cpu だと GPU が隠れる）
-OUT="$(POLISH_DEVICE=gpu "$PYTHON" tools/polish_max_logL.py data_5species/main/_runs/paper_gateoff \
+POLISH_DEVICE=gpu "$PYTHON" -u tools/polish_max_logL.py data_5species/main/_runs/paper_gateoff \
   --glob "$RUN_GLOB" --top-k "$TOP_K" --maxiter "$MAXITER" --json "$JSON" 2>&1 \
-  | grep -v -E '^(INFO|WARNING):' | tail -40)"
-echo "$OUT" | grep -q 'JAX devices: \[Cuda\|JAX devices: \[cuda' || echo "警告: GPU で走っていない可能性（出力の JAX devices を確認）"
+  | tee "$RAWLOG"
+RC="${PIPESTATUS[0]}"
+OUT="$(grep -v -E '^(INFO|WARNING):' "$RAWLOG" | tail -40)"
+[ "$RC" -eq 0 ] || OUT="$OUT
+
+警告: polish_max_logL.py が終了コード $RC で終わった（上は途中までの出力）"
+grep -q 'JAX devices: \[Cuda\|JAX devices: \[cuda' "$RAWLOG" || echo "警告: GPU で走っていない可能性（出力の JAX devices を確認）"
 
 {
   echo "# GPU 側 → クラウド側: max logL の磨き直し（${TODAY} / ${LABEL}）"
@@ -58,5 +71,4 @@ git add "$REPORT"
 [ -f "$JSON" ] && git add "$JSON"
 git -c user.name="Keisuke Nishioka" -c user.email="kei128608@gmail.com" \
   commit -q -m "docs: max logL の磨き直し（${TODAY} / ${LABEL}）" || exit 0
-git pull --rebase --quiet origin "$(git rev-parse --abbrev-ref HEAD)" || true
-git push --quiet origin "$(git rev-parse --abbrev-ref HEAD)" || echo "警告: push に失敗"
+git_push_current

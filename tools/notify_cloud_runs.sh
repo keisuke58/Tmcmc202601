@@ -26,8 +26,9 @@ REPO="$HOME/Tmcmc202601"
 # 走り出したら最新を pull し、repo にある版で実行し直す。
 if [ -z "${NOTIFY_REEXEC:-}" ]; then
   cd "$REPO" || exit 1
-  git pull --rebase --quiet origin "$(git rev-parse --abbrev-ref HEAD)" \
-    || echo "警告: 実行前の pull に失敗。手元の版で続ける"
+  # shellcheck source=tools/git_sync.sh
+  source "$REPO/tools/git_sync.sh"
+  git_sync_latest
   NOTIFY_REEXEC=1 exec bash "$REPO/tools/notify_cloud_runs.sh"
 fi
 
@@ -154,10 +155,7 @@ git -c user.name="Keisuke Nishioka" -c user.email="kei128608@gmail.com" \
   commit -q -m "docs: run 終了の自動通知（${TODAY}）— ${VERDICT}" || {
     echo "commit するものが無い"; exit 0; }
 
-BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-git pull --rebase --quiet origin "$BRANCH" || echo "警告: pull --rebase が失敗。手で解消が必要"
-if git push --quiet origin "$BRANCH"; then
-  echo "push 済み: $BRANCH <- $(git rev-parse --short HEAD)"
-else
-  echo "警告: push が失敗。コミットはローカルに残っている"
-fi
+# 再 exec した側では source していないので読み込む（二重 source でも関数定義だけなので無害）
+# shellcheck source=tools/git_sync.sh
+source "$REPO/tools/git_sync.sh"
+git_push_current
