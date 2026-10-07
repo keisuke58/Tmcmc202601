@@ -21,7 +21,10 @@ Generates:
   Fig 4: heatmap_A_4cond.pdf — MAP interaction matrices
   Fig 5: phase1_vs_phase2_map.pdf — Phase 1 vs Phase 2 MAP scatter
 """
-import sys, os
+
+import sys
+import os
+
 sys.path.insert(0, os.path.expanduser("~/Tmcmc202601/data_5species/main"))
 
 import json
@@ -34,6 +37,7 @@ os.environ["JAX_PLATFORMS"] = "cpu"
 
 import jax
 import jax.numpy as jnp
+
 jax.config.update("jax_enable_x64", True)
 
 import argparse
@@ -44,6 +48,7 @@ import fnmatch
 from hamilton_ode_jax_paper import simulate_0d, simulate_0d_full
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
@@ -83,17 +88,27 @@ plt.rcParams.update(STYLE)
 # ═══════════════════════════════════════════════════════════════
 RUNS = Path.home() / "Tmcmc202601/data_5species/main/_runs"
 PAPER_RUNS = RUNS / "paper_gateoff"
-DATA_CSV = Path.home() / "Tmcmc202601/data_5species/experiment_data/fig3_species_distribution_summary.csv"
+DATA_CSV = (
+    Path.home() / "Tmcmc202601/data_5species/experiment_data/fig3_species_distribution_summary.csv"
+)
 FIG_DIR = Path.home() / "Tmcmc202601/docs/figures"
 FIG_DIR.mkdir(exist_ok=True)
 
 SPECIES = ["So", "An", "Vd", "Fn", "Pg"]
 SPECIES_ITALIC = [
-    r"$\it{S.\ oralis}$", r"$\it{A.\ naeslundii}$", r"$\it{V.\ dispar}$",
-    r"$\it{F.\ nucleatum}$", r"$\it{P.\ gingivalis}$",
+    r"$\it{S.\ oralis}$",
+    r"$\it{A.\ naeslundii}$",
+    r"$\it{V.\ dispar}$",
+    r"$\it{F.\ nucleatum}$",
+    r"$\it{P.\ gingivalis}$",
 ]
-SPECIES_MAP = {"S. oralis": 0, "A. naeslundii": 1, "V. dispar": 2,
-               "F. nucleatum": 3, "P. gingivalis_20709": 4}
+SPECIES_MAP = {
+    "S. oralis": 0,
+    "A. naeslundii": 1,
+    "V. dispar": 2,
+    "F. nucleatum": 3,
+    "P. gingivalis_20709": 4,
+}
 EXP_DAYS = np.array([1, 3, 6, 10, 15, 21])
 
 # Heine 2025 inspired palette
@@ -103,10 +118,18 @@ SP_COLORS = {
 }
 
 CONDS = ["CS", "CH", "DS", "DH"]
-COND_KEYS = {"CS": ("Commensal", "Static"), "CH": ("Commensal", "HOBIC"),
-             "DS": ("Dysbiotic", "Static"), "DH": ("Dysbiotic", "HOBIC")}
-COND_LABELS = {"CS": "Commensal Static", "CH": "Commensal HOBIC",
-               "DS": "Dysbiotic Static", "DH": "Dysbiotic HOBIC"}
+COND_KEYS = {
+    "CS": ("Commensal", "Static"),
+    "CH": ("Commensal", "HOBIC"),
+    "DS": ("Dysbiotic", "Static"),
+    "DH": ("Dysbiotic", "HOBIC"),
+}
+COND_LABELS = {
+    "CS": "Commensal Static",
+    "CH": "Commensal HOBIC",
+    "DS": "Dysbiotic Static",
+    "DH": "Dysbiotic HOBIC",
+}
 COND_SHORT = {"CS": "CS", "CH": "CH", "DS": "DS", "DH": "DH"}
 
 # run ディレクトリは --p1-glob / --p2-glob から resolve_runs() で埋める。
@@ -115,21 +138,46 @@ P2_DIRS: dict = {}
 P1_DIRS: dict = {}
 
 PARAM_LABELS_15 = [
-    r"$a_{11}$", r"$a_{12}$", r"$a_{22}$",
-    r"$a_{33}$", r"$a_{34}$", r"$a_{44}$",
-    r"$a_{13}$", r"$a_{14}$", r"$a_{23}$", r"$a_{24}$",
+    r"$a_{11}$",
+    r"$a_{12}$",
+    r"$a_{22}$",
+    r"$a_{33}$",
+    r"$a_{34}$",
+    r"$a_{44}$",
+    r"$a_{13}$",
+    r"$a_{14}$",
+    r"$a_{23}$",
+    r"$a_{24}$",
     r"$a_{55}$",
-    r"$a_{15}$", r"$a_{25}$", r"$a_{35}$", r"$a_{45}$",
+    r"$a_{15}$",
+    r"$a_{25}$",
+    r"$a_{35}$",
+    r"$a_{45}$",
 ]
 # Indices of interaction params (exclude growth rates b/μ: 3,4,8,9,15)
 INTERACTION_IDX = [0, 1, 2, 5, 6, 7, 10, 11, 12, 13, 14, 16, 17, 18, 19]
 
 PARAM_LABELS_20 = [
-    r"$a_{11}$", r"$a_{12}$", r"$a_{22}$", r"$\mu_1$", r"$\mu_2$",
-    r"$a_{33}$", r"$a_{34}$", r"$a_{44}$", r"$\mu_3$", r"$\mu_4$",
-    r"$a_{13}$", r"$a_{14}$", r"$a_{23}$", r"$a_{24}$",
-    r"$a_{55}$", r"$\mu_5$",
-    r"$a_{15}$", r"$a_{25}$", r"$a_{35}$", r"$a_{45}$",
+    r"$a_{11}$",
+    r"$a_{12}$",
+    r"$a_{22}$",
+    r"$\mu_1$",
+    r"$\mu_2$",
+    r"$a_{33}$",
+    r"$a_{34}$",
+    r"$a_{44}$",
+    r"$\mu_3$",
+    r"$\mu_4$",
+    r"$a_{13}$",
+    r"$a_{14}$",
+    r"$a_{23}$",
+    r"$a_{24}$",
+    r"$a_{55}$",
+    r"$\mu_5$",
+    r"$a_{15}$",
+    r"$a_{25}$",
+    r"$a_{35}$",
+    r"$a_{45}$",
 ]
 
 COND_COLORS = {"CS": "#2166AC", "CH": "#1B7837", "DS": "#FF8C00", "DH": "#B2182B"}
@@ -150,8 +198,12 @@ def load_exp_data():
                 raw[key][day] = np.zeros(5)
             raw[key][day][si] = float(row["mean"])
     result = {}
-    cond_to_key = {"CS": "Commensal_Static", "CH": "Commensal_HOBIC",
-                   "DS": "Dysbiotic_Static", "DH": "Dysbiotic_HOBIC"}
+    cond_to_key = {
+        "CS": "Commensal_Static",
+        "CH": "Commensal_HOBIC",
+        "DS": "Dysbiotic_Static",
+        "DH": "Dysbiotic_HOBIC",
+    }
     for ck, rk in cond_to_key.items():
         if rk in raw:
             arr = np.array([raw[rk][d] for d in EXP_DAYS])
@@ -207,11 +259,13 @@ def run_ode(theta, ic, cfg, n_steps=None, dt=None):
     phi_init = jnp.array(ic, dtype=jnp.float64)
     theta_jax = jnp.array(theta, dtype=jnp.float64)
     if need_full:
-        g_traj = simulate_0d_full(theta_jax, n_steps=n_steps, dt=dt,
-                                  phi_init=phi_init, K_hill=K_hill, n_hill=n_hill)
+        g_traj = simulate_0d_full(
+            theta_jax, n_steps=n_steps, dt=dt, phi_init=phi_init, K_hill=K_hill, n_hill=n_hill
+        )
         return np.array(g_traj[:, 0:5])
-    traj = simulate_0d(theta_jax, n_steps=n_steps, dt=dt,
-                       phi_init=phi_init, K_hill=K_hill, n_hill=n_hill)
+    traj = simulate_0d(
+        theta_jax, n_steps=n_steps, dt=dt, phi_init=phi_init, K_hill=K_hill, n_hill=n_hill
+    )
     return np.array(traj)
 
 
@@ -224,8 +278,9 @@ def resolve_runs(pattern, label):
     out = {}
     for ck in CONDS:
         pat = pattern.format(cond=ck)
-        cands = sorted(d for d in PAPER_RUNS.glob(pat)
-                       if d.is_dir() and (d / "theta_MAP.json").exists())
+        cands = sorted(
+            d for d in PAPER_RUNS.glob(pat) if d.is_dir() and (d / "theta_MAP.json").exists()
+        )
         if not cands:
             print(f"  [{label}] {ck}: no run matches {pat!r}")
             continue
@@ -239,22 +294,35 @@ def resolve_runs(pattern, label):
         scored.sort()
         _, best, best_ml = scored[0]
         out[ck] = f"paper_gateoff/{best}"
-        extra = "" if len(scored) == 1 else \
-            "  (others: " + ", ".join(f"{n} {m:.2f}" for _, n, m in scored[1:]) + ")"
+        extra = (
+            ""
+            if len(scored) == 1
+            else "  (others: " + ", ".join(f"{n} {m:.2f}" for _, n, m in scored[1:]) + ")"
+        )
         print(f"  [{label}] {ck}: {best}  max_logL={best_ml}{extra}")
     return out
 
 
 def theta_to_A(theta):
     A = np.zeros((5, 5))
-    A[0,0]=theta[0]; A[0,1]=theta[1]; A[1,1]=theta[2]
-    A[2,2]=theta[5]; A[2,3]=theta[6]; A[3,3]=theta[7]
-    A[0,2]=theta[10]; A[0,3]=theta[11]; A[1,2]=theta[12]; A[1,3]=theta[13]
-    A[4,4]=theta[14]
-    A[0,4]=theta[16]; A[1,4]=theta[17]; A[2,4]=theta[18]; A[3,4]=theta[19]
+    A[0, 0] = theta[0]
+    A[0, 1] = theta[1]
+    A[1, 1] = theta[2]
+    A[2, 2] = theta[5]
+    A[2, 3] = theta[6]
+    A[3, 3] = theta[7]
+    A[0, 2] = theta[10]
+    A[0, 3] = theta[11]
+    A[1, 2] = theta[12]
+    A[1, 3] = theta[13]
+    A[4, 4] = theta[14]
+    A[0, 4] = theta[16]
+    A[1, 4] = theta[17]
+    A[2, 4] = theta[18]
+    A[3, 4] = theta[19]
     for i in range(5):
-        for j in range(i+1, 5):
-            A[j,i] = A[i,j]
+        for j in range(i + 1, 5):
+            A[j, i] = A[i, j]
     return A
 
 
@@ -305,17 +373,26 @@ def generate_fig2():
             ax = axes[row_idx, col_idx]
 
             # CI bands
-            ax.fill_between(model_days, q10[:, col_idx], q90[:, col_idx],
-                           color=colors[col_idx], alpha=0.12)
-            ax.fill_between(model_days, q25[:, col_idx], q75[:, col_idx],
-                           color=colors[col_idx], alpha=0.25)
+            ax.fill_between(
+                model_days, q10[:, col_idx], q90[:, col_idx], color=colors[col_idx], alpha=0.12
+            )
+            ax.fill_between(
+                model_days, q25[:, col_idx], q75[:, col_idx], color=colors[col_idx], alpha=0.25
+            )
 
             # MAP line
             ax.plot(model_days, traj_map[:, col_idx], color=colors[col_idx], lw=1.3, zorder=3)
 
             # Data
-            ax.scatter(EXP_DAYS, obs[:, col_idx], s=18, color=colors[col_idx],
-                      edgecolors="k", linewidths=0.4, zorder=5)
+            ax.scatter(
+                EXP_DAYS,
+                obs[:, col_idx],
+                s=18,
+                color=colors[col_idx],
+                edgecolors="k",
+                linewidths=0.4,
+                zorder=5,
+            )
 
             ax.set_xlim(0, 22)
             ax.set_ylim(-0.02, 1.02)
@@ -329,29 +406,56 @@ def generate_fig2():
                 ax.set_ylabel(r"$\bar{\varphi}_i$")
 
         # Condition label + metrics on first column
-        axes[row_idx, 0].text(-0.35, 0.5, f"{COND_SHORT[ck]}",
-                             transform=axes[row_idx, 0].transAxes,
-                             fontsize=10, fontweight="bold", va="center", rotation=90)
+        axes[row_idx, 0].text(
+            -0.35,
+            0.5,
+            f"{COND_SHORT[ck]}",
+            transform=axes[row_idx, 0].transAxes,
+            fontsize=10,
+            fontweight="bold",
+            va="center",
+            rotation=90,
+        )
 
         # RMSE label on last column
-        axes[row_idx, 4].text(0.95, 0.92,
-                             f"RMSE {rmse:.3f}\nlogL {logL:.1f}",
-                             transform=axes[row_idx, 4].transAxes,
-                             fontsize=6.5, ha="right", va="top",
-                             bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="gray", alpha=0.8))
+        axes[row_idx, 4].text(
+            0.95,
+            0.92,
+            f"RMSE {rmse:.3f}\nlogL {logL:.1f}",
+            transform=axes[row_idx, 4].transAxes,
+            fontsize=6.5,
+            ha="right",
+            va="top",
+            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="gray", alpha=0.8),
+        )
 
     # Legend on first panel
     from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
+
     handles = [
         Line2D([0], [0], color="gray", lw=1.3, label="MAP"),
         Patch(facecolor="gray", alpha=0.25, label="50% CI"),
         Patch(facecolor="gray", alpha=0.12, label="80% CI"),
-        Line2D([0], [0], marker="o", color="w", markerfacecolor="gray",
-               markeredgecolor="k", markersize=4, label="Exp. data"),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor="gray",
+            markeredgecolor="k",
+            markersize=4,
+            label="Exp. data",
+        ),
     ]
-    axes[0, 0].legend(handles=handles, loc="upper right", fontsize=6,
-                      handlelength=1.2, handletextpad=0.4, borderpad=0.3)
+    axes[0, 0].legend(
+        handles=handles,
+        loc="upper right",
+        fontsize=6,
+        handlelength=1.2,
+        handletextpad=0.4,
+        borderpad=0.3,
+    )
 
     fig.tight_layout(h_pad=0.3, w_pad=0.2)
     fig.subplots_adjust(left=0.08)
@@ -386,8 +490,9 @@ def generate_fig3():
                 else:
                     data_per_cond.append(np.zeros(100))
 
-            parts = ax.violinplot(data_per_cond, positions=range(4),
-                                  showmeans=False, showextrema=False, widths=0.7)
+            parts = ax.violinplot(
+                data_per_cond, positions=range(4), showmeans=False, showextrema=False, widths=0.7
+            )
             for i, pc in enumerate(parts["bodies"]):
                 pc.set_facecolor(COND_COLORS[CONDS[i]])
                 pc.set_edgecolor("k")
@@ -398,9 +503,16 @@ def generate_fig3():
             for i, ck in enumerate(CONDS):
                 theta_map = load_map(P2_DIRS[ck])
                 if theta_map is not None:
-                    ax.scatter(i, theta_map[pidx], marker="*", s=30,
-                              color=COND_COLORS[ck], edgecolors="k",
-                              linewidths=0.3, zorder=5)
+                    ax.scatter(
+                        i,
+                        theta_map[pidx],
+                        marker="*",
+                        s=30,
+                        color=COND_COLORS[ck],
+                        edgecolors="k",
+                        linewidths=0.3,
+                        zorder=5,
+                    )
 
             ax.set_xticks(range(4))
             ax.set_xticklabels(CONDS, fontsize=7)
@@ -413,12 +525,26 @@ def generate_fig3():
 
     # Legend
     from matplotlib.patches import Patch
-    handles = [Patch(facecolor=COND_COLORS[ck], edgecolor="k", linewidth=0.4,
-                     alpha=0.7, label=ck) for ck in CONDS]
-    handles.append(plt.Line2D([0], [0], marker="*", color="w", markerfacecolor="gray",
-                              markeredgecolor="k", markersize=8, label="MAP"))
-    axes[0, 4].legend(handles=handles, loc="upper right", fontsize=6.5,
-                      borderpad=0.3, handletextpad=0.3)
+
+    handles = [
+        Patch(facecolor=COND_COLORS[ck], edgecolor="k", linewidth=0.4, alpha=0.7, label=ck)
+        for ck in CONDS
+    ]
+    handles.append(
+        plt.Line2D(
+            [0],
+            [0],
+            marker="*",
+            color="w",
+            markerfacecolor="gray",
+            markeredgecolor="k",
+            markersize=8,
+            label="MAP",
+        )
+    )
+    axes[0, 4].legend(
+        handles=handles, loc="upper right", fontsize=6.5, borderpad=0.3, handletextpad=0.3
+    )
 
     fig.tight_layout(h_pad=0.5, w_pad=0.3)
     out = FIG_DIR / "paper_posterior_violin.pdf"
@@ -457,8 +583,16 @@ def generate_fig4():
             for j in range(5):
                 val = A[i, j]
                 color = "white" if abs(val) > vmax * 0.6 else "black"
-                ax.text(j, i, f"{val:.1f}", ha="center", va="center",
-                       fontsize=5.5, color=color, fontweight="normal")
+                ax.text(
+                    j,
+                    i,
+                    f"{val:.1f}",
+                    ha="center",
+                    va="center",
+                    fontsize=5.5,
+                    color=color,
+                    fontweight="normal",
+                )
 
         ax.set_xticks(range(5))
         ax.set_yticks(range(5))
@@ -497,26 +631,39 @@ def generate_fig5():
             continue
 
         color = COND_COLORS[ck]
-        ax.scatter(m1, m2, s=18, c=color, edgecolors="k", linewidths=0.3,
-                   zorder=3, alpha=0.85)
+        ax.scatter(m1, m2, s=18, c=color, edgecolors="k", linewidths=0.3, zorder=3, alpha=0.85)
 
         # Annotate outliers
         for i in range(20):
             if abs(m1[i] - m2[i]) > 1.5:
-                ax.annotate(PARAM_LABELS_20[i], (m1[i], m2[i]),
-                           fontsize=5, ha="left", va="bottom",
-                           xytext=(3, 3), textcoords="offset points", color="gray")
+                ax.annotate(
+                    PARAM_LABELS_20[i],
+                    (m1[i], m2[i]),
+                    fontsize=5,
+                    ha="left",
+                    va="bottom",
+                    xytext=(3, 3),
+                    textcoords="offset points",
+                    color="gray",
+                )
 
         lo = min(m1.min(), m2.min()) - 0.5
         hi = max(m1.max(), m2.max()) + 0.5
         ax.plot([lo, hi], [lo, hi], "k--", lw=0.6, alpha=0.4, zorder=1)
 
         r = np.corrcoef(m1, m2)[0, 1]
-        rmse = np.sqrt(np.mean((m1 - m2)**2))
+        rmse = np.sqrt(np.mean((m1 - m2) ** 2))
 
-        ax.text(0.05, 0.92, f"$r = {r:.3f}$\nRMSD$= {rmse:.2f}$",
-                transform=ax.transAxes, fontsize=7, va="top", ha="left",
-                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="gray", alpha=0.85))
+        ax.text(
+            0.05,
+            0.92,
+            f"$r = {r:.3f}$\nRMSD$= {rmse:.2f}$",
+            transform=ax.transAxes,
+            fontsize=7,
+            va="top",
+            ha="left",
+            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="gray", alpha=0.85),
+        )
 
         ax.set_title(COND_LABELS[ck], fontsize=9, fontweight="bold")
         ax.set_xlabel(r"Phase 1 (fix-$\psi$)")
@@ -539,15 +686,25 @@ def generate_fig5():
 # MAIN
 # ═══════════════════════════════════════════════════════════════
 def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--p2-glob", default="{cond}_ult_*",
-                    help="Phase 2 / ult runs under _runs/paper_gateoff ({cond} -> CS/CH/DS/DH). "
-                         "Default: '{cond}_ult_*'")
-    ap.add_argument("--p1-glob", default="{cond}_p1_*",
-                    help="Phase 1 runs (used by Fig 5 only). Default: '{cond}_p1_*'")
-    ap.add_argument("--figs", default="2,3,4,5",
-                    help="Which figures to generate, comma separated. Default: 2,3,4,5")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--p2-glob",
+        default="{cond}_ult_*",
+        help="Phase 2 / ult runs under _runs/paper_gateoff ({cond} -> CS/CH/DS/DH). "
+        "Default: '{cond}_ult_*'",
+    )
+    ap.add_argument(
+        "--p1-glob",
+        default="{cond}_p1_*",
+        help="Phase 1 runs (used by Fig 5 only). Default: '{cond}_p1_*'",
+    )
+    ap.add_argument(
+        "--figs",
+        default="2,3,4,5",
+        help="Which figures to generate, comma separated. Default: 2,3,4,5",
+    )
     args = ap.parse_args()
 
     print("=" * 60)
