@@ -58,6 +58,15 @@ VERDICT="$(echo "$CHECK_OUT" | grep -E "^(全群 PASS|FAIL を含む群)" | tail
 
 # 今回の run の 1 行サマリ（終わっていない run はディレクトリが無い）
 FOUND="$(ls -d $RUNS_ROOT/$RUN_GLOB 2>/dev/null | wc -l)"
+
+# 出力が 1 つも無いのに報告を書くと「run が終わった（結果なし）」と誤読される。
+# 依存先を qdel すると afterany が即座に満たされてこの通知が起動するため、
+# 2026-10-08 に 2 回それが起きた（3220 と 3266）。0 個なら何も書かずに終わる。
+if [ "$FOUND" -eq 0 ]; then
+  echo "出力ディレクトリが 0 個: $RUNS_ROOT/$RUN_GLOB"
+  echo "run が走っていないか、依存先が qdel された。報告は書かない。"
+  exit 0
+fi
 MOVES="$(python3 - "$RUNS_ROOT" "$RUN_GLOB" <<'PY'
 import json, sys, glob, os
 root, pat = sys.argv[1], sys.argv[2]
