@@ -55,6 +55,8 @@ RUNTAG="${RUNTAG:-}"
 # 論文の箱が事後を切っている成分に使う（2026-10-07: DS の a33 は [1, 3] だが ident DS の事後は [−13, −1]）。
 # p1 以降の絞り込みは元の箱で clip されるので、連鎖の全段で同じ値を渡すこと。
 OVERRIDE="${OVERRIDE:-}"
+# qsub -v はカンマで変数を区切るので、OVERRIDE の区切りは ";" でも渡せるようにする（"5:-15:20;6:-15:20"）
+OVERRIDE="${OVERRIDE//;/,}"
 
 case "$TAG" in
   CS) COND=Commensal; CULT=Static ;;
