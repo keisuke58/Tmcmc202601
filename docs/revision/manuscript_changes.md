@@ -21,6 +21,7 @@ Introduction の文言が 0916 版と違う）。**最新のソースに下の�
 - タイトル案（D1、共著者で決める）: `GPU-accelerated Bayesian inference of effective interaction parameters in multispecies oral biofilms via TMCMC`
 - 著者順（D2、Meisam 氏と合意済み）: Nishioka¹ʼ⁴, Klempt¹, Geisler¹, Mukherjee²ʼ³, Heine²ʼ³, Doll-Nikutta²ʼ³, Stiesch²ʼ³, Szafrański²ʼ³, Soleimani¹, Junker¹
 - 所属（D3）: Nishioka に 2（MHH）と 3（NIFE）も付ける → `Nishioka^{1,2,3,4}`
+- 責任著者: Keisuke Nishioka, `keisuke.nishioka@stud.uni-hannover.de`（sn-jnl では `\email{}` と `\author*`）
 
 ## 1. Abstract（C1・C2・C3、数値）
 

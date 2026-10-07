@@ -19,6 +19,8 @@ Meisam 氏の優先順: 1 BMB → 2 「生物力学ジャーナル」→ 3 JTB �
 - **2 番は誌名の確認が要る**: 日本語の直訳は *Journal of Biomechanics* だが、IF 2.7 は *Biomechanics and Modeling in Mechanobiology*（BMMB、2024 JCR）と一致。
   J Biomech は 3,500 語上限で実験・筋骨格寄りなので、この論文には BMMB の方が合う。Meisam 氏に確認する
 - **DEAL**: 責任著者（corresponding author）の所属を LUH か MHH にすると OA 費用が 0。**Gmail ではなく大学のアドレスで投稿する**
+  - 責任著者のアドレス（2026-10-07 決定）: **keisuke.nishioka@stud.uni-hannover.de**
+  - 要確認: DEAL の資格確認は所属とメールのドメインで行うが、**学生のアドレス（stud.uni-hannover.de）が対象として通るか**は出版社と TIB しだい。受理後の OA 選択の画面で「LUH の対象」と出なければ、TIB（OA 担当）に問い合わせるか、責任著者を職員アドレスを持つ共著者にする
 - **BMB の門前払いの基準**: 「生物学の理解に実質的な前進があるか、生物学にはっきり使える新しい数理手法か」。GPU の速さだけの論文は危ない →
   Abstract と Introduction は**生物学的な結果（Fn–Pg と Pg の後期増加の予測）を先に**書く
 
