@@ -1,7 +1,7 @@
 # 原稿の書き直し — 差し替え用 LaTeX（v1, 2026-10-07）
 
-> **2026-10-07 追記: 0916 版のソースに適用済み** → `docs/revision/manuscript/nishioka_biofilm_tmcmc.tex`
-> （起点の無変更版は commit 015d627。差分は `git diff 015d627 -- docs/revision/manuscript/`）。
+> **2026-10-07 追記: 0916 版のソースに適用済み** → `docs/revision/BMB_submission/BMB_manuscript_nishioka.tex`
+> （起点の無変更版は commit 015d627。差分は `git diff -M 015d627 -- docs/revision/`（フォルダ名は後で `manuscript/` → `BMB_submission/` に変更））。
 > pdflatex でエラー・未定義参照なしでコンパイル済み（17 ページ、Abstract 203 語）。
 >
 > 適用時に**このメモに無かった修正**を 2 つ足した（実装を読んで確認）:
