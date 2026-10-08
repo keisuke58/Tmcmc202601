@@ -78,7 +78,7 @@ Despite these advances, estimating the 15-dimensional parameter vector (15 inter
 Two principal difficulties arise: (i) poor identifiability when data are sparse relative to the parameter dimension---with $N_t=5$ usable time points (Day~1 is consumed as initial condition) and 5 species, one has at most 25 observations for 15 unknowns---and (ii) multimodal posterior landscapes caused by the coupled $\phi_i$--$\psi_i$ dynamics, which render standard MCMC methods inefficient~\citep{RobertCasella2004MonteCarlo}.
 
 In this work we address these challenges through three complementary strategies.
-First, we introduce the data in two phases: the interaction matrix is first inferred from the species composition alone, and the viability (and, for HOBIC cultivation, pH) measurements are added only once the composition-based posterior is available.
+First, we introduce the data in two phases: the interaction matrix is first inferred from the species composition alone, and the viability measurements are added only once the composition-based posterior is available.
 Second, we compile the forward model in JAX~\citep{jax2018github} and evaluate the entire particle ensemble on GPU via batched \texttt{vmap}, achieving a $\sim$150$\times$ speedup over the CPU baseline.
 Third, we infer the posterior with TMCMC~\citep{ChingChen2007TMCMC, Betz2016TMCMC} in stages with progressively narrowed prior boxes and verify every stage with independent seeds and explicit convergence criteria (Section~\ref{sec:convergence}).
 The framework is applied to all four experimental conditions of Heine et al.; it reproduces commensal homeostasis as well as the late pathogen increase of dysbiotic biofilms under HOBIC flow, and it yields a prediction that can be tested by a leave-one-species-out experiment.
@@ -327,7 +327,7 @@ The weights $w_{ik}$ are listed in Table~\ref{tab:weights}: Pg is up-weighted ($
 In Phase~2 (Section~\ref{sec:prior}) a further Gaussian channel is added with the weight of Table~\ref{tab:weights}.
 The \emph{viability channel} compares the predicted community viability $\sum_i\phi_i\psi_i/\sum_i\phi_i$ with the measured fraction of membrane-intact cells~\citep{heine2025influence}, with $\sigma_\psi$ the mean reported measurement error.
 The measured pH time series of the HOBIC conditions~\citep{heine2025influence} is not used in the likelihood; it is kept for the check in Section~\ref{sec:validation}.
-Treating the compositional data with independent Gaussian errors ignores the unit-sum constraint; \TBD{effect assessed in a sensitivity analysis -- to be agreed with M.S.}.
+Treating the compositional data with independent Gaussian errors ignores the unit-sum constraint (Section~\ref{sec:discussion}).
 
 \begin{table}[htbp]\centering\small
 \begin{tabular}{@{}lll@{}}\toprule
@@ -360,7 +360,7 @@ Inference proceeds in four stages that share the same data:
 (iii)~composition and viability likelihood on the initial box, starting from the stage-(ii) particles (the box is not narrowed, because the likelihood changes between (ii) and (iii) and a box derived from the stage-(ii) posterior truncated the stage-(iii) posterior);
 (iv)~as (iii), with the box narrowed to the stage-(iii) posterior mean $\pm4$ SDs and $N_p=5{,}000$ particles.
 We refer to stages (i)--(ii) as Phase~1 and to stages (iii)--(iv) as Phase~2.
-Narrowing is clipped to the initial box; a $\pm4$\,SD box removes less than 0.01\% of a Gaussian marginal, so it shortens the tempering without truncating the posterior (a $\pm2$\,SD box would remove about 5\% of each well-determined marginal; results with $\pm2$\,SD are given in Supplementary Section~S4). Stages (ii)--(iv) start from a mixture of particles drawn around the previous stage's MAP and draws from the stage prior; because the initial population is then not a sample from the prior, their log-evidence estimates are not used \TBD{drop the $\ln\hat{Z}$ columns of Table~\ref{tab:rmse} or report stage (i) only}.
+Narrowing is clipped to the initial box; a $\pm4$\,SD box removes less than 0.01\% of a Gaussian marginal, so it shortens the tempering without truncating the posterior (a $\pm2$\,SD box would remove about 5\% of each well-determined marginal). Stages (ii)--(iv) start from a mixture of particles drawn around the previous stage's MAP and draws from the stage prior; because the initial population is then not a sample from the prior, their log-evidence estimates are not used \TBD{drop the $\ln\hat{Z}$ columns of Table~\ref{tab:rmse} or report stage (i) only}.
 Because the data are reused across stages, we report alongside the final posterior the stage-(i) posterior, which involves no data-dependent narrowing, and an inference on a much wider box ($[-15,20]$ for all entries) with and without an additional $\mathcal{N}(0,6^2)$ prior (Section~\ref{sec:sensitivity}).
 We monitor the fraction of posterior mass within 5\% of each bound at every stage.
 
@@ -455,8 +455,8 @@ This yields a $\sim$200$\times$ end-to-end speedup (Table~\ref{tab:timing}).
 \paragraph{Two-phase introduction of the data.}
 In Phase~1 (stages (i)--(ii), Section~\ref{sec:prior}) the likelihood contains the species composition only.
 The full system~\eqref{eq:phi}--\eqref{eq:constraint_eq}, including the viability fractions $\psi_i$, is integrated in both phases; since the composition is compared after renormalisation, the viability measurements carry information only through the additional channels of Phase~2.
-Phase~2 (stages (iii)--(iv)) adds the viability and pH channels and starts from the Phase~1 particles on a box narrowed around the Phase~1 MAP.
-Comparing Phase~1 and Phase~2 MAP estimates shows how strongly the viability and pH data move $\mathbf{A}$.
+Phase~2 (stages (iii)--(iv)) adds the viability channel and starts from the Phase~1 particles on the initial box (stage (iii)), which is then narrowed around the stage-(iii) posterior (stage (iv)).
+Comparing Phase~1 and Phase~2 MAP estimates shows how strongly the viability data move $\mathbf{A}$.
 
 The procedure is summarised in Algorithm~\ref{alg:tmcmc}; Table~\ref{tab:timing} reports the computational gains.
 
@@ -529,8 +529,8 @@ The random-walk scale is adapted online after each random-walk step: $\gamma^2$ 
 
 \subsection{Quantitative fit metrics}
 
-Table~\ref{tab:rmse} reports the composition fit at the end of Phase~1 (composition likelihood only) and Phase~2 (with the viability and pH channels).
-Phase~1 fits the composition at least as well as Phase~2 in every condition, as expected since Phase~2 also has to match the viability and pH data.
+Table~\ref{tab:rmse} reports the composition fit at the end of Phase~1 (composition likelihood only) and Phase~2 (with the viability channel).
+Phase~1 fits the composition at least as well as Phase~2 in every condition, as expected since Phase~2 also has to match the viability data.
 In Phase~2, DS has the best composition fit (RMSE$=$0.033, $R^2_{\text{\textit{Pg}}}=0.85$), and DH reproduces the late Pg increase ($R^2_{\text{\textit{Pg}}}=0.90$).
 The composition RMSE increases by at most 0.035 from Phase~1 to Phase~2.
 
@@ -538,7 +538,7 @@ The composition RMSE increases by at most 0.035 from Phase~1 to Phase~2.
 \centering\footnotesize\setlength{\tabcolsep}{3pt}
 \begin{tabular}{@{}l ccccc ccccc@{}}
 \toprule
-& \multicolumn{5}{c}{\textbf{Phase 1: composition only}} & \multicolumn{5}{c}{\textbf{Phase 2: with viability and pH --- final}}\\
+& \multicolumn{5}{c}{\textbf{Phase 1: composition only}} & \multicolumn{5}{c}{\textbf{Phase 2: with viability --- final}}\\
 \cmidrule(lr){2-6}\cmidrule(lr){7-11}
 \textbf{Cond.} & \textbf{RMSE} & \textbf{MAE} & $\bar{\alpha}$ & $\max\ln\mathcal{L}$ & $\ln\hat{Z}$ & \textbf{RMSE} & \textbf{MAE} & $\bar{\alpha}$ & $\max\ln\mathcal{L}$ & $\ln\hat{Z}$\\
 \midrule
@@ -548,7 +548,7 @@ DS  & $\mathbf{0.020}$ & $\mathbf{0.025}$ & 0.11 & $\mathbf{-1.2}$ & $-3.8$ & $\
 DH  & 0.067 & 0.045 & 0.10 & $-6.6$ & $-9.6$ & 0.087 & 0.060 & 0.07 & $-170.4$ & $-11.9$\\
 \bottomrule
 \end{tabular}
-\caption{Composition fit at the end of Phase~1 (stage (ii), composition likelihood only) and Phase~2 (stage (iv), with viability and pH channels).
+\caption{Composition fit at the end of Phase~1 (stage (ii), composition likelihood only) and Phase~2 (stage (iv), with the viability channel).
 RMSE and MAE refer to the species composition in both phases.
 $\bar{\alpha}$: mean MH acceptance rate.
 $\max\ln\mathcal{L}$ and $\ln\hat{Z}$ are not comparable across phases (Phase~2 includes additional channels) nor across conditions (different data); use RMSE for comparison.}
@@ -559,14 +559,14 @@ Table~\ref{tab:r2_species} reports the per-species $R^2$ for each condition.
 In commensal states (CS, CH), \textit{Fn} and \textit{Pg} fractions are near zero throughout, rendering $R^2$ undefined (total variance $\approx0$); these are marked ``$-$'' in the table.
 In dysbiotic states, in Phase~1, DH achieves $R^2>0.8$ for \textit{An}, \textit{Vei}, and \textit{Pg}; in Phase~2, \textit{Vei} drops to~$0.63$ while \textit{An} ($0.86$) and \textit{Pg} ($0.90$) remain above~$0.8$.
 DS achieves $R^2=0.93$ for \textit{Vei} in Phase~1 ($0.91$ in Phase~2) and $0.85$ for \textit{Pg} in both phases.
-So shows negative $R^2$ in most conditions in both phases; in Phase~2 this partly reflects a trade-off between the composition and the viability and pH channels.
+So shows negative $R^2$ in most conditions in both phases; in Phase~2 this partly reflects a trade-off between the composition and the viability channel.
 So also exhibits the highest replicate variability ($\sigma_{\mathrm{So}}\approx0.19$), which inflates $\mathrm{SS}_{\mathrm{tot}}$ and further depresses $R^2$.
 
 \begin{table}[htbp]
 \centering\footnotesize\setlength{\tabcolsep}{3pt}
 \begin{tabular}{@{}l ccccc ccccc@{}}
 \toprule
-& \multicolumn{5}{c}{\textbf{Phase 1 (composition only)}} & \multicolumn{5}{c}{\textbf{Phase 2 (with viability and pH) --- final}}\\
+& \multicolumn{5}{c}{\textbf{Phase 1 (composition only)}} & \multicolumn{5}{c}{\textbf{Phase 2 (with viability) --- final}}\\
 \cmidrule(lr){2-6}\cmidrule(lr){7-11}
 \textbf{Cond.} & So & An & Vei & Fn & Pg & So & An & Vei & Fn & Pg\\
 \midrule
@@ -807,8 +807,8 @@ The late increase thus arises in the model from a delayed rise of \textit{F.~nuc
 The model therefore predicts, with posterior probability \TBD{0.87--0.90}, that a leave-\textit{F.~nucleatum}-out co-culture under otherwise identical dynamic cultivation suppresses the late Pg increase.
 Because commensal and dysbiotic consortia differ in \textit{Veillonella} species and Pg strain as well as in community state, the prediction concerns this consortium and should not be generalised to other strain combinations.
 
-\paragraph{Effect of the viability and pH data.}
-Figure~\ref{fig:phase_scatter} compares the Phase~1 (composition only) and Phase~2 (with viability and pH) MAP estimates parameter by parameter.
+\paragraph{Effect of the viability data.}
+Figure~\ref{fig:phase_scatter} compares the Phase~1 (composition only) and Phase~2 (with viability) MAP estimates parameter by parameter.
 In commensal conditions, the two phases yield consistent MAPs ($r=\TBD{0.83}$--$\TBD{0.90}$): the additional data change $\mathbf{A}$ little.
 In dysbiotic conditions, the MAPs differ more ($r=\TBD{0.23}$ for DS, $\TBD{0.62}$ for DH), with the largest shifts in Pg-related parameters, where the measured viability changes most.
 The viability predictions themselves remain approximate (RMSE \TBD{0.11--0.39}), indicating that the $\psi$-dynamics of the model capture the loss of membrane integrity only coarsely; the viability channel acts mainly as an additional constraint on $\mathbf{A}$.
@@ -816,9 +816,15 @@ The viability predictions themselves remain approximate (RMSE \TBD{0.11--0.39}),
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/phase1_vs_phase2_map.pdf}
-\caption{Phase~1 (composition only) vs.\ Phase~2 (with viability and pH) MAP estimates. Each point is one of the 15 parameters; dashed line: identity. \TBD{update with the final runs}}
+\caption{Phase~1 (composition only) vs.\ Phase~2 (with viability) MAP estimates. Each point is one of the 15 parameters; dashed line: identity. \TBD{update with the final runs}}
 \label{fig:phase_scatter}
 \end{figure}
+
+\paragraph{Limitations.}
+The likelihood treats the five species fractions as independent Gaussian observations although they sum to one.
+The constraint couples the residuals, so the effective number of independent observations is smaller than the number of data points and the posterior intervals may be somewhat too narrow.
+A likelihood on log-ratios would respect the constraint, but several fractions in the data are close to zero, where log-ratios are unstable; we therefore keep the Gaussian form, which is common in calibrations of continuum biofilm models.
+The interaction coefficients are effective quantities of this model and data set; they summarise the net effect of mechanisms that the model does not resolve, such as metabolite exchange and pH, and should not be read as direct measurements of pairwise mechanisms.
 
 \paragraph{Computational considerations.}
 The $\sim$150$\times$ GPU speedup (Table~\ref{tab:timing}) exploits the embarrassingly parallel mutation step via \texttt{jax.vmap}.
