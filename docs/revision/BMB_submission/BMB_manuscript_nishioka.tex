@@ -134,7 +134,7 @@ An additional void fraction~$\phi_0$ closes the system via the holonomic constra
 % Following \citet{Klempt2025ContinuumBiofilm}, the viscosity parameters are set to $\eta_i=1$ for all species, rendering them dimensionless scaling factors; the physical time scale is absorbed into the time-step size $\Delta t$.
 
 \subsection{Variational formulation}
-The evolution equations are derived from the principle of the minimum of the dissipation potential \citep{junker2014principle, hackl1997generalized}, which is a local form of
+The evolution equations are derived from the principle of the minimum of the dissipation potential \citep{junker2014principle, hackl1997generalized}, the local form of the extended Hamilton principle \citep{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic}:
 \begin{equation}
     \dot{\Psi} + \Delta + C \rightarrow \mathrm{stat}_{(\dot{\boldsymbol{\xi}}, \, \gamma)},
     \label{eq:variational_local}
@@ -162,7 +162,7 @@ C = \gamma\Bigl(\sum_{l=0}^{n}\phi_l - 1\Bigr).
 \end{equation}
 
 
-\subsection{Governing equations}
+\subsection{Stationarity conditions}
 
 % Evaluating $\delta\mathcal{H}=0$ with respect to variations $\delta\phi_i$, $\delta\psi_i$, and $\delta\gamma$ yields the coupled evolution equations~\citep{Klempt2025ContinuumBiofilm}:
 
@@ -197,7 +197,7 @@ Evaluating the stationarity conditions yields the coupled evolution equations~\c
 0 = \sum_{l=0}^{n}\phi_l - 1,
 \label{eq:constraint_eq}
 \end{equation}
-In the numerical implementation, a logarithmic barrier penalty $\Psi_{\mathrm{bar}}$ with $K_p=\eta_i\times10^{-4}$ is added to enforce the box constraints $\phi_i,\psi_i\in[0,1]$~\citep{Klempt2025ContinuumBiofilm}; its contribution is omitted from Eqs.~\eqref{eq:phi}--\eqref{eq:phi0} for clarity.
+In the numerical implementation, a logarithmic barrier penalty $\Psi_{\mathrm{bar}}$ with $K_p=\eta_i\times10^{-4}$ is added to enforce the box constraints $\phi_i,\psi_i\in(0,1)$~\citep{Klempt2025ContinuumBiofilm}; its contribution is omitted from Eqs.~\eqref{eq:phi}--\eqref{eq:phi0} for clarity.
 The system~\eqref{eq:phi}--\eqref{eq:constraint_eq} constitutes $2n+2$ coupled non-linear equations for the unknowns $(\phi_1,\dots,\phi_n,\phi_0,\psi_1,\dots,\psi_n,\gamma)$, solved at each time step via Newton's method with an implicit Euler discretisation ($\Delta t = 10^{-4}$, $N_{\mathrm{step}}=2{,}500$ steps, $t_{\max}=0.25$ corresponding to the 21-day experimental window).
 
 The variational derivation automatically ensures symmetry $A_{ij}=A_{ji}$ and thermodynamic consistency~\citep{JunkerBalzani2021ExtendedHamilton}.
