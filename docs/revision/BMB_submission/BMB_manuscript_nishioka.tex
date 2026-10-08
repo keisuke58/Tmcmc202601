@@ -777,7 +777,9 @@ Parameters whose marginals change with the prior are reported as weakly identifi
 
 \paragraph{Likelihood weights.}
 The weights $\lambda_{\mathrm{Pg}}=5$ and $\lambda_{\mathrm{late}}=3$ (Table~\ref{tab:weights}) are modelling choices.
-Repeating stage~(i) for DH with $\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}}=1$ \TBD{result: sign and 90\% interval of $a_{45}$, Pg D21/D15 ratio and RMSE, compared with the weighted run}.
+Repeating stage~(i) for DH with $\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}}=1$ (three seeds, all convergence criteria met) leaves the median of $a_{45}$ unchanged ($+3.0$ in all seeds, compared with $+2.9$ to $+3.2$ with the weights), but widens its 90\% interval so that the lower end reaches zero ($[-0.06,+5.6]$ to $[+0.17,+5.6]$, compared with $[+0.5,+5.5]$ to $[+1.1,+5.3]$).
+The predicted Pg increase from Day~15 to Day~21 becomes less consistent across seeds (ratio 1.7--3.1, compared with 2.4--2.9 with the weights; measured 2.74), and the composition RMSE changes little (0.059--0.068 compared with 0.058--0.065).
+The weights thus sharpen the estimate of the Fn--Pg coefficient and stabilise the late Pg increase, but do not create the positive coefficient.
 
 \paragraph{Necessity of the \textit{Fn}--\textit{Pg} interaction.}
 We compare the full model with a reduced model in which $a_{45}=0$, both inferred from stage~(i), whose particles are initialised from the prior so that the log-evidence estimate is valid.

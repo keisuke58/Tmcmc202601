@@ -131,7 +131,7 @@ An additional void fraction~$\phi_0$ closes the system via the holonomic constra
 % Following Klempt et al.~\cite{Klempt2025ContinuumBiofilm}, the viscosity parameters are set to $\eta_i=1$ for all species, rendering them dimensionless scaling factors; the physical time scale is absorbed into the time-step size $\Delta t$.
 
 \subsection{Variational formulation}
-The evolution equations are derived from the principle of the minimum of the dissipation potential \cite{junker2014principle, hackl1997generalized}, which is a local form of
+The evolution equations are derived from the principle of the minimum of the dissipation potential \cite{junker2014principle, hackl1997generalized}, the local form of the extended Hamilton principle \cite{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic}:
 \begin{equation}
     \dot{\Psi} + \Delta + C \rightarrow \mathrm{stat}_{(\dot{\boldsymbol{\xi}}, \, \gamma)},
     \label{eq:variational_local}
@@ -159,7 +159,7 @@ C = \gamma\Bigl(\sum_{l=0}^{n}\phi_l - 1\Bigr).
 \end{equation}
 
 
-\subsection{Governing equations}
+\subsection{Stationarity conditions}
 
 % Evaluating $\delta\mathcal{H}=0$ with respect to variations $\delta\phi_i$, $\delta\psi_i$, and $\delta\gamma$ yields the coupled evolution equations~\cite{Klempt2025ContinuumBiofilm}:
 
@@ -194,7 +194,7 @@ Evaluating the stationarity conditions yields the coupled evolution equations~\c
 0 = \sum_{l=0}^{n}\phi_l - 1,
 \label{eq:constraint_eq}
 \end{equation}
-In the numerical implementation, a logarithmic barrier penalty $\Psi_{\mathrm{bar}}$ with $K_p=\eta_i\times10^{-4}$ is added to enforce the box constraints $\phi_i,\psi_i\in[0,1]$~\cite{Klempt2025ContinuumBiofilm}; its contribution is omitted from Eqs.~\eqref{eq:phi}--\eqref{eq:phi0} for clarity.
+In the numerical implementation, a logarithmic barrier penalty $\Psi_{\mathrm{bar}}$ with $K_p=\eta_i\times10^{-4}$ is added to enforce the box constraints $\phi_i,\psi_i\in(0,1)$~\cite{Klempt2025ContinuumBiofilm}; its contribution is omitted from Eqs.~\eqref{eq:phi}--\eqref{eq:phi0} for clarity.
 The system~\eqref{eq:phi}--\eqref{eq:constraint_eq} constitutes $2n+2$ coupled non-linear equations for the unknowns $(\phi_1,\dots,\phi_n,\phi_0,\psi_1,\dots,\psi_n,\gamma)$, solved at each time step via Newton's method with an implicit Euler discretisation ($\Delta t = 10^{-4}$, $N_{\mathrm{step}}=2{,}500$ steps, $t_{\max}=0.25$ corresponding to the 21-day experimental window).
 
 The variational derivation automatically ensures symmetry $A_{ij}=A_{ji}$ and thermodynamic consistency~\cite{JunkerBalzani2021ExtendedHamilton}.
@@ -774,7 +774,9 @@ Parameters whose marginals change with the prior are reported as weakly identifi
 
 \paragraph{Likelihood weights.}
 The weights $\lambda_{\mathrm{Pg}}=5$ and $\lambda_{\mathrm{late}}=3$ (Table~\ref{tab:weights}) are modelling choices.
-Repeating stage~(i) for DH with $\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}}=1$ \TBD{result: sign and 90\% interval of $a_{45}$, Pg D21/D15 ratio and RMSE, compared with the weighted run}.
+Repeating stage~(i) for DH with $\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}}=1$ (three seeds, all convergence criteria met) leaves the median of $a_{45}$ unchanged ($+3.0$ in all seeds, compared with $+2.9$ to $+3.2$ with the weights), but widens its 90\% interval so that the lower end reaches zero ($[-0.06,+5.6]$ to $[+0.17,+5.6]$, compared with $[+0.5,+5.5]$ to $[+1.1,+5.3]$).
+The predicted Pg increase from Day~15 to Day~21 becomes less consistent across seeds (ratio 1.7--3.1, compared with 2.4--2.9 with the weights; measured 2.74), and the composition RMSE changes little (0.059--0.068 compared with 0.058--0.065).
+The weights thus sharpen the estimate of the Fn--Pg coefficient and stabilise the late Pg increase, but do not create the positive coefficient.
 
 \paragraph{Necessity of the \textit{Fn}--\textit{Pg} interaction.}
 We compare the full model with a reduced model in which $a_{45}=0$, both inferred from stage~(i), whose particles are initialised from the prior so that the log-evidence estimate is valid.
