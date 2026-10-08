@@ -4,7 +4,7 @@
 #PBS -l walltime=03:00:00
 #PBS -q default
 #PBS -j oe
-#PBS -o ${PBS_JOBNAME}_${PBS_JOBID}.log
+#PBS -o logs/pbs/${PBS_JOBNAME}_${PBS_JOBID}.log
 #PBS -m ae
 #PBS -M nishioka@ikm.uni-hannover.de
 
@@ -44,6 +44,7 @@ else
 fi
 
 cd /home/nishioka/Tmcmc202601/data_5species/main
+mkdir -p logs/pbs
 PYTHON=/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3
 
 # --- GPU pinning: prefer PBS's own GPU assignment (cgroup-isolated),

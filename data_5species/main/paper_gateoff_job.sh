@@ -3,7 +3,7 @@
 #PBS -l nodes=1:ppn=1:gpus=1
 #PBS -q default
 #PBS -j oe
-#PBS -o ${PBS_JOBNAME}_${PBS_JOBID}.log
+#PBS -o logs/pbs/${PBS_JOBNAME}_${PBS_JOBID}.log
 #PBS -m ae
 #PBS -M nishioka@ikm.uni-hannover.de
 
@@ -84,6 +84,7 @@ esac
 LAMBDA_CH5="${LAMBDA_CH5:-0.0}"
 
 cd "$HOME/Tmcmc202601/data_5species/main"
+mkdir -p logs/pbs   # #PBS -o の宛先（logs/ は .gitignore なので clone 直後は無い）
 PYTHON=/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3
 
 # 共通: ゲートは GATE で切り替え（既定 OFF）、実験 Day1 の初期値、DE-MC

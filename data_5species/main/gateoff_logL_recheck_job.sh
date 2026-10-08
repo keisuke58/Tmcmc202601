@@ -4,7 +4,7 @@
 #PBS -l walltime=03:00:00
 #PBS -q default
 #PBS -j oe
-#PBS -o ${PBS_JOBNAME}_${PBS_JOBID}.log
+#PBS -o logs/pbs/${PBS_JOBNAME}_${PBS_JOBID}.log
 #PBS -m ae
 #PBS -M nishioka@ikm.uni-hannover.de
 
@@ -23,6 +23,7 @@
 set -euo pipefail
 
 cd "$HOME/Tmcmc202601"
+mkdir -p logs/pbs
 PYTHON=/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3
 
 # GPU は PBS の割り当てに従う（PBS_GPUFILE）。無ければ 0。
