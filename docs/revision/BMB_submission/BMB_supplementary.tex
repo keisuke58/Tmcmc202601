@@ -79,6 +79,20 @@ Stage~(iv) was repeated with a box of $\pm2$ posterior standard deviations aroun
 
 \section{Likelihood weights}
 \label{sec:S_lambda}
-Stage~(i) for DH was repeated with $\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}}=1$. \TBD{sign and 90\% interval of $a_{45}$, Pg D21/D15 ratio and RMSE, compared with the weighted run}
+Stage~(i) for DH was repeated with $\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}}=1$ (1000 particles, 100 mutation steps, three seeds; all convergence criteria met). Table~\ref{tab:S_lambda} compares it with the weighted run.
+
+\begin{table}[h]
+\centering
+\caption{DH, stage (i): weighted ($\lambda_{\mathrm{Pg}}=5$, $\lambda_{\mathrm{late}}=3$) and unweighted likelihood. Ranges over three seeds.}
+\label{tab:S_lambda}
+\begin{tabular}{lccc}
+\toprule
+ & $a_{45}$ median [5\%, 95\%] & Pg D21/D15 (measured 2.74) & RMSE\\
+\midrule
+Weighted   & $+2.9$ to $+3.2$ [$+0.5$ to $+1.1$, $+5.2$ to $+5.5$] & 2.4--2.9 & 0.058--0.065\\
+Unweighted & $+3.0$ [$-0.06$ to $+0.17$, $+5.6$] & 1.7--3.1 & 0.059--0.068\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \end{document}
