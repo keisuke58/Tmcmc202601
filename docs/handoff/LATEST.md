@@ -56,6 +56,7 @@
 
 | 日付 | ファイル | 要点 |
 |---|---|---|
+| 2026-10-09 | [gpu_2026-10-09_dh_lam1_m100.md](gpu_2026-10-09_dh_lam1_m100.md) | **自動通知**: run 終了。全群 PASS |
 | 2026-10-08 | [gpu_2026-10-08_cs_walltime_ph_table.md](gpu_2026-10-08_cs_walltime_ph_table.md) | **CS p2 `mut160_wide2`（3291-3293）は walltime 6h で投入されていたが同設定の前回が 7.4〜7.9h → 全損確定だったのでユーザー判断で qdel し 12h で投げ直した（3310 vancouver02 / 3311-3312 stuttgart03）。3293 もまた MOM 通信エラーで `qdel -W 0` が必要だった。他の走行ジョブの walltime は確認済みで余裕あり。08s の比較表は `tools/compare_ph_runs.py` を新設して pH あり の 2 群を埋めた: **pH の項が max logL の 6 割前後**（DH −100.4 → pH 抜き −42.4、CH −89.2 → −27.3）、a45 は DH +4.4〜+5.1・CH +0.5 前後、生存率 R² は DH が負・CH が正。pH なし の行は 3304-3309 が出たら同じコマンドで埋まる** |
 | 2026-10-08 | [gpu_2026-10-08_r_noph.md](gpu_2026-10-08_r_noph.md) | **08r を実行済み。pH なしの DH p2 `nonarrow_a45_noph`（3304-3306、vancouver01-02）と CH p2 `mut150_wide_noph`（3307-3309、stuttgart02）が 6 本とも R。pH 入りの DH p2（3285-3287）と CH ult（3301-3303）は削除した（3302 だけ MOM 通信エラーで残り、`qdel -W 0` で消えた。この Torque の `-W` は遅延秒数で `-W force` は使えない）。走行 15 本 / Q 0 本。旧 CH ult `mut150_wide_sd4`（3 seed 完走）も pH 入りなので本文には使えない＝2b が N_MUT=150 で解消するかの確認は pH なしの ult に持ち越し** |
 | 2026-10-08 | [gpu_2026-10-08_q_submitted.md](gpu_2026-10-08_q_submitted.md) | **08q を実行。DS p2 `wide80_p5k_wide2`（3298-3300、5000 粒子・3 成分の下限 −5）と CH ult `mut150_wide_m150_sd4`（3301-3303、N_MUT=150・a13 は広げず）を投入 → 走行 15 本で上限ちょうど。CH ult seed42（3288）は自分で完走したので qdel 不要、旧 runtag は 3 seed そろって記録に残した（2b のみ FAIL 3.3〜3.4）。端の基準 §4 を `check_paper_runs.py` に実装（増加は同じ段の回し直しと pilot→p1・p2→ult でだけ当てる）→ CH p2 の a13 は印が消えて全群 PASS** |
