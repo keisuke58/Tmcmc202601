@@ -28,7 +28,11 @@
 2. **±2SD の節（補足 S4）** — ±2SD の ult は投稿に間に合わない見込み。節と本文の参照を消すか、「査読時に追加」とするか。
 3. **λ 感度（補足 S5）** — 走行中。10/12 までに出なければ本文の段落ごと次の版に回すか。
 4. **公開 GitHub の Heine の CSV**（`experiment_data/`）— Heine 氏に断るか、repo から外すか。Zenodo には入れない。
-5. **推薦査読者**（任意）— 共著者と利害関係のない 2〜3 名。
+5. **推薦査読者**（任意）— 候補（共著者・IKM・MHH・SIIRI との共著なし、2026-10-08 確認）:
+   - Hermann J. Eberl（University of Guelph, Mathematics & Statistics）heberl@uoguelph.ca — バイオフィルムの数理モデル
+   - Isaac Klapper（Temple University, Mathematics）メールは Temple の名簿で確認 — バイオフィルムの連続体モデル、バイオフィルムモデルのベイズ推定
+   - Costas Papadimitriou（University of Thessaly, Mechanical Engineering）costasp@uth.gr — TMCMC・ベイズ UQ
+   - 予備: Katharine Coyte（University of Manchester）— 微生物群集の相互作用の生態学
 6. **Zenodo の DOI** — 最終の run が出たら作る（`experiment_data/` を除く）。
 
 ## 共著者から待つもの
