@@ -74,6 +74,11 @@ logs/
 # =========================
 # Experiment results (large, regenerable)
 tmcmc/_runs/
+# data_5species/main/_runs/ は一部が tracked（baseline/phibar_fix/stein2013/siddiqui 等）なので
+# ディレクトリ全体は ignore しない。commit しない大物の run だけを名前で外す
+data_5species/main/_runs/paper_gateoff/
+data_5species/main/_runs/*_20260930/
+data_5species/main/_runs/gateoff_summary_20260930.*
 tmcmc/case2_*_results/
 tmcmc/case2_*_results*/
 tmcmc/*_results/
