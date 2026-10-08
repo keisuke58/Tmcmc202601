@@ -34,11 +34,7 @@
    - Isaac Klapper（Temple University, Mathematics）メールは Temple の名簿で確認 — バイオフィルムの連続体モデル、バイオフィルムモデルのベイズ推定
    - Costas Papadimitriou（University of Thessaly, Mechanical Engineering）costasp@uth.gr — TMCMC・ベイズ UQ
    - 予備: Katharine Coyte（University of Manchester）— 微生物群集の相互作用の生態学
-7. **pH の関係式（本文 329 行目、`\TBD{source of the pH relation}`）** — 出典を調べたところ、`evaluator.py` のコメントは
-   「Heine 2025 の検証データへの事後回帰（R²=0.71）」。つまり**同じ pH データから回帰で作った式を、その pH データの尤度に使っている**。
-   しかも回帰の切片は 6.95（`docs/make_pptx.py`）なのに実装は 7.5 で、違う理由が記録にない。査読で突かれやすい。案:
-   (a) 正直に書く:「経験的な観測演算子で、以前の推定の組成に対する回帰から得た。重み λ=0.3 と小さい」＋切片の違いを確認して説明
-   (b) pH チャネルを外した p2 を回して結論が変わらないことを示す（GPU に余裕があれば）
+7. ✅ **pH** — 推定から外し、全種の回帰式（6.10 + 0.16 So + 0.55 An + 0.30 Vei + 1.22 Fn + 1.88 Pg）による答え合わせに戻した（ユーザー判断 2026-10-08、08r）。DH・CH は p2 から回し直し。R² などは `\TBD`
 6. **Zenodo の DOI** — 最終の run が出たら作る（`experiment_data/` を除く）。
 
 ## 共著者から待つもの
