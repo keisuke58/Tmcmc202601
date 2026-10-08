@@ -28,7 +28,11 @@
    感度解析を回す時間はないので、案:「先行研究との比較のためこの近似を残し、限界として議論で触れる」と書く。Meisam に一言確認するか。
 2. ✅（2026-10-09）**±2SD** — 投稿に間に合わないので、補足 S4 と本文の参照を削除（査読で聞かれたら sd2 の run で答える）。元のメモ: **±2SD の節（補足 S4）** — ±2SD の ult は投稿に間に合わない見込み。節と本文の参照を消すか、「査読時に追加」とするか。
 3. ✅ **λ 感度（補足 S5）** — 全群 PASS（2026-10-09）。本文の段落と補足の表に記入済み。a45 の中央値は変わらず、区間の下端が 0 に届く
-4. **公開 GitHub の Heine の CSV**（`experiment_data/`）— Heine 氏に断るか、repo から外すか。Zenodo には入れない。
+4. ✅（2026-10-09 ユーザー判断）**公開 GitHub の Heine のデータ（`data_5species/experiment_data/`、79 ファイル）は最新版から外す。**
+   - **やるのは 10/12（ult と図が全部そろってから）、GPU 側で** `git rm -r --cached data_5species/experiment_data` ＋ `.gitignore` に追加 → commit・push。
+     `--cached` なので GPU サーバーのファイルは残る（計算は止まらない）。今やると、GPU 側が pull したときにファイルが消えて計算が壊れる。
+   - 他の clone（手元の PC など）は pull するとファイルが消えるので、先に `experiment_data/` を別の場所に退避しておく。
+   - 過去のコミットには残る（履歴の書き換えは他の clone を壊すのでしない）。Zenodo には入れない。
 5. **推薦査読者**（任意）— 候補（共著者・IKM・MHH・SIIRI との共著なし、2026-10-08 確認）:
    - Hermann J. Eberl（University of Guelph, Mathematics & Statistics）heberl@uoguelph.ca — バイオフィルムの数理モデル
    - Isaac Klapper（Temple University, Mathematics）メールは Temple の名簿で確認 — バイオフィルムの連続体モデル、バイオフィルムモデルのベイズ推定
