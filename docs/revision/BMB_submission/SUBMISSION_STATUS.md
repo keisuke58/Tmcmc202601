@@ -7,6 +7,7 @@
 | 項目 | 状態 |
 |---|---|
 | 原稿（sn-jnl・通し行番号） | ✅ コンパイル通る（22 ページ、エラー 0） |
+| 速度の数字 | ✅ 「~200×」は表の計算ミス（21600 s ÷ 147 s = 147×）。要旨・序論・結論を「~150×」、表を 147×、注を「1 段あたり 170×・合計 147×」に直した（2026-10-08） |
 | 要旨 | ✅ 218 語（上限 250）。DS の a45 を「主な山の中でだけ正」に直した（2026-10-08） |
 | Keywords | ✅ 6 個 |
 | Declarations（Funding・Competing interests・Ethics・Data・Code・Author contributions） | ✅ 節はある（Author contributions は共著者の確認待ち） |
@@ -33,6 +34,11 @@
    - Isaac Klapper（Temple University, Mathematics）メールは Temple の名簿で確認 — バイオフィルムの連続体モデル、バイオフィルムモデルのベイズ推定
    - Costas Papadimitriou（University of Thessaly, Mechanical Engineering）costasp@uth.gr — TMCMC・ベイズ UQ
    - 予備: Katharine Coyte（University of Manchester）— 微生物群集の相互作用の生態学
+7. **pH の関係式（本文 329 行目、`\TBD{source of the pH relation}`）** — 出典を調べたところ、`evaluator.py` のコメントは
+   「Heine 2025 の検証データへの事後回帰（R²=0.71）」。つまり**同じ pH データから回帰で作った式を、その pH データの尤度に使っている**。
+   しかも回帰の切片は 6.95（`docs/make_pptx.py`）なのに実装は 7.5 で、違う理由が記録にない。査読で突かれやすい。案:
+   (a) 正直に書く:「経験的な観測演算子で、以前の推定の組成に対する回帰から得た。重み λ=0.3 と小さい」＋切片の違いを確認して説明
+   (b) pH チャネルを外した p2 を回して結論が変わらないことを示す（GPU に余裕があれば）
 6. **Zenodo の DOI** — 最終の run が出たら作る（`experiment_data/` を除く）。
 
 ## 共著者から待つもの

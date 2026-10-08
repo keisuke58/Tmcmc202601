@@ -52,7 +52,7 @@
 We present a GPU-accelerated Bayesian framework for inferring the interaction parameters of a five-species oral biofilm model derived from the extended Hamilton principle.
 The symmetric $5\times5$ interaction matrix is parametrised by its 15 independent entries.
 Inference proceeds in stages: the likelihood first contains the species composition only, and the community viability (and, under dynamic cultivation, the pH) is then added as further channels.
-The forward model is compiled with JAX and evaluated for all particles in parallel on a GPU, giving a \TBD{$\sim$200}$\times$ speed-up over the CPU baseline.
+The forward model is compiled with JAX and evaluated for all particles in parallel on a GPU, giving a $\sim$150$\times$ speed-up over the CPU baseline.
 No interaction parameter is fixed to zero a priori, and every inference stage is checked with independent seeds against explicit convergence criteria.
 Applied to in-vitro time-course data of Heine et al.\ under four combinations of community state (commensal vs.\ dysbiotic) and cultivation (static vs.\ dynamic, the latter in a HOBIC flow reactor), the inferred effective parameters reproduce the observed trajectories, including the late \textit{P.~gingivalis} (Pg) increase under dysbiotic dynamic cultivation (RMSE \TBD{0.05--0.12}).
 The \textit{F.~nucleatum} (Fn)--Pg coefficient is positive in that condition (90\% interval \TBD{[+0.8, +5.2]}), positive under dysbiotic static cultivation only within the dominant of two posterior modes, and indistinguishable from zero in both commensal conditions.
@@ -76,7 +76,7 @@ Two principal difficulties arise: (i) poor identifiability when data are sparse 
 
 In this work we address these challenges through three complementary strategies.
 First, we introduce the data in two phases: the interaction matrix is first inferred from the species composition alone, and the viability (and, for HOBIC cultivation, pH) measurements are added only once the composition-based posterior is available.
-Second, we compile the forward model in JAX~\cite{jax2018github} and evaluate the entire particle ensemble on GPU via batched \texttt{vmap}, achieving a \TBD{$\sim$200}$\times$ speedup over the CPU baseline.
+Second, we compile the forward model in JAX~\cite{jax2018github} and evaluate the entire particle ensemble on GPU via batched \texttt{vmap}, achieving a $\sim$150$\times$ speedup over the CPU baseline.
 Third, we infer the posterior with TMCMC~\cite{ChingChen2007TMCMC, Betz2016TMCMC} in stages with progressively narrowed prior boxes and verify every stage with independent seeds and explicit convergence criteria (Section~\ref{sec:convergence}).
 The framework is applied to all four experimental conditions of Heine et al.; it reproduces commensal homeostasis as well as the late pathogen increase of dysbiotic biofilms under HOBIC flow, and it yields a prediction that can be tested by a leave-one-species-out experiment.
 
@@ -495,7 +495,7 @@ The procedure is summarised in Algorithm~\ref{alg:tmcmc}; Table~\ref{tab:timing}
 \midrule
 \multicolumn{4}{@{}l}{\textit{Matched benchmark (DH, $N_p=500$, $K=10$, 9 stages):}}\\
 \quad Per stage     & 2\,400\,s   & 14\,s    & $170\times$\\
-\quad Total         & 21\,600\,s  & 147\,s   & $\mathbf{200\times}$\\
+\quad Total         & 21\,600\,s  & 147\,s   & $\mathbf{147\times}$\\
 \midrule
 \multicolumn{4}{@{}l}{\textit{Final stage (iv) (4 cond., $N_p=\TBD{n}$, $K=\TBD{n}$, GPU \TBD{model}):}}\\
 \quad Per condition & \TBD{h}$^\dagger$ & \TBD{h} & \TBD{x}\\
@@ -503,7 +503,7 @@ The procedure is summarised in Algorithm~\ref{alg:tmcmc}; Table~\ref{tab:timing}
 \bottomrule
 \end{tabular}
 \caption{Computational cost comparison.
-The matched benchmark (500 particles, identical settings) isolates the GPU speedup at $\sim$200$\times$.
+The matched benchmark (500 particles, identical settings) isolates the GPU speedup at about 150--170$\times$ (170$\times$ per stage, 147$\times$ in total).
 The final-stage times are measured per seed \TBD{update with the final runs}.
 $^\dagger$Extrapolated from the 500-particle CPU benchmark assuming linear scaling in~$N_p$.}
 \label{tab:timing}
@@ -809,7 +809,7 @@ The viability predictions themselves remain approximate (RMSE \TBD{0.11--0.39}),
 \end{figure}
 
 \paragraph{Computational considerations.}
-The \TBD{$\sim$200}$\times$ GPU speedup (Table~\ref{tab:timing}) exploits the embarrassingly parallel mutation step via \texttt{jax.vmap}.
+The $\sim$150$\times$ GPU speedup (Table~\ref{tab:timing}) exploits the embarrassingly parallel mutation step via \texttt{jax.vmap}.
 For this solver and workload, gradient-based samplers (HMC, NUTS) were less efficient on the GPU, because trajectories of variable length limit batched evaluation~\cite{Dance2025FSM}.
 Combining the direct-ODE approach with surrogate acceleration~\cite{Fritsch2025BayesianMicrofilms} is a natural extension.
 
@@ -827,7 +827,7 @@ The interaction matrix is first inferred from the species composition and then r
 All 15 parameters are estimated without fixing any of them a priori; the Pg-related coefficients in the commensal conditions are not distinguishable from zero.
 
 \item \textbf{GPU-accelerated TMCMC.}
-Compiling the forward model via JAX and batching all particles on GPU achieves a \TBD{$\sim$200}$\times$ speedup (Table~\ref{tab:timing}), making repeated runs with up to $N_p=5{,}000$ particles feasible.
+Compiling the forward model via JAX and batching all particles on GPU achieves a $\sim$150$\times$ speedup (Table~\ref{tab:timing}), making repeated runs with up to $N_p=5{,}000$ particles feasible.
 
 \item \textbf{Reproduction of four conditions and a testable prediction.}
 The framework reproduces commensal homeostasis (CS, CH), moderate dysbiosis (DS), and the late Pg increase (DH).
