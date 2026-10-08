@@ -59,6 +59,7 @@
 
 | 日付 | ファイル | 要点 |
 |---|---|---|
+| 2026-10-09 | [gpu_2026-10-09_cs_p2_wide2.md](gpu_2026-10-09_cs_p2_wide2.md) | **自動通知**: run 終了。全群 PASS |
 | 2026-10-09 | [gpu_2026-10-09_ch_p2_noph.md](gpu_2026-10-09_ch_p2_noph.md) | **自動通知**: run 終了。全群 PASS |
 | 2026-10-09 | [gpu_2026-10-09_dh_lam1_m100.md](gpu_2026-10-09_dh_lam1_m100.md) | **自動通知**: run 終了。全群 PASS |
 | 2026-10-08 | [gpu_2026-10-08_cs_walltime_ph_table.md](gpu_2026-10-08_cs_walltime_ph_table.md) | **CS p2 `mut160_wide2`（3291-3293）は walltime 6h で投入されていたが同設定の前回が 7.4〜7.9h → 全損確定だったのでユーザー判断で qdel し 12h で投げ直した（3310 vancouver02 / 3311-3312 stuttgart03）。3293 もまた MOM 通信エラーで `qdel -W 0` が必要だった。他の走行ジョブの walltime は確認済みで余裕あり。08s の比較表は `tools/compare_ph_runs.py` を新設して pH あり の 2 群を埋めた: **pH の項が max logL の 6 割前後**（DH −100.4 → pH 抜き −42.4、CH −89.2 → −27.3）、a45 は DH +4.4〜+5.1・CH +0.5 前後、生存率 R² は DH が負・CH が正。pH なし の行は 3304-3309 が出たら同じコマンドで埋まる** |
