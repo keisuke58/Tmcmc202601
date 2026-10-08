@@ -89,6 +89,55 @@ def load(d):
     return rec, s, ll, cfg
 
 
+def _side_edges(rec, s):
+    """自由次元ごとに、箱の下側 5% / 上側 5% に入る粒子の割合を別々に返す。
+
+    `check_paper_runs.py` は長らく両端の合計だけを出していたので、08d の停止基準
+    （片側 5% に 0.20 以上）をそのまま当てられなかった（2026-10-08p §4）。
+    """
+    pb = np.array(rec["prior_bounds_final"])
+    width = pb[:, 1] - pb[:, 0]
+    out = {}
+    for i in rec["free_dims"]:
+        lo = float(np.mean(s[:, i] - pb[i, 0] < 0.05 * width[i]))
+        hi = float(np.mean(pb[i, 1] - s[:, i] < 0.05 * width[i]))
+        out[NAMES[i]] = (lo, hi, float(pb[i, 0]), float(pb[i, 1]))
+    return out
+
+
+def _prev_side_edges(cfg):
+    """前段（--init-from-dir）の片側の割合。前段が無い・読めないときは None。"""
+    argv = cfg.get("argv") or []
+    if "--init-from-dir" not in argv:
+        return None
+    prev = Path(argv[argv.index("--init-from-dir") + 1])
+    for cand in (prev, Path.cwd() / prev, Path("data_5species/main") / prev):
+        if (cand / "run_record.json").exists() and (cand / "samples.npy").exists():
+            try:
+                prec, ps, _ll, _cfg = load(cand)
+                return _side_edges(prec, ps), cand.name
+            except Exception:
+                return None
+    return None
+
+
+def _edge_flags(sides, prev):
+    """切られている成分に印を付ける: 片側 0.20 以上、または前段から +0.10 以上。"""
+    rows = []
+    for nm, (lo, hi, blo, bhi) in sides.items():
+        if max(lo, hi) <= 0.10:
+            continue
+        plo = phi = None
+        if prev and nm in prev[0]:
+            plo, phi = prev[0][nm][0], prev[0][nm][1]
+        cut = max(lo, hi) >= 0.20 or (
+            plo is not None and max(lo - plo, hi - phi) >= 0.10
+        )
+        rows.append((nm, lo, hi, blo, bhi, plo, phi, cut))
+    rows.sort(key=lambda r: -max(r[1], r[2]))
+    return rows
+
+
 def _prior_free_key(key):
     """ident の群名から事前分布の部分を伏せる（判定 5 で同じ設定の prior0 と priorX を組にする）。"""
     return re.sub(r"_ident_prior[0-9.]+", "_ident_prior*", key)
@@ -152,6 +201,22 @@ def main(root, pattern="*"):
                 # 箱で切られているわけではない。片側 5% に 0.20 以上、または前段より
                 # 0.1 以上増えた成分が「切られている」（2026-10-08d）。表示だけで判定はしない。
                 print(f"          箱の端 5% に 10% 超（一様なら 0.10）: {edgy}")
+                # 片側に分けて出す（2026-10-08p §4）。「←」が 08d の停止基準に該当する成分。
+                prev = _prev_side_edges(cfg)
+                rows = _edge_flags(_side_edges(rec, s), prev)
+                if rows:
+                    head = "          片側 5%: 成分 箱 下側/上側"
+                    if prev:
+                        head += f"（前段 {prev[1]} の 下側/上側）"
+                    print(head)
+                    for nm, lo, hi, blo, bhi, plo, phi, cut in rows:
+                        line = (
+                            f"            {nm:4s} [{blo:g},{bhi:g}] "
+                            f"{lo:.2f}/{hi:.2f}"
+                        )
+                        if plo is not None:
+                            line += f" (前段 {plo:.2f}/{phi:.2f})"
+                        print(line + ("  ← 箱で切られている" if cut else ""))
             recs.append(rec)
             samples.append(s)
             maxll.append(rec["max_logL"])
