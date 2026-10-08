@@ -121,8 +121,29 @@ def _prev_side_edges(cfg):
     return None
 
 
-def _edge_flags(sides, prev):
-    """切られている成分に印を付ける: 片側 0.20 以上、または前段から +0.10 以上。"""
+def _stage_of(name):
+    """run の名前（`DS_p2_wide80_..._seed42`）から段（pilot|p1|p2|ult|ident）を取る。"""
+    m = re.match(r"[A-Z]+_(pilot|p1|p2|ult|ident)(?:_|$)", name)
+    return m.group(1) if m else None
+
+
+# 尤度が同じ段の組（2026-10-08q §4）。p1 → p2 は尤度が変わるので増加の基準に使わない。
+_SAME_LIKELIHOOD = {("pilot", "p1"), ("p2", "ult")}
+
+
+def _comparable(prev_name, cur_name):
+    """前段との「+0.10 以上」を当てていい組か。同じ段の回し直し、または尤度が同じ段の組だけ。"""
+    ps, cs = _stage_of(prev_name), _stage_of(cur_name)
+    if ps is None or cs is None:
+        return False
+    return ps == cs or (ps, cs) in _SAME_LIKELIHOOD
+
+
+def _edge_flags(sides, prev, comparable=True):
+    """切られている成分に印を付ける: 片側 0.20 以上、または前段から +0.10 以上。
+
+    「+0.10 以上」は尤度が同じ段どうしでだけ比べる（`comparable`、2026-10-08q §4）。
+    """
     rows = []
     for nm, (lo, hi, blo, bhi) in sides.items():
         if max(lo, hi) <= 0.10:
@@ -131,7 +152,7 @@ def _edge_flags(sides, prev):
         if prev and nm in prev[0]:
             plo, phi = prev[0][nm][0], prev[0][nm][1]
         cut = max(lo, hi) >= 0.20 or (
-            plo is not None and max(lo - plo, hi - phi) >= 0.10
+            comparable and plo is not None and max(lo - plo, hi - phi) >= 0.10
         )
         rows.append((nm, lo, hi, blo, bhi, plo, phi, cut))
     rows.sort(key=lambda r: -max(r[1], r[2]))
@@ -203,11 +224,14 @@ def main(root, pattern="*"):
                 print(f"          箱の端 5% に 10% 超（一様なら 0.10）: {edgy}")
                 # 片側に分けて出す（2026-10-08p §4）。「←」が 08d の停止基準に該当する成分。
                 prev = _prev_side_edges(cfg)
-                rows = _edge_flags(_side_edges(rec, s), prev)
+                cmpable = bool(prev) and _comparable(prev[1], d.name)
+                rows = _edge_flags(_side_edges(rec, s), prev, cmpable)
                 if rows:
                     head = "          片側 5%: 成分 箱 下側/上側"
                     if prev:
-                        head += f"（前段 {prev[1]} の 下側/上側）"
+                        head += f"（前段 {prev[1]} の 下側/上側"
+                        head += "" if cmpable else "・尤度が違う段なので増加は見ない"
+                        head += "）"
                     print(head)
                     for nm, lo, hi, blo, bhi, plo, phi, cut in rows:
                         line = (
