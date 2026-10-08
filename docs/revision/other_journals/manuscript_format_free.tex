@@ -51,12 +51,12 @@
 \begin{abstract}
 We present a GPU-accelerated Bayesian framework for inferring the interaction parameters of a five-species oral biofilm model derived from the extended Hamilton principle.
 The symmetric $5\times5$ interaction matrix is parametrised by its 15 independent entries.
-Inference proceeds in stages: the likelihood first contains the species composition only, and the community viability (and, under dynamic cultivation, the pH) is then added as further channels.
+Inference proceeds in stages: the likelihood first contains the species composition only, and the community viability is then added as a further channel.
 The forward model is compiled with JAX and evaluated for all particles in parallel on a GPU, giving a $\sim$150$\times$ speed-up over the CPU baseline.
 No interaction parameter is fixed to zero a priori, and every inference stage is checked with independent seeds against explicit convergence criteria.
 Applied to in-vitro time-course data of Heine et al.\ under four combinations of community state (commensal vs.\ dysbiotic) and cultivation (static vs.\ dynamic, the latter in a HOBIC flow reactor), the inferred effective parameters reproduce the observed trajectories, including the late \textit{P.~gingivalis} (Pg) increase under dysbiotic dynamic cultivation (RMSE \TBD{0.05--0.12}).
 The \textit{F.~nucleatum} (Fn)--Pg coefficient is positive in that condition (90\% interval \TBD{[+0.8, +5.2]}), positive under dysbiotic static cultivation only within the dominant of two posterior modes, and indistinguishable from zero in both commensal conditions.
-Posterior predictive simulations without Fn suppress the late Pg increase with probability \TBD{0.87--0.90}, yielding a directly testable prediction.
+The inferred model reproduces the measured pH under dynamic cultivation, which is not used in the inference ($R^2=\TBD{0.78}$ through a fixed regression on the species fractions). Posterior predictive simulations without Fn suppress the late Pg increase with probability \TBD{0.87--0.90}, yielding a directly testable prediction.
 
 \medskip\noindent\textbf{Keywords:} \TBD{per journal: see README.md}
 \end{abstract}
@@ -321,9 +321,9 @@ For the species composition we use a weighted Gaussian log-likelihood
 where $\sigma_{i}$ is a species-specific observation noise derived from the replicate standard deviation of the normalised species fractions~\cite{heine2025influence} ($N=8$ biological replicates per condition), averaged over time points.
 The weights $w_{ik}$ are listed in Table~\ref{tab:weights}: Pg is up-weighted ($\lambda_{\mathrm{Pg}}=5$) because it is a low-abundance species whose late increase is the main dynamic feature of the dysbiotic data; the last two time points are up-weighted ($\lambda_{\mathrm{late}}=3$); and species whose mean fraction is below 5\% are down-weighted ($\lambda_{\mathrm{rare}}=0.1$).
 
-In Phase~2 (Section~\ref{sec:prior}) two further Gaussian channels are added with the weights of Table~\ref{tab:weights}.
+In Phase~2 (Section~\ref{sec:prior}) a further Gaussian channel is added with the weight of Table~\ref{tab:weights}.
 The \emph{viability channel} compares the predicted community viability $\sum_i\phi_i\psi_i/\sum_i\phi_i$ with the measured fraction of membrane-intact cells~\cite{heine2025influence}, with $\sigma_\psi$ the mean reported measurement error.
-For HOBIC cultivation, the \emph{pH channel} compares the measured pH time series~\cite{heine2025influence} with $\mathrm{pH}=7.5-0.74\,\bar{y}_{\mathrm{So}}-0.48\,\bar{y}_{\mathrm{Vei}}$, where $\bar{y}_i$ are the normalised living fractions $\phi_i\psi_i/\sum_j\phi_j\psi_j$, with $\sigma_{\mathrm{pH}}=0.15$ \TBD{source of the pH relation}.
+The measured pH time series of the HOBIC conditions~\citep{heine2025influence} is not used in the likelihood; it is kept for the check in Section~\ref{sec:validation}.
 Treating the compositional data with independent Gaussian errors ignores the unit-sum constraint; \TBD{effect assessed in a sensitivity analysis -- to be agreed with M.S.}.
 
 \begin{table}[htbp]\centering\small
@@ -332,8 +332,7 @@ Weight & Value & Applies to\\\midrule
 $\lambda_{\mathrm{Pg}}$ & 5 & Pg, all time points\\
 $\lambda_{\mathrm{late}}$ & 3 & Days 15 and 21, all species\\
 $\lambda_{\mathrm{rare}}$ & 0.1 & species with mean fraction $<5\%$\\
-$\lambda_{\psi}$ & 3.0 (DH), 2.0 (DS), 1.5 (CS, CH) & viability channel, Phase~2\\
-$\lambda_{\mathrm{pH}}$ & 0.3 & pH channel, HOBIC conditions, Phase~2\\\bottomrule
+$\lambda_{\psi}$ & 3.0 (DH), 2.0 (DS), 1.5 (CS, CH) & viability channel, Phase~2\\\bottomrule
 \end{tabular}
 \caption{Likelihood weights.}
 \label{tab:weights}
@@ -355,7 +354,7 @@ The initial box was set empirically to contain earlier posterior estimates; it e
 Inference proceeds in four stages that share the same data:
 (i)~composition likelihood on the initial box;
 (ii)~composition likelihood, box narrowed to the stage-(i) posterior mean $\pm4$ posterior standard deviations (SDs);
-(iii)~composition, viability and pH likelihood on the initial box, starting from the stage-(ii) particles (the box is not narrowed, because the likelihood changes between (ii) and (iii) and a box derived from the stage-(ii) posterior truncated the stage-(iii) posterior);
+(iii)~composition and viability likelihood on the initial box, starting from the stage-(ii) particles (the box is not narrowed, because the likelihood changes between (ii) and (iii) and a box derived from the stage-(ii) posterior truncated the stage-(iii) posterior);
 (iv)~as (iii), with the box narrowed to the stage-(iii) posterior mean $\pm4$ SDs and $N_p=5{,}000$ particles.
 We refer to stages (i)--(ii) as Phase~1 and to stages (iii)--(iv) as Phase~2.
 Narrowing is clipped to the initial box; a $\pm4$\,SD box removes less than 0.01\% of a Gaussian marginal, so it shortens the tempering without truncating the posterior (a $\pm2$\,SD box would remove about 5\% of each well-determined marginal; results with $\pm2$\,SD are given in Supplementary Section~S4). Stages (ii)--(iv) start from a mixture of particles drawn around the previous stage's MAP and draws from the stage prior; because the initial population is then not a sample from the prior, their log-evidence estimates are not used \TBD{drop the $\ln\hat{Z}$ columns of Table~\ref{tab:rmse} or report stage (i) only}.
@@ -462,7 +461,7 @@ The procedure is summarised in Algorithm~\ref{alg:tmcmc}; Table~\ref{tab:timing}
 \caption{Staged GPU-accelerated TMCMC (one seed; every stage is run with three seeds and checked as in Section~\ref{sec:convergence})}
 \label{alg:tmcmc}
 \begin{algorithmic}[1]
-\REQUIRE Composition data $\yobs$, viability and pH data, $N_p$ particles, GPU device
+\REQUIRE Composition data $\yobs$, viability data, $N_p$ particles, GPU device
 \ENSURE MAP estimate $\hat{\btheta}^{\mathrm{MAP}}$, posterior samples, log-evidence $\ln\hat{Z}$
 \STATE $\triangleright$ \textbf{Stage (i): composition likelihood, initial box}
 \STATE Draw $\{\btheta_j\}_{j=1}^{N_p}$ from the stage prior; set $\beta_0\leftarrow 0$
@@ -480,8 +479,8 @@ The procedure is summarised in Algorithm~\ref{alg:tmcmc}; Table~\ref{tab:timing}
 \STATE Record MAP and posterior SD per parameter
 \STATE $\triangleright$ \textbf{Stage (ii): composition likelihood, box mean $\pm4$\,SD}
 \STATE Repeat lines 2--13 on the narrowed box, starting from the previous particles
-\STATE $\triangleright$ \textbf{Stages (iii)--(iv): add viability and pH channels; initial box, then mean $\pm4$\,SD}
-\STATE Augment likelihood with the weighted viability and pH channels (Table~\ref{tab:weights})
+\STATE $\triangleright$ \textbf{Stages (iii)--(iv): add the viability channel; initial box, then mean $\pm4$\,SD}
+\STATE Augment likelihood with the weighted viability channel (Table~\ref{tab:weights})
 \STATE Repeat lines 2--13 for each stage
 \RETURN $\hat{\btheta}^{\mathrm{MAP}}$, posterior samples, $\ln\hat{Z}$
 \end{algorithmic}
@@ -688,7 +687,15 @@ Overall, the transition from health to disease corresponds to a structural reorg
 
 We compare the inferred trajectories with measurements of Heine et al.~\cite{heine2025influence} that are related to, but not identical with, the composition data.
 These comparisons are consistency checks rather than independent validation.
-The HOBIC pH time series enters the Phase~2 likelihood (Section~\ref{sec:likelihood}) and is therefore not used as a check.
+\textit{pH} ($R^2=\TBD{0.78}$, RMSE $=\TBD{0.13}$ pH units):
+the pH time series of the HOBIC conditions is not used in the inference.
+A linear relation between pH and the measured species fractions is fitted once, by ordinary least squares on the experimental data alone ($N=90$ HOBIC time points, commensal and dysbiotic combined; leave-one-out RMSE $=0.056$), selecting the predictors by leave-one-out cross-validation:
+\begin{equation}
+  \mathrm{pH}(t) = 6.10 + 0.16\,\phi_{\mathrm{So}} + 0.55\,\phi_{\mathrm{An}} + 0.30\,\phi_{\mathrm{Vei}} + 1.22\,\phi_{\mathrm{Fn}} + 1.88\,\phi_{\mathrm{Pg}}.
+  \label{eq:ph_check}
+\end{equation}
+Applying Eq.~\eqref{eq:ph_check} with fixed coefficients to the species fractions predicted from \TBD{500} posterior samples of stage~(iv) reproduces the measured pH of CH and DH with $R^2=\TBD{0.78}$ (\TBD{12} points).
+The pH data enter only the fit of Eq.~\eqref{eq:ph_check} on measured fractions, never the inference; the check therefore tests whether the inferred model reproduces the species fractions that drive the pH, not the pH mechanism itself.
 
 \textit{Gingipain--\textit{Pg} correlation} ($r=\TBD{0.90}$):
 the temporal profile of gingipain (Heine et al.~\cite{heine2025influence}, Fig.~4B), the principal virulence factor of \textit{Pg}, correlates with the predicted Pg trajectory in DH, both increasing at Day~15--21; this is a temporal correlation, not a test of a mechanism.
@@ -823,7 +830,7 @@ The key contributions are:
 
 \begin{enumerate}[nosep,leftmargin=*]
 \item \textbf{Staged inference with explicit convergence checks.}
-The interaction matrix is first inferred from the species composition and then refined with the viability and pH data; every stage is run with three seeds and accepted only if explicit convergence criteria hold.
+The interaction matrix is first inferred from the species composition and then refined with the viability data; every stage is run with three seeds and accepted only if explicit convergence criteria hold.
 All 15 parameters are estimated without fixing any of them a priori; the Pg-related coefficients in the commensal conditions are not distinguishable from zero.
 
 \item \textbf{GPU-accelerated TMCMC.}

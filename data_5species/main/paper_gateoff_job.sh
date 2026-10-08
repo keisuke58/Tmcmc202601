@@ -13,7 +13,7 @@
 # 段階（STAGE）:
 #   pilot : Phase 1 の出発点。ψ 固定・論文の箱・1000 粒子・40 mutation・DE-MC
 #   p1    : Phase 1 本番。pilot から warm start、箱を MAP ± 4σ に絞る、2000 粒子
-#   p2    : Phase 2。ψ 自由・多チャネル（ch1 1.0 / ch2 0 / ch3 2.0 / ch5 0.3）、
+#   p2    : Phase 2。ψ 自由・多チャネル（ch1 1.0 / ch2 0 / ch3 2.0、pH の ch5 は 2026-10-08 から 0）、
 #           p1 から warm start、**箱は絞らない**（論文の箱＋OVERRIDE）、2000 粒子
 #           （2026-10-08: p1 の事後で絞ると、多チャネル尤度の事後が箱の外に出て端に張り付いた。
 #            DH p2 で a23 の粒子が 100% 端。P2_NSIGMA を渡したときだけ絞る）
@@ -79,8 +79,9 @@ case "$TAG" in
   DH) COND=Dysbiotic; CULT=HOBIC ;;
   *) echo "unknown TAG $TAG"; exit 1 ;;
 esac
-LAMBDA_CH5=0.0
-[ "$CULT" = "HOBIC" ] && LAMBDA_CH5=0.3
+# pH（ch5）は推定に使わない（2026-10-08 ユーザー判断）。pH は全種の回帰式による答え合わせにだけ使う。
+# 以前の値（HOBIC で 0.3）に戻すときは LAMBDA_CH5=0.3 を渡す。
+LAMBDA_CH5="${LAMBDA_CH5:-0.0}"
 
 cd "$HOME/Tmcmc202601/data_5species/main"
 PYTHON=/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3
