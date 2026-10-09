@@ -1,0 +1,7 @@
+Highlights (3-5 bullets, max 85 characters each incl. spaces; draft 2026-10-09)
+
+- Interaction matrix of a variational multiphase biofilm model inferred by TMCMC   (78)
+- Stiff forward model compiled in JAX; all particles solved in parallel on one GPU   (80)
+- Data enter in stages, from species composition to community viability   (69)
+- Explicit seed, mixing and prior-bound checks decide when a stage is accepted   (76)
+- [after results] Identifiability analysis shows which interactions the data determine
