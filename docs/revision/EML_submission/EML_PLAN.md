@@ -112,3 +112,11 @@ Funding・謝辞は BMB 版と同じ文言（DFG は Nils 指定の文言、ERC 
 - 要旨・序論・キーワードを特集号向けに直した: 「物理に縛られた逆同定（physics-constrained inverse characterization）」、
   「物理と、データで何が決まるかの確認に導かれたデータ駆動手法」、「校正したモデルを in-silico の試験台にする（1 種を除いたら？）」。
 - キーワード: Inverse characterization / Physics-constrained Bayesian inference / Scientific machine learning / Extended Hamilton principle / Living materials / GPU
+
+## 11. 進み具合（続き）
+
+- `EML_cover_letter.tex`: 特集号の編者 4 名宛て、Junker 先生への招待に応じた投稿であること、特集との合い方を明記。題名・結果 2 文・日付・承認・DOI は `\TBD`。
+- `figures/graphical_abstract.tex`: 13 × 5 cm（横長）、左「生きた材料（5 種・15 個の未知数）」→ 中「物理に縛られたベイズ推定（段階・GPU・確認）」→ 右「同定された相互作用」（結果待ち）。
+  Elsevier の規格（531 × 1328 px 以上、5 × 13 cm で読める）に合わせ、提出時は `pdftoppm -r 270` で PNG/TIFF にする。
+- `EML_supplementary.tex`（6 ページ、エラー 0）: BMB 版の補足に、本文から外した S1 モデルの導出・S2 文献上の相互作用（図と表）・S3 尤度の重み・Algorithm・計算時間の表を足した。
+  S 番号は結果がそろってから振り直す（本文の参照も）。

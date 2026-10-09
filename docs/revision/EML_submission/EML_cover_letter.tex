@@ -1,0 +1,42 @@
+\documentclass[11pt,a4paper]{letter}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\newcommand{\TBD}[1]{\textcolor{red}{\textbf{[#1]}}}
+
+\signature{Keisuke Nishioka\\
+Institute of Continuum Mechanics, Leibniz Universit\"at Hannover\\
+\href{mailto:keisuke.nishioka@stud.uni-hannover.de}{keisuke.nishioka@stud.uni-hannover.de}\\
+ORCID: \href{https://orcid.org/0009-0001-9360-1336}{0009-0001-9360-1336}}
+\address{Institute of Continuum Mechanics\\Leibniz Universit\"at Hannover\\An der Universit\"at 1\\30823 Garbsen, Germany}
+\date{\TBD{date}}
+
+\begin{document}
+\begin{letter}{Guest Editors, Special Issue ``Artificial Intelligence and Computational Mechanics for Materials Design''\\
+Extreme Mechanics Letters}
+
+\opening{Dear Dr.~Tac, Dr.~Moreno-Mateos, Dr.~Hossain and Prof.~Zhang,}
+
+On behalf of all co-authors, I submit the manuscript
+``\TBD{title}''
+by K.~Nishioka, F.~Klempt, H.~Geisler, R.~Mukherjee, N.~Heine, K.~Doll-Nikutta, M.~Stiesch, S.~P.~Szafra\'{n}ski, M.~Soleimani and P.~Junker
+for the special issue ``Artificial Intelligence and Computational Mechanics for Materials Design'' (VSI: AI \& CM), following the invitation sent to Prof.~Junker.
+
+Biofilms are living materials whose composition, and with it their mechanical behaviour, is set by interactions between species that cannot be measured directly.
+We identify these interactions as a physics-constrained inverse characterization problem: a thermodynamically consistent multiphase model, derived from the extended Hamilton principle, fixes the structure, and Bayesian inference determines its 15 interaction coefficients from in-vitro time courses of a five-species oral biofilm.
+The forward model is compiled in JAX and evaluated for all particles in parallel on a GPU, which makes it affordable to repeat every inference stage with independent seeds and to accept a stage only after explicit checks of mixing, seed agreement and posterior mass at the prior bounds.
+\TBD{Two sentences on the main result: which interactions the data determine, and the in-silico knockout prediction.}
+
+We believe the work fits the special issue because it combines a mechanistic, variationally derived continuum model with data-driven probabilistic inference for the inverse characterization of a soft biological material, and because it makes explicit which conclusions the data support---the kind of physics-based guidance that the call identifies as essential for data-driven methods in materials science.
+
+The manuscript has not been published and is not under consideration elsewhere.
+All authors have approved the submission \TBD{confirm}.
+Code, run configurations, convergence records and posterior samples are archived at Zenodo (\TBD{DOI}).
+The authors declare no competing interests.
+
+\closing{Sincerely,}
+
+\end{letter}
+\end{document}
