@@ -87,3 +87,21 @@ Funding・謝辞は BMB 版と同じ文言（DFG は Nils 指定の文言、ERC 
 - 当てはまりの図（4 条件 × 5 種）は必須。
 - 採択率は非公表。IF 約 4.6（第三者サイト）、掲載まで 0〜6 か月がほとんど。特集号の招待経由（Junker 先生）。
 - 必要なら、編者（Moreno-Mateos 氏ら）に scope が合うかを Junker 先生経由で事前に問い合わせる。
+
+## 9. 特集号の募集要項（2026-10-07 公開、要点）
+
+- 題名: Artificial Intelligence and Computational Mechanics for Materials Design。締切 2027-04-01（それまでいつでも投稿可）。
+- 投稿: Editorial Manager（https://www.editorialmanager.com/eml）で article type **"VSI: AI & CM"** を選ぶ。
+- 求めるもの: 新しいデータ駆動・機械学習の手法、または材料の**逆設計（inverse design）・逆同定（inverse characterization）**へのデータ駆動手法の応用。
+  「物理にもとづく導き・機構の制約・領域知識が機械学習の成功に不可欠」と明記。対象に **soft biological materials / biological materials** を含む。
+- キーワード: Materials Design; Materials Discovery; Artificial Intelligence; Scientific Machine Learning; Computational Mechanics; Generative AI
+- 編者: Vahidullah Tac（Stanford）、Miguel Angel Moreno-Mateos（FAU）、Mokarram Hossain（Swansea）、Yihui Zhang（Tsinghua）。テーマの適否は編者に問い合わせ可。
+
+### 合わせ方
+- 本論文は「物理（拡張 Hamilton 原理）に縛られたモデルを、データから**確率的に逆同定**する」研究 → 募集要項の inverse characterization ＋ physics-based guidance にそのまま当てはまる。
+- 弱いのは「AI / 機械学習」と「設計」。対策:
+  1. ベイズ推定（TMCMC）を **probabilistic / physics-constrained inference** として位置づけ、JAX（微分可能・GPU の科学計算）を scientific ML の道具として書く。
+  2. 「Fn を除いたら Pg の増加が消える」予測を、**群集の組成を変える設計的な問い（in-silico design of the consortium）**として書く。
+  3. 同定性の分析（どの相互作用がデータで決まるか）を、逆同定の信頼性を示す方法論の結果として前面に。
+  4. 任意: リポジトリの DeepONet 代理モデル（1 サンプル約 80 倍）を 1 段落で触れるか、補足に入れる（機械学習の要素を足せる。ただし語数と相談）。
+- キーワード案: inverse characterization; physics-constrained Bayesian inference; scientific machine learning; multiphase continuum; living materials; GPU
