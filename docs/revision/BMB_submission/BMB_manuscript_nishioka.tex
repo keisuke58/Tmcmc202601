@@ -29,6 +29,7 @@
 
 \raggedbottom
 
+\input{../generated/numbers}
 \begin{document}
 
 \title[Bayesian inference of oral biofilm interactions]{Inferring effective interactions in a multispecies oral biofilm model: Bayesian calibration and a testable prediction}
@@ -500,8 +501,7 @@ The procedure is summarised in Algorithm~\ref{alg:tmcmc}; Table~\ref{tab:timing}
 \quad Total         & 21\,600\,s  & 147\,s   & $\mathbf{147\times}$\\
 \midrule
 \multicolumn{4}{@{}l}{\textit{Final stage (iv) (4 cond., $N_p=\TBD{n}$, $K=\TBD{n}$, GPU \TBD{model}):}}\\
-\quad Per condition & \TBD{h}$^\dagger$ & \TBD{h} & \TBD{x}\\
-\quad All 4 cond.   & \TBD{h}$^\dagger$ & \TBD{h} & \TBD{x}\\
+\numTimingRows
 \bottomrule
 \end{tabular}
 \caption{Computational cost comparison.
@@ -536,18 +536,7 @@ The composition RMSE increases by at most 0.035 from Phase~1 to Phase~2.
 
 \begin{table}[htbp]
 \centering\footnotesize\setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}l ccccc ccccc@{}}
-\toprule
-& \multicolumn{5}{c}{\textbf{Phase 1: composition only}} & \multicolumn{5}{c}{\textbf{Phase 2: with viability --- final}}\\
-\cmidrule(lr){2-6}\cmidrule(lr){7-11}
-\textbf{Cond.} & \textbf{RMSE} & \textbf{MAE} & $\bar{\alpha}$ & $\max\ln\mathcal{L}$ & $\ln\hat{Z}$ & \textbf{RMSE} & \textbf{MAE} & $\bar{\alpha}$ & $\max\ln\mathcal{L}$ & $\ln\hat{Z}$\\
-\midrule
-CS  & 0.119 & 0.077 & 0.14 & $-6.3$ & $-2.6$ & 0.119 & 0.075 & 0.12 & $-21.6$ & $-3.3$\\
-CH  & 0.071 & 0.053 & $\mathbf{0.17}$ & $-3.6$ & $-1.3$ & 0.104 & 0.088 & 0.07 & $-112.3$ & $-8.5$\\
-DS  & $\mathbf{0.020}$ & $\mathbf{0.025}$ & 0.11 & $\mathbf{-1.2}$ & $-3.8$ & $\mathbf{0.033}$ & $\mathbf{0.024}$ & $\mathbf{0.13}$ & $-93.4$ & $-2.8$\\
-DH  & 0.067 & 0.045 & 0.10 & $-6.6$ & $-9.6$ & 0.087 & 0.060 & 0.07 & $-170.4$ & $-11.9$\\
-\bottomrule
-\end{tabular}
+\input{../generated/tab_rmse}
 \caption{Composition fit at the end of Phase~1 (stage (ii), composition likelihood only) and Phase~2 (stage (iv), with the viability channel).
 RMSE and MAE refer to the species composition in both phases.
 $\bar{\alpha}$: mean MH acceptance rate.
@@ -564,18 +553,7 @@ So also exhibits the highest replicate variability ($\sigma_{\mathrm{So}}\approx
 
 \begin{table}[htbp]
 \centering\footnotesize\setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}l ccccc ccccc@{}}
-\toprule
-& \multicolumn{5}{c}{\textbf{Phase 1 (composition only)}} & \multicolumn{5}{c}{\textbf{Phase 2 (with viability) --- final}}\\
-\cmidrule(lr){2-6}\cmidrule(lr){7-11}
-\textbf{Cond.} & So & An & Vei & Fn & Pg & So & An & Vei & Fn & Pg\\
-\midrule
-CS  & $-0.39$ & $0.80$ & $-3.2$ & $-$ & $-$ & $-0.36$ & $\mathbf{0.91}$ & $-3.7$ & $-$ & $-$\\
-CH  & $0.55$  & $0.70$ & $0.59$  & $-$ & $-$ & $0.40$  & $-0.22$ & $-0.14$ & $-$ & $-$\\
-DS  & $-0.87$ & $0.76$ & $\mathbf{0.93}$ & $0.54$ & $\mathbf{0.85}$ & $-0.86$ & $0.73$ & $\mathbf{0.91}$ & $0.66$ & $\mathbf{0.85}$\\
-DH  & $-0.47$ & $\mathbf{0.83}$ & $\mathbf{0.83}$ & $0.60$ & $\mathbf{0.92}$ & $-0.21$ & $\mathbf{0.86}$ & $0.63$ & $0.06$ & $\mathbf{0.90}$\\
-\bottomrule
-\end{tabular}
+\input{../generated/tab_r2}
 \caption{Per-species $R^2$ of the composition for Phase~1 and Phase~2.
 ``$-$'': species fraction $<0.02$ at all time points ($\mathrm{SS}_{\mathrm{tot}}\approx0$), rendering $R^2$ ill-defined; the MAP prediction for these species is $<0.01$ with absolute error below the observation noise~$\sigma_i$.
 Bold: $R^2>0.8$.
@@ -656,18 +634,7 @@ To quantify the inter-condition differences, we compute for each pair $(c_1,c_2)
 \noindent
 \begin{minipage}[c]{0.38\textwidth}
 \centering\small
-\begin{tabular}{@{}cc|ccc@{}}
-\toprule
-\textbf{C1} & \textbf{C2} & $\rho$ & $\Delta_F$ & $d_{15\mathrm{D}}$\\
-\midrule
-CH & CS & $+0.26$ & $1.06$ & $\mathbf{3.38}$\\
-DH & DS & $\mathbf{+0.40}$ & $\mathbf{0.88}$ & $5.86$\\
-CH & DH & $+0.24$ & $1.01$ & $6.33$\\
-CH & DS & $-0.27$ & $1.27$ & $4.88$\\
-DH & CS & $\mathbf{-0.49}$ & $1.28$ & $\mathbf{7.77}$\\
-CS & DS & $-0.27$ & $\mathbf{1.36}$ & $5.88$\\
-\bottomrule
-\end{tabular}
+\input{../generated/tab_pairwise}
 \vspace{4pt}
 \captionof{table}{Pairwise comparison of MAP interaction matrices. $\rho$: correlation of vectorised $\mathbf{A}$; $\Delta_F$: relative Frobenius distance; $d_{15\mathrm{D}}$: posterior centroid distance in 15D A-matrix space.}
 \label{tab:pairwise}
@@ -755,16 +722,7 @@ Cross-state transfers (DS to CS: 0.384, CS to DH: 0.198) degrade sharply, indica
 
 \begin{table}[htbp]
 \centering\small
-\begin{tabular}{@{}lcccc@{}}
-\toprule
-Source $\backslash$ Target & CS & CH & DS & DH \\
-\midrule
-CS & \textbf{0.119} & 0.098 & 0.261 & 0.198 \\
-CH & 0.257 & \textbf{0.104} & 0.100 & 0.159 \\
-DS & 0.384 & 0.259 & \textbf{0.033} & 0.255 \\
-DH & 0.342 & 0.212 & 0.289 & \textbf{0.087} \\
-\bottomrule
-\end{tabular}
+\input{../generated/tab_cross}
 \caption{Cross-condition prediction RMSE. Rows: condition whose MAP is used; columns: data. Diagonal (bold): self-prediction, equal to the calibrated RMSE.}
 \label{tab:cross_prediction}
 \end{table}

@@ -66,3 +66,13 @@
 | 10/13 | 共著者へ最終版（Gmail の下書き r3514969574136866139） |
 | 10/15 | 共著者の意見の締め切り |
 | 10/16 | 投稿 |
+
+## ult が出たら（GPU 側、3 コマンド）
+
+```bash
+python3 tools/make_paper_figures.py data_5species/main/_runs/paper_gateoff <glob 群>   # 図 5 枚 + generated/paper_numbers.json
+python3 tools/fill_manuscript.py docs/revision/generated/paper_numbers.json --extra extra.json   # 本文の表 4 つ・Table 2 の行・数値マクロ
+python3 tools/make_supplementary_tables.py data_5species/main/_runs/paper_gateoff          # 補足 S1〜S3
+```
+`extra.json` には pH の答え合わせ（ph_r2・ph_rmse・ph_n_samples・ph_n_points）、gingipain の r、Zenodo の DOI を入れる。
+表は `docs/revision/generated/*.tex` を原稿が `\input` するので、生成すればそのまま反映される。本文中の数（a45 の区間など）は、結果を見てからクラウド側で文ごと書き直す（主張が変わりうるため自動にはしない）。
