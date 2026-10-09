@@ -447,7 +447,7 @@ We address the resulting computational cost through GPU parallelism and a two-ph
 \paragraph{GPU-parallel TMCMC.}
 The forward model (Eqs.~\ref{eq:phi}--\ref{eq:constraint_eq}) is implemented in JAX~\cite{jax2018github}: the implicit Euler Newton solver---including Jacobian assembly and linear solve---is compiled via \texttt{jax.jit} into a single fused XLA kernel.
 All $N$ particle trajectories are evaluated simultaneously via \texttt{jax.vmap} on GPU (NVIDIA RTX\,4090 for the benchmark in Table~\ref{tab:timing}), replacing the $\lceil N/12\rceil$ serial batches required on CPU.
-This yields a $\sim$200$\times$ end-to-end speedup (Table~\ref{tab:timing}).
+This yields a $\sim$150$\times$ end-to-end speedup (Table~\ref{tab:timing}).
 
 \paragraph{Two-phase introduction of the data.}
 In Phase~1 (stages (i)--(ii), Section~\ref{sec:prior}) the likelihood contains the species composition only.

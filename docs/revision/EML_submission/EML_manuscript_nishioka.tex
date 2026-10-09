@@ -1,0 +1,198 @@
+% Extreme Mechanics Letters, special issue VSI: AI & CM
+% Limits: < 4000 words (main text), <= 6 figures. Word budget in EML_PLAN.md.
+\documentclass[preprint,12pt]{elsarticle}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{graphicx,booktabs,xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{lineno}
+\linenumbers
+
+% Values awaiting the final runs; red in the PDF so that none is left unnoticed
+\newcommand{\TBD}[1]{\textcolor{red}{\textbf{[#1]}}}
+\newcommand{\btheta}{\boldsymbol{\theta}}
+\newcommand{\bphi}{\boldsymbol{\phi}}
+\newcommand{\bpsi}{\boldsymbol{\psi}}
+\newcommand{\yobs}{\mathbf{y}_{\mathrm{obs}}}
+
+\journal{Extreme Mechanics Letters}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{GPU-accelerated Bayesian calibration of a variational multiphase model of multispecies biofilms \TBD{final title after the results}}
+
+\author[ikm,keio]{Keisuke Nishioka\corref{cor}}
+\ead{keisuke.nishioka@stud.uni-hannover.de}
+\author[ikm]{Felix Klempt}
+\author[ikm]{Hendrik Geisler}
+\author[mhh,nife]{Rumjhum Mukherjee}
+\author[mhh,nife]{Nils Heine}
+\author[mhh,nife]{Katharina Doll-Nikutta}
+\author[mhh,nife]{Meike Stiesch}
+\author[mhh,nife]{Szymon P. Szafra\'{n}ski}
+\author[ikm]{Meisam Soleimani}
+\author[ikm]{Philipp Junker}
+\cortext[cor]{Corresponding author}
+
+\address[ikm]{Institute of Continuum Mechanics, Leibniz Universit\"at Hannover, An der Universit\"at 1, 30823 Garbsen, Germany}
+\address[mhh]{Department of Prosthetic Dentistry and Biomedical Materials Science, Hannover Medical School, Hannover, Germany}
+\address[nife]{Lower Saxony Centre for Biomedical Engineering, Implant Research and Development (NIFE), Hannover, Germany}
+\address[keio]{School of Science for Open and Environmental Systems, Graduate School of Science and Technology, Keio University, Yokohama, Japan}
+
+\begin{abstract}
+Biofilms are living materials whose composition, and with it their mechanical response, is set by interactions between species that cannot be measured directly.
+We calibrate a thermodynamically consistent multiphase model of a five-species oral biofilm, derived from the extended Hamilton principle, against in-vitro time courses under four combinations of community state and cultivation.
+All 15 entries of the symmetric interaction matrix are inferred jointly by transitional Markov chain Monte Carlo, with the stiff forward model compiled in JAX and evaluated for all particles in parallel on a GPU ($\sim$150$\times$ faster than on a CPU).
+The data enter in stages, from species composition to community viability, and every stage is accepted only after explicit checks of seed agreement, mixing and posterior mass at the prior bounds.
+\TBD{Results: fit, which interactions are identified, the Fn--Pg coefficient, pH check, knockout prediction --- after the final runs.}
+\end{abstract}
+
+\begin{keyword}
+Bayesian inference \sep transitional Markov chain Monte Carlo \sep extended Hamilton principle \sep multiphase continuum \sep biofilm \sep GPU
+\end{keyword}
+
+\end{frontmatter}
+
+%==============================================================================
+\section{Introduction}
+\label{sec:intro}
+%==============================================================================
+
+Biofilms are soft, living materials: microbial cells embedded in a self-produced matrix whose composition evolves in time and determines their mechanical response~\citep{Klempt2024ContinuumGrowth}.
+On dental implants, a shift in the species composition of the biofilm from a commensal towards a dysbiotic community is associated with peri-implantitis~\citep{Kolenbrander2010OralMultispecies, Marsh2003Dental, dieckow2024structure}.
+Which interactions between the species drive such a shift is difficult to measure: co-culture experiments report how the composition changes over time, not the interactions themselves.
+
+Continuum mechanics offers a route from composition to interaction.
+Based on the extended Hamilton principle~\citep{JunkerBalzani2021ExtendedHamilton}, \citet{Klempt2025ContinuumBiofilm} derived a multiphase model in which species volume fractions and viabilities evolve under a free energy that contains a symmetric interaction matrix~$\mathbf{A}$; thermodynamic consistency and the symmetry of $\mathbf{A}$ follow from the variational structure.
+Calibrating $\mathbf{A}$ against data turns the model into a tool to ask which interactions a measured composition requires.
+Bayesian updating has been used to calibrate constitutive parameters of biofilm models with surrogates~\citep{Fritsch2025BayesianMicrofilms}, but the interaction matrix poses two specific difficulties.
+First, with five usable time points and five species, at most 25 observations constrain 15 unknowns, so identifiability cannot be assumed.
+Second, the coupled volume-fraction and viability dynamics produce posteriors that are multimodal and bounded by the prior box, for which the convergence of standard samplers is hard to verify.
+
+Here we infer all 15 entries of $\mathbf{A}$ from the time courses of \citet{heine2025influence} for five oral taxa---\textit{Streptococcus oralis} (So), \textit{Actinomyces naeslundii} (An), \textit{Veillonella} spp.\ (Vei), \textit{Fusobacterium nucleatum} (Fn) and \textit{Porphyromonas gingivalis} (Pg)---in four conditions: commensal or dysbiotic community, each under static or dynamic (HOBIC flow reactor) cultivation.
+We combine three elements:
+(i)~transitional Markov chain Monte Carlo (TMCMC)~\citep{ChingChen2007TMCMC, Betz2016TMCMC} with the forward model compiled in JAX~\citep{jax2018github} and evaluated for all particles in parallel on a GPU;
+(ii)~a staged introduction of the data, from species composition to community viability; and
+(iii)~explicit acceptance criteria for every stage, including a rule for widening prior bounds at which posterior mass accumulates.
+\TBD{One sentence on the main result after the final runs.}
+
+%==============================================================================
+\section{Model}
+\label{sec:model}
+%==============================================================================
+
+At a material point, species $i=1,\dots,5$ occupies the volume fraction $\phi_i\in(0,1)$, of which the fraction $\psi_i\in(0,1)$ is alive; the living volume fraction is $\bar\phi_i=\phi_i\psi_i$.
+A void fraction $\phi_0$ closes the volume, $\sum_{l=0}^{5}\phi_l=1$.
+Following \citet{Klempt2025ContinuumBiofilm}, the evolution equations follow from the stationarity of the rate functional
+\begin{equation}
+\dot\Psi+\Delta+C\rightarrow\mathrm{stat}_{(\dot{\bphi},\dot{\bpsi},\gamma)},
+\label{eq:stat}
+\end{equation}
+the local form of the extended Hamilton principle~\citep{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic, junker2014principle, hackl1997generalized}, with the free energy, dissipation and constraint
+\begin{equation}
+\Psi=-\tfrac12\,c^*\,\bar{\bphi}^{\mathsf T}\mathbf{A}\,\bar{\bphi},\qquad
+\Delta=\tfrac12\,\dot{\bar{\bphi}}^{\mathsf T}\boldsymbol\eta\,\dot{\bar{\bphi}}+\tfrac12\,\dot{\bphi}^{\mathsf T}\boldsymbol\eta\,\dot{\bphi},\qquad
+C=\gamma\Bigl(\sum_{l=0}^{5}\phi_l-1\Bigr).
+\label{eq:potentials}
+\end{equation}
+Here $c^*$ is the nutrient concentration, $\boldsymbol\eta=\mathrm{diag}(\eta_i)$ with $\eta_i=1$, and $\gamma$ is a Lagrange multiplier; the antibiotic term of the original model vanishes because the experiments contain no antibiotic.
+Stationarity gives $2n+2=12$ coupled non-linear equations, for $i=1,\dots,5$,
+\begin{align}
+0&=-c^*\psi_i(\mathbf{A}\bar{\bphi})_i+\eta_i\bigl(\dot\phi_i\psi_i^2+\bar\phi_i\dot\psi_i+\dot\phi_i\bigr)+\gamma,\label{eq:phi}\\
+0&=-c^*\phi_i(\mathbf{A}\bar{\bphi})_i+\eta_i\bigl(\dot\psi_i\phi_i^2+\bar\phi_i\dot\phi_i\bigr)+\gamma,\label{eq:psi}
+\end{align}
+together with $0=\gamma+\dot\phi_0$ and the volume constraint.
+They are integrated by an implicit Euler scheme with Newton iterations (2500 steps over the 21-day window), with a logarithmic barrier keeping $\phi_i,\psi_i$ inside $(0,1)$.
+Because the free energy is quadratic in $\bar{\bphi}$, $\mathbf{A}$ is symmetric and has 15 independent entries, which form the parameter vector $\btheta\in\mathbb{R}^{15}$.
+The coefficient $a_{ij}$ is an effective, undirected interaction of the model; it lumps mechanisms that the model does not resolve, such as metabolite exchange or co-aggregation.
+Only the product $c^*a_{ij}$ enters, so we fix $c^*=25$ to keep $a_{ij}=\mathcal{O}(1)$.
+Removing a species is represented by holding its volume fraction at zero.
+
+%==============================================================================
+\section{Bayesian inference}
+\label{sec:inference}
+%==============================================================================
+
+\paragraph{Likelihood.}
+The data are the species fractions at Days 3, 6, 10, 15 and 21 (Day~1 is the initial condition), averaged over eight biological replicates~\citep{heine2025influence}.
+The model fractions are renormalised over the five species, $\hat y_i=\phi_i/\sum_j\phi_j$, and compared through a weighted Gaussian log-likelihood
+\begin{equation}
+\ln p(\yobs\mid\btheta)=-\frac12\sum_{k}\sum_{i=1}^{5}w_{ik}\,\frac{\bigl(y_{\mathrm{obs},i}(t_k)-\hat y_i(t_k;\btheta)\bigr)^2}{\sigma_i^2}+\mathrm{const},
+\label{eq:lik}
+\end{equation}
+with $\sigma_i$ the replicate standard deviation of species $i$.
+The weights up-weight Pg ($\lambda_{\mathrm{Pg}}=5$), whose late increase is the main dynamic feature of the dysbiotic data, and the last two time points ($\lambda_{\mathrm{late}}=3$), and down-weight species below 5\% ($0.1$); without these weights the median of the key coefficient is unchanged but its interval widens (Supplementary Section~S\TBD{}).
+In the later stages a second Gaussian channel compares the predicted community viability $\sum_i\bar\phi_i/\sum_i\phi_i$ with the measured fraction of membrane-intact cells.
+The measured pH under dynamic cultivation is not used in the inference and serves as a check (Section~\ref{sec:results}).
+
+\paragraph{Prior and stages.}
+The prior is uniform on a box $[l_k,u_k]$ for each entry, set to contain earlier estimates; it encodes no sign constraint.
+Inference proceeds in four stages on the same data:
+(i)~composition likelihood on the box;
+(ii)~as (i), on the box narrowed to the stage-(i) posterior mean $\pm4$ standard deviations;
+(iii)~composition and viability, back on the full box, starting from the stage-(ii) particles;
+(iv)~as (iii), on the box narrowed to the stage-(iii) posterior mean $\pm4$ standard deviations.
+A $\pm4$\,SD box removes less than $10^{-4}$ of a Gaussian marginal, so narrowing shortens the tempering without truncating the posterior.
+If more than 20\% of the posterior mass of an entry lies in the outer 5\% of the box on one side, the bound is moved outwards and the stage is repeated; the boxes finally used are listed in Supplementary Table~S1.
+
+\paragraph{TMCMC on the GPU.}
+TMCMC~\citep{ChingChen2007TMCMC, DelMoral2006SMC} passes a particle population through the tempered posteriors $p_m(\btheta)\propto p(\yobs\mid\btheta)^{\beta_m}p(\btheta)$, $0=\beta_0<\dots<\beta_M=1$, choosing each increment so that the coefficient of variation of the importance weights stays at a target value~\citep{Betz2016TMCMC}.
+After resampling, every particle performs $K$ Metropolis--Hastings steps with random-walk proposals scaled by the weighted particle covariance, alternating with differential-evolution proposals~\citep{terBraak2006DEMC} that follow strongly correlated directions; proposals outside the box are rejected without solving the model.
+Each likelihood evaluation requires one solution of Eqs.~\eqref{eq:phi}--\eqref{eq:psi}, and a run requires $10^5$--$10^6$ of them.
+We implement the implicit solver, including Jacobian assembly and linear solve, in JAX, compile it into a single XLA kernel and evaluate all particles at once with \texttt{vmap}.
+On one GPU (NVIDIA RTX\,4090) this is 170 times faster per stage than a 12-core CPU at matched settings (147 times end to end), which makes it affordable to repeat every stage with three seeds.
+
+\paragraph{Acceptance criteria.}
+Every stage is run with three independent seeds and accepted only if
+(a)~the stored log-likelihood of every particle agrees with a recomputation;
+(b)~the tempering reaches $\beta=1$;
+(c)~each particle is moved at least twice per tempering step and at least five times per free parameter over the run;
+(d)~the maximum log-likelihood differs by at most 1 across seeds; and
+(e)~every posterior median differs across seeds by at most half a posterior standard deviation.
+Criterion~(c) counts accepted moves rather than the acceptance rate: with optimally scaled random-walk proposals~\citep{RobertsRosenthal2001Optimal}, $5d$ accepted moves displace each coordinate by about five posterior standard deviations, independently of the dimension~$d$.
+Stages that fail are repeated with more particles or mutation steps, never interpreted.
+The evidence estimate of TMCMC is used only to compare models on the same data and box (Section~\ref{sec:results}).
+
+%==============================================================================
+\section{Results and discussion}
+\label{sec:results}
+%==============================================================================
+
+\TBD{After the final runs (budget 1300 + 550 words, figures 2--6):
+fits in four conditions (Fig.~2);
+inferred matrices (Fig.~3) and posteriors with identified/unidentified entries (Fig.~4);
+the Fn--Pg coefficient: stage (i)--(iv), Bayes factor, likelihood weights;
+identifiability: wide box with and without a Gaussian prior, Phase~1 vs.\ Phase~2 (Fig.~5);
+pH check with a fixed regression on species fractions and the Fn-knockout prediction (Fig.~6);
+limitations: unit-sum constraint, effective parameters;
+outlook: propagation to mechanics (stiffness of the biofilm from its composition).}
+
+%==============================================================================
+\section{Conclusions}
+\label{sec:conclusions}
+%==============================================================================
+
+\TBD{After the final runs.}
+
+\section*{Declaration of competing interest}
+The authors declare no competing interests.
+
+\section*{Data and code availability}
+Code, run configurations, convergence records and posterior samples are archived at Zenodo (\TBD{DOI}) and developed at \url{https://github.com/keisuke58/Tmcmc202601}. The experimental data are those of \citet{heine2025influence}.
+
+\section*{Funding}
+This work was funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) under the Collaborative Research Center SFB/TRR-298-SIIRI -- Project ID 426335750.
+Funded by the European Union (ERC, Gen-TSM, project number 101124463). Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.
+
+\section*{Acknowledgements}
+The authors acknowledge the Lower Saxony Centre for Biomedical Engineering, Implant Research and Development (NIFE), Hannover.
+Computational resources of the Multiphysics Materials Computation Research Group (Assoc.\ Prof.\ M.~Muramatsu), Department of Mechanical Engineering, Keio University, are gratefully acknowledged.
+
+\section*{CRediT authorship contribution statement}
+\TBD{to be confirmed by all co-authors}
+
+\bibliographystyle{elsarticle-num-names}
+\bibliography{references_ikm}
+
+\end{document}

@@ -64,3 +64,18 @@
 1. 今: `elsarticle` の雛形を作り、Introduction・Model・Methods を短縮して書き始める（結果に依存しない部分）
 2. ult がそろったら: Results・Discussion・題名・Highlights を結果に合わせて書く
 3. Meisam に短縮版を送る → MHH を含む共著者に回す → 投稿
+
+## 7. 進み具合（2026-10-09）
+
+`EML_manuscript_nishioka.tex`（elsarticle、通し行番号）に、結果に依存しない部分を書いた。コンパイル通る（8 ページ、エラー 0）。
+
+| 節 | 語数（数式を除く概算） | 予算 |
+|---|---|---|
+| Abstract | 146（結果の 1〜2 文を足して約 180） | 150 |
+| 1 Introduction | 348（主結果の 1 文を足す） | 450 |
+| 2 Model | 221 | 550 |
+| 3 Bayesian inference | 611 | 800 |
+| 小計 | 1180 | 1800 |
+
+→ 結果・考察・結論に **約 2600 語**使える（予算 1850 より余裕あり）。
+Funding・謝辞は BMB 版と同じ文言（DFG は Nils 指定の文言、ERC Gen-TSM も）。
