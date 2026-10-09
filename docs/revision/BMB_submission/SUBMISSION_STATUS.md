@@ -1,3 +1,6 @@
+> **2026-10-09: 投稿先を変更。** Meisam・Junker 先生の判断で、BMB ではなく **Extreme Mechanics Letters の特集号「AI & CM」（VSI: AI & CM、締切 2027-04-01）**に出す。
+> EML は本文 4000 語未満・図 6 枚まで（要確認）なので、計算が終わったら短縮版を作る。BMB 版はこのフォルダに残す（短縮版の元）。10/13・10/16 の日程は取り消し。
+
 # BMB 投稿の準備状況（2026-10-08）
 
 投稿予定 **10/16**（Editorial Manager: https://www.editorialmanager.com/bmab/ 、ユーザー `knishioka`）。
