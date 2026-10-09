@@ -42,14 +42,14 @@
 
 \begin{abstract}
 Biofilms are living materials whose composition, and with it their mechanical response, is set by interactions between species that cannot be measured directly.
-We calibrate a thermodynamically consistent multiphase model of a five-species oral biofilm, derived from the extended Hamilton principle, against in-vitro time courses under four combinations of community state and cultivation.
+We treat the identification of these interactions as a physics-constrained inverse characterization problem and calibrate a thermodynamically consistent multiphase model of a five-species oral biofilm, derived from the extended Hamilton principle, against in-vitro time courses under four combinations of community state and cultivation.
 All 15 entries of the symmetric interaction matrix are inferred jointly by transitional Markov chain Monte Carlo, with the stiff forward model compiled in JAX and evaluated for all particles in parallel on a GPU ($\sim$150$\times$ faster than on a CPU).
 The data enter in stages, from species composition to community viability, and every stage is accepted only after explicit checks of seed agreement, mixing and posterior mass at the prior bounds.
 \TBD{Results: fit, which interactions are identified, the Fn--Pg coefficient, pH check, knockout prediction --- after the final runs.}
 \end{abstract}
 
 \begin{keyword}
-Bayesian inference \sep transitional Markov chain Monte Carlo \sep extended Hamilton principle \sep multiphase continuum \sep biofilm \sep GPU
+Inverse characterization \sep Physics-constrained Bayesian inference \sep Scientific machine learning \sep Extended Hamilton principle \sep Living materials \sep GPU
 \end{keyword}
 
 \end{frontmatter}
@@ -65,7 +65,9 @@ Which interactions between the species drive such a shift is difficult to measur
 
 Continuum mechanics offers a route from composition to interaction.
 Based on the extended Hamilton principle~\citep{JunkerBalzani2021ExtendedHamilton}, \citet{Klempt2025ContinuumBiofilm} derived a multiphase model in which species volume fractions and viabilities evolve under a free energy that contains a symmetric interaction matrix~$\mathbf{A}$; thermodynamic consistency and the symmetry of $\mathbf{A}$ follow from the variational structure.
-Calibrating $\mathbf{A}$ against data turns the model into a tool to ask which interactions a measured composition requires.
+Calibrating $\mathbf{A}$ against data is an inverse characterization problem: the physics fixes the structure of the model, and the data determine its coefficients.
+Data-driven methods for such problems are most reliable when they are guided by physics and by explicit checks of what the data can determine.
+Once calibrated, the model can be used as an in-silico test bed, for example to ask how the community would develop if one species were removed.
 Bayesian updating has been used to calibrate constitutive parameters of biofilm models with surrogates~\citep{Fritsch2025BayesianMicrofilms}, but the interaction matrix poses two specific difficulties.
 First, with five usable time points and five species, at most 25 observations constrain 15 unknowns, so identifiability cannot be assumed.
 Second, the coupled volume-fraction and viability dynamics produce posteriors that are multimodal and bounded by the prior box, for which the convergence of standard samplers is hard to verify.
@@ -74,7 +76,7 @@ Here we infer all 15 entries of $\mathbf{A}$ from the time courses of \citet{hei
 We combine three elements:
 (i)~transitional Markov chain Monte Carlo (TMCMC)~\citep{ChingChen2007TMCMC, Betz2016TMCMC} with the forward model compiled in JAX~\citep{jax2018github} and evaluated for all particles in parallel on a GPU;
 (ii)~a staged introduction of the data, from species composition to community viability; and
-(iii)~explicit acceptance criteria for every stage, including a rule for widening prior bounds at which posterior mass accumulates.
+(iii)~explicit acceptance criteria for every stage, including a rule for widening prior bounds at which posterior mass accumulates, and an analysis of which interactions the data determine.
 \TBD{One sentence on the main result after the final runs.}
 
 %==============================================================================

@@ -103,5 +103,12 @@ Funding・謝辞は BMB 版と同じ文言（DFG は Nils 指定の文言、ERC 
   1. ベイズ推定（TMCMC）を **probabilistic / physics-constrained inference** として位置づけ、JAX（微分可能・GPU の科学計算）を scientific ML の道具として書く。
   2. 「Fn を除いたら Pg の増加が消える」予測を、**群集の組成を変える設計的な問い（in-silico design of the consortium）**として書く。
   3. 同定性の分析（どの相互作用がデータで決まるか）を、逆同定の信頼性を示す方法論の結果として前面に。
-  4. 任意: リポジトリの DeepONet 代理モデル（1 サンプル約 80 倍）を 1 段落で触れるか、補足に入れる（機械学習の要素を足せる。ただし語数と相談）。
+  4. DeepONet 代理モデル（1 サンプル約 80 倍）は **使わない**: 2026-02 に旧ソルバー（`improved_5species_jit`、20 パラメータ・旧モデル）で学習したもので、
+     論文の順モデル（ゲートなし・15 成分）と別物。載せるなら学習し直しが必要 → 今回は見送り（展望で 1 文触れる程度）。
 - キーワード案: inverse characterization; physics-constrained Bayesian inference; scientific machine learning; multiphase continuum; living materials; GPU
+
+## 10. 進み具合（2026-10-09 夜）
+
+- 要旨・序論・キーワードを特集号向けに直した: 「物理に縛られた逆同定（physics-constrained inverse characterization）」、
+  「物理と、データで何が決まるかの確認に導かれたデータ駆動手法」、「校正したモデルを in-silico の試験台にする（1 種を除いたら？）」。
+- キーワード: Inverse characterization / Physics-constrained Bayesian inference / Scientific machine learning / Extended Hamilton principle / Living materials / GPU
