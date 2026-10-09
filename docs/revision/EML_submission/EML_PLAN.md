@@ -79,3 +79,11 @@
 
 → 結果・考察・結論に **約 2600 語**使える（予算 1850 より余裕あり）。
 Funding・謝辞は BMB 版と同じ文言（DFG は Nils 指定の文言、ERC Gen-TSM も）。
+
+## 8. メモ（2026-10-09）
+
+- **graphical abstract は図 1（`figures/fig1_pipeline.tex`、Times）から作る。** 本文の図 6 枚はすべて結果に使う。
+  Elsevier の graphical abstract の規格（推奨サイズ・横長比率・文字の大きさ）を投稿前に確認して、文字を減らした版にする。
+- 当てはまりの図（4 条件 × 5 種）は必須。
+- 採択率は非公表。IF 約 4.6（第三者サイト）、掲載まで 0〜6 か月がほとんど。特集号の招待経由（Junker 先生）。
+- 必要なら、編者（Moreno-Mateos 氏ら）に scope が合うかを Junker 先生経由で事前に問い合わせる。
