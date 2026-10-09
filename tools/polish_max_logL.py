@@ -53,8 +53,6 @@ assert Path(EP._H.__file__).name == "hamilton_ode_jax_paper.py", EP._H.__file__
 
 def build_loglik(rec):
     a = rec["args"]
-    if a.get("multichannel"):
-        raise ValueError("多チャネルの run は対象外（pilot / ident だけ）")
     data, t_days, _sig, _phi, _ = EP.load_experimental_data(
         EP.DATA_DIR,
         a["condition"],
@@ -81,8 +79,39 @@ def build_loglik(rec):
         student_t_nu=a["student_t_nu"],
         lambda_rare=a["lambda_rare"],
         psi_fixed=None if psi is None else np.asarray(psi),
-        lambda_ch={},  # ψ 固定・単一チャネル（estimator の mc_kwargs と同じ）
+        **_mc_kwargs(rec, t_days),
     )
+
+
+def _mc_kwargs(rec, t_days):
+    """estimate_paper_jax の mc_kwargs を run_record から組み直す（p2 / ult の多チャネル run 用、2026-10-09）。
+    ψ 固定・単一チャネルの run（pilot / p1 / ident）は {} のまま。重みは record の lambda_ch_effective
+    （DH / Commensal の自動調整後の値）をそのまま使う。正しく組めたかは polish() の logL 再現で確かめる。"""
+    a = rec["args"]
+    if not a.get("multichannel"):
+        return {"lambda_ch": {}}
+    if a.get("fix_psi"):
+        raise ValueError("多チャネル + fix_psi の run は未対応")
+    mc = EP.load_multichannel_data(
+        data_dir=EP.DATA_DIR / "experiment_data",
+        condition=a["condition"],
+        cultivation=a["cultivation"],
+        days_filter=t_days.tolist(),
+    )
+    lambda_ch = {int(k): float(v) for k, v in rec["lambda_ch_effective"].items()}
+    kw = {
+        "data_total": mc.get("data_total"),
+        "sigma_obs_total": mc.get("sigma_obs_total"),
+        "data_viability": mc.get("data_viability"),
+        "sigma_obs_viability": mc.get("sigma_obs_viability", 0.10),
+        "lambda_ch": lambda_ch,
+    }
+    if mc.get("data_pH") is not None:
+        _, idx_pH = EP.convert_days_to_model_time(mc["t_pH_days"], a["dt"], a["n_steps"], day_scale=None)
+        kw["data_pH"] = mc["data_pH"]
+        kw["idx_pH"] = np.clip(idx_pH, 0, a["n_steps"])
+        kw["sigma_obs_pH"] = mc.get("sigma_obs_pH", 0.15)
+    return kw
 
 
 def polish(d, top_k, maxiter):
