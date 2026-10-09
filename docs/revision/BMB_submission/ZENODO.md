@@ -1,6 +1,8 @@
+> 2026-10-09: 投稿先が Extreme Mechanics Letters に変わったので、題名と版名を EML 用にした。
+
 # Zenodo（投稿前に新しい版の DOI を作る）
 
-- 既存: `10.5281/zenodo.18790007`（v2.0.0-paper、3 月の版）。**BMB 用は新しい版（v3.0.0-bmb）として追加**し、原稿の `\TBD{DOI}` にその DOI を入れる。
+- 既存: `10.5281/zenodo.18790007`（v2.0.0-paper、3 月の版）。**投稿用は新しい版（v3.0.0-eml）として追加**し、原稿の `\TBD{DOI}` にその DOI を入れる。
 - GitHub release 連携だと `experiment_data/` が含まれる（履歴に残っている）ので、**手動アップロード**にする。
 
 ## 入れるもの（ult が全部そろってから、GPU 側で tar にする）
@@ -15,7 +17,7 @@
 - FEM・deeponet・gnn・nife（別プロジェクト）
 
 ## Zenodo の説明文（下書き）
-Title: Code, run configurations, convergence records and posterior samples for "Inferring effective interactions in a multispecies oral biofilm model: Bayesian calibration and a testable prediction"
+Title: Code, run configurations, convergence records and posterior samples for "[EML の最終題名]" (Extreme Mechanics Letters, VSI: AI & CM)
 Authors: 原稿と同じ 10 名・同じ順（ORCID: Nishioka 0009-0001-9360-1336）
 Description: GPU-accelerated TMCMC inference of the 5×5 interaction matrix of a Hamilton-principle biofilm model from the in-vitro data of Heine et al. (2025). Contains the JAX forward model and estimator, PBS job scripts, per-run configurations, convergence checks (seed agreement, moves per parameter, posterior mass at the box bounds), posterior samples of every stage used in the manuscript, and the scripts that produce all figures and tables. The experimental data are not redistributed; see Heine et al. (2025), Front. Oral Health.
 License: MIT. Related identifier: the GitHub repository (isSupplementTo の原稿 DOI は受理後に追加)。
