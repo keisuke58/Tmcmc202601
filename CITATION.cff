@@ -26,7 +26,7 @@ authors:
       Leibniz Universität Hannover
     email: kei128608@gmail.com
   - family-names: Klempt
-    given-names: Henrike
+    given-names: Felix
     affiliation: >-
       Institut für Kontinuumsmechanik (IKM),
       Leibniz Universität Hannover
@@ -77,7 +77,7 @@ references:
   - type: article
     authors:
       - family-names: Klempt
-        given-names: C.
+        given-names: F.
       - family-names: Soleimani
         given-names: M.
       - family-names: Wriggers
