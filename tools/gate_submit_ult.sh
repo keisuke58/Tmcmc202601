@@ -61,6 +61,9 @@ PYTHON="${PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3}"
 [ -x "$PYTHON" ] || PYTHON=python3
 export JAX_PLATFORMS=cpu
 unset LD_LIBRARY_PATH
+# PBS バッチの PATH には /usr/local/bin が無く、qsub が見つからない（2026-10-09 の CH gate 3320 は
+# 判定 PASS のあと qsub: command not found で 3 本とも投入できていなかった）
+export PATH="/usr/local/bin:$PATH"
 
 MAIN="data_5species/main"
 RUNS_ROOT="$MAIN/_runs/paper_gateoff"
@@ -80,8 +83,13 @@ VERDICT="$(echo "$CHECK_OUT" | grep -E "^(全群 PASS|FAIL を含む群)" | tail
 echo "$CHECK_OUT"
 echo "    判定: ${VERDICT:-（結論行なし）}"
 
+# 片側の端の印（←）は判定 0〜4 に入っていない。p2 で新しく端に積む成分があれば、ult へは進まず
+# p2 の箱を広げて回し直す（08k / 08m の規則、2026-10-09c で gate にも追加）
+EDGE_N="$(echo "$CHECK_OUT" | grep -c '←')"
+echo "    片側の端の印（←）: $EDGE_N"
+
 OK=0
-[ "$FOUND" = "$WANT" ] && echo "$VERDICT" | grep -q '^全群 PASS' && OK=1
+[ "$FOUND" = "$WANT" ] && echo "$VERDICT" | grep -q '^全群 PASS' && [ "$EDGE_N" = "0" ] && OK=1
 
 TODAY="$(date +%Y-%m-%d)"
 REPORT="docs/handoff/gpu_${TODAY}_gate_${TAG}_ult.md"
@@ -90,11 +98,12 @@ if [ "$OK" != "1" ]; then
   {
     echo "# GPU 側報告 ${TODAY}（gate: ${TAG} ult は**投入しなかった**）"
     echo
-    echo "前段 \`$GLOB\` の判定が通らなかったので、\`$ULT_RUNTAG\` の ult は投入していない"
+    echo "前段 \`$GLOB\` の判定が通らなかった（または片側の端の印がある）ので、\`$ULT_RUNTAG\` の ult は投入していない"
     echo "（FAIL の段からは進めない、docs/paper_gateoff_pipeline.md §5）。"
     echo
     echo "- 前段の run: **$FOUND / $WANT**（足りない場合は walltime か crash で落ちた seed がある）"
     echo "- 判定: **${VERDICT:-（結論行が出なかった。下の出力をそのまま読むこと）}**"
+    echo "- 片側の端の印（←）: **$EDGE_N**（1 つでもあれば投入しない。箱を広げて p2 を回し直す）"
     echo
     echo '```'
     echo "$CHECK_OUT"
@@ -134,7 +143,7 @@ NOTIFY="$(qsub -W "depend=${DEP}" -v "RUN_GLOB=${TAG}_ult_${ULT_RUNTAG}_seed*,LA
 {
   echo "# GPU 側報告 ${TODAY}（gate: ${TAG} p2 が PASS → ult を投入した）"
   echo
-  echo "前段 \`$GLOB\` は **$FOUND / $WANT** そろい、判定は **$VERDICT**。"
+  echo "前段 \`$GLOB\` は **$FOUND / $WANT** そろい、判定は **$VERDICT**、片側の端の印（←）は 0。"
   echo "09a §1 の指示どおり、返事を待たずに ult を投入した（Claude のセッションに依存しないよう"
   echo "Torque の依存ジョブとして仕掛けておいたもの）。"
   echo
