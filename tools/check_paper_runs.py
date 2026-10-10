@@ -293,11 +293,14 @@ def main(root, pattern="*", modes=None):
                 _moves(r) >= 2.0 and r["mean_accept"] <= 0.60 for r in recs
             ),
             "2b 次元あたりの移動(>=5)": all(_moves_per_dim(r) >= 5.0 for r in recs),
-            "3 maxlogL 幅<=1": len(maxll) < 2 or float(np.ptp(maxll)) <= 1.0,
-            "4 中央値幅<=0.5sd（同定された成分・多峰は山ごと）": len(med) < 2
-            or not judged.any()
-            or float(med_spread[judged].max()) <= 0.5,
+            # 1 run だけの群は seed 間の比較ができないので 3・4 は FAIL にする
+            # （CS ult が 1 seed のまま素通りしていた。2026-10-10d）
+            "3 maxlogL 幅<=1": len(maxll) >= 2 and float(np.ptp(maxll)) <= 1.0,
+            "4 中央値幅<=0.5sd（同定された成分・多峰は山ごと）": len(med) >= 2
+            and (not judged.any() or float(med_spread[judged].max()) <= 0.5),
         }
+        if len(recs) < 2:
+            print(f"       seed が足りない（{len(recs)} run だけ。判定 3・4 は seed がそろうまで FAIL）")
         order = [k for k in np.argsort(-med_spread) if judged[k]]
         worst = [f"{NAMES[free[k]]}({med_spread[k]:.2f})" for k in order[:3]]
         print(
