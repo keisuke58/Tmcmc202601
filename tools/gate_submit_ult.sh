@@ -25,6 +25,8 @@
 #   ULT_RUNTAG    ult の RUNTAG（必須）
 #   N_MUT         ult の mutation 回数（既定 150）
 #   OVERRIDE      ult の箱の上書き（p2 と同じものを渡す）
+#   MODES         判定 4 で山ごとに見る多峰の成分と谷（check_paper_runs.py --modes に渡す。
+#                 例 'a34:-1.5;a35:-10'。qsub -v はカンマで変数を区切るので区切りは ";"。空なら従来どおり）
 #   SEEDS         既定 "42 7 123"
 #   NODE          投入先ホスト（既定 stuttgart02）
 #   WALLTIME      既定 12:00:00
@@ -52,6 +54,8 @@ PREV_RUNTAG="${PREV_RUNTAG:?PREV_RUNTAG (p2 の RUNTAG) が必要}"
 ULT_RUNTAG="${ULT_RUNTAG:?ULT_RUNTAG が必要}"
 N_MUT="${N_MUT:-150}"
 OVERRIDE="${OVERRIDE:-}"
+MODES="${MODES:-}"
+MODES="${MODES//;/,}"
 SEEDS="${SEEDS:-42 7 123}"
 NODE="${NODE:-stuttgart02}"
 WALLTIME="${WALLTIME:-12:00:00}"
@@ -78,7 +82,7 @@ WANT="$(echo $SEEDS | wc -w)"
 echo "    前段の run: $FOUND / $WANT"
 
 # 2. 判定
-CHECK_OUT="$("$PYTHON" tools/check_paper_runs.py "$RUNS_ROOT" --glob "$GLOB" 2>&1)"
+CHECK_OUT="$("$PYTHON" tools/check_paper_runs.py "$RUNS_ROOT" --glob "$GLOB" --modes "$MODES" 2>&1)"
 VERDICT="$(echo "$CHECK_OUT" | grep -E "^(全群 PASS|FAIL を含む群)" | tail -1)"
 echo "$CHECK_OUT"
 echo "    判定: ${VERDICT:-（結論行なし）}"
