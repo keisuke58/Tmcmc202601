@@ -161,14 +161,35 @@ The evidence estimate of TMCMC is used only to compare models on the same data a
 \label{sec:results}
 %==============================================================================
 
-\TBD{After the final runs (budget 1300 + 550 words, figures 2--6):
-fits in four conditions (Fig.~2);
-inferred matrices (Fig.~3) and posteriors with identified/unidentified entries (Fig.~4);
-the Fn--Pg coefficient: stage (i)--(iv), Bayes factor, likelihood weights;
-identifiability: wide box with and without a Gaussian prior, Phase~1 vs.\ Phase~2 (Fig.~5);
-pH check with a fixed regression on species fractions and the Fn-knockout prediction (Fig.~6);
-limitations: unit-sum constraint, effective parameters;
-outlook: propagation to mechanics (stiffness of the biofilm from its composition).}
+\subsection{Fit and convergence}
+All stages of all conditions were accepted under criteria (a)--(e) \TBD{DS, DH; CS with three seeds}.
+At stage (iv) the composition is reproduced with a root-mean-square error of 0.076--0.078 in CH \TBD{CS, DS, DH} (Fig.~\TBD{2}).
+Accepting a stage often required more than one attempt: posterior mass accumulated at a bound of the initial box in every condition and was released by widening that bound (Supplementary Table~S1), and the dysbiotic conditions needed up to \TBD{14000--18000} particles before the three seeds agreed (Supplementary Table~S2).
+Without the acceptance criteria, several of these runs would have been read as converged.
+
+\subsection{What the data determine}
+Supplementary Table~S4 classifies every entry of $\mathbf{A}$ at stage (iv).
+In the commensal conditions only a few entries are identified: \TBD{four} in CS and six in CH ($a_{11}$, $a_{12}$, $a_{22}$, $a_{33}$, $a_{13}$, $a_{23}$), all among the early colonisers So, An and Vei.
+Two further entries of CH, $a_{14}$ and $a_{15}$, are determined in sign only (90\% intervals $[-4.8,-0.2]$ and $[-4.8,-0.3]$), and every other entry involving Fn or Pg spreads over its whole box.
+This is expected: Fn and Pg stay below \TBD{2}\% of the commensal communities, so the composition data carry little information on their interactions.
+\TBD{Dysbiotic conditions: which entries are identified in DS and DH, and the two modes of DH in $a_{35}$ (Fig.~5).}
+The classification is a result in its own right: it states which conclusions about the interaction network the data can support, and it is obtained from the same runs at no additional cost.
+
+\subsection{The Fn--Pg coefficient}
+The coefficient $a_{45}$ links the bridging organism Fn to the pathogen Pg.
+Comparing the full model with a model in which $a_{45}=0$, both inferred at stage (i), gives $\ln B=+0.10$ (CS), $+0.05$ (CH), $-2.67$ (DS) and $+1.94$ (DH) (Supplementary Table~S3).
+Because the uniform prior penalises the full model by the log-width of the $a_{45}$ box, $\ln B$ is read only within a condition: in DS, where the box had to be widened to $[-15,20]$, the penalty alone is $\ln35\approx3.6$.
+In DH, the data favour a non-zero coefficient.
+With the composition alone (stage (i)) $a_{45}$ is positive in all seeds (90\% interval about $[+0.5,+5.5]$); without the likelihood weights its median is unchanged but the interval reaches zero ($[-0.06,+5.6]$; Supplementary Section~S5).
+\TBD{Stage (iv) of DH: $a_{45}$ in each mode of $a_{35}$ and the mode weights.}
+
+\subsection{Checks against data not used in the inference}
+\TBD{pH check (Eq.~(S$\cdot$), fixed regression on measured species fractions, $R^2$) and the Fn-knockout prediction (Fig.~6).}
+
+\subsection{Limitations}
+The likelihood treats the five species fractions as independent although they sum to one, so the posterior intervals may be somewhat too narrow.
+The interaction coefficients are effective quantities of this model and data set; they lump mechanisms that the model does not resolve, such as metabolite exchange and pH, and are not direct measurements of pairwise mechanisms.
+\TBD{Outlook: the calibrated composition dynamics as input for the mechanical response of the biofilm (stiffness from composition).}
 
 %==============================================================================
 \section{Conclusions}
