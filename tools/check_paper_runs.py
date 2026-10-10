@@ -297,7 +297,7 @@ def main(root, pattern="*", modes=None):
             or float(med_spread[judged].max()) <= 0.5,
         }
         order = [k for k in np.argsort(-med_spread) if judged[k]]
-        worst = [f"{NAMES[free[k]]}({med_spread[k]:.1f})" for k in order[:3]]
+        worst = [f"{NAMES[free[k]]}({med_spread[k]:.2f})" for k in order[:3]]
         print(
             "       1 粒子の移動: "
             + ", ".join(
@@ -312,7 +312,7 @@ def main(root, pattern="*", modes=None):
             print(line)
         if unident.any():
             names = ", ".join(
-                f"{NAMES[free[k]]}(sd/一様sd {pooled_sd[k] / unif_sd[k]:.2f}, 幅/sd {med_spread[k]:.1f})"
+                f"{NAMES[free[k]]}(sd/一様sd {pooled_sd[k] / unif_sd[k]:.2f}, 幅/sd {med_spread[k]:.2f})"
                 for k in np.where(unident)[0]
             )
             print(f"       同定されていない（判定 4 から外した）: {names}")
