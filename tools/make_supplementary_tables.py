@@ -5,7 +5,8 @@
   S2  run の一覧（粒子数・mutation・段数・受理率・移動/次元・max logL・seed 間の幅・時間）
   S3  Bayes 因子（pilot の full と a45=0、ln Z の平均 ± 幅、ln B、a45 の箱の幅）
   S4  同定性（最終段 (iv) の 15 成分 × 4 条件: 3 seed 合算の中央値 [5%, 95%]。
-      事後 sd が箱の一様分布の sd の 0.8 倍以上の成分は「同定されていない」として灰色・n.i.。
+      事後 sd が箱の一様分布の sd の 0.8 倍以上の成分は灰色。そのうち 90% 区間が 0 を含むものは n.i.（同定されていない）、
+      含まないものは s.o.（sign only: 大きさは決まらないが符号は決まる）。
       判定 4 の規則（check_paper_runs.py の UNIDENT_RATIO）と同じ）
 
 run は config.json（run_record の上位集合）を読む。glob は --spec の JSON で上書きできる:
@@ -276,7 +277,9 @@ def ident_table(root, spec):
             unif = (pb[i, 1] - pb[i, 0]) / np.sqrt(12.0)
             txt = "$%+.2f$ [$%+.1f$, $%+.1f$]" % (q50, q05, q95)
             if x[:, i].std() >= UNIDENT_RATIO * unif:
-                txt = r"\textcolor{gray}{%s n.i.}" % txt
+                # 広がりは箱並みでも 90% 区間が 0 を含まなければ「符号だけ決まる」（s.o.）
+                tag_ = "s.o." if (q05 > 0 or q95 < 0) else "n.i."
+                txt = r"\textcolor{gray}{%s %s}" % (txt, tag_)
             cells.append(txt)
         lines.append(" & ".join(cells) + r"\\")
     return "\n".join(lines)

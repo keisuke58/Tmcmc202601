@@ -257,6 +257,8 @@ def main(root, pattern="*", modes=None):
         pb = np.array(recs[0]["prior_bounds_final"], dtype=float)[free]
         unif_sd = (pb[:, 1] - pb[:, 0]) / np.sqrt(12.0)
         unident = pooled_sd >= UNIDENT_RATIO * unif_sd
+        q05, q95 = np.percentile(pooled, [5, 95], axis=0)
+        sign_only = unident & ((q05 > 0) | (q95 < 0))
         # 多峰の成分は山ごとに中央値の幅を見る（重みは別に出す）
         mode_lines = []
         for k, i in enumerate(free):
@@ -312,7 +314,9 @@ def main(root, pattern="*", modes=None):
             print(line)
         if unident.any():
             names = ", ".join(
-                f"{NAMES[free[k]]}(sd/一様sd {pooled_sd[k] / unif_sd[k]:.2f}, 幅/sd {med_spread[k]:.2f})"
+                f"{NAMES[free[k]]}(sd/一様sd {pooled_sd[k] / unif_sd[k]:.2f}, 幅/sd {med_spread[k]:.2f}"
+                + (", 符号は決まる" if sign_only[k] else "")
+                + ")"
                 for k in np.where(unident)[0]
             )
             print(f"       同定されていない（判定 4 から外した）: {names}")
