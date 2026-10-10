@@ -151,7 +151,7 @@ Every stage is run with three independent seeds and accepted only if
 (b)~the tempering reaches $\beta=1$;
 (c)~each particle is moved at least twice per tempering step and at least five times per free parameter over the run;
 (d)~the maximum log-likelihood differs by at most 1 across seeds; and
-(e)~every posterior median differs across seeds by at most half a posterior standard deviation.
+(e)~every posterior median differs across seeds by at most half a posterior standard deviation; an entry whose pooled posterior standard deviation is at least 0.8 times that of a uniform distribution on its box is reported as not identified by the data and excluded from this criterion, and for an entry with several posterior modes the criterion is applied within each mode, with the mode weights reported together with their spread across seeds.
 Criterion~(c) counts accepted moves rather than the acceptance rate: with optimally scaled random-walk proposals~\citep{RobertsRosenthal2001Optimal}, $5d$ accepted moves displace each coordinate by about five posterior standard deviations, independently of the dimension~$d$.
 Stages that fail are repeated with more particles or mutation steps, never interpreted.
 The evidence estimate of TMCMC is used only to compare models on the same data and box (Section~\ref{sec:results}).

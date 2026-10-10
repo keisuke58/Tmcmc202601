@@ -21,7 +21,10 @@ run 以上になるはずで、これは「探索が主要なモードに届い�
   2b. 1 粒子が run 全体で各自由次元あたり 5 回以上動く（移動回数 × ステージ数 / 自由次元数）
      — 判定 2 を通っても、15 次元を 23 回の移動で埋めることはできない
   3. seed 間で max logL の幅が 1 nat 以内
-  4. seed 間で各自由次元の中央値の幅が、プールした事後 sd の 0.5 倍以内
+  4. seed 間で各自由次元の中央値の幅が、プールした事後 sd の 0.5 倍以内。ただし（2026-10-10 ユーザー承認）
+     - データが決めていない成分（プールした事後 sd が箱の一様分布の sd の 0.8 倍以上）は判定 4 から外し、
+       「同定されていない」として名前を出す（平らな事後の中央値には意味がない）
+     - --modes 'a34:-1.5' で指定した多峰の成分は、山ごとの中央値の幅（重みは別に報告）で判定する
   5. (ident のみ) 事前分布なしの max logL >= 事前分布ありの max logL − 0.5
      （尤度だけの比較。下回れば事前分布なしは探索不足）
 1〜4 のどれかが FAIL の群は、粒子数・mutation 数を増やして回し直す。解釈しない。
@@ -34,6 +37,8 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
+
+UNIDENT_RATIO = 0.8  # 事後 sd / 箱の一様分布の sd がこれ以上なら「データが決めていない」
 
 NAMES = [
     "a11",
@@ -164,7 +169,8 @@ def _prior_free_key(key):
     return re.sub(r"_ident_prior[0-9.]+", "_ident_prior*", key)
 
 
-def main(root, pattern="*"):
+def main(root, pattern="*", modes=None):
+    modes = modes or {}
     root = Path(root)
     if not root.is_dir():
         print(f"判定できない: {root} が無い")
@@ -234,10 +240,7 @@ def main(root, pattern="*"):
                         head += "）"
                     print(head)
                     for nm, lo, hi, blo, bhi, plo, phi, cut in rows:
-                        line = (
-                            f"            {nm:4s} [{blo:g},{bhi:g}] "
-                            f"{lo:.2f}/{hi:.2f}"
-                        )
+                        line = f"            {nm:4s} [{blo:g},{bhi:g}] " f"{lo:.2f}/{hi:.2f}"
                         if plo is not None:
                             line += f" (前段 {plo:.2f}/{phi:.2f})"
                         print(line + ("  ← 箱で切られている" if cut else ""))
@@ -247,8 +250,35 @@ def main(root, pattern="*"):
             med.append(np.median(s[:, free], axis=0))
 
         free = recs[0]["free_dims"]
-        pooled_sd = np.concatenate(samples)[:, free].std(axis=0)
+        pooled = np.concatenate(samples)[:, free]
+        pooled_sd = pooled.std(axis=0)
         med_spread = np.ptp(np.array(med), axis=0) / np.maximum(pooled_sd, 1e-12)
+        # データが決めていない成分: 事後 sd が箱の一様分布の sd（幅/√12）の 0.8 倍以上
+        pb = np.array(recs[0]["prior_bounds_final"], dtype=float)[free]
+        unif_sd = (pb[:, 1] - pb[:, 0]) / np.sqrt(12.0)
+        unident = pooled_sd >= UNIDENT_RATIO * unif_sd
+        # 多峰の成分は山ごとに中央値の幅を見る（重みは別に出す）
+        mode_lines = []
+        for k, i in enumerate(free):
+            nm = NAMES[i]
+            if nm not in modes:
+                continue
+            cuts = [-np.inf] + sorted(modes[nm]) + [np.inf]
+            worst_in = 0.0
+            for lo, hi in zip(cuts[:-1], cuts[1:]):
+                in_mode = [(x[:, i] >= lo) & (x[:, i] < hi) for x in samples]
+                if any(m.sum() < 50 for m in in_mode):
+                    continue
+                meds = [np.median(x[m, i]) for x, m in zip(samples, in_mode)]
+                sd_in = np.concatenate([x[m, i] for x, m in zip(samples, in_mode)]).std()
+                sp = float(np.ptp(meds) / max(sd_in, 1e-12))
+                worst_in = max(worst_in, sp)
+                w = [float(m.mean()) for m in in_mode]
+                mode_lines.append(
+                    f"       {nm} 山 [{lo:g},{hi:g}): 重み {min(w):.2f}〜{max(w):.2f}、山の中の中央値幅/sd {sp:.2f}"
+                )
+            med_spread[k] = worst_in
+        judged = ~unident
         checks = {
             "0 logL と粒子の対応": all(r.get("logL_consistent") is True for r in recs),
             "1 beta=1": all(
@@ -262,9 +292,12 @@ def main(root, pattern="*"):
             ),
             "2b 次元あたりの移動(>=5)": all(_moves_per_dim(r) >= 5.0 for r in recs),
             "3 maxlogL 幅<=1": len(maxll) < 2 or float(np.ptp(maxll)) <= 1.0,
-            "4 中央値幅<=0.5sd": len(med) < 2 or float(med_spread.max()) <= 0.5,
+            "4 中央値幅<=0.5sd（同定された成分・多峰は山ごと）": len(med) < 2
+            or not judged.any()
+            or float(med_spread[judged].max()) <= 0.5,
         }
-        worst = [f"{NAMES[free[k]]}({med_spread[k]:.1f})" for k in np.argsort(-med_spread)[:3]]
+        order = [k for k in np.argsort(-med_spread) if judged[k]]
+        worst = [f"{NAMES[free[k]]}({med_spread[k]:.1f})" for k in order[:3]]
         print(
             "       1 粒子の移動: "
             + ", ".join(
@@ -275,6 +308,14 @@ def main(root, pattern="*"):
         for k, v in checks.items():
             print(f"  {'PASS' if v else 'FAIL'} {k}")
         print(f"       maxlogL 幅 = {np.ptp(maxll):.2f}、中央値幅/sd 上位: {', '.join(worst)}")
+        for line in mode_lines:
+            print(line)
+        if unident.any():
+            names = ", ".join(
+                f"{NAMES[free[k]]}(sd/一様sd {pooled_sd[k] / unif_sd[k]:.2f}, 幅/sd {med_spread[k]:.1f})"
+                for k in np.where(unident)[0]
+            )
+            print(f"       同定されていない（判定 4 から外した）: {names}")
         any_fail |= not all(checks.values())
         maxll_by_group[key] = max(maxll)
 
@@ -306,5 +347,14 @@ if __name__ == "__main__":
         default="*",
         help="判定する run の glob（例 '*mut80*'）。古い run を混ぜて全体を FAIL にしないため",
     )
+    ap.add_argument(
+        "--modes",
+        default="",
+        help="多峰の成分としきい値（例 'a34:-1.5,a35:-10'）。山ごとに中央値の幅を見る",
+    )
     a = ap.parse_args()
-    sys.exit(main(a.root, a.glob))
+    modes = {}
+    for item in filter(None, a.modes.split(",")):
+        nm, *th = item.split(":")
+        modes[nm.strip()] = [float(t) for t in th]
+    sys.exit(main(a.root, a.glob, modes))

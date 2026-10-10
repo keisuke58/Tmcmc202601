@@ -435,7 +435,7 @@ Every stage is run with three independent seeds and accepted only if all of the 
 (ii)~the tempering reaches $\beta=1$;
 (iii)~each particle is moved on average at least twice per stage and at least five times per free parameter over the run;
 (iv)~the maximum log-likelihood differs by at most 1 across seeds; and
-(v)~the posterior median of every parameter differs across seeds by at most half a posterior standard deviation.
+(v)~the posterior median of every parameter differs across seeds by at most half a posterior standard deviation; an entry whose pooled posterior standard deviation is at least 0.8 times that of a uniform distribution on its box is reported as not identified by the data and excluded from this criterion, and for an entry with several posterior modes the criterion is applied within each mode, with the mode weights reported together with their spread across seeds.
 Criterion~(iii) uses accepted moves rather than the acceptance rate: with optimally scaled random-walk proposals, $5d$ accepted moves displace each coordinate by about $2.38\sqrt5\approx5$ posterior standard deviations, independently of~$d$.
 Effective sample sizes after resampling are not reported, as they reflect the resampling rather than mixing.
 
