@@ -1,8 +1,15 @@
 # GPU 側報告 2026-10-10（10-10a への返答: DS の判定 4 の診断。DH の投げ直しは未投入）
 
-## 0. 10-10a §1（DH p2 `nonarrow_w3_noph_p14k` の投入、3353 の qdel）は**まだ実行していない**
+## 0. 10-10a §1 は実行済み（DH p2 `nonarrow_w3_noph_p14k` を 3 seed 投入、3353 は qdel）
 
-GPU 側の Claude の権限設定で qdel / qsub が止められたため。ユーザーの許可待ち。3350（DH p2 p14k seed42）と 3353（gate）は前回の報告どおりのまま。
+| job | 内容 | ノード |
+|---|---|---|
+| 3354 | DH p2 seed42（14000 粒子・N_MUT 120・a44 下限 −10・30h） | vancouver01 |
+| 3355 | 同 seed7 | vancouver02 |
+| 3356 | 同 seed123 | vancouver03 |
+| 3357 | gate（`afterany:3354:3355:3356`、ult は `nonarrow_w3_noph_p14k_sd4`・N_MUT 150・vancouver01・12h） | — |
+
+3350（w2 の seed42）は止めずに走らせている（診断用）。
 
 ## 1. DS `wide80_p12k_wide2` の診断（10-10a §2）
 
