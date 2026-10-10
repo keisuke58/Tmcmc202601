@@ -4,6 +4,9 @@
   S1  事前分布の箱（条件 × 段、自由次元だけ）と ln V = Σ ln(u−l)。pilot の箱から広げた成分は太字
   S2  run の一覧（粒子数・mutation・段数・受理率・移動/次元・max logL・seed 間の幅・時間）
   S3  Bayes 因子（pilot の full と a45=0、ln Z の平均 ± 幅、ln B、a45 の箱の幅）
+  S4  同定性（最終段 (iv) の 15 成分 × 4 条件: 3 seed 合算の中央値 [5%, 95%]。
+      事後 sd が箱の一様分布の sd の 0.8 倍以上の成分は「同定されていない」として灰色・n.i.。
+      判定 4 の規則（check_paper_runs.py の UNIDENT_RATIO）と同じ）
 
 run は config.json（run_record の上位集合）を読む。glob は --spec の JSON で上書きできる:
   {"DH": {"pilot": "DH_pilot_mut80_seed*", "p1": ..., "p2": ..., "ult": ..., "a45zero": "DH_pilot_a45zero_seed*"}, ...}
@@ -11,7 +14,7 @@ run は config.json（run_record の上位集合）を読む。glob は --spec �
 使い方（GPU サーバー、ult が終わったあと）:
     python3 tools/make_supplementary_tables.py data_5species/main/_runs/paper_gateoff \\
         --out-dir docs/revision/generated
-出力: supp_S1_boxes.tex / supp_S2_runs.tex / supp_S3_bayes.tex（tabular 本体。補足資料から \\input する）
+出力: supp_S1_boxes.tex / supp_S2_runs.tex / supp_S3_bayes.tex / supp_S4_ident.tex（補足資料から \\input する）
 """
 
 import argparse
@@ -50,7 +53,7 @@ CONDS = ["CS", "CH", "DS", "DH"]
 STAGES = ["pilot", "p1", "p2", "ult"]
 STAGE_LABEL = {"pilot": "(i)", "p1": "(ii)", "p2": "(iii)", "ult": "(iv)"}
 
-# 2026-10-09 時点の計画（09d / 09f）。変わったら --spec で上書き
+# 2026-10-10 時点の計画（10a / 10b）。変わったら --spec で上書き
 DEFAULT_SPEC = {
     "CS": {
         "pilot": "CS_pilot_mut80_seed*",
@@ -69,15 +72,15 @@ DEFAULT_SPEC = {
     "DS": {
         "pilot": "DS_pilot_wide80_seed*",
         "p1": "DS_p1_wide80_p3k_seed*",
-        "p2": "DS_p2_wide80_p12k_wide2_seed*",
-        "ult": "DS_ult_wide80_p12k_wide2_sd4_seed*",
+        "p2": "DS_p2_wide80_p18k_wide2_seed*",
+        "ult": "DS_ult_wide80_p18k_wide2_sd4_seed*",
         "a45zero": "DS_pilot_a45zero_seed*",
     },
     "DH": {
         "pilot": "DH_pilot_mut80_seed*",
         "p1": "DH_p1_mut80_seed*",
-        "p2": "DH_p2_nonarrow_w2_noph_p10k_seed*",
-        "ult": "DH_ult_nonarrow_w2_noph_p10k_sd4_seed*",
+        "p2": "DH_p2_nonarrow_w3_noph_p14k_seed*",
+        "ult": "DH_ult_nonarrow_w3_noph_p14k_sd4_seed*",
         "a45zero": "DH_pilot_a45zero_seed*",
     },
 }
@@ -224,6 +227,61 @@ def bayes_table(groups):
     return "\n".join(lines)
 
 
+UNIDENT_RATIO = 0.8  # tools/check_paper_runs.py と同じ
+# 本文の並び（式の blocks と同じ）
+ORDER = [
+    "a11",
+    "a12",
+    "a22",
+    "a33",
+    "a34",
+    "a44",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "a15",
+    "a25",
+    "a35",
+    "a45",
+]
+
+
+def ident_table(root, spec):
+    """S4: 最終段の 15 成分 × 4 条件。3 seed 合算の中央値 [5%, 95%]、同定されていない成分は n.i."""
+    cols = {}
+    for tag in CONDS:
+        pat = spec.get(tag, {}).get("ult")
+        dirs = sorted(glob.glob(os.path.join(root, pat))) if pat else []
+        S, pb = [], None
+        for d in dirs:
+            f = os.path.join(d, "samples.npy")
+            rec = load(d)
+            if os.path.isfile(f) and rec:
+                S.append(np.load(f))
+                pb = np.array(rec["prior_bounds_final"], dtype=float)
+        cols[tag] = (np.concatenate(S), pb) if S else None
+    lines = [" & ".join(["Entry"] + CONDS) + r"\\", r"\midrule"]
+    for nm in ORDER:
+        i = NAMES.index(nm)
+        cells = [tex_name(nm)]
+        for tag in CONDS:
+            c = cols[tag]
+            if c is None:
+                cells.append("--")
+                continue
+            x, pb = c
+            q05, q50, q95 = np.percentile(x[:, i], [5, 50, 95])
+            unif = (pb[i, 1] - pb[i, 0]) / np.sqrt(12.0)
+            txt = "$%+.2f$ [$%+.1f$, $%+.1f$]" % (q50, q05, q95)
+            if x[:, i].std() >= UNIDENT_RATIO * unif:
+                txt = r"\textcolor{gray}{%s n.i.}" % txt
+            cells.append(txt)
+        lines.append(" & ".join(cells) + r"\\")
+    return "\n".join(lines)
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -245,11 +303,17 @@ def main():
             if 0 < n < 3:
                 print(f"[warn] {tag} {st}: {n} run しか無い（{spec[tag][st]}）", file=sys.stderr)
     os.makedirs(a.out_dir, exist_ok=True)
-    COLS = {"supp_S1_boxes": "lllll", "supp_S2_runs": "llrrlllll", "supp_S3_bayes": "lccccc"}
+    COLS = {
+        "supp_S1_boxes": "lllll",
+        "supp_S2_runs": "llrrlllll",
+        "supp_S3_bayes": "lccccc",
+        "supp_S4_ident": "lcccc",
+    }
     for name, body in [
         ("supp_S1_boxes", box_table(groups)),
         ("supp_S2_runs", run_table(groups)),
         ("supp_S3_bayes", bayes_table(groups)),
+        ("supp_S4_ident", ident_table(a.root, spec)),
     ]:
         p = os.path.join(a.out_dir, name + ".tex")
         with open(p, "w", encoding="utf-8") as fh:
