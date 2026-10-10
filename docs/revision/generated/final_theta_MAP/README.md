@@ -6,7 +6,7 @@ FEM の要素へは `write_eco_cfg.py --theta-json <ここの json>` で渡す�
 
 | 条件 | ファイル | 元の run | seed | max logL | RMSE（組成） | 状態 |
 |---|---|---|---|---|---|---|
-| CH | `CH.json` | `CH_ult_mut150_wide2_noph_sd4_seed7` | 7 | −8.65 | **0.0756**（3 seed で 0.0756〜0.0779） | **確定**（3 seed 全判定 PASS、2026-10-10）。json は GPU 側が置く |
+| CH | `CH.json` | `CH_ult_mut150_wide2_noph_sd4_seed7` | 7 | −8.65 | **0.0756**（3 seed で 0.0756〜0.0779） | **確定**（3 seed 全判定 PASS、2026-10-10）。json 配置済み（2026-10-10） |
 | CS | `CS.json` | `CS_ult_wide2_sd4_seed*` | — | — | — | seed42・7 を回し直し中（10-11 朝〜昼） |
 | DS | `DS.json` | `DS_ult_wide80_p18k_wide2_sd4_seed*` | — | — | — | p2（18000 粒子）走行中 |
 | DH | `DH.json` | `DH_ult_nonarrow_w3_noph_p14k_sd4_seed*` | — | — | — | p2（a44 下限 −10）走行中 |
