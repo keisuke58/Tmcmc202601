@@ -82,6 +82,9 @@ esac
 # pH（ch5）は推定に使わない（2026-10-08 ユーザー判断）。pH は全種の回帰式による答え合わせにだけ使う。
 # 以前の値（HOBIC で 0.3）に戻すときは LAMBDA_CH5=0.3 を渡す。
 LAMBDA_CH5="${LAMBDA_CH5:-0.0}"
+# 初期値にする観測日（既定 1 = 論文の手順）。3 なら Day 3 の組成を初期値にし Day 6 以降で当てる（2026-10-11f）。
+# 連鎖の全段（pilot→p1→p2→ult）で同じ値を渡すこと
+IC_DAY="${IC_DAY:-1}"
 
 cd "$HOME/Tmcmc202601/data_5species/main"
 mkdir -p logs/pbs   # #PBS -o の宛先（logs/ は .gitignore なので clone 直後は無い）
@@ -90,7 +93,7 @@ PYTHON=/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3
 # 共通: ゲートは GATE で切り替え（既定 OFF）、実験 Day1 の初期値、DE-MC
 COMMON=(--condition "$COND" --cultivation "$CULT" --K-hill "$K_HILL" --n-hill 4.0
         --use-exp-init --use-de-mc --mutation rw --seed "$SEED" --device gpu
-        --mutation-throttle-floor "$THROTTLE_FLOOR")
+        --mutation-throttle-floor "$THROTTLE_FLOOR" --ic-day "$IC_DAY")
 
 need_prev() { [ -n "$PREV" ] && [ -f "$PREV/samples.npy" ] || { echo "PREV が無い: '$PREV'"; exit 1; }; }
 

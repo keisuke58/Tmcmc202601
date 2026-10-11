@@ -47,14 +47,18 @@ EDGE_FRAC = 0.05
 _data_cache = {}
 
 
-def load_data(cond, cult, dt, n_steps):
-    key = (cond, cult, dt, n_steps)
+def load_data(cond, cult, dt, n_steps, ic_day=1):
+    key = (cond, cult, dt, n_steps, ic_day)
     if key not in _data_cache:
         data, t_days, _sig, _phi, _ = EP.load_experimental_data(
             EP.DATA_DIR, cond, cult, 1, normalize=True, use_exp_init=True
         )
         _, idx = EP.convert_days_to_model_time(t_days, dt, n_steps, day_scale=None)
-        _data_cache[key] = (data, np.asarray(t_days).tolist(), np.clip(idx, 0, n_steps))
+        idx = np.clip(idx, 0, n_steps)
+        if ic_day > 1:  # estimator の --ic-day と同じ: その日を t=0 に置き、それより後の日だけ
+            k = int(np.where(np.asarray(t_days) == ic_day)[0][0])
+            data, t_days, idx = data[k + 1 :], np.asarray(t_days)[k + 1 :], idx[k + 1 :] - idx[k]
+        _data_cache[key] = (data, np.asarray(t_days).tolist(), idx)
     return _data_cache[key]
 
 
@@ -65,7 +69,9 @@ def evaluate(d):
     with open(d / "theta_MAP.json") as f:
         th = json.load(f)
     theta = np.array([th[str(i)] for i in range(20)], dtype=np.float64)
-    data, t_days, idx = load_data(a["condition"], a["cultivation"], a["dt"], a["n_steps"])
+    data, t_days, idx = load_data(
+        a["condition"], a["cultivation"], a["dt"], a["n_steps"], a.get("ic_day", 1)
+    )
     traj = EP.simulate_0d(
         jnp.array(theta),
         n_steps=a["n_steps"],

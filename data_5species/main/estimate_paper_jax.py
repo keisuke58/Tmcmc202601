@@ -381,6 +381,13 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--use-exp-init", action="store_true")
     parser.add_argument("--start-from-day", type=int, default=1)
+    parser.add_argument(
+        "--ic-day",
+        type=int,
+        default=1,
+        help="初期値にする観測日（既定 1 = 論文の手順）。3 なら Day 3 の組成（正規化）を初期値にして "
+        "t=0 を Day 3 に置き、それより後の日だけで当てる。day_scale は変えない（2026-10-11f）",
+    )
     parser.add_argument("--lambda-pg", type=float, default=5.0)
     parser.add_argument("--lambda-late", type=float, default=3.0)
     parser.add_argument(
@@ -603,6 +610,27 @@ def main():
             phi_init = phi_init / total
         phi_init = np.clip(phi_init, 0.001, 0.99)
 
+    # --ic-day: 指定日の組成を初期値にし、その日を t=0 に置く（day_scale は Day 1 のときと同じ）
+    ic_offset = 0
+    if args.ic_day > 1:
+        if not args.use_exp_init:
+            raise ValueError("--ic-day は --use-exp-init と一緒に使う")
+        _k = np.where(np.asarray(t_days) == args.ic_day)[0]
+        if len(_k) == 0:
+            raise ValueError(f"--ic-day {args.ic_day} が観測日 {list(t_days)} に無い")
+        _k = int(_k[0])
+        phi_init = np.clip(data[_k] / data[_k].sum(), 0.001, 0.99)
+        ic_offset = int(idx_sparse[_k])
+        idx_sparse = idx_sparse[_k + 1 :] - ic_offset
+        data = data[_k + 1 :]
+        t_days = t_days[_k + 1 :]
+        if np.ndim(sigma_obs) == 2:
+            sigma_obs = sigma_obs[_k + 1 :]
+        logger.info(
+            f"[ic-day] 初期値 Day {args.ic_day}: {np.round(phi_init, 4).tolist()}、"
+            f"当てる日 {list(t_days)}、idx_sparse {idx_sparse.tolist()}"
+        )
+
     # Multi-channel data loading
     mc_kwargs = {}
     if args.multichannel:
@@ -645,7 +673,11 @@ def main():
             t_pH_days = mc_data["t_pH_days"]
             _, idx_pH = convert_days_to_model_time(t_pH_days, args.dt, args.n_steps, day_scale=None)
             idx_pH = np.clip(idx_pH, 0, args.n_steps)
-            mc_kwargs["data_pH"] = mc_data["data_pH"]
+            _pH = np.asarray(mc_data["data_pH"])
+            if ic_offset > 0:
+                _keep = idx_pH > ic_offset
+                idx_pH, _pH = idx_pH[_keep] - ic_offset, _pH[_keep]
+            mc_kwargs["data_pH"] = _pH
             mc_kwargs["idx_pH"] = idx_pH
             mc_kwargs["sigma_obs_pH"] = mc_data.get("sigma_obs_pH", 0.15)
         logger.info(
