@@ -28,6 +28,8 @@ ap.add_argument("--hi", type=float, default=20.0)
 ap.add_argument("--restarts", type=int, default=3)
 ap.add_argument("--maxiter", type=int, default=200)
 ap.add_argument("--device", default="cpu", choices=["cpu", "gpu"])
+ap.add_argument("--only", type=int, choices=[1, 2], default=None,
+                help="run only (1) or (2), to split them into separate jobs")
 args = ap.parse_args()
 sys.argv = [sys.argv[0]]
 
@@ -91,7 +93,10 @@ def sse(x):
     return jnp.mean((jnp.array(data) - p) ** 2)
 
 
-for name, fun in [("(1) 尤度を最大化", lambda x: -ll(x)), ("(2) 組成だけ", sse)]:
+parts = [("(1) 尤度を最大化", lambda x: -ll(x)), ("(2) 組成だけ", sse)]
+if args.only is not None:
+    parts = [parts[args.only - 1]]
+for name, fun in parts:
     vg = jax.jit(jax.value_and_grad(fun))
 
     def obj(z, vg=vg):
