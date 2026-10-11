@@ -45,7 +45,9 @@ Biofilms are living materials whose composition, and with it their mechanical re
 We treat the identification of these interactions as a physics-constrained inverse characterization problem and calibrate a thermodynamically consistent multiphase model of a five-species oral biofilm, derived from the extended Hamilton principle, against in-vitro time courses under four combinations of community state and cultivation.
 All 15 entries of the symmetric interaction matrix are inferred jointly by transitional Markov chain Monte Carlo, with the stiff forward model compiled in JAX and evaluated for all particles in parallel on a GPU ($\sim$150$\times$ faster than on a CPU).
 The data enter in stages, from species composition to community viability, and every stage is accepted only after explicit checks of seed agreement, mixing and posterior mass at the prior bounds.
-\TBD{Results: fit, which interactions are identified, the Fn--Pg coefficient, pH check, knockout prediction --- after the final runs.}
+The calibrated model reproduces the species fractions with root-mean-square errors of 0.03--0.08 in three conditions \TBD{DS, DH final}; in the commensal static condition (0.18) the composition and the measured viability cannot both be matched.
+Only part of the interaction matrix is determined by the data---four and six entries in the two commensal conditions, all among the early colonisers and with the same signs where they overlap \TBD{dysbiotic conditions}---and we state explicitly which.
+\TBD{Fn--Pg coefficient in DH, pH check, knockout prediction.}
 \end{abstract}
 
 \begin{keyword}
@@ -77,7 +79,7 @@ We combine three elements:
 (i)~transitional Markov chain Monte Carlo (TMCMC)~\citep{ChingChen2007TMCMC, Betz2016TMCMC} with the forward model compiled in JAX~\citep{jax2018github} and evaluated for all particles in parallel on a GPU;
 (ii)~a staged introduction of the data, from species composition to community viability; and
 (iii)~explicit acceptance criteria for every stage, including a rule for widening prior bounds at which posterior mass accumulates, and an analysis of which interactions the data determine.
-\TBD{One sentence on the main result after the final runs.}
+The data determine only a subset of $\mathbf{A}$, which we identify entry by entry; where the commensal conditions overlap, the identified entries agree in sign across cultivation modes \TBD{dysbiotic result, Fn--Pg}.
 
 %==============================================================================
 \section{Model}
@@ -162,16 +164,24 @@ The evidence estimate of TMCMC is used only to compare models on the same data a
 %==============================================================================
 
 \subsection{Fit and convergence}
-All stages of all conditions were accepted under criteria (a)--(e) \TBD{DS, DH; CS with three seeds}.
-At stage (iv) the composition is reproduced with a root-mean-square error of 0.076--0.078 in CH and 0.172--0.179 in CS \TBD{DS, DH} (Fig.~\TBD{2}).
+All stages of all conditions were accepted under criteria (a)--(e) with three seeds each \TBD{DS, DH stage (iv)}.
+At stage (iv) the composition is reproduced with a root-mean-square error of 0.076--0.078 in CH and 0.172--0.179 in CS \TBD{DS, DH} (Fig.~\ref{fig:fit}).
 Accepting a stage often required more than one attempt: posterior mass accumulated at a bound of the initial box in every condition and was released by widening that bound (Supplementary Table~S1), and the dysbiotic conditions needed up to \TBD{18000 (DS) and 20000 (DH)} particles before the three seeds agreed (Supplementary Table~S2).
 Without the acceptance criteria, several of these runs would have been read as converged.
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/provisional_2026-10-11/paper_fig2_phi_transposed.pdf}
+\caption{Species fractions over 21 days in the four conditions (columns) for the five taxa (rows). Lines: MAP of stage (iv), species volume fraction $\phi_i$ (solid) and living fraction $\bar\phi_i$ (dashed); bands: 50\% and 80\% posterior predictive intervals pooled over three seeds; dots and boxes: median and interquartile range of the replicates~\citep{heine2025influence}. The RMSE of the MAP is given above each column. \TBD{DS and DH from stage (ii) until stage (iv) is accepted.}}
+\label{fig:fit}
+\end{figure*}
+
 \subsection{What the data determine}
 Supplementary Table~S4 classifies every entry of $\mathbf{A}$ at stage (iv).
-In the commensal conditions only a few entries are identified: \TBD{four} in CS and six in CH ($a_{11}$, $a_{12}$, $a_{22}$, $a_{33}$, $a_{13}$, $a_{23}$), all among the early colonisers So, An and Vei.
+In the commensal conditions only a few entries are identified: four in CS ($a_{11}$, $a_{22}$, $a_{33}$, $a_{13}$) and six in CH ($a_{11}$, $a_{12}$, $a_{22}$, $a_{33}$, $a_{13}$, $a_{23}$), all among the early colonisers So, An and Vei.
+Where both conditions identify an entry, the sign agrees: the self-interaction of So is negative ($a_{11}$, 90\% intervals $[-4.9,-1.2]$ in CS and $[-2.5,-0.5]$ in CH) and the So--Vei coefficient is positive ($a_{13}$, $[+2.8,+9.2]$ and $[+0.01,+1.4]$), in line with the lactate cross-feeding between streptococci and \textit{Veillonella}~\citep{Kolenbrander2010OralMultispecies}, although $a_{13}$ is an effective coefficient and not a measurement of that mechanism.
 Two further entries of CH, $a_{14}$ and $a_{15}$, are determined in sign only (90\% intervals $[-4.8,-0.2]$ and $[-4.8,-0.3]$), and every other entry involving Fn or Pg spreads over its whole box.
-This is expected: Fn and Pg stay below \TBD{2}\% of the commensal communities, so the composition data carry little information on their interactions.
+This is expected: Fn and Pg stay below 1\% of the commensal communities from day~3 on, so the composition data carry little information on their interactions.
 \TBD{Dysbiotic conditions: which entries are identified in DS and DH. DH: $a_{35}$ was bimodal in earlier runs but lies in a single negative mode (90\% about $[-14,-2]$) in the 14000-particle stage (ii); confirm at stage (iv).}
 The classification is a result in its own right: it states which conclusions about the interaction network the data can support, and it is obtained from the same runs at no additional cost.
 
@@ -193,14 +203,21 @@ The model can follow this rise: fitted to the composition alone it reaches an er
 The composition and the live/dead staining cannot both be matched in CS, and the posterior settles on a compromise; we report it rather than weight the channels differently for one condition.
 The compromise is sharpest at the MAP: the bulk of the CS posterior lies closer to the composition data (pointwise posterior median, error 0.125), whereas the MAP, identical in all three seeds, sits where the live fraction is matched best (error 0.179); in the other conditions the two differ by less than 0.02 (Supplementary Fig.~\TBD{S}).
 The interaction coefficients are effective quantities of this model and data set; they lump mechanisms that the model does not resolve, such as metabolite exchange and pH, and are not direct measurements of pairwise mechanisms.
-\TBD{Outlook: the calibrated composition dynamics as input for the mechanical response of the biofilm (stiffness from composition).}
+The calibration covers a 0D material point; the spatial structure of the biofilm and its mechanics are not part of the inference.
+The calibrated dynamics are, however, the input that continuum growth models of biofilms require~\citep{Klempt2024ContinuumGrowth}: the total volume fraction of the point model can drive the growth variable of a finite-element model, so that differences in growth-induced stress between conditions follow from the calibrated interactions rather than from assumed species-specific growth weights.
+Because the likelihood uses species fractions only, the absolute amount of biomass is a prediction of the model rather than a calibrated quantity, and its posterior spread has to be propagated into such a coupling.
 
 %==============================================================================
 \section{Conclusions}
 \label{sec:conclusions}
 %==============================================================================
 
-\TBD{After the final runs.}
+The interaction matrix of a variational multiphase biofilm model was calibrated against time courses of a five-species oral community in four conditions, with a GPU-compiled forward model, a staged likelihood and explicit acceptance criteria for every stage.
+Three points carry over to other inverse characterizations of living materials.
+First, convergence has to be checked, not assumed: posterior mass at the prior bounds and disagreement between seeds were found in every condition and removed only by widening bounds and adding particles.
+Second, identifiability is a result: with 25 observations for 15 unknowns the data determine only some interactions, and stating which ones bounds every biological conclusion drawn from the model.
+Third, a misfit can be informative: in the commensal static condition the composition and the viability data cannot be matched at once, which points to a process the model lacks rather than to a failed calibration.
+\TBD{Dysbiotic result and Fn--Pg in one sentence.}
 
 \section*{Declaration of competing interest}
 The authors declare no competing interests.
