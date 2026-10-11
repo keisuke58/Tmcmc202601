@@ -28,6 +28,8 @@ ap.add_argument("--hi", type=float, default=20.0)
 ap.add_argument("--restarts", type=int, default=3)
 ap.add_argument("--maxiter", type=int, default=200)
 ap.add_argument("--device", default="cpu", choices=["cpu", "gpu"])
+ap.add_argument("--start-day", type=int, default=1,
+                help="初期値にする観測日（既定 1 = 論文と同じ）。3 なら Day 3 の組成を初期値にし、Day 6 以降で当てる")
 ap.add_argument("--only", type=int, choices=[1, 2], default=None,
                 help="run only (1) or (2), to split them into separate jobs")
 args = ap.parse_args()
@@ -56,6 +58,13 @@ data, t_days, sig, phi0, _ = E.load_experimental_data(D, *COND, 1, normalize=Tru
 _, idx = E.convert_days_to_model_time(t_days, 1e-4, 2500, day_scale=None)
 idx = np.clip(idx, 0, 2500)
 phi0 = np.clip(phi0 / phi0.sum(), 0.001, 0.99)
+if args.start_day > 1:
+    # 指定日の組成（正規化済み）を初期値にし、その日を t=0 に置く。当てるのはそれより後の日だけ
+    k = int(np.where(t_days == args.start_day)[0][0])
+    phi0 = np.clip(data[k] / data[k].sum(), 0.001, 0.99)
+    idx = idx[k + 1:] - idx[k]
+    data, sig, t_days = data[k + 1:], (sig[k + 1:] if np.ndim(sig) == 2 else sig), t_days[k + 1:]
+    print(f"初期値 Day {args.start_day}: {np.round(phi0, 3)}  当てる日 {t_days.tolist()}  idx {idx.tolist()}", flush=True)
 mc = E.load_multichannel_data(data_dir=D / "experiment_data", condition=COND[0],
                               cultivation=COND[1], days_filter=t_days.tolist())
 ll = E.make_log_likelihood_jax_ode(
