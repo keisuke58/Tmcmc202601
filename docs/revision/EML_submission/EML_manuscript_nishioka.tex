@@ -163,7 +163,7 @@ The evidence estimate of TMCMC is used only to compare models on the same data a
 
 \subsection{Fit and convergence}
 All stages of all conditions were accepted under criteria (a)--(e) \TBD{DS, DH; CS with three seeds}.
-At stage (iv) the composition is reproduced with a root-mean-square error of 0.076--0.078 in CH \TBD{CS, DS, DH} (Fig.~\TBD{2}).
+At stage (iv) the composition is reproduced with a root-mean-square error of 0.076--0.078 in CH and 0.172--0.179 in CS \TBD{DS, DH} (Fig.~\TBD{2}).
 Accepting a stage often required more than one attempt: posterior mass accumulated at a bound of the initial box in every condition and was released by widening that bound (Supplementary Table~S1), and the dysbiotic conditions needed up to \TBD{14000--18000} particles before the three seeds agreed (Supplementary Table~S2).
 Without the acceptance criteria, several of these runs would have been read as converged.
 
@@ -188,6 +188,8 @@ With the composition alone (stage (i)) $a_{45}$ is positive in all seeds (90\% i
 
 \subsection{Limitations}
 The likelihood treats the five species fractions as independent although they sum to one, so the posterior intervals may be somewhat too narrow.
+The fit is poorest in CS, and almost entirely in So and Vei (per-species errors 0.31 and 0.24, all others below 0.05): between day~1 and day~3 the So fraction rises from 0.18 to 0.70, a shift during initial attachment that the growth-and-interaction model, started from the day-1 composition, does not reproduce; started from the day-3 composition with the same parameters, the error on days 6--21 falls from 0.16 to 0.09.
+We keep day~1 as the initial condition in all conditions rather than change the protocol for one of them.
 The interaction coefficients are effective quantities of this model and data set; they lump mechanisms that the model does not resolve, such as metabolite exchange and pH, and are not direct measurements of pairwise mechanisms.
 \TBD{Outlook: the calibrated composition dynamics as input for the mechanical response of the biofilm (stiffness from composition).}
 
