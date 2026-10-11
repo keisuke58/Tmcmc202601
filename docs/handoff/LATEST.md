@@ -4,6 +4,7 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
+| 2026-10-11 | [2026-10-11l.md](2026-10-11l.md) | **DH p2 を 20000 粒子で回し直す（p14k は判定 4 だけ FAIL: a22・a35・a45、箱は変えない、walltime 48h、gate→ult `p20k_sd4`）** | **最新・未完了** |
 | 2026-10-11 | [2026-10-11k.md](2026-10-11k.md) | **今やること（優先順、11f〜11j のまとめ）: CH ic3 取り消し → 本線 DS ult・DH p2→ult → 待ち時間に粒子アップ（11j）・図（11i）・CS.json 確定を IKMHIWI03 に** | **最新・未完了** |
 | 2026-10-11 | [2026-10-11j.md](2026-10-11j.md) | **論文に使う run の粒子（samples・logL・theta_MAP・run_record・config）を `docs/revision/generated/final_runs/` に上げる（ult＋p1、DS・DH は仮の p2）** | **最新・未完了** |
 | 2026-10-11 | [2026-10-11i.md](2026-10-11i.md) | **図を今ある一番いい run で作る（CS・CH は ult 確定、DS・DH は p2 の仮）。出力は EML_submission/figures/provisional_2026-10-11/、BMB の図は上書きしない** | **最新・未完了** |
