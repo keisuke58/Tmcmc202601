@@ -1,0 +1,339 @@
+{
+  "pipeline": "estimate_paper_jax.py (ba1c285 \u7cfb\u30fb\u8ad6\u6587\u30d1\u30a4\u30d7\u30e9\u30a4\u30f3)",
+  "git_head": "68867953df55f06d4350268901d1f534109505bf",
+  "git_dirty_main_dir": true,
+  "modules": {
+    "forward": "/home/nishioka/Tmcmc202601/data_5species/main/hamilton_ode_jax_paper.py",
+    "engine": "/home/nishioka/Tmcmc202601/data_5species/main/tmcmc_engine_paper.py"
+  },
+  "argv": [
+    "estimate_paper_jax.py",
+    "--condition",
+    "Dysbiotic",
+    "--cultivation",
+    "Static",
+    "--K-hill",
+    "0.0",
+    "--n-hill",
+    "4.0",
+    "--use-exp-init",
+    "--use-de-mc",
+    "--mutation",
+    "rw",
+    "--seed",
+    "123",
+    "--device",
+    "gpu",
+    "--mutation-throttle-floor",
+    "1.0",
+    "--fix-psi",
+    "--n-particles",
+    "1000",
+    "--n-mutation-steps",
+    "80",
+    "--override-bounds",
+    "5:-15:20,6:-15:20,19:0:0",
+    "--output-dir",
+    "_runs/paper_gateoff/DS_pilot_a45zero_seed123"
+  ],
+  "args": {
+    "condition": "Dysbiotic",
+    "cultivation": "Static",
+    "n_particles": 1000,
+    "max_stages": 30,
+    "seed": 123,
+    "use_exp_init": true,
+    "start_from_day": 1,
+    "lambda_pg": 5.0,
+    "lambda_late": 3.0,
+    "lambda_rare": 0.1,
+    "sigma_scale": 1.0,
+    "replicate_sigma": false,
+    "K_hill": 0.0,
+    "n_hill": 4.0,
+    "dt": 0.0001,
+    "n_steps": 2500,
+    "output_dir": "_runs/paper_gateoff/DS_pilot_a45zero_seed123",
+    "mutation": "rw",
+    "quick": false,
+    "benchmark": false,
+    "device": "gpu",
+    "multichannel": false,
+    "lambda_ch1": 1.0,
+    "lambda_ch2": 0.5,
+    "lambda_ch3": 2.0,
+    "lambda_ch5": 0.3,
+    "n_mutation_steps": 80,
+    "mutation_throttle_floor": 1.0,
+    "use_de_mc": true,
+    "de_mc_gamma": 2.38,
+    "use_student_t": false,
+    "student_t_nu": 5.0,
+    "resample_method": "systematic",
+    "max_info_ratio": 10.0,
+    "use_flow": false,
+    "flow_n_layers": 6,
+    "flow_hidden_dim": 64,
+    "flow_n_epochs": 200,
+    "flow_lr": 0.001,
+    "flow_start_beta": 0.1,
+    "flow_mix_ratio": 0.8,
+    "waste_free": false,
+    "init_from_dir": null,
+    "posterior_prior_nsigma": null,
+    "override_bounds": "5:-15:20,6:-15:20,19:0:0",
+    "fix_psi": true,
+    "estimate_b": false,
+    "prior_scale": 0.0,
+    "box": null,
+    "skip_sensitivity_check": false
+  },
+  "theta_names": [
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45"
+  ],
+  "free_dims": [
+    0,
+    1,
+    2,
+    5,
+    6,
+    7,
+    10,
+    11,
+    12,
+    13,
+    14,
+    16,
+    17,
+    18
+  ],
+  "prior_bounds_final": [
+    [
+      -1.0,
+      2.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      1.5
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -15.0,
+      20.0
+    ],
+    [
+      -15.0,
+      20.0
+    ],
+    [
+      -1.0,
+      2.5
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -1.0,
+      1.5
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      3.0
+    ],
+    [
+      -0.5,
+      3.0
+    ],
+    [
+      -1.0,
+      4.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -0.5,
+      2.5
+    ],
+    [
+      -0.5,
+      2.5
+    ],
+    [
+      -3.0,
+      3.0
+    ],
+    [
+      0.0,
+      0.0
+    ]
+  ],
+  "phi_init": [
+    0.1508664627930683,
+    0.08460754332313965,
+    0.6294597349643222,
+    0.04943934760448522,
+    0.08562691131498472
+  ],
+  "sigma_obs": 0.10895061728395061,
+  "lambda_ch_effective": {},
+  "psi_fixed": [
+    0.85,
+    0.52,
+    0.57,
+    0.51,
+    0.47
+  ],
+  "n_stages": 9,
+  "beta_final": 1.0,
+  "total_time_s": 16872.48501253128,
+  "mean_accept": 0.12097777777777778,
+  "stage_history": {
+    "beta": [
+      0.02696828055292766,
+      0.058963377703678405,
+      0.09139033051756931,
+      0.14455127414258034,
+      0.24901659843849058,
+      0.4024646541875492,
+      0.6079897695202763,
+      0.9860837318273856,
+      1.0
+    ],
+    "accept_rate": [
+      0.1504375,
+      0.139625,
+      0.1188875,
+      0.1134875,
+      0.1148875,
+      0.1160875,
+      0.1104625,
+      0.1135625,
+      0.1113625
+    ],
+    "n_mut": [
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80
+    ],
+    "moves_per_particle": [
+      12.035,
+      11.17,
+      9.511,
+      9.079,
+      9.191,
+      9.287,
+      8.837,
+      9.085,
+      8.909
+    ],
+    "ess": [
+      500.0000000000042,
+      500.0000000000119,
+      500.00000000000847,
+      500.0000000000052,
+      500.0000000000016,
+      500.0000000000023,
+      500.00000000000125,
+      500.0000000000001,
+      999.2104750295632
+    ]
+  },
+  "moves_per_particle_mean": 9.678222222222225,
+  "max_logL": -1.5132208674569818,
+  "log_evidence": -18.986007301023783,
+  "logL_recheck_maxabs": 0.0,
+  "logL_consistent": true,
+  "condition": "Dysbiotic",
+  "cultivation": "Static",
+  "n_particles": 1000,
+  "n_mutation_steps": 80,
+  "mutation": "rw",
+  "device": "cuda:0",
+  "multichannel": false,
+  "use_de_mc": true,
+  "use_student_t": false,
+  "student_t_nu": 5.0,
+  "resample_method": "systematic",
+  "n_hill": 4.0,
+  "K_hill": 0.0,
+  "replicate_sigma": false,
+  "max_info_ratio": 10.0,
+  "lambda_rare": 0.1,
+  "lambda_ch": {
+    "1": 1.0,
+    "2": 0.5,
+    "3": 2.0,
+    "5": 0.3
+  },
+  "cv_weights_final": 0.02810958575066852,
+  "rmse": 0.02319761082679066,
+  "mae": 0.0197125640872149,
+  "r2_mean": 0.7386637702508677,
+  "r2_per_species": [
+    0.47766056625872444,
+    0.5846737108698725,
+    0.9363478880984533,
+    0.8922834121146751,
+    0.8023532739126135
+  ],
+  "multichannel_rmse": {
+    "ch1_species": {
+      "rmse": 0.02319761082679066,
+      "mae": 0.0197125640872149,
+      "r2": [
+        0.47766056625872444,
+        0.5846737108698725,
+        0.9363478880984533,
+        0.8922834121146751,
+        0.8023532739126135
+      ]
+    }
+  }
+}
