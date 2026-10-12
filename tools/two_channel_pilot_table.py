@@ -15,21 +15,24 @@ for f in sys.argv[1:]:
     d = json.load(open(f))
     a = d.get("args", {})
     rows.append((d["tag"], a.get("psi_data", 0.0), Path(f).stem, d))
-rows.sort(key=lambda r: (["CS", "CH", "DS", "DH"].index(r[0]), r[1]))
+rows.sort(key=lambda r: (["CS", "CH", "DS", "DH"].index(r[0]), r[3].get("args", {}).get("version", 1), r[1]))
 
-print("| 条件 | W(ψ^data) | 再スタート×反復 | 今の MAP: 生きた菌↔φ | 生きた割合 | → 最適: 生きた菌↔φψ | 全菌↔φ | 生きた割合 | ψ↔データ |")
-print("|---|---|---|---|---|---|---|---|---|")
+print("| 条件 | 版 | W(ψ^data) | 再スタート×反復 | −logL(2c) MAP→最適 | 今の MAP: 生きた菌↔φ | 生きた割合 | → 最適: 生きた菌↔φψ | 全菌↔φ | 生きた割合 | ψ↔データ | 箱の端 |")
+print("|---|---|---|---|---|---|---|---|---|---|---|---|")
 for tag, w, name, d in rows:
     m, o, a = d["map"], d["two_channel_opt"], d.get("args", {})
     it = f"{a.get('restarts', '?')}×{a.get('maxiter', '?')}"
-    print(f"| {tag} | {w:g} | {it} | {m['viable_vs_phi']:.3f} | {m['live']:.3f} | "
+    ver = f"v{a.get('version', 1)}"
+    nl = f"{m['neg_logL']:.1f}→{o['neg_logL']:.1f}" if "neg_logL" in o else "–"
+    edge = ",".join(str(i) for i in d.get("at_edge", [])) or "–"
+    print(f"| {tag} | {ver} | {w:g} | {it} | {nl} | {m['viable_vs_phi']:.3f} | {m['live']:.3f} | "
           f"**{o['viable_vs_phipsi']:.3f}** | {o['total_vs_phi']:.3f} | **{o['live']:.3f}** | "
-          f"{o.get('psi_vs_data', float('nan')):.3f} |")
+          f"{o.get('psi_vs_data', float('nan')):.3f} | {edge} |")
 
 print()
-print("| 条件 | W | ψ So/An/Vei/Fn/Pg（日の中央値） | データ ψ^data |")
-print("|---|---|---|---|")
+print("| 条件 | 版 | W | ψ So/An/Vei/Fn/Pg（日の中央値） | データ ψ^data |")
+print("|---|---|---|---|---|")
 for tag, w, name, d in rows:
     p = "/".join(f"{x:.2f}" for x in d["psi_opt_median_days"])
     q = "/".join(f"{x:.2f}" for x in d["psi_data_median_days"]) if "psi_data_median_days" in d else "–"
-    print(f"| {tag} | {w:g} | {p} | {q} |")
+    print(f"| {tag} | v{d.get('args', {}).get('version', 1)} | {w:g} | {p} | {q} |")
