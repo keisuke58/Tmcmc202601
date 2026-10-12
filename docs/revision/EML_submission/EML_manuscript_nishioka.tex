@@ -128,7 +128,7 @@ Removing a species is represented by holding its volume fraction at zero.
 %==============================================================================
 
 \paragraph{Likelihood.}
-The composition data are the species fractions of viable cells at days 3, 6, 10, 15 and 21 (day~1 is the initial condition), measured by quantitative real-time PCR after propidium monoazide (PMA) treatment~\citep{heine2025influence}; we use the medians of the replicate values provided by the authors (eight per time point).
+The composition data are the species fractions of viable cells at days 3, 6, 10, 15 and 21 (day~1 is the initial condition), measured by quantitative real-time PCR after propidium monoazide (PMA) treatment~\citep{heine2025influence}; the medians, quartiles and whisker ends of the replicates (nine per time point) were read off the published box plots (their Fig.~3A; total-count fractions without PMA from their Fig.~S1), as the replicate values themselves were not available.
 Model time is the time since inoculation, $t=s\,d$ with $s=0.2375/21$; the day-1 composition, the earliest measurement, serves as the initial state at $t=0$.
 In the flow reactor the inoculated medium is replaced by sterile 1:2-diluted medium after 24\,h~\citep{heine2025influence}, so the growth phase there can also be taken to start at day~1.
 Starting the model at day~1 ($t=s\,(d-1)$) changes the composition error of the maximum a posteriori estimate (MAP) by at most 0.008 in any condition without re-inference\TBD{prov.}.
@@ -137,7 +137,7 @@ In these data the viable and the total-count compositions differ little (root-me
 \ln p(\yobs\mid\btheta)=-\frac12\sum_{k}\sum_{i=1}^{5}w_{ik}\,\frac{\bigl(y_{\mathrm{obs},i}(t_k)-\hat y_i(t_k;\btheta)\bigr)^2}{\sigma_i^2}+\mathrm{const},
 \label{eq:lik}
 \end{equation}
-with $\sigma_i$ the replicate standard deviation (SD) of species $i$.
+with $\sigma_i$ the standard deviation (SD) of species $i$ estimated from the box-plot spread (eight values placed at the read-off whisker ends, quartiles and median, at least 0.05).
 The weights up-weight Pg ($\lambda_{\mathrm{Pg}}=5$), whose late increase is the main dynamic feature of the dysbiotic data, and the last two time points ($\lambda_{\mathrm{late}}=3$), and down-weight species with a mean fraction below 5\% ($\lambda_{\mathrm{rare}}=0.1$; Supplementary Table~\ref{S-tab:weights}); with $\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}}=1$ ($\lambda_{\mathrm{rare}}$ unchanged) the median of $a_{45}$ in DH is unchanged but its interval widens (Supplementary Section~\ref{S-sec:S_lambda}).
 In stages (iii) and (iv) a second Gaussian channel compares the predicted community live fraction $\sum_i\bar\phi_i/\sum_i\phi_i$ with the measured fraction of membrane-intact cells from SYTO9/propidium iodide (LIVE/DEAD BacLight) staining, which is image based and not resolved by species; it is weighted by $\lambda_\psi=1.5$ in the commensal conditions, 2.0 in DS and 3.0 in DH (Supplementary Table~\ref{S-tab:weights}).
 The measured pH under dynamic cultivation is not used in the inference and serves as a check (Section~\ref{sec:results}).
@@ -194,7 +194,7 @@ Without the acceptance criteria, several of these runs would have been read as c
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{figures/provisional_2026-10-11/paper_fig2_v2.pdf}
-\caption{Species fractions over 21 days in the four conditions (columns) for the five taxa (rows). Lines: MAP of stage (iv), species volume fraction $\phi_i$; bands: central 50\% and 80\% posterior predictive intervals pooled over three seeds; dots and boxes: median and interquartile range of the replicates~\citep{heine2025influence}. The RMSE of the MAP is given above each column. The \textit{Veillonella} species and the Pg strain differ between the commensal (CS, CH) and the dysbiotic (DS, DH) community (labels in the panels). \TBD{DS and DH from stage (iii) until stage (iv) is accepted.}}
+\caption{Species fractions over 21 days in the four conditions (columns) for the five taxa (rows). Lines: MAP of stage (iv), species volume fraction $\phi_i$; bands: central 50\% and 80\% posterior predictive intervals pooled over three seeds; dots and boxes: median and interquartile range read off the box plots of \citet{heine2025influence}. The RMSE of the MAP is given above each column. The \textit{Veillonella} species and the Pg strain differ between the commensal (CS, CH) and the dysbiotic (DS, DH) community (labels in the panels). \TBD{DS and DH from stage (iii) until stage (iv) is accepted.}}
 \label{fig:fit}
 \end{figure*}
 
