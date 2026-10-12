@@ -136,3 +136,16 @@ Funding・謝辞は BMB 版と同じ文言（DFG は Nils 指定の文言、ERC 
 | 5 | How much of a biofilm's interaction network do time-course data determine? Physics-constrained Bayesian inverse characterization | **おすすめ**（「一部しか決まらない」という結論に一番素直） |
 
 参考（方向が違う案）: B「GPU-accelerated Bayesian inverse characterization of a variational multiphase biofilm model: staged inference with explicit convergence and identifiability checks」（手法を前に）、C「Identifying species interactions in a living material by physics-constrained Bayesian inference」（短い）。
+
+### 12.1 サブタイトル（案 5 をメインにする場合、2026-10-12、未決定）
+
+メイン: How much of a biofilm's interaction network do time-course data determine?
+
+| # | サブタイトル | メモ |
+|---|---|---|
+| s1 | Physics-constrained Bayesian inverse characterization | 今の案。特集号の言葉そのまま |
+| s2 | Physics-constrained Bayesian inverse characterization of a five-species oral biofilm | **おすすめ**。対象まで書く（検索でも拾われやすい） |
+| s3 | GPU-accelerated Bayesian inference of a variational multiphase model | 手法とモデルを前に |
+| s4 | Staged Bayesian inference with explicit convergence and identifiability checks | 判定と同定性の方法論を前に |
+
+GPU・判定の話は要旨とハイライトで伝わるので、タイトルからは外してよい。
