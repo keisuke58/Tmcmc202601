@@ -42,4 +42,11 @@ stage 数が 14 に増えても、4090 であれば余裕がある。どちら�
 - 3406（p25k）の ult 3 本も同じ vancouver01 に並ぶので、p20k の ult が終わるまで待つ。
 - 01:45 の時点で FREE だったのは、vancouver02 の gpu1・gpu3、vancouver03 の gpu1、stuttgart01 の gpu2・gpu3、stuttgart02 の gpu0。
 
-案（未実施・ユーザー判断待ち）: gate 3399・3406 を同じ依存・同じ変数のまま、`NODE` だけ変えて差し替える（例: 3399 → vancouver02、3406 → vancouver03 か stuttgart）。差し替えるときは、前段（3395-3397、3403-3405）は消さない（前段を消すと gate が起動してしまうため）。
+**対応済み（ユーザー承認、02:00）**: `tools/gate_submit_ult.sh` の `NODE` で、seed ごとにノードを `;` 区切りで指定できるようにした（88c188e）。gate は起動時に git の最新版で実行し直すので、この変更は届く。そのうえで gate を差し替えた。前段のジョブは触っていない。
+
+| 旧 gate | 新 gate | 前段 | NODE（seed 42 / 7 / 123） | walltime |
+|---|---|---|---|---|
+| 3399（qdel 済み） | **3407** | 3395-3397（DH p2 w4 p20k） | vancouver01 / vancouver01 / vancouver03（どれも前段が空ける 4090） | 48 h |
+| 3406（qdel 済み） | **3408** | 3403-3405（DH p2 w4 p25k） | stuttgart03 ×3（前段が空ける 3090、見積もり 約 47 h） | 72 h |
+
+ほかの変数（TAG・RUNTAG・N_MUT 150・N_PART・OVERRIDE）は旧 gate と同じ。`qstat -f` で確認した。
