@@ -62,6 +62,9 @@ def build_loglik(rec):
         use_exp_init=a["use_exp_init"],
     )
     _, idx = EP.convert_days_to_model_time(t_days, a["dt"], a["n_steps"], day_scale=None)
+    if a.get("holdout_day") is not None:  # 予測の確認の run（2026-10-13）: estimator と同じく外す
+        keep = np.asarray(t_days) != a["holdout_day"]
+        data, t_days, idx = data[keep], np.asarray(t_days)[keep], np.asarray(idx)[keep]
     psi = rec.get("psi_fixed")
     return EP.make_log_likelihood_jax_ode(
         data=data,

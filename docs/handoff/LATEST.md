@@ -4,6 +4,7 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
+| 2026-10-13 | [2026-10-13f_box_holdout.md](2026-10-13f_box_holdout.md) | **質の確認 2 つ（2 通路の本線のあと）: 4. 箱を 1.5 倍に広げた p2（CH・CS、3 seed、`tools/widen_box.py`）、5. 1 日を外した予測の確認（CH、Day 10・15、`HOLDOUT_DAY`、`tools/holdout_eval.py`）** | **最新・未着手** |
 | 2026-10-13 | [2026-10-13e_criterion_d.md](2026-10-13e_criterion_d.md) | **判定 3（(d)）を磨いた max logL で判定（ユーザー決定、2 通路の結果を見る前）。判定 4 は 0.5 SD のまま、R̂ を並べる。polish に 2 通路と `--write-run`、check が polish.json を読む、gate は判定前に磨く（gpus=1 で投げる）** | **了解・待機**。2 通路の gate はまだ 1 本も投げていないので qdel 不要。p1 → p2 の判定から polish → check の順でやる。gate は `gpus=1` で投げる |
 | 2026-10-13 | [2026-10-13d_pilot_v2_fix.md](2026-10-13d_pilot_v2_fix.md) | **パイロット v2 の CS の λ_ch3 が 2.0 → estimator と同じ 1.5 に訂正。v2 の CS を回し始めていたら pull して回し直し。CH・DS・DH と 13b の GPU ジョブは影響なし** | **対応済み**。v2 はまだ始まっていなかった（v1 の掃引待ち）ので、訂正後の版で 4 条件を回す。回し直しは不要 |
 | 2026-10-13 | [2026-10-13c_reply_fit_improve.md](2026-10-13c_reply_fit_improve.md) | **相談への返事: ψ^data の項は尤度に入れない（同じデータの二重計上、確認用に使う）。パイロットは推定と同じ尤度（重み・σ）と実際の箱で。日ごとの σ は今回やらない。2 通路の GPU はそのまま** | **実施中**。`tools/two_channel_pilot_v2.py`（推定の 2 通路の尤度 × 13b の p2 の箱で −logL を最小化）を作成（60b0c46）。v1 の W=0/1 掃引が終わり次第 CPU で 4 条件を回し、表にして push |

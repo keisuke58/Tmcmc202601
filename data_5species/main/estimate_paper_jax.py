@@ -551,6 +551,12 @@ def main():
         "Goal: focus likelihood on A matrix estimation.",
     )
     parser.add_argument(
+        "--holdout-day",
+        type=int,
+        default=None,
+        help="この観測日を尤度から外す（予測の確認、tools/holdout_eval.py で評価）",
+    )
+    parser.add_argument(
         "--two-channel",
         action="store_true",
         help="2 通路の組成（2026-10-13）: 生きた菌の組成（PMA）を φψ/Σφψ、全菌の組成を φ/Σφ（ch2、"
@@ -679,6 +685,20 @@ def main():
             f"[ic-day] 初期値 Day {args.ic_day}: {np.round(phi_init, 4).tolist()}、"
             f"当てる日 {list(t_days)}、idx_sparse {idx_sparse.tolist()}"
         )
+
+    # --holdout-day: 指定日を尤度から外す（予測の確認、2026-10-13）。外した日は全通路から消える
+    # （多チャネルのデータは下で days_filter=t_days で読むので自動で外れる。ψ 固定の値も t_days で作る）。
+    # 注意: 終盤の重み（最後の n_late 点）は残った日の最後の 2 点に掛かる
+    if args.holdout_day is not None:
+        _k = np.where(np.asarray(t_days) == args.holdout_day)[0]
+        if len(_k) == 0:
+            raise ValueError(f"--holdout-day {args.holdout_day} が観測日 {list(t_days)} に無い")
+        _k = int(_k[0])
+        keep = np.arange(len(t_days)) != _k
+        data, t_days, idx_sparse = data[keep], np.asarray(t_days)[keep], np.asarray(idx_sparse)[keep]
+        if np.ndim(sigma_obs) == 2:
+            sigma_obs = sigma_obs[keep]
+        logger.info(f"[holdout] Day {args.holdout_day} を外した。当てる日 {list(t_days)}")
 
     # Multi-channel data loading
     mc_kwargs = {}
