@@ -279,6 +279,19 @@ An entry whose posterior standard deviation is at least 0.8 times that of a unif
 \small\input{\suppdir/supp_S4_ident}
 \end{table}
 
+\section{MAP and posterior bulk by seed}
+\label{sec:S_seedmap}
+Figure~\ref{fig:S_seedmap} overlays the MAP of each seed on the posterior predictive band pooled over the three seeds.
+In all conditions the three MAPs nearly coincide.
+In CS the MAP lies apart from the bulk of the posterior for So and Vei: the pointwise posterior median has a composition error of 0.125, the MAP of 0.179; in the other conditions the two differ by less than 0.02\TBD{prov.}.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/provisional_2026-10-11/seed_maps_4cond.pdf}
+\caption{Species fractions: MAP of each seed (coloured lines), pooled posterior 10--90\% band (grey) and its pointwise median (dashed), and data (dots). \TBD{DS, DH from stage (ii).}}
+\label{fig:S_seedmap}
+\end{figure}
+
 \section{Bayes factor for the \textit{Fn}--\textit{Pg} interaction}
 \label{sec:S_bayes}
 Stage~(i) was repeated with $a_{45}=0$ for all four conditions (three seeds each).
@@ -292,19 +305,20 @@ Table~\ref{tab:S_bayes} reports $\ln\hat Z$ of both models, $\ln B=\ln\hat Z_{\m
 \end{table}
 
 \paragraph{Dysbiotic Static.}
-In DS, $a_{45}$ and $a_{33}$ trade off. With $a_{45}=0$ the posterior moves almost entirely to the mode $a_{33}\approx-10$ (weight \TBD{0.83--0.87}), whereas the full model places most of its mass at $a_{33}\approx+1$ (weight of the mode $a_{33}<-5$: \TBD{0.09--0.12}).
-Table~\ref{tab:S_modes} gives $a_{45}$ separately for each mode.
+In DS, $a_{45}$ and $a_{33}$ trade off at stage (i). With $a_{45}=0$ the posterior moves almost entirely to the mode $a_{33}\approx-10$ (weight 0.83--0.87 across seeds), whereas the full model splits its mass between $a_{33}\approx+1$ and $a_{33}<-5$, with a weight of the latter that differs strongly between seeds (0.14--0.66); this stage-(i) group does not pass criterion (e) and is used here only for the Bayes factor.
+In the mode $a_{33}\ge-5$ the coefficient $a_{45}$ is larger than in the mode $a_{33}<-5$ (Table~\ref{tab:S_modes}).
+At the final stage the mode $a_{33}<-5$ is empty in all three seeds, and $a_{45}$ has median $+2.8$ with a 90\% interval reaching zero ($[-1.3,+15.1]$)\TBD{prov.}.
 
 \begin{table}[h]
 \centering
-\caption{DS: $a_{45}$ by $a_{33}$ mode (stage \TBD{iv}, three seeds).}
+\caption{DS, stage (i), full model: $a_{45}$ by $a_{33}$ mode (three seeds pooled, 3000 particles).}
 \label{tab:S_modes}
 \begin{tabular}{lccc}
 \toprule
 Mode & Particles & $a_{45}$ median [5\%, 95\%] & max log-likelihood\\
 \midrule
-$a_{33}\ge-5$ & \TBD{} & \TBD{+2.4 [+0.5, +4.4]} & \TBD{}\\
-$a_{33}<-5$   & \TBD{} & \TBD{+0.8 [$-$0.2, +1.4]} & \TBD{}\\
+$a_{33}\ge-5$ & 1761 & $+2.4$ [$+0.6$, $+4.7$] & $-0.91$\\
+$a_{33}<-5$   & 1239 & $+0.8$ [$-0.3$, $+1.6$] & $-1.49$\\
 \bottomrule
 \end{tabular}
 \end{table}
