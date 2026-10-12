@@ -30,6 +30,8 @@ The forward model is compiled in JAX and evaluated for all particles in parallel
 The data determine only part of the interaction matrix---four to nine of the 15 entries, depending on the condition---and we state explicitly which; where conditions overlap, the identified entries agree in sign or change sign in an interpretable way between cultivation modes.
 Used in silico, the calibrated model predicts that removing \textit{F.~nucleatum} abolishes the late increase of \textit{P.~gingivalis} in the dysbiotic community, a prediction open to direct experimental test, and in the dysbiotic flow condition it reproduces the measured pH, which was not used in the inference.
 
+The calibrated model is the first step towards the mechanics of biofilms on implants: we are coupling it to a finite-element model of biofilm growth derived from the same variational principle, in which the calibrated composition dynamics drive the growth and hence the stresses, so that differences between communities enter the mechanical response through inferred rather than assumed parameters.
+
 We believe the work fits the special issue because it combines a mechanistic, variationally derived continuum model with data-driven probabilistic inference for the inverse characterization of a soft biological material, and because it makes explicit which conclusions the data support---the kind of physics-based guidance that the call identifies as essential for data-driven methods in materials science.
 
 The manuscript has not been published and is not under consideration elsewhere.
