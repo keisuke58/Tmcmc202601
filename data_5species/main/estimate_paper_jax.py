@@ -336,7 +336,11 @@ def make_log_likelihood_jax_ode(
         # Ch2: total species distribution (φ without ψ weighting)
         if _has_total:
             residual_total = obs_total - (phi_tot_pred if two_channel else phi_pred)
-            logL_total = -0.5 * jnp.sum((residual_total / sig_total) ** 2)
+            if two_channel:
+                # 2 通路では全菌の組成にも ch1 と同じ重み（λ_Pg・終盤・珍しい種）を掛ける
+                logL_total = -0.5 * jnp.sum(weights * (residual_total / sig_total) ** 2)
+            else:
+                logL_total = -0.5 * jnp.sum((residual_total / sig_total) ** 2)
             logL = logL + lw2 * logL_total
 
         # Ch3: membrane integrity / viability

@@ -34,6 +34,7 @@
 #                 足りなければ最後のものを使う）。例 'vancouver01;vancouver01;vancouver03'
 #                 （2026-10-13: vancouver01 は 2 枚が他ユーザーの jupyterlab に確保されていて 3 本目が Q で止まる）
 #   WALLTIME      既定 12:00:00
+#   TWO_CHANNEL=1 2 通路の尤度（ult にも渡す。p2 も 2 通路で回したときだけ付ける）
 #   DRY_RUN=1     qsub せず、投げる内容を出すだけ
 # ============================================================
 set -uo pipefail
@@ -59,6 +60,7 @@ ULT_RUNTAG="${ULT_RUNTAG:?ULT_RUNTAG が必要}"
 N_MUT="${N_MUT:-150}"
 N_PART="${N_PART:-}"
 OVERRIDE="${OVERRIDE:-}"
+TWO_CHANNEL="${TWO_CHANNEL:-}"   # 2 通路（2026-10-13）。付けると ult にも TWO_CHANNEL=1 を渡す
 MODES="${MODES:-}"
 MODES="${MODES//;/,}"
 SEEDS="${SEEDS:-42 7 123}"
@@ -139,6 +141,7 @@ for S in $SEEDS; do
   VARS="STAGE=ult,TAG=${TAG},SEED=${S},N_MUT=${N_MUT},RUNTAG=${ULT_RUNTAG},PREV=${PREV}"
   [ -n "$N_PART" ] && VARS="${VARS},N_PART=${N_PART}"
   [ -n "$OVERRIDE" ] && VARS="${VARS},OVERRIDE=${OVERRIDE}"
+  [ -n "$TWO_CHANNEL" ] && VARS="${VARS},TWO_CHANNEL=1"
   if [ "$DRY_RUN" = "1" ]; then
     echo "DRY_RUN: qsub -l nodes=1:ppn=1:gpus=1:${N} -l walltime=${WALLTIME} -v ${VARS} paper_gateoff_job.sh"
     continue

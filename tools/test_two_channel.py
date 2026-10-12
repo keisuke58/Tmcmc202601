@@ -3,7 +3,7 @@
 
 1. two_channel=False のとき、今までの尤度と同じ値（既定の経路が変わっていない）。
 2. two_channel=True（Phase 2）の値が、simulate_0d_full から手で組んだ値と一致する:
-   ch1 = 生きた菌の組成 vs φψ/Σφψ（重み・σ は ch1 と同じ）、ch2 = 全菌 vs φ/Σφ、ch3 = 生きた割合。
+   ch1 = 生きた菌の組成 vs φψ/Σφψ（重み・σ は ch1 と同じ）、ch2 = 全菌 vs φ/Σφ（ch1 と同じ重み）、ch3 = 生きた割合。
 3. --fix-psi と一緒（Phase 1）: 種ごとの ψ が (n_obs, 5) で渡り、一様な ψ のときと値が変わる。
    一様な ψ を (n_obs, 5) に並べて渡すと、1 次元で渡したときと同じ値。
 """
@@ -65,7 +65,7 @@ w[-2:, :] *= 3.0
 rare = data.mean(0) < 0.05
 w[:, rare] *= 0.1
 ch1 = -0.5 * np.sum(w * ((data - nb) / sig) ** 2)
-ch2 = -0.5 * np.sum(((np.asarray(mc["data_total"]) - nt) / np.asarray(mc["sigma_obs_total"])) ** 2)
+ch2 = -0.5 * np.sum(w * ((np.asarray(mc["data_total"]) - nt) / np.asarray(mc["sigma_obs_total"])) ** 2)
 ch3 = -0.5 * np.sum(((np.asarray(mc["data_viability"]) - pb.sum(1) / phi.sum(1)) / mc["sigma_obs_viability"]) ** 2)
 manual = ch1 + ch2 + 1.5 * ch3
 check(abs(ll_new - manual) < 1e-6 * max(1, abs(manual)), f"2 通路 Phase 2: {ll_new:.4f} = 手で組んだ値 {manual:.4f}")
