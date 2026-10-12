@@ -188,3 +188,8 @@ GPU・判定の話は要旨とハイライトで伝わるので、タイトル�
 - 了解 → `docs/revision/zenodo/MANIFEST.txt` の §2 と `ph_check_bands.npz` を戻し、README §6・.zenodo.json の「not included」を直して再ビルド。原稿の Data availability も「archived at Zenodo, including the experimental data of Heine et al.」に。
 - 不可 → 中央値・標準偏差だけの要約表を作って入れる（案 A）か、今のまま（案 B）。
 - 根拠: Heine et al. 2025（Front. Oral Health, CC BY）の Data Availability は "will be made available by the authors, without undue reservation"。公開保存はされていない。手元の CSV はレプリケート単位で論文の図を超える。
+
+## 16. 共著者メールは延期（2026-10-12 ユーザー判断）
+- 10/13 8:00 の予約送信は**取り消す**（本人が Gmail の「予約済み」から）。下書き r-76615614630915311 は残す。
+- **今週中（〜10/18）に MHH を含む共著者へ送る。** それまでに入れたいもの: DS・DH の最終段（または段 (iii) で確定の書き方）、回収テスト（12j、seed 42 だけでも）、TBD の整理。
+- 送る直前に、最新の PDF 4 本（原稿・補足・カバーレター・共著者への回答）を作り直して添付する。本文は「DS・DH は暫定」の書き方を結果に合わせて直す。
