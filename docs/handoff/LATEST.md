@@ -4,7 +4,7 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
-| 2026-10-13 | [2026-10-13b_two_channel_go.md](2026-10-13b_two_channel_go.md) | **古い尤度のジョブを全部止める（DS 予備 ult・DH 本線と予備・回収テスト）。2 通路（TWO_CHANNEL=1、RUNTAG 2c）で 4 条件を pilot からやり直す。粒子数・箱は今通った設定から。gate にも TWO_CHANNEL=1** | **最新・未完了** |
+| 2026-10-13 | [2026-10-13b_two_channel_go.md](2026-10-13b_two_channel_go.md) | **古い尤度のジョブを全部止める（DS 予備 ult・DH 本線と予備・回収テスト）。2 通路（TWO_CHANNEL=1、RUNTAG 2c）で 4 条件を pilot からやり直す。粒子数・箱は今通った設定から。gate にも TWO_CHANNEL=1** | **最新・未完了**。止めた 16 本の qdel と、pilot 12 本（3421-3443 の奇数）・p1 12 本（偶数、afterok）の投入まで済み（[gpu_2026-10-13_2c_submit.md](gpu_2026-10-13_2c_submit.md)） |
 | 2026-10-13 | [2026-10-13a_two_channel.md](2026-10-13a_two_channel.md) | **2 通路の組成の尤度（生きた菌 ↔ φψ、全菌 ↔ φ）を `--two-channel` / `TWO_CHANNEL=1` で用意した。既定は今までと同じ。まだ投入しない（パイロットの結果を見てユーザーが決める）** | 13b で投入に変更 |
 | 2026-10-12 | [2026-10-12j.md](2026-10-12j.md) | **回収テスト（12h）を今すぐ投入（ユーザー指示）。DS p18k が終わって空いた枠に CH・CS の seed 42 を先に、残り 4 本と無ノイズ版を続けて。本線・予備は止めない。投入表を push、seed 42 が終わったら評価して recovery_runs/ に** | **最新・未完了**。6 本すべて投入（3409-3412・3419・3420、[gpu_2026-10-13_recovery_submit.md](gpu_2026-10-13_recovery_submit.md)）。無ノイズ版は seed 42 の結果を見てから |
 | 2026-10-12 | [2026-10-12h_recovery_test.md](2026-10-12h_recovery_test.md) | **合成データでの回収テスト（共著者レビュー B2）: CH・CS の最終 MAP を真値に合成データ → 同じ尤度・箱で 3 seed（`tools/recovery_job.sh`、20h）。本線と予備の後ろ、空いた GPU で。DS・DH は ult が通ってから** | **最新・未完了** |
