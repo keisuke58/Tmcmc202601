@@ -30,7 +30,9 @@
 #   MODES         判定 4 で山ごとに見る多峰の成分と谷（check_paper_runs.py --modes に渡す。
 #                 例 'a34:-1.5;a35:-10'。qsub -v はカンマで変数を区切るので区切りは ";"。空なら従来どおり）
 #   SEEDS         既定 "42 7 123"
-#   NODE          投入先ホスト（既定 stuttgart02）
+#   NODE          投入先ホスト（既定 stuttgart02）。";" 区切りで seed ごとに指定できる（SEEDS の順、
+#                 足りなければ最後のものを使う）。例 'vancouver01;vancouver01;vancouver03'
+#                 （2026-10-13: vancouver01 は 2 枚が他ユーザーの jupyterlab に確保されていて 3 本目が Q で止まる）
 #   WALLTIME      既定 12:00:00
 #   DRY_RUN=1     qsub せず、投げる内容を出すだけ
 # ============================================================
@@ -127,17 +129,22 @@ fi
 
 # 3. PASS → ult を投入
 SUBMITTED=""
+IFS=';' read -r -a NODE_LIST <<< "$NODE"
+NODE_USED=""
+i=0
 for S in $SEEDS; do
+  N="${NODE_LIST[$i]:-${NODE_LIST[-1]}}"; i=$((i+1))
+  NODE_USED="${NODE_USED} ${N}"
   PREV="_runs/paper_gateoff/${TAG}_p2_${PREV_RUNTAG}_seed${S}"
   VARS="STAGE=ult,TAG=${TAG},SEED=${S},N_MUT=${N_MUT},RUNTAG=${ULT_RUNTAG},PREV=${PREV}"
   [ -n "$N_PART" ] && VARS="${VARS},N_PART=${N_PART}"
   [ -n "$OVERRIDE" ] && VARS="${VARS},OVERRIDE=${OVERRIDE}"
   if [ "$DRY_RUN" = "1" ]; then
-    echo "DRY_RUN: qsub -l nodes=1:ppn=1:gpus=1:${NODE} -l walltime=${WALLTIME} -v ${VARS} paper_gateoff_job.sh"
+    echo "DRY_RUN: qsub -l nodes=1:ppn=1:gpus=1:${N} -l walltime=${WALLTIME} -v ${VARS} paper_gateoff_job.sh"
     continue
   fi
-  JID="$(cd "$MAIN" && qsub -l "nodes=1:ppn=1:gpus=1:${NODE}" -l "walltime=${WALLTIME}" -v "$VARS" paper_gateoff_job.sh)"
-  echo "    投入: $JID  seed=$S"
+  JID="$(cd "$MAIN" && qsub -l "nodes=1:ppn=1:gpus=1:${N}" -l "walltime=${WALLTIME}" -v "$VARS" paper_gateoff_job.sh)"
+  echo "    投入: $JID  seed=$S  node=$N"
   SUBMITTED="${SUBMITTED} ${JID}"
 done
 [ "$DRY_RUN" = "1" ] && exit 0
@@ -157,7 +164,7 @@ NOTIFY="$(qsub -W "depend=${DEP}" -v "RUN_GLOB=${TAG}_ult_${ULT_RUNTAG}_seed*,LA
   echo
   echo "| jobid | seed | ノード | walltime |"
   echo "|---|---|---|---|"
-  i=0; for S in $SEEDS; do i=$((i+1)); echo "| $(echo $SUBMITTED | cut -d' ' -f$i) | $S | $NODE | $WALLTIME |"; done
+  i=0; for S in $SEEDS; do i=$((i+1)); echo "| $(echo $SUBMITTED | cut -d' ' -f$i) | $S | $(echo $NODE_USED | cut -d' ' -f$i) | $WALLTIME |"; done
   echo
   echo "\`STAGE=ult TAG=${TAG} N_MUT=${N_MUT} RUNTAG=${ULT_RUNTAG} OVERRIDE='${OVERRIDE}' PREV=${TAG}_p2_${PREV_RUNTAG}_seed\$S\`"
   echo "（\`ULT_NSIGMA\` は既定 4、\`N_PART\` は ${N_PART:-既定 5000}）"
