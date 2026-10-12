@@ -160,7 +160,7 @@ NOTIFY="$(qsub -W "depend=${DEP}" -v "RUN_GLOB=${TAG}_ult_${ULT_RUNTAG}_seed*,LA
   i=0; for S in $SEEDS; do i=$((i+1)); echo "| $(echo $SUBMITTED | cut -d' ' -f$i) | $S | $NODE | $WALLTIME |"; done
   echo
   echo "\`STAGE=ult TAG=${TAG} N_MUT=${N_MUT} RUNTAG=${ULT_RUNTAG} OVERRIDE='${OVERRIDE}' PREV=${TAG}_p2_${PREV_RUNTAG}_seed\$S\`"
-  echo "（`ULT_NSIGMA` は既定 4、`N_PART` は ${N_PART:-既定 5000}）"
+  echo "（\`ULT_NSIGMA\` は既定 4、\`N_PART\` は ${N_PART:-既定 5000}）"
   echo
   echo "判定の全文:"
   echo
