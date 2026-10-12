@@ -13,7 +13,7 @@
 | 2026-10-12 | [2026-10-12d.md](2026-10-12d.md) | **gate が ult に粒子数を渡していなかった（5000 になる）→ `N_PART` を追加。DH の gate 3398 を qdel して N_PART=20000 で仕掛け直す** | **最新・未完了** |
 | 2026-10-12 | [2026-10-12c.md](2026-10-12c.md) | **DH p20k は判定 4 FAIL＋端の印 3 つ（a22・a13・a35）→ 下限を a22 −10・a13 −8・a35 −25 に広げて 20000 粒子で p2（`nonarrow_w4_noph_p20k`、ユーザー承認）** | **最新・未完了** |
 | 2026-10-12 | [2026-10-12b.md](2026-10-12b.md) | **DS ult の診断: 磨くと 3 seed の max logL の幅 0.13 → 探索不足。p18k（3384-3386）をそのまま待つ。通れば DS.json・final_runs・図を差し替え** | **最新・未完了** |
-| 2026-10-12 | [2026-10-12a.md](2026-10-12a.md) | **DS ult（5000 粒子）は判定 3・4 FAIL → 診断（polish・mode_split）と 18000 粒子の ult 回し直しを同時に。DH 仮 ult が walltime で切れたら 18h で投げ直し** | **最新・未完了** |
+| 2026-10-12 | [2026-10-12a.md](2026-10-12a.md) | **DS ult（5000 粒子）は判定 3・4 FAIL → 診断（polish・mode_split）と 18000 粒子の ult 回し直しを同時に。DH 仮 ult が walltime で切れたら 18h で投げ直し** | **最新・未完了**。DH 仮 ult は 18h の分が切れても投げ直さない（ユーザー判断、[gpu_2026-10-13_prov_walltime.md](gpu_2026-10-13_prov_walltime.md)。gate の ult walltime は足りる見込み、ただし投入先 vancouver01 は空きが 2 枚） |
 | 2026-10-11 | [2026-10-11l.md](2026-10-11l.md) | **DH p2 を 20000 粒子で回し直す（walltime 48h、gate→ult `p20k_sd4`）。並行して p14k から ult を仮で（`p14k_sd4_prov`、ユーザー判断）** | **最新・未完了** |
 | 2026-10-11 | [2026-10-11k.md](2026-10-11k.md) | **今やること（優先順、11f〜11j のまとめ）: CH ic3 取り消し → 本線 DS ult・DH p2→ult → 待ち時間に粒子アップ（11j）・図（11i）・CS.json 確定を IKMHIWI03 に** | **最新・未完了** |
 | 2026-10-11 | [2026-10-11j.md](2026-10-11j.md) | **論文に使う run の粒子（samples・logL・theta_MAP・run_record・config）を `docs/revision/generated/final_runs/` に上げる（ult＋p1、DS・DH は仮の p2）** | **最新・未完了** |
