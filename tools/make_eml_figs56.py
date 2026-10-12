@@ -30,7 +30,11 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--root", default=str(ROOT / "docs/revision/generated/final_runs"))
 ap.add_argument("--spec", default=str(PROV / "supp/spec_provisional.json"))
 ap.add_argument("--fig-dir", default=str(PROV))
+ap.add_argument("--style", choices=["v1", "v2", "both"], default="both",
+                help="v1: 旧デザイン（fig5_identifiability・fig4_posteriors・fig6_checks）、"
+                     "v2: 新デザイン（fig3_ident_matrix・fig4_posteriors_v2・fig6_checks_v2、tools/eml_figs_v2.py）")
 args = ap.parse_args()
+V1, V2 = args.style in ("v1", "both"), args.style in ("v2", "both")
 
 try:
     plt.rcParams.update({"text.usetex": True, "font.family": "serif",
@@ -94,8 +98,10 @@ sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
 cb = fig.colorbar(sm, ax=ax, fraction=0.05, pad=0.03)
 cb.set_label("posterior median of $a_{ij}$ (identified entries)")
 fig.tight_layout()
-fig.savefig(os.path.join(args.fig_dir, "fig5_identifiability.pdf"))
-fig.savefig(os.path.join(args.fig_dir, "fig5_identifiability.png"), dpi=150)
+if V1:
+    fig.savefig(os.path.join(args.fig_dir, "fig5_identifiability.pdf"))
+    fig.savefig(os.path.join(args.fig_dir, "fig5_identifiability.png"), dpi=150)
+plt.close(fig)
 print("図 5: 同定 " + ", ".join(f"{t} {int((cls[:, c] == 2).sum())}" for c, t in enumerate(CONDS))
       + " / 符号のみ " + ", ".join(f"{t} {int((cls[:, c] == 1).sum())}" for c, t in enumerate(CONDS)))
 
@@ -133,8 +139,10 @@ for p, tag in enumerate(["CH", "DH"]):
     if p == 0:
         ax.set_ylabel("pH")
         ax.legend(fontsize=6.5, loc="upper left", frameon=False)
-fig.savefig(os.path.join(args.fig_dir, "fig6_checks.pdf"), bbox_inches="tight")
-fig.savefig(os.path.join(args.fig_dir, "fig6_checks.png"), dpi=150, bbox_inches="tight")
+if V1:
+    fig.savefig(os.path.join(args.fig_dir, "fig6_checks.pdf"), bbox_inches="tight")
+    fig.savefig(os.path.join(args.fig_dir, "fig6_checks.png"), dpi=150, bbox_inches="tight")
+plt.close(fig)
 print("図 6: 書き出し済み")
 
 # ---------------------------------------------------------------- 図 4（区間の図、バイオリン図の置き換え、2026-10-12）
@@ -154,6 +162,8 @@ def _override(base, spec_str):
 
 
 fig, axes = plt.subplots(1, 4, figsize=(7.2, 4.0), sharey=True)
+Q4 = np.full((len(ORDER), 4, 5), np.nan)  # v2 用: 段 (iii) の箱の中での位置
+U0 = np.full((len(ORDER), 4), np.nan)  # a_ij = 0 の位置（箱の中にあるときだけ）
 for c, tag in enumerate(CONDS):
     ax = axes[c]
     dirs = sorted(glob.glob(os.path.join(args.root, spec[tag]["ult"])))
@@ -170,6 +180,9 @@ for c, tag in enumerate(CONDS):
         lo, hi = b3[i]
         u = lambda x: (x - lo) / (hi - lo)
         q = u(np.percentile(S[:, i], [5, 25, 50, 75, 95]))
+        Q4[r, c] = q
+        if lo < 0 < hi:
+            U0[r, c] = u(0)
         alpha = 1.0 if cls[r, c] == 2 else (0.65 if cls[r, c] == 1 else 0.3)
         col = COND_COL[tag]
         ax.add_patch(plt.Rectangle((0, r - 0.32), 1, 0.64, color="0.93", lw=0, zorder=0))
@@ -190,6 +203,23 @@ axes[0].set_yticklabels([f"{SP[n[1]]}--{SP[n[2]]}" if n[1] != n[2] else f"{SP[n[
 axes[0].set_ylim(len(ORDER) - 0.5, -0.5)
 axes[0].tick_params(axis="y", length=0)
 fig.tight_layout(w_pad=0.8)
-fig.savefig(os.path.join(args.fig_dir, "fig4_posteriors.pdf"))
-fig.savefig(os.path.join(args.fig_dir, "fig4_posteriors.png"), dpi=150)
-print("図 4: 書き出し済み")
+if V1:
+    fig.savefig(os.path.join(args.fig_dir, "fig4_posteriors.pdf"))
+    fig.savefig(os.path.join(args.fig_dir, "fig4_posteriors.png"), dpi=150)
+    print("図 4: 書き出し済み")
+plt.close(fig)
+
+# ---------------------------------------------------------------- v2（2026-10-12、tools/eml_figs_v2.py）
+# 分類（cls）・中央値（M）・区間（Q4）は上と同じものを使う。出力は新しいファイル名。
+if V2:
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import eml_style  # noqa: E402
+    import eml_figs_v2 as V2F  # noqa: E402
+
+    eml_style.apply()
+    vmax = V2F.fig3_matrix(M, cls, ORDER, CONDS, os.path.join(args.fig_dir, "fig3_ident_matrix"))
+    print(f"図 3 (v2): fig3_ident_matrix、色の範囲 ±{vmax:g}")
+    V2F.fig4_v2(Q4, U0, cls, M, ORDER, CONDS, SP, os.path.join(args.fig_dir, "fig4_posteriors_v2"))
+    V2F.fig6_v2(ko, B, os.path.join(args.fig_dir, "fig6_checks_v2"))

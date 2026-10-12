@@ -1,6 +1,6 @@
 {
- "CS": {"pilot": "CS_pilot_mut80_seed*", "p1": "CS_p1_mut120_seed*", "ult": "CS_ult_wide2_sd4_seed*", "a45zero": "CS_pilot_a45zero_m120_seed*"},
- "CH": {"pilot": "CH_pilot_mut80_seed*", "p1": "CH_p1_mut150_seed*", "ult": "CH_ult_mut150_wide2_noph_sd4_seed*", "a45zero": "CH_pilot_a45zero_m120_seed*"},
+ "CS": {"pilot": "CS_pilot_mut80_seed*", "p1": "CS_p1_mut120_seed*", "p2": "CS_p2_mut160_wide2_seed*", "ult": "CS_ult_wide2_sd4_seed*", "a45zero": "CS_pilot_a45zero_m120_seed*"},
+ "CH": {"pilot": "CH_pilot_mut80_seed*", "p1": "CH_p1_mut150_seed*", "p2": "CH_p2_mut150_wide2_noph_seed*", "ult": "CH_ult_mut150_wide2_noph_sd4_seed*", "a45zero": "CH_pilot_a45zero_m120_seed*"},
  "DS": {"pilot": "DS_pilot_wide80_seed*", "p1": "DS_p1_wide80_p3k_seed*", "ult": "DS_p2_wide80_p18k_wide2_seed*", "a45zero": "DS_pilot_a45zero_seed*"},
  "DH": {"pilot": "DH_pilot_mut80_seed*", "p1": "DH_p1_mut80_seed*", "ult": "DH_p2_nonarrow_w3_noph_p14k_seed*", "a45zero": "DH_pilot_a45zero_seed*"}
 }

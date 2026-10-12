@@ -28,7 +28,7 @@
 \date{}
 
 \input{../generated/numbers}
-% table location: provisional (DS, DH from stage (ii)); switch back to ../generated after the final runs
+% table location: provisional (DS, DH from stage (iii)); switch back to ../generated after the final runs
 \newcommand{\suppdir}{figures/provisional_2026-10-11/supp}
 \begin{document}
 \maketitle
@@ -38,7 +38,7 @@
 
 \subsection*{State variables and kinematics}
 
-Following \citet{Klempt2025ContinuumBiofilm, Klempt2024ContinuumGrowth}, the biofilm is described at a material point by two sets of internal variables: the volume fraction $\phi_i \in [0,1]$ occupied by species~$i$ ($i=1,\dots,n$; here $n=5$), and the viability fraction $\psi_i \in [0,1]$ representing the proportion of living cells within species~$i$.
+Following \citet{Klempt2025ContinuumBiofilm, Klempt2024ContinuumGrowth}, the biofilm is described at a material point by two sets of internal variables: the volume fraction $\phi_i \in (0,1)$ occupied by species~$i$ ($i=1,\dots,n$; here $n=5$), and the viability fraction $\psi_i \in (0,1)$ representing the proportion of living cells within species~$i$.
 The living volume fraction is then
 \begin{equation}
 \bar{\phi}_i := \phi_i\,\psi_i,
@@ -54,7 +54,7 @@ An additional void fraction~$\phi_0$ closes the system via the holonomic constra
 
 
 \subsection*{Variational formulation}
-The evolution equations are derived from the principle of the minimum of the dissipation potential \citep{junker2014principle, hackl1997generalized}, the local form of the extended Hamilton principle \citep{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic}:
+The evolution equations result from the stationarity of the rate functional \citep{junker2014principle, hackl1997generalized}, the local form of the extended Hamilton principle \citep{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic}:
 \begin{equation}
     \dot{\Psi} + \Delta + C \rightarrow \mathrm{stat}_{(\dot{\boldsymbol{\xi}}, \, \gamma)},
     \label{eq:variational_local}
@@ -119,24 +119,25 @@ Evaluating the stationarity conditions yields the coupled evolution equations~\c
 In the numerical implementation, a logarithmic barrier penalty $\Psi_{\mathrm{bar}}$ with $K_p=\eta_i\times10^{-4}$ is added to enforce the box constraints $\phi_i,\psi_i\in(0,1)$~\citep{Klempt2025ContinuumBiofilm}; its contribution is omitted from Eqs.~\eqref{eq:phi}--\eqref{eq:phi0} for clarity.
 The system~\eqref{eq:phi}--\eqref{eq:constraint_eq} constitutes $2n+2$ coupled non-linear equations for the unknowns $(\phi_1,\dots,\phi_n,\phi_0,\psi_1,\dots,\psi_n,\gamma)$, solved at each time step via Newton's method with an implicit Euler discretisation ($\Delta t = 10^{-4}$, $N_{\mathrm{step}}=2{,}500$ steps, $t_{\max}=0.25$; day~$d$ is mapped to $t=0.2375\,d/21$, so day~21 lies at 95\% of the integration window).
 
-Only the symmetric part of $\mathbf{A}$ enters the quadratic free energy, so $\mathbf{A}$ is taken symmetric, $a_{ij}=a_{ji}$; the variational derivation ensures thermodynamic consistency~\citep{JunkerBalzani2021ExtendedHamilton}.
+Only the symmetric part of $\mathbf{A}$ enters the quadratic free energy, so $\mathbf{A}$ is taken symmetric, $a_{ij}=a_{ji}$, and the interactions derive from this potential; the variational derivation ensures thermodynamic consistency~\citep{JunkerBalzani2021ExtendedHamilton}.
 Since $c^*$ enters the evolution equations only through the product $c^*a_{ij}$, its absolute value is non-identifiable; we fix $c^*=25$ so that the inferred $a_{ij}$ remain $\mathcal{O}(1)$.
 The Heine et al.\ experiments do not involve antibiotic agents, so we set $\alpha^*=0$, which eliminates the decay term $\alpha^*b_i\psi_i$ from Eq.~\eqref{eq:psi_evol}; the antibiotic sensitivity matrix~$\mathbf{B}$ is therefore inactive and excluded from estimation.
-The symmetric interaction matrix~$\mathbf{A}$ has 15 independent entries (the main text); these form the 15-dimensional parameter vector~$\btheta$.
+The symmetric interaction matrix~$\mathbf{A}$ has 15 independent entries, with species numbered 1~So, 2~An, 3~Vei, 4~Fn, 5~Pg; these form the 15-dimensional parameter vector~$\btheta$.
 
 \section{Reported interactions among the five taxa}
 \label{sec:S_network}
 Figure~\ref{fig:network} and Table~\ref{tab:active} summarise interactions reported in the literature; they are used only to interpret the inferred coefficients, never as constraints.
 \begin{figure}[htbp]
 \centering
-\begin{minipage}[t]{0.32\textwidth}
+\begin{minipage}[t]{0.30\textwidth}
 \vspace{0pt}
 \centering
 \begin{tikzpicture}[scale=0.82, every node/.style={transform shape},
     species/.style={circle, draw, minimum size=0.9cm, font=\footnotesize\bfseries},
     edge/.style={<->, thick, >=Stealth},
     uniedge/.style={->, thick, blue!70!black, >=Stealth},
-    weakedge/.style={-, thin, gray!60, densely dotted}
+    weakedge/.style={-, thin, gray!60, densely dotted},
+    hypedge/.style={->, thick, blue!70!black, dashed, >=Stealth}
 ]
     \node[species, fill=blue!15] (so) at (0, 2.2) {So};
     \node[species, fill=green!15] (an) at (-1.9, 0.6) {An};
@@ -146,9 +147,9 @@ Figure~\ref{fig:network} and Table~\ref{tab:active} summarise interactions repor
     \draw[blue!70!black, thick] (so) -- (an) node[midway, left, font=\tiny] {co-agg};
     \draw[uniedge] (so) -- (vei) node[midway, right, font=\tiny] {lactate};
     \draw[blue!70!black, thick] (so) -- (fn) node[midway, right, font=\tiny] {co-agg};
-    \draw[uniedge] (vei) -- (pg) node[midway, left, font=\tiny] {pH};
-    \draw[edge, blue!70!black] (fn) -- (pg) node[midway, right, font=\tiny] {peptides};
-    \draw[weakedge] (an) -- (vei);
+    \draw[hypedge] (vei) -- (pg) node[midway, left, font=\tiny] {pH?};
+    \draw[blue!70!black, thick] (fn) -- (pg) node[midway, right, font=\tiny] {co-agg};
+    \draw[blue!70!black, thick] (an) -- (vei) node[midway, below, font=\tiny] {co-agg};
     \draw[weakedge] (an) -- (fn);
     \draw[weakedge] (vei) -- (fn);
     \draw[weakedge] (so) to[bend left=20] (pg);
@@ -156,24 +157,25 @@ Figure~\ref{fig:network} and Table~\ref{tab:active} summarise interactions repor
 \end{tikzpicture}
 \end{minipage}%
 \hfill
-\begin{minipage}[t]{0.65\textwidth}
+\begin{minipage}[t]{0.68\textwidth}
 \vspace{0pt}
-\small
-\begin{tabular}{@{}lll@{}}
+\footnotesize
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{0.56\linewidth}>{\raggedright\arraybackslash}p{0.2\linewidth}@{}}
 \toprule
 \textbf{Pair} & \textbf{Mechanism} & \textbf{Reported flow}\\
 \midrule
 So--An & Co-aggregation & --\\
 So--Vei & Lactate exchange & So to Vei\\
+An--Vei & Co-aggregation; Vei uses lactate of So and An & --\\
 So--Fn & Co-aggregation (Fn as bridging organism) & --\\
-Vei--Pg & pH elevation & Vei to Pg\\
-Fn--Pg & Peptide supply & mutual\\
+Fn--Pg & Co-aggregation (Fn bridges to Pg) & --\\
+Vei--Pg & pH rise from \textit{Veillonella} lactate metabolism (hypothesised in \citealp{heine2025influence}; \textit{Veillonella}-conditioned medium did not change Pg growth) & Vei to Pg (hypothesised)\\
 \bottomrule
 \end{tabular}
 \captionof{table}{Previously reported or biologically supported interactions~\citep{Kolenbrander2010OralMultispecies, heine2025influence} used to interpret the inferred coefficients. The model coefficients $a_{ij}$ are symmetric; the last column refers to the reported metabolite flow (--: physical co-aggregation, no metabolite flow), not to the model. All 15 parameters are estimated; none is fixed a priori.}
 \label{tab:active}
 \end{minipage}
-\caption{Interactions considered in interpreting the inferred coefficients, compiled from the literature~\citep{Kolenbrander2010OralMultispecies, heine2025influence}. Solid: previously reported or biologically supported interaction (labels: reported mechanism; arrows: reported metabolite flow; lines without arrows: co-aggregation; neither is a property of the model, whose matrix $\mathbf{A}$ is symmetric). Dotted grey: no interaction considered in the interpretation; this does not mean that none exists. The network is not used in the inference: all 15 entries of $\mathbf{A}$ are estimated with the same uniform prior box.}
+\caption{Interactions considered in interpreting the inferred coefficients, compiled from the literature~\citep{Kolenbrander2010OralMultispecies, heine2025influence}. Solid: previously reported or biologically supported interaction (labels: reported mechanism; arrows: reported metabolite flow; lines without arrows: co-aggregation; neither is a property of the model, whose matrix $\mathbf{A}$ is symmetric). Dashed: hypothesised, not supported by the conditioned-medium experiment of \citet{heine2025influence}. Dotted grey: no interaction considered in the interpretation; this does not mean that none exists. The network is not used in the inference: all 15 entries of $\mathbf{A}$ are estimated with the same uniform prior box.}
 \label{fig:network}
 \end{figure}
 
@@ -185,9 +187,9 @@ Weight & Value & Applies to\\\midrule
 $\lambda_{\mathrm{Pg}}$ & 5 & Pg, all time points\\
 $\lambda_{\mathrm{late}}$ & 3 & Days 15 and 21, all species\\
 $\lambda_{\mathrm{rare}}$ & 0.1 & species with mean fraction $<5\%$\\
-$\lambda_{\psi}$ & 3.0 (DH), 2.0 (DS), 1.5 (CS, CH) & viability channel, Phase~2\\\bottomrule
+$\lambda_{\psi}$ & 3.0 (DH), 2.0 (DS), 1.5 (CS, CH) & viability channel, stages (iii)--(iv)\\\bottomrule
 \end{tabular}
-\caption{Likelihood weights.}
+\caption{Likelihood weights. The composition data are viable-cell (PMA-qRT-PCR) species fractions; the viability channel is the community live fraction from SYTO9/propidium iodide staining.}
 \label{tab:weights}
 \end{table}
 
@@ -204,18 +206,19 @@ $\lambda_{\psi}$ & 3.0 (DH), 2.0 (DS), 1.5 (CS, CH) & viability channel, Phase~2
     \STATE Compute weights $w_j \leftarrow p(\yobs\mid\btheta_j)^{\beta_{m+1}-\beta_m}$
     \STATE Resample $N_p$ particles $\propto w_j$ (systematic)
     \STATE Estimate weighted covariance $\hat{\boldsymbol{\Sigma}}^{(m)}$ (weighted particle covariance)
-    \FOR{$k = 1$ \TO $K$}
+    \FOR{$k = 1$ \TO $n_{\mathrm{mut}}$}
         \STATE Propose $\btheta_{j}'$ for all $j$ (random-walk or differential-evolution move)
         \STATE Evaluate all $N_p$ likelihoods in parallel via \texttt{jax.vmap} on GPU
-        \STATE Accept/reject via MH ; reject proposals outside the box
+        \STATE Accept or reject (Metropolis--Hastings); reject proposals outside the box
     \ENDFOR
 \ENDWHILE
-\STATE Record MAP and posterior SD per parameter
+\STATE $K\leftarrow m$ (number of tempering steps)
+\STATE Record MAP and posterior standard deviation (SD) per parameter
 \STATE $\triangleright$ \textbf{Stage (ii): composition likelihood, box mean $\pm4$\,SD}
-\STATE Repeat lines 2--13 on the narrowed box, starting from the previous particles
+\STATE Repeat lines 2--14 on the narrowed box, starting from the previous particles
 \STATE $\triangleright$ \textbf{Stages (iii)--(iv): add the viability channel; initial box, then mean $\pm4$\,SD}
 \STATE Augment likelihood with the weighted viability channel (Table~\ref{tab:weights})
-\STATE Repeat lines 2--13 for each stage
+\STATE Repeat lines 2--14 for each stage
 \RETURN $\hat{\btheta}^{\mathrm{MAP}}$, posterior samples, $\ln\hat{Z}$
 \end{algorithmic}
 \end{algorithm}
@@ -226,8 +229,8 @@ $\lambda_{\psi}$ & 3.0 (DH), 2.0 (DS), 1.5 (CS, CH) & viability channel, Phase~2
 \toprule
 \textbf{Metric} & \textbf{CPU (12 cores)} & \textbf{GPU (RTX\,4090)} & \textbf{Speedup}\\
 \midrule
-\multicolumn{4}{@{}l}{\textit{Matched benchmark (DH, $N_p=500$, $K=10$, 9 stages):}}\\
-\quad Per stage     & 2\,400\,s   & 14\,s    & $170\times$\\
+\multicolumn{4}{@{}l}{\textit{Matched benchmark (DH, $N_p=500$, $n_{\mathrm{mut}}=10$, $K=9$ tempering steps):}}\\
+\quad Per tempering step & 2\,400\,s   & 14\,s    & $170\times$\\
 \quad Total         & 21\,600\,s  & 147\,s   & $\mathbf{147\times}$\\
 \bottomrule
 \end{tabular}
@@ -241,8 +244,9 @@ The cost of every inference stage of the paper is listed in Table~\ref{tab:stage
 \section{Prior boxes}
 \label{sec:S_boxes}
 Table~\ref{tab:S_boxes} lists the uniform prior box of every interaction entry for each condition and stage.
-The initial box was set empirically to contain earlier posterior estimates and encodes no sign constraint.
-An entry was widened only where more than 20\% of its posterior mass lay in the outer 5\% of the range on one side, or where this fraction increased by more than 0.10 between stages with the same likelihood; the stage was then repeated.
+The stage-(i) boxes were set from earlier calibrations of a previous version of the model on the same data.
+Some of them exclude negative values or allow only small ones (CS: $a_{11}\in[0,2]$; DH: $a_{11},a_{22},a_{44}\in[0,5]$, $a_{12}\in[0.5,3]$, $a_{23}\in[0,3]$, $a_{45}\in[-0.5,6]$), so in stages (i)--(ii) the signs of these entries are partly set by the prior; all of these bounds were widened in stage (iii).
+An entry was widened where more than 20\% of its posterior mass lay in the outer 5\% of the range on one side, or where this fraction grew by more than 0.10 from the previous stage; the stage was then repeated.
 The last column gives $\ln V=\sum_k\ln(u_k-l_k)$, the log-volume of the box, which enters $\ln\hat Z$ and is the reason why $\ln\hat Z$ is not compared across conditions.
 
 \begin{table}[h]
@@ -254,23 +258,29 @@ The last column gives $\ln V=\sum_k\ln(u_k-l_k)$, the log-volume of the box, whi
 
 \section{Runs and convergence}
 \label{sec:S_runs}
-Table~\ref{tab:S_runs} lists, for every condition and stage, the number of particles and mutation steps, the number of tempering stages, the acceptance rate, the moves per parameter, and the spread over the three seeds of the maximum log-likelihood and of the posterior medians (criteria (a)--(e) of the main text).
+Table~\ref{tab:S_runs} lists, for every condition and stage, the number of particles and mutation steps, the number of tempering steps, the acceptance rate, the moves per parameter, and the spread over the three seeds of the maximum log-likelihood and of the posterior medians (criteria (c)--(e) of the main text).
+Criteria (a) and (b) are met by all runs.
+Stages (ii)--(iv) of CS and CH and stages (ii)--(iii) of DS meet all criteria; the DH stage-(iii) group does not yet meet (e) (median spread 0.64 posterior SD, for $a_{22}$; also $a_{35}$ and $a_{45}$ above 0.5)\TBD{prov.}.
+Stage (i) is exploratory: CS and CH do not meet (c), and DS does not meet (e) because of the two $a_{33}$ modes (Section~\ref{sec:S_bayes}).
+For CS and CH, stage (ii) was started from stage-(i) runs with 120 mutation steps that are not archived; the stage-(i) runs listed here (80 steps) give stage-(ii) bounds within 0.17 of those used.
 
 \begin{table}[h]
 \centering
-\caption{Runs of the final pipeline: particles $N_p$, mutation steps $K$, tempering stages, acceptance rate, moves per free parameter, maximum log-likelihood (best seed; spread over three seeds in parentheses) and wall-clock hours per seed.}
+\caption{Runs of the final pipeline (three seeds per row): particles $N_p$, mutation steps per tempering step $n_{\mathrm{mut}}$, tempering steps $K$, acceptance rate, moves per free parameter (criterion (c)), maximum log-likelihood (best seed; spread over the three seeds in parentheses, criterion (d)), largest spread of the seed medians over the identified entries in units of the pooled posterior SD (criterion (e), no mode splitting) and wall-clock hours per seed. DS, DH: stage (iii) is the final stage so far \TBD{prov.}.}
 \label{tab:S_runs}
-\small\input{\suppdir/supp_S2_runs.tex}
+\footnotesize\setlength{\tabcolsep}{4pt}\input{\suppdir/supp_S2_runs.tex}
 \end{table}
 
 \section{Identifiability of the interaction entries}
 \label{sec:S_ident}
-Table~\ref{tab:S_ident} lists, for the final stage (iv) of every condition, the median and the 90\% interval of each entry, pooled over the three seeds.
-An entry whose posterior standard deviation is at least 0.8 times that of a uniform distribution on its box is shown in grey and excluded from the seed-agreement criterion: the data do not constrain its magnitude beyond the prior box. Among these, entries whose 90\% interval excludes zero are marked s.o. (sign only), the others n.i. (not identified).
+Table~\ref{tab:S_ident} lists, for the final stage (iv) of every condition (\TBD{DS, DH: stage (iii)}), the median and the 90\% interval of each entry, pooled over the three seeds.
+The reference box is the prior box of that stage (Table~\ref{tab:S_boxes}, column (iv); for DS and DH column (iii)).
+An entry whose pooled posterior SD is at least 0.8 times that of a uniform distribution on this box is shown in grey and excluded from the seed-agreement criterion: the data do not constrain its magnitude beyond the prior box. Among these, entries whose 90\% interval excludes zero are marked s.o.\ (sign only), the others n.i.\ (not identified). All other entries are called identified (constrained by the data); an identified entry need not be sign-determined (e.g.\ $a_{45}$ in DS and DH).
+Where the stage-(iv) box was narrowed to the stage-(iii) mean $\pm4$\,SD, the uniform SD on that box is about 2.3 stage-(iii) SDs; for these entries the classification is in effect made against the stage-(iii) box.
 
 \begin{table}[h]
 \centering
-\caption{Posterior median [5\%, 95\%] of the 15 entries at stage (iv), three seeds pooled. Grey: the posterior spreads over most of the box (standard deviation $\ge0.8$ times that of a uniform distribution on the box); n.i.: not identified, s.o.: sign only (the 90\% interval excludes zero).}
+\caption{Posterior median [5\%, 95\%] of the 15 entries at stage (iv) (\TBD{DS, DH: stage (iii)}), three seeds pooled. Grey: the posterior spreads over most of the prior box of the stage (SD $\ge0.8$ times that of a uniform distribution on the box); n.i.: not identified, s.o.: sign only (the 90\% interval excludes zero).}
 \label{tab:S_ident}
 \footnotesize\setlength{\tabcolsep}{3pt}\resizebox{\textwidth}{!}{\input{\suppdir/supp_S4_ident}}
 \end{table}
@@ -281,6 +291,13 @@ Their number is 4, 4, 8 and 5 in CS, CH, DS and DH, against 4, 6, 8 and 9 entrie
 The counts agree in CS and DS; in CH and DH the posterior identifies more entries than the local curvature, because several entries are constrained jointly along correlated directions and by the non-quadratic shape of the likelihood, which a single Hessian at the MAP does not capture.
 The MAP is the best particle and not an exact optimum (4--5 small negative eigenvalues), so entry-wise Laplace intervals are not reported.
 
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/provisional_2026-10-11/fig4_posteriors_v2.pdf}
+\caption{Marginal posteriors of the 15 entries of $\mathbf{A}$ at the final stage (three seeds pooled), drawn as position within the prior box of the final stage of each entry (Table~\ref{tab:S_boxes}): thick bar 50\%, thin bar 90\% interval, circle median; black tick: $a_{ij}=0$. Coloured: identified; grey: not identified; a sign at the right: only the sign is determined (classification as in Fig.~3 of the main text). \TBD{DS, DH from stage (iii).}}
+\label{fig:post}
+\end{figure}
+
 \section{MAP and posterior bulk by seed}
 \label{sec:S_seedmap}
 Figure~\ref{fig:S_seedmap} overlays the MAP of each seed on the posterior predictive band pooled over the three seeds.
@@ -290,23 +307,24 @@ In CS the MAP lies apart from the bulk of the posterior for So and Vei: the poin
 \begin{figure}[h]
 \centering
 \includegraphics[width=\textwidth]{figures/provisional_2026-10-11/seed_maps_4cond.pdf}
-\caption{Species fractions: MAP of each seed (coloured lines), pooled posterior 10--90\% band (grey) and its pointwise median (dashed), and data (dots). \TBD{DS, DH from stage (iii).}}
+\caption{Species fractions: MAP of each seed (coloured lines), pooled central 80\% posterior predictive band (10th--90th percentile, grey) and its pointwise median (dashed), and data (dots). \TBD{DS, DH from stage (iii).}}
 \label{fig:S_seedmap}
 \end{figure}
 
 \section{Bayes factor for the \textit{Fn}--\textit{Pg} interaction}
 \label{sec:S_bayes}
-Stage~(i) was repeated with $a_{45}=0$ for all four conditions (three seeds each).
+Stage~(i) was repeated with $a_{45}=0$ for all four conditions (three seeds each, except CH, for which only one seed is archived).
+Stage (i) is exploratory and not all of its groups meet the acceptance criteria (Section~\ref{sec:S_runs}), so these Bayes factors are indicative.
 Table~\ref{tab:S_bayes} reports $\ln\hat Z$ of both models, $\ln B=\ln\hat Z_{\mathrm{full}}-\ln\hat Z_{a_{45}=0}$, and the width of the $a_{45}$ box, which sets the Occam penalty.
 
 \begin{table}[h]
 \centering
-\caption{Log-evidence of the full and the reduced ($a_{45}=0$) model at stage (i), mean $\pm$ half-range over three seeds, and $\ln B=\ln\hat Z_{\mathrm{full}}-\ln\hat Z_{a_{45}=0}$. The last two columns give the $a_{45}$ box and its log-width, which enters $\ln\hat Z_{\mathrm{full}}$ as an Occam penalty.}
+\caption{Log-evidence of the full and the reduced ($a_{45}=0$) model at stage (i), mean $\pm$ half-range over three seeds (CH, $a_{45}=0$: one seed), and $\ln B=\ln\hat Z_{\mathrm{full}}-\ln\hat Z_{a_{45}=0}$. The last two columns give the $a_{45}$ box and its log-width, which enters $\ln\hat Z_{\mathrm{full}}$ as an Occam penalty.}
 \label{tab:S_bayes}
 \small\input{\suppdir/supp_S3_bayes.tex}
 \end{table}
 
-\paragraph{Dysbiotic Static.}
+\paragraph{Dysbiotic static.}
 In DS, $a_{45}$ and $a_{33}$ trade off at stage (i). With $a_{45}=0$ the posterior moves almost entirely to the mode $a_{33}\approx-10$ (weight 0.83--0.87 across seeds), whereas the full model splits its mass between $a_{33}\approx+1$ and $a_{33}<-5$, with a weight of the latter that differs strongly between seeds (0.14--0.66); this stage-(i) group does not pass criterion (e) and is used here only for the Bayes factor.
 In the mode $a_{33}\ge-5$ the coefficient $a_{45}$ is larger than in the mode $a_{33}<-5$ (Table~\ref{tab:S_modes}).
 At the final stage the mode $a_{33}<-5$ is empty in all three seeds, and $a_{45}$ has median $+2.8$ with a 90\% interval reaching zero ($[-1.3,+15.1]$)\TBD{prov.}.
@@ -327,11 +345,11 @@ $a_{33}<-5$   & 1239 & $+0.8$ [$-0.3$, $+1.6$] & $-1.49$\\
 
 \section{Effect of the likelihood weights}
 \label{sec:S_lambda}
-Stage~(i) for DH was repeated with $\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}}=1$ (1000 particles, 100 mutation steps, three seeds; all convergence criteria met). Table~\ref{tab:S_lambda} compares it with the weighted run.
+Stage~(i) for DH was repeated with $\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}}=1$ and $\lambda_{\mathrm{rare}}=0.1$ unchanged (1000 particles, 100 mutation steps, three seeds; all convergence criteria met). Table~\ref{tab:S_lambda} compares it with the weighted run.
 
 \begin{table}[h]
 \centering
-\caption{DH, stage (i): weighted ($\lambda_{\mathrm{Pg}}=5$, $\lambda_{\mathrm{late}}=3$) and unweighted likelihood. Ranges over three seeds; the measured Pg ratio of day 21 to day 15 is 2.74.}
+\caption{DH, stage (i): weighted ($\lambda_{\mathrm{Pg}}=5$, $\lambda_{\mathrm{late}}=3$) and unweighted likelihood. Ranges over three seeds; RMSE: root-mean-square error of the composition; the measured Pg ratio of day 21 to day 15 is 2.74.}
 \label{tab:S_lambda}
 \small\setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}lccc@{}}
@@ -344,10 +362,41 @@ Unweighted & $+3.0$ [$-0.06$ to $+0.17$, $+5.6$] & 1.7--3.1 & 0.059--0.068\\
 \end{tabular}
 \end{table}
 
+\section{Viable and total-count composition}
+\label{sec:S_total}
+The species fractions used in the inference are viable-cell fractions from quantitative real-time PCR with propidium monoazide (PMA) pre-treatment (Fig.~3 of \citealp{heine2025influence}; medians of the replicate values provided by the authors, eight per time point).
+The corresponding total-count fractions without PMA (their Fig.~S1) differ little from them: the RMSE between the two sets of medians is 0.057 (CS), 0.042 (CH), 0.033 (DS) and 0.072 (DH).
+We therefore assume in the composition channel that viability does not depend on the species and compare the data with the normalised volume fractions $\phi_i/\sum_j\phi_j$.
+The viability channel is the community live fraction from SYTO9/propidium iodide (LIVE/DEAD BacLight) staining, which is image based and not resolved by species.
+Table~\ref{tab:S_total} compares the final MAP with both data sets; the model is about as close to the total-count data as to the viable data used in the fit.
+
+\begin{table}[h]
+\centering
+\caption{RMSE of the normalised MAP volume fractions $\phi_i/\sum_j\phi_j$ of the final stage against the medians of the viable-cell data used in the fit (PMA-qRT-PCR) and of the total-count data (\citealp{heine2025influence}, Fig.~S1).}
+\label{tab:S_total}
+\small
+\begin{tabular}{lcccc}
+\toprule
+ & CS & CH & DS & DH\\
+\midrule
+Viable (used in the fit) & 0.179 & 0.076 & 0.027\TBD{prov.} & 0.083\TBD{prov.}\\
+Total count & 0.136 & 0.059 & 0.036\TBD{prov.} & 0.045\TBD{prov.}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Composition-only fit in CS}
+\label{sec:S_ceiling}
+To separate a limitation of the model from the conflict between the two likelihood channels in CS, we minimised the composition error alone (unweighted mean squared difference of the normalised fractions; viability channel, likelihood weights and prior omitted) with a gradient-based local optimiser (L-BFGS-B), started from the final MAP and from two random perturbations of it, with every entry restricted to $[-15,20]$.
+The best solution reaches a composition RMSE of 0.075 (per species 0.13, 0.04, 0.10, 0.005 and 0.005 for So, An, Vei, Fn and Pg), against 0.179 at the MAP, but its community live fraction is 0.97 at every time point, against the measured 0.65--0.77.
+Maximising the full likelihood in the same way from the MAP lowers the composition RMSE only to 0.166.
+The model can therefore follow the rapid rise of So between day~1 and day~3, but not together with the measured live fraction.
+This is a deterministic diagnostic, not a posterior; its solution lies partly outside the prior box (e.g.\ $a_{13}=20$).
+
 \begin{table}[p]
 \centering\small
 \input{\suppdir/supp_S3_cost}
-\caption{Cost of each inference stage (median over the three seeds): particle number $N_p$, mutation steps per stage $n_{\mathrm{mut}}$, number of tempering stages $K$, wall time per seed on one GPU, and number of likelihood evaluations $N_{\mathrm{lik}}=N_p(1+\sum n_{\mathrm{mut}})$. $^\ast$DS, DH: stage (iii), until stage (iv) is accepted \TBD{prov.}. Generated by \texttt{tools/make\_cost\_table.py}.}
+\caption{Cost of each inference stage (median over the three seeds): particle number $N_p$, mutation steps per tempering step $n_{\mathrm{mut}}$, number of tempering steps $K$, wall time per seed on one GPU, and number of likelihood evaluations $N_{\mathrm{lik}}=N_p(1+\sum n_{\mathrm{mut}})$. $^\ast$DS, DH: stage (iii), until stage (iv) is accepted \TBD{prov.}. Generated by \texttt{tools/make\_cost\_table.py}.}
 \label{tab:stagecost}
 \end{table}
 

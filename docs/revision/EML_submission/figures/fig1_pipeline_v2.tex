@@ -1,0 +1,77 @@
+% Fig. 1 v2（2026-10-12）: 文字を半分に、段 (i)–(iv) は横一列の 4 箱で「箱の幅 = 事前分布の箱の幅」。
+% 190 mm 幅で作る（\includegraphics[width=\textwidth] で 1:1 のとき 7–8 pt）。
+%   pdflatex -interaction=nonstopmode fig1_pipeline_v2.tex
+\documentclass[tikz,border=1pt]{standalone}
+\usepackage{amsmath,amssymb}\usepackage[T1]{fontenc}\usepackage{lmodern}\usepackage{bm}
+\usetikzlibrary{positioning,arrows.meta,calc,decorations.pathreplacing}
+% 条件の色（全図共通、Okabe–Ito）
+\definecolor{cCS}{HTML}{0072B2}\definecolor{cCH}{HTML}{009E73}
+\definecolor{cDS}{HTML}{E69F00}\definecolor{cDH}{HTML}{D55E00}
+\definecolor{ink}{HTML}{222222}\definecolor{mute}{HTML}{6B6B6B}
+\definecolor{comp}{HTML}{DCE9F5}\definecolor{viab}{HTML}{F8E3CC}
+\begin{document}
+\begin{tikzpicture}[x=1mm,y=1mm,font=\footnotesize,>={Stealth[length=1.6mm]},color=ink,
+  head/.style={font=\footnotesize\bfseries,anchor=west,inner sep=0pt},
+  note/.style={font=\scriptsize,text=mute,inner sep=0pt},
+  stage/.style={draw=ink!70,line width=0.4pt,rounded corners=1.2pt,minimum height=10mm,
+                align=center,inner sep=1pt,font=\scriptsize},
+  chip/.style={rounded corners=0.8pt,minimum width=6.4mm,minimum height=3.6mm,inner sep=0pt,
+               font=\scriptsize\bfseries,text=white}]
+% 外枠の幅を 190 mm に固定
+\path (0,-33) rectangle (190,21);
+
+% ================= Model =================
+\node[head] at (0,19) {Model};
+\node[draw=ink!70,line width=0.4pt,rounded corners=1.2pt,align=center,inner sep=2pt,
+      minimum width=27mm,minimum height=12mm] (mp) at (14,7.5)
+  {material point\\[1pt] $(\phi_i,\psi_i)$, $i=1,\dots,5$\\[0.5pt]{\scriptsize\color{mute}fraction, viability}};
+% 行列 A（5×5、上三角＋対角が未知数）
+\def\cs{3.4}
+\begin{scope}[shift={(48,-1)}]
+  \foreach \i in {0,...,4}{\foreach \j in {0,...,4}{
+    \pgfmathtruncatemacro{\up}{\j>=\i ? 1 : 0}
+    \ifnum\up=1 \fill[comp!80!cCS] (\j*\cs,{(4-\i)*\cs}) rectangle ++(\cs,\cs);
+    \else \fill[black!6] (\j*\cs,{(4-\i)*\cs}) rectangle ++(\cs,\cs); \fi}}
+  \draw[white,line width=0.6pt] (0,0) grid[step=\cs] (5*\cs,5*\cs);
+  \draw[ink!70,line width=0.4pt] (0,0) rectangle (5*\cs,5*\cs);
+  \foreach \s [count=\k from 0] in {So,An,Vei,Fn,Pg}{
+    \node[font=\scriptsize,anchor=east,inner sep=1pt] at (0,{(4-\k)*\cs+\cs/2}) {\s};}
+  \node[anchor=west,align=left,inner sep=0pt] at (5*\cs+2.5,{2.5*\cs})
+    {$\mathbf A=\mathbf A^{\mathsf T}$\\[1pt]\textbf{15 unknowns}};
+\end{scope}
+\draw[->,line width=0.5pt] (mp.east) -- node[above=0.6mm,font=\scriptsize]{couples} (41.5,7.5);
+\node[font=\scriptsize,anchor=west,inner sep=0pt] at (0,-5.2)
+  {energy $\Psi=-\tfrac12\,c^{*}\,\bar{\bm\phi}^{\mathsf T}\mathbf A\,\bar{\bm\phi}$, \ $\bar\phi_i=\phi_i\psi_i$ (living fraction)};
+
+% ================= Data =================
+\node[head] at (106,19) {Data};
+\foreach \t/\c/\l [count=\k from 0] in {CS/cCS/commensal static,CH/cCH/commensal HOBIC,DS/cDS/dysbiotic static,DH/cDH/dysbiotic HOBIC}{
+  \node[chip,fill=\c] at ({109.2+(\k>1?42:0)},{12.5-mod(\k,2)*5}) {\t};
+  \node[font=\scriptsize,anchor=west,inner sep=0pt] at ({113.4+(\k>1?42:0)},{12.5-mod(\k,2)*5}) {\l};}
+\node[font=\scriptsize,anchor=west,inner sep=0pt] at (106,1.2) {5 species, days 1--21: composition $+$ viability};
+\node[note,anchor=west] at (106,-3.0) {pH held out for checking};
+
+% ================= Staged TMCMC =================
+\node[head] (hs) at (0,-11.5) {Staged TMCMC};
+\node[note,anchor=west] at ([xshift=3mm]hs.east) {3 seeds per stage; drawn width $\propto$ prior box};
+\def\yb{-20.5}
+\node[stage,fill=comp,minimum width=36mm] (s1) at (18,\yb) {\textbf{(i)} composition\\initial box};
+\node[stage,fill=comp,minimum width=15mm] (s2) at (49.5,\yb) {\textbf{(ii)}\\$\pm4$\,SD};
+\node[stage,fill=viab,minimum width=36mm] (s3) at (81,\yb) {\textbf{(iii)} $+$ viability\\initial box};
+\node[stage,fill=viab,minimum width=15mm] (s4) at (112.5,\yb) {\textbf{(iv)}\\$\pm4$\,SD};
+\foreach \a/\b in {s1/s2,s2/s3,s3/s4}{\draw[->,line width=0.5pt] (\a.east) -- (\b.west);}
+\node[note,anchor=north west] at (0,-27.5)
+  {each stage: tempering $\beta\!: 0\!\to\!1$, MH moves (RW / DE); forward model in JAX, \texttt{jit}$+$\texttt{vmap} on a GPU};
+
+% ================= Acceptance (legend) =================
+\node[draw=ink!50,line width=0.4pt,rounded corners=1.2pt,anchor=west,align=left,
+      inner sep=1.8pt,font=\scriptsize,text width=56mm] (acc) at (130,\yb) {%
+  \textbf{accept a stage only if}\\[0.5pt]
+  (a) $\ln L$ recomputed\quad (b) $\beta$ reaches 1\\
+  (c) ${\ge}5$ accepted moves per parameter\\
+  (d) $\max\ln L$ within 1 across seeds\\
+  (e) medians within $\tfrac12$\,SD across seeds\\[0.5pt]
+  {\color{mute}else: more particles or wider box, repeat}};
+\draw[->,line width=0.5pt] (s4.east) -- (acc.west|-s4.east);
+\end{tikzpicture}
+\end{document}

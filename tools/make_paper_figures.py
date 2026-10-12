@@ -247,10 +247,17 @@ def write_fig2_cache(g2, cache_dir):
         )
 
 
-def make_fig2(g2, out_dir, cache_dir):
+def make_fig2(g2, out_dir, cache_dir, style="both", color_by="condition"):
     import generate_fig2_phi_version as F2
 
     write_fig2_cache(g2, cache_dir)
+    if style in ("v2", "both"):  # 新デザイン（tools/fig2_v2.py、2026-10-12）→ paper_fig2_v2.{pdf,png}
+        import fig2_v2
+
+        rmse = {t: g["best"]["cfg"].get("rmse") for t, g in g2.items()}
+        fig2_v2.make(cache_dir, str(out_dir / "paper_fig2_v2"), rmse, F2.REP_CSV, color_by=color_by)
+    if style == "v2":
+        return
     F2.CACHE_DIR = cache_dir
     F2.RUNS = Path("/")
     F2.P2_DIRS = {tag: str(g["best"]["dir"].resolve()) for tag, g in g2.items()}
@@ -793,6 +800,10 @@ def main():
         help="識別性の run（{tag} と {prior}=0/6 を埋める）",
     )
     ap.add_argument("--ident-tags", nargs="*", default=["DH", "DS"])
+    ap.add_argument("--fig2-style", choices=["v1", "v2", "both"], default="both",
+                    help="v1: paper_fig2_phi_transposed（旧）、v2: paper_fig2_v2（tools/fig2_v2.py）")
+    ap.add_argument("--fig2-color", choices=["condition", "species"], default="condition",
+                    help="v2 の線の色: 条件の色（全図共通）か、旧版の種の色")
     ap.add_argument(
         "--knockout-tags", nargs="*", default=["DH", "DS"], help="ノックアウトを計算する条件"
     )
@@ -853,7 +864,7 @@ def main():
     print(f"数値: {gen_dir / 'paper_numbers.json'}\n表:   {gen_dir / 'tables.tex'}")
 
     if "fig2" not in args.skip:
-        make_fig2(g2, out_dir, cache_dir)
+        make_fig2(g2, out_dir, cache_dir, style=args.fig2_style, color_by=args.fig2_color)
     if "heatmap" not in args.skip:
         make_heatmap(g2, out_dir / "heatmap_A_4cond.pdf")
     if "violin" not in args.skip:

@@ -43,7 +43,7 @@ A5 & \emph{Boundary handling of the sampler.} Proposals outside the prior box ar
 \toprule
 B1 & \emph{Same data used three times (narrowing the prior).} Narrowed boxes are the stage posterior mean $\pm4$ standard deviations, which removes less than $10^{-4}$ of a Gaussian marginal; when the viability channel is added the inference returns to the full box, and any bound at which posterior mass accumulates is widened and the stage repeated (Section 3, Table S4). A comparison with a single inference on the wide box only is not shown. & \partly\\
 B2 & \emph{Sparsity / identifiability not demonstrated.} New: every entry is classified as identified, sign-only or not identified from the posterior spread relative to its box (Fig.~3, Table S6); every stage is repeated with three seeds and must agree; the number of narrow directions of the likelihood at the MAP (Fisher information) is reported as an independent check (Section S6). A recovery test on synthetic data is planned. & \partly\\
-B3 & \emph{No convergence diagnostics for Phase 2.} Every stage, including the final one, is run with three independent seeds and accepted only after explicit criteria (log-likelihood recomputation, tempering to $\beta=1$, moves per particle and per dimension, agreement of $\max\ln L$ and of the medians across seeds; Section 3, Table S5). & \done\\
+B3 & \emph{No convergence diagnostics for Phase 2.} Every stage, including the final one, is run with three independent seeds and accepted only after explicit criteria (log-likelihood recomputation, tempering to $\beta=1$, moves per particle and per dimension, agreement of $\max\ln L$ and of the medians across seeds; Section 3, Table S5). The provisional DH stage-(iii) group does not yet meet the median criterion; the exploratory stage (i) is used only to set the stage-(ii) box and for the Bayes factors, which are reported with this caveat. & \partly\\
 B4 & \emph{Independent Gaussian errors for compositional data.} Stated as a limitation (Section 4: intervals may be somewhat too narrow); $\sigma_i$ is the replicate standard deviation of each species. & \done\\
 B5 & \emph{Model-to-data mapping implicit.} Section 3 now states the renormalisation of the volume fractions over the five species, the void fraction, the time mapping (time since inoculation, Day 1 as initial state, with the sensitivity to starting at Day 1) and the likelihood weights. & \done\\
 \bottomrule
@@ -62,9 +62,9 @@ C8 & \emph{So--Vei sign and lactate cross-feeding.} In the new runs $a_{13}$ is 
 C9--C10 & \emph{Phase-correlation table, cross-condition transfer.} No longer in the paper. & \na\\
 C11 & \emph{NUTS/HMC ``fail on GPU''.} No longer claimed; the paper only reports the speed-up of our implementation. & \done\\
 C12 & \emph{Figure 7 caption vs.\ values.} Figure no longer in the paper. & \na\\
-C13 & \emph{Internal consistency.} Four stages defined once and used throughout; one speed-up figure (about 150$\times$, measured); notation $a_{ij}$ / $\mathbf{A}$ unified. & \done\\
+C13 & \emph{Internal consistency.} Four stages defined once and used throughout; one measured speed-up, about 150$\times$ (170$\times$ per tempering step, 147$\times$ end to end); notation $a_{ij}$ / $\mathbf{A}$ unified. & \done\\
 C14 & \emph{Biological interaction network.} Moved to Section S2 (Table S1, Fig.~S1) as ``previously reported or biologically supported interactions considered in the interpretation of the model'', with the reported mechanism stated per pair, a note that arrows show reported flows from the literature, and a note that the model matrix is symmetric. & \done\\
-C15 & \emph{Confounding of state with strains.} New sentence in Section 4: commensal and dysbiotic communities also differ in the Veillonella species and the P.~gingivalis strain, so differences between them combine state, strain physiology and cultivation; static vs.\ dynamic comparisons within one community are free of this confound. & \done\\
+C15 & \emph{Confounding of state with strains.} New sentence in Section 4: commensal and dysbiotic communities also differ in the Veillonella species and the P.~gingivalis strain, so differences between them combine state, strain physiology and cultivation; static vs.\ dynamic comparisons within one community are free of this confound, although DS and DH also differ in the viability weight and the prior boxes, which is now stated. & \done\\
 \bottomrule
 \end{tabularx}
 
@@ -74,11 +74,11 @@ C15 & \emph{Confounding of state with strains.} New sentence in Section 4: comme
 D1 & \emph{Title should not suggest experimentally resolved interactions.} New title: \emph{Identifiability of species interactions in a living material: Bayesian calibration of an extended Hamilton principle multiphase model}. It states that the interactions are parameters of a calibrated model and asks what the data determine, rather than claiming experimentally resolved interactions; your view is welcome. & \done\\
 D2 & \emph{Author order.} As agreed. & \done\\
 D3 & \emph{Affiliations.} MHH and NIFE added for K.~Nishioka. & \done\\
-D4 & \emph{Rewritten clinical/microbiological introduction.} The EML introduction had to be shortened to about 430 words; its clinical framing follows your rewrite in condensed form. Please check whether the key points are kept. & \partly\\
-D5 & \emph{Zenodo archive.} Code, run configurations, convergence records and posterior samples will be archived with a DOI at submission. & \open\\
+D4 & \emph{Rewritten clinical/microbiological introduction.} The EML introduction had to be shortened to about 520 words; its clinical framing follows your rewrite in condensed form. Please check whether the key points are kept. & \partly\\
+D5 & \emph{Zenodo archive.} Code, run configurations, convergence records and posterior samples are archived at Zenodo; the DOI 10.5281/zenodo.23320423 is reserved and given in the data availability statement. The experimental data are not redistributed; the statement refers to Heine et al.\ (2025) and says that the data are available from those authors. & \done\\
 \bottomrule
 \end{tabularx}
 
 \bigskip
-\noindent Remaining before submission: the final numbers of the two dysbiotic conditions (computations running) and the Zenodo DOI (D5).
+\noindent Remaining before submission: the final numbers of the two dysbiotic conditions (computations running).
 \end{document}

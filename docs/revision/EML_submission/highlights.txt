@@ -1,5 +1,5 @@
-Interaction matrix of a variational multiphase biofilm model inferred by TMCMC
+Bayesian calibration of the interaction matrix of a variational biofilm model
 Stiff forward model compiled in JAX; all particles solved in parallel on one GPU
-Data enter in stages, from species composition to community viability
-Explicit seed, mixing and prior-bound checks decide when a stage is accepted
-Data determine 4-9 of 15 interactions; removing F. nucleatum halts late P. gingivalis
+Data enter in stages; seed, mixing and prior-bound checks decide acceptance
+Data constrain only 4 to 9 of 15 species interactions in an oral biofilm
+In silico removal of F. nucleatum stops the late rise of P. gingivalis

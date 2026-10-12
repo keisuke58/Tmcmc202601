@@ -25,19 +25,19 @@ On behalf of all co-authors, I submit the manuscript
 by K.~Nishioka, F.~Klempt, H.~Geisler, R.~Mukherjee, N.~Heine, K.~Doll-Nikutta, M.~Stiesch, S.~P.~Szafra\'{n}ski, M.~Soleimani and P.~Junker
 for the special issue ``Artificial Intelligence and Computational Mechanics for Materials Design'' (VSI: AI \& CM), following the invitation sent to Prof.~Junker.
 
-Biofilms are living materials whose composition, and with it their mechanical behaviour, is set by interactions between species that cannot be measured directly.
-We treat the identification of these interactions as a model-based inverse characterization problem: a thermodynamically consistent multiphase model, derived from the extended Hamilton principle, fixes the structure, and Bayesian inference determines its 15 interaction coefficients from in-vitro time courses of a five-species oral biofilm.
+The interactions between species in a biofilm set how its composition, and with it its mechanical behaviour, develops, but they cannot be measured directly.
+We treat their identification as a model-based inverse characterization problem: a thermodynamically consistent multiphase model, derived from the extended Hamilton principle, fixes the structure, and Bayesian inference calibrates all 15 interaction coefficients against in-vitro time courses of a five-species oral biofilm and shows which of them the data determine.
 The forward model is compiled in JAX and evaluated for all particles in parallel on a GPU, which makes it affordable to repeat every inference stage with independent seeds and to accept a stage only after explicit checks of mixing, seed agreement and posterior mass at the prior bounds.
-The data determine only part of the interaction matrix---four to nine of the 15 entries, depending on the condition---and we state explicitly which; the entries identified in both commensal conditions agree in sign, while one coefficient (\textit{Veillonella}--\textit{P.~gingivalis}) changes sign between static and flow cultivation of the dysbiotic community.
-Used in silico, the calibrated model predicts that removing \textit{F.~nucleatum} abolishes the late increase of \textit{P.~gingivalis} in the dysbiotic flow-reactor community, a prediction open to direct experimental test; in the same community the measured pH, which was not used in the inference, follows the predicted composition.
+The data constrain only part of the interaction matrix---four to nine of the 15 entries, depending on the condition---and we state which; the entries constrained in both commensal conditions agree in sign, while one coefficient (\textit{Veillonella}--\textit{P.~gingivalis}) changes sign between static and flow cultivation of the dysbiotic community.
+Used in silico, the calibrated model predicts that removing \textit{F.~nucleatum} abolishes the late increase of \textit{P.~gingivalis} in the dysbiotic flow-reactor community, a prediction open to direct experimental test; in the same community the pH predicted from the calibrated composition, which was not used in the inference, follows the measured pH.
 
-The calibrated model is the first step towards the mechanics of biofilms on implants: we are coupling it to a finite-element model of biofilm growth derived from the same variational principle, in which the calibrated composition dynamics drive the growth and hence the stresses, so that differences between communities enter the mechanical response through inferred rather than assumed parameters.
+The calibrated composition dynamics are the input that a finite-element model of biofilm growth derived from the same variational principle requires; we are coupling the two, so that differences between communities enter the growth-induced stresses through calibrated rather than assumed parameters.
 
-We believe the work fits the special issue because it combines a mechanistic, variationally derived continuum model with data-driven probabilistic inference for the inverse characterization of a soft biological material, and because it makes explicit which conclusions the data support---the kind of physics-based guidance that the call identifies as essential for data-driven methods in materials science.
+The work combines a variationally derived continuum model with probabilistic inference for the inverse characterization of a soft biological material, and it reports which conclusions the data support, which is the scope of the special issue.
 
 The manuscript has not been published and is not under consideration elsewhere.
 All authors have approved the submission \TBD{confirm}.
-Code, run configurations, convergence records and posterior samples are archived at Zenodo (\href{https://doi.org/10.5281/zenodo.23320423}{doi:10.5281/zenodo.23320423}).
+Code, run configurations, convergence records and posterior samples are archived at Zenodo (\href{https://doi.org/10.5281/zenodo.23320423}{doi:10.5281/zenodo.23320423}); the experimental data are those of Heine et al.\ (2025) and are not redistributed.
 The authors declare no competing interests.
 
 \closing{Sincerely,}

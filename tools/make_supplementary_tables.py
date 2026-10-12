@@ -2,7 +2,7 @@
 """補足資料（BMB_supplementary.tex）の表 S1・S2・S3 を run から作る。
 
   S1  事前分布の箱（条件 × 段、自由次元だけ）と ln V = Σ ln(u−l)。pilot の箱から広げた成分は太字
-  S2  run の一覧（粒子数・mutation・段数・受理率・移動/次元・max logL・seed 間の幅・時間）
+  S2  run の一覧（粒子数・mutation・段数・受理率・移動/次元・max logL・seed 間の幅・中央値の seed 間の幅 / sd（判定 4）・時間）
   S3  Bayes 因子（pilot の full と a45=0、ln Z の平均 ± 幅、ln B、a45 の箱の幅）
   S4  同定性（最終段 (iv) の 15 成分 × 4 条件: 3 seed 合算の中央値 [5%, 95%]。
       事後 sd が箱の一様分布の sd の 0.8 倍以上の成分は灰色。そのうち 90% 区間が 0 を含むものは n.i.（同定されていない）、
@@ -101,6 +101,7 @@ def runs(root, pattern):
     for d in sorted(glob.glob(os.path.join(root, pattern))):
         rec = load(d)
         if rec is not None and rec.get("prior_bounds_final"):
+            rec["_root"] = root
             out.append((os.path.basename(d), rec))
     return out
 
@@ -174,10 +175,35 @@ def moves_per_dim(rec):
     return None if m is None else float(m) * rec["n_stages"] / nf
 
 
+def median_spread(g):
+    """判定 4 の量: seed 間の中央値の幅 / プールした事後 sd の最大値（同定された自由次元だけ、山分けなし）。
+    seed が 1 つしか無い・samples.npy が無いときは None。"""
+    S = []
+    for d, rec in g:
+        f = os.path.join(rec.get("_root", ""), d, "samples.npy")
+        if os.path.isfile(f):
+            S.append(np.load(f))
+    if len(S) < 2:
+        return None
+    rec = g[0][1]
+    free = list(rec["free_dims"])
+    pb = np.array(rec["prior_bounds_final"], dtype=float)
+    pooled = np.concatenate(S)
+    out = 0.0
+    for i in free:
+        sd = pooled[:, i].std()
+        unif = (pb[i, 1] - pb[i, 0]) / np.sqrt(12.0)
+        if sd <= 0 or sd >= UNIDENT_RATIO * unif:
+            continue
+        med = [np.median(x[:, i]) for x in S]
+        out = max(out, (max(med) - min(med)) / sd)
+    return out
+
+
 def run_table(groups):
     """S2: 条件 × 段ごとに 1 行（3 seed をまとめる）。"""
     lines = [
-        r"Cond. & Stage & $N_p$ & $K$ & Steps & Accept. & Moves/dim & $\max\log L$ (spread) & Hours\\",
+        r"Cond. & Stage & $N_p$ & $n_{\mathrm{mut}}$ & $K$ & Accept. & Moves/dim & $\max\log L$ (spread) & Med.\ spread & Hours\\",
         r"\midrule",
     ]
     for tag in CONDS:
@@ -193,6 +219,7 @@ def run_table(groups):
             mpd = [moves_per_dim(r) for r in recs if moves_per_dim(r) is not None]
             ml = [r["max_logL"] for r in recs]
             hrs = [r["total_time_s"] / 3600 for r in recs if r.get("total_time_s")]
+            msp = median_spread(g)
             lines.append(
                 " & ".join(
                     [
@@ -205,6 +232,7 @@ def run_table(groups):
                         "%.2f--%.2f" % (min(acc), max(acc)) if acc else "--",
                         "%.1f--%.1f" % (min(mpd), max(mpd)) if mpd else "--",
                         "%.2f (%.2f)" % (max(ml), max(ml) - min(ml)),
+                        "--" if msp is None else "%.2f" % msp,
                         "%.1f--%.1f" % (min(hrs), max(hrs)) if hrs else "--",
                     ]
                 )
@@ -229,12 +257,13 @@ def bayes_table(groups):
             continue
         pb = np.array(groups[tag]["pilot"][0][1]["prior_bounds_final"], dtype=float)
         lo, hi = pb[A45]
+        pm = lambda v: ("$%.2f$ (one seed)" % v[0]) if len(v) == 1 else "$%.2f \\pm %.2f$" % (np.mean(v), (max(v) - min(v)) / 2)
         lines.append(
             " & ".join(
                 [
                     tag,
-                    "$%.2f \\pm %.2f$" % (np.mean(full), (max(full) - min(full)) / 2),
-                    "$%.2f \\pm %.2f$" % (np.mean(zero), (max(zero) - min(zero)) / 2),
+                    pm(full),
+                    pm(zero),
                     "$%+.2f$" % (np.mean(full) - np.mean(zero)),
                     "[%g, %g]" % (lo, hi),
                     fmt(float(np.log(hi - lo)), 2),
@@ -325,7 +354,7 @@ def main():
     os.makedirs(a.out_dir, exist_ok=True)
     COLS = {
         "supp_S1_boxes": "lllll",
-        "supp_S2_runs": "llrrlllll",
+        "supp_S2_runs": "llrrrllllr",
         "supp_S3_bayes": "lccccc",
         "supp_S4_ident": "lcccc",
     }
