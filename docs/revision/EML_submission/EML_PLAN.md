@@ -181,3 +181,10 @@ GPU・判定の話は要旨とハイライトで伝わるので、タイトル�
   - **その前に:** GPU 側と IKMHIWI03 に、認証付きで pull・取得できるか確認を頼む（handoff）。`run_calibrated.ps1` はトークン（環境変数）対応が要るかもしれない。
   - 手順: GitHub → Settings → General → Danger Zone → Change visibility → Private。MHH の了承が取れたら public に戻してもよい。
   - 消すだけでは履歴に残るので、ファイル削除ではなく非公開で対応する。
+
+### 15.1 実験データを Zenodo に入れるかの確認（2026-10-12 決定）
+- 共著者への「final numbers」再送メール（DS・DH の ult が通ったあと）に、次の一文を足して MHH の了解を取る（ユーザー判断）:
+  > One question for Nils, Katharina, Meike and Szymon: may we include the experimental data used in the paper (species fractions per replicate, viability and pH from Heine et al. 2025) in the Zenodo archive, citing your article, so that the results can be reproduced from the archive alone? If you prefer not to, we would include only the summary values the inference uses (daily medians and standard deviations).
+- 了解 → `docs/revision/zenodo/MANIFEST.txt` の §2 と `ph_check_bands.npz` を戻し、README §6・.zenodo.json の「not included」を直して再ビルド。原稿の Data availability も「archived at Zenodo, including the experimental data of Heine et al.」に。
+- 不可 → 中央値・標準偏差だけの要約表を作って入れる（案 A）か、今のまま（案 B）。
+- 根拠: Heine et al. 2025（Front. Oral Health, CC BY）の Data Availability は "will be made available by the authors, without undue reservation"。公開保存はされていない。手元の CSV はレプリケート単位で論文の図を超える。
