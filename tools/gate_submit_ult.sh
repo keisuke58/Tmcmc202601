@@ -24,6 +24,8 @@
 #   PREV_RUNTAG   p2 の RUNTAG（必須。PREV は <TAG>_p2_<PREV_RUNTAG>_seed<S>）
 #   ULT_RUNTAG    ult の RUNTAG（必須）
 #   N_MUT         ult の mutation 回数（既定 150）
+#   N_PART        ult の粒子数（空なら job の既定 5000）。前段 p2 を粒子を増やして通した群は同じ数を渡す
+#                 （2026-10-12: DS ult を 5000 で回して判定 3・4 が落ちた）
 #   OVERRIDE      ult の箱の上書き（p2 と同じものを渡す）
 #   MODES         判定 4 で山ごとに見る多峰の成分と谷（check_paper_runs.py --modes に渡す。
 #                 例 'a34:-1.5;a35:-10'。qsub -v はカンマで変数を区切るので区切りは ";"。空なら従来どおり）
@@ -53,6 +55,7 @@ TAG="${TAG:?TAG must be CS|CH|DS|DH}"
 PREV_RUNTAG="${PREV_RUNTAG:?PREV_RUNTAG (p2 の RUNTAG) が必要}"
 ULT_RUNTAG="${ULT_RUNTAG:?ULT_RUNTAG が必要}"
 N_MUT="${N_MUT:-150}"
+N_PART="${N_PART:-}"
 OVERRIDE="${OVERRIDE:-}"
 MODES="${MODES:-}"
 MODES="${MODES//;/,}"
@@ -127,6 +130,7 @@ SUBMITTED=""
 for S in $SEEDS; do
   PREV="_runs/paper_gateoff/${TAG}_p2_${PREV_RUNTAG}_seed${S}"
   VARS="STAGE=ult,TAG=${TAG},SEED=${S},N_MUT=${N_MUT},RUNTAG=${ULT_RUNTAG},PREV=${PREV}"
+  [ -n "$N_PART" ] && VARS="${VARS},N_PART=${N_PART}"
   [ -n "$OVERRIDE" ] && VARS="${VARS},OVERRIDE=${OVERRIDE}"
   if [ "$DRY_RUN" = "1" ]; then
     echo "DRY_RUN: qsub -l nodes=1:ppn=1:gpus=1:${NODE} -l walltime=${WALLTIME} -v ${VARS} paper_gateoff_job.sh"
@@ -156,7 +160,7 @@ NOTIFY="$(qsub -W "depend=${DEP}" -v "RUN_GLOB=${TAG}_ult_${ULT_RUNTAG}_seed*,LA
   i=0; for S in $SEEDS; do i=$((i+1)); echo "| $(echo $SUBMITTED | cut -d' ' -f$i) | $S | $NODE | $WALLTIME |"; done
   echo
   echo "\`STAGE=ult TAG=${TAG} N_MUT=${N_MUT} RUNTAG=${ULT_RUNTAG} OVERRIDE='${OVERRIDE}' PREV=${TAG}_p2_${PREV_RUNTAG}_seed\$S\`"
-  echo "（\`ULT_NSIGMA\` は既定 4、\`N_PART\` は既定 5000）"
+  echo "（`ULT_NSIGMA` は既定 4、`N_PART` は ${N_PART:-既定 5000}）"
   echo
   echo "判定の全文:"
   echo
