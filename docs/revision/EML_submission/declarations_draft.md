@@ -12,7 +12,10 @@ Elsevier の決まった書式（見出しと文の形は変えない。[ ] の�
 >
 > During the preparation of this work the author(s) used [NAME TOOL / SERVICE] in order to [REASON]. After using this tool/service, the author(s) reviewed and edited the content as needed and take(s) full responsibility for the content of the publication.
 
-### 案（実際の使い方に合わせて選ぶ）
+### 決定（2026-10-12、案 B に A を少し足す）
+> During the preparation of this work the authors used Claude (Anthropic) in order to improve the language and readability of the manuscript and to assist with programming the analysis and plotting scripts. After using this tool, the authors reviewed and edited the content as needed and take full responsibility for the content of the publication.
+
+### 検討した案
 
 **案 A（おすすめ・正直で広め）**
 > During the preparation of this work the authors used Claude (Anthropic) in order to improve the language of the manuscript, to assist in writing and checking analysis and plotting scripts, and to check the consistency of numbers between the text and the computed results. After using this tool, the authors reviewed and edited the content as needed and take full responsibility for the content of the publication.
