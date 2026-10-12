@@ -281,3 +281,4 @@ RMSE（Day 3〜21、重みなし）。`docs/revision/generated/two_channel_pilot
 - CPU で 4 条件 × W∈{0,1}、再スタート 2・250 反復を掃引中 → `docs/revision/generated/two_channel_pilot/improve/`。
 - 判断の目安: W=0 で収束しても ψ が離れるなら ch4（`LAMBDA_PSI_DATA`）を estimator に足して CH の p2 から 1 系列試す。
   W=0 で近づくなら 2 通路のまま（二重数えを避ける）。2 通路の GPU ジョブは止めない。
+- **20.2（2026-10-13c、GPU 側の相談への返事）**: ψ^data を尤度に入れない（ch1÷ch2×ch3 から作るので二重計上。2 通路でも合わなければ構造上の結果として書く、ψ^data は確認用）。パイロットは推定と同じ尤度（重み・σ）と p2 の実際の箱で回し直す。**日・種ごとの σ（反復の q25/q75）は改訂・修論の候補**（今回は尤度を変えない）。
