@@ -121,7 +121,12 @@ Funding・謝辞は BMB 版と同じ文言（DFG は Nils 指定の文言、ERC 
 - `EML_supplementary.tex`（6 ページ、エラー 0）: BMB 版の補足に、本文から外した S1 モデルの導出・S2 文献上の相互作用（図と表）・S3 尤度の重み・Algorithm・計算時間の表を足した。
   S 番号は結果がそろってから振り直す（本文の参照も）。
 
-## 12. タイトル候補（2026-10-12、未決定）
+## 12. タイトル（2026-10-12 決定）
+
+**決定:** Identifiable and unidentifiable species interactions in a living material: a Bayesian inverse characterization
+（案 3 から "physics-constrained" を外した。物理制約付き学習（PINN 等）と誤解されるため。本文・カバーレターの同語も "model-based" に変更）
+
+### 以下は検討時の候補
 
 方向は **A（同定性＝「データで何が決まるか」を前に出す）** で、ここから選ぶ。本文の `\title` はまだ旧案のまま。
 

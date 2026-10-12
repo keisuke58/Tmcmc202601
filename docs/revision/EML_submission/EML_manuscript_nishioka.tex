@@ -25,7 +25,7 @@
 
 \begin{frontmatter}
 
-\title{GPU-accelerated Bayesian calibration of a variational multiphase model of multispecies biofilms \TBD{final title after the results}}
+\title{Identifiable and unidentifiable species interactions in a living material: a Bayesian inverse characterization}
 
 \author[ikm,mhh,nife,keio]{Keisuke Nishioka\corref{cor}}
 \ead{keisuke.nishioka@stud.uni-hannover.de}
@@ -47,7 +47,7 @@
 
 \begin{abstract}
 Biofilms are living materials whose composition, and with it their mechanical response, is set by interactions between species that cannot be measured directly.
-We treat the identification of these interactions as a physics-constrained inverse characterization problem and calibrate a thermodynamically consistent multiphase model of a five-species oral biofilm, derived from the extended Hamilton principle, against in-vitro time courses under four combinations of community state and cultivation.
+We treat the identification of these interactions as a model-based inverse characterization problem and calibrate a thermodynamically consistent multiphase model of a five-species oral biofilm, derived from the extended Hamilton principle, against in-vitro time courses under four combinations of community state and cultivation.
 All 15 entries of the symmetric interaction matrix are inferred jointly by transitional Markov chain Monte Carlo, with the stiff forward model compiled in JAX and evaluated for all particles in parallel on a GPU ($\sim$150$\times$ faster than on a CPU).
 The data enter in stages, from species composition to community viability, and every stage is accepted only after explicit checks of seed agreement, mixing and posterior mass at the prior bounds.
 The calibrated model reproduces the species fractions with root-mean-square errors of 0.02--0.09 in three conditions\TBD{prov.}; in the commensal static condition (0.17--0.18) the composition and the measured viability cannot both be matched.
