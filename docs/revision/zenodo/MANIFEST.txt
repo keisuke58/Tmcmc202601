@@ -1,0 +1,155 @@
+# MANIFEST.txt -- explicit file list of the Zenodo archive (read by build_archive.sh)
+#
+# Syntax
+#   - one path or bash glob per line, relative to the repository root
+#   - globs are expanded with bash (nullglob, globstar); a directory match is included recursively
+#   - a line starting with "?" is OPTIONAL: a missing match only prints a warning
+#     (used for the DS/DH stage-(iv) runs that are still computing)
+#   - every other line is REQUIRED: if it matches nothing, the build fails
+#   - __pycache__/, *.pyc, *.pkl, .env* are always excluded, whatever the glob says
+#
+# Paths keep their repository layout inside the zip, so all scripts run unchanged from the
+# unpacked archive root (they locate files relative to their own location).
+
+# ---------------------------------------------------------------------------
+# 0. Archive metadata (also copied to the zip root by build_archive.sh)
+# ---------------------------------------------------------------------------
+LICENSE
+docs/revision/zenodo/README.md
+docs/revision/zenodo/MANIFEST.txt
+docs/revision/zenodo/CITATION.cff
+docs/revision/zenodo/.zenodo.json
+docs/revision/zenodo/requirements.txt
+docs/revision/zenodo/build_archive.sh
+
+# ---------------------------------------------------------------------------
+# 1. Inference code: estimate_paper_jax.py and everything it imports inside the repo
+#    (import closure traced with sys.modules on 2026-10-12)
+# ---------------------------------------------------------------------------
+data_5species/main/estimate_paper_jax.py
+data_5species/main/hamilton_ode_jax_paper.py
+data_5species/main/tmcmc_engine_paper.py
+data_5species/main/estimate_reduced_nishioka.py
+data_5species/main/paper_gateoff_job.sh
+data_5species/core/__init__.py
+data_5species/core/evaluator.py
+data_5species/core/mcmc.py
+data_5species/core/nishioka_model.py
+data_5species/core/tmcmc.py
+data_5species/debug/__init__.py
+data_5species/debug/logger.py
+data_5species/utils/__init__.py
+data_5species/utils/health.py
+data_5species/utils/io.py
+data_5species/utils/timing.py
+data_5species/utils/validation.py
+data_5species/visualization/__init__.py
+data_5species/visualization/helpers.py
+data_5species/visualization/plot_manager.py
+tmcmc/program2602/analytical_derivatives_jit.py
+tmcmc/program2602/config.py
+tmcmc/program2602/demo_analytical_tsm_with_linearization_jit.py
+tmcmc/program2602/improved1207_paper_jit.py
+tmcmc/program2602/improved_5species_jit.py
+tmcmc/program2602/mcmc_diagnostics.py
+tmcmc/program2602/paper_analytical_derivatives.py
+
+# Prior box of the paper (20-dim layout), read by estimate_paper_jax.load_prior_bounds
+data_5species/model_config/prior_bounds_paper_20d.json
+
+# ---------------------------------------------------------------------------
+# 2. Experimental data actually read by the estimator (Heine et al. 2025, Front. Oral Health 6:1649419)
+#    TODO(co-authors): confirm redistribution is permitted -- see README "Experimental data".
+# ---------------------------------------------------------------------------
+data_5species/experiment_data/boxplot_Commensal_Static.csv
+data_5species/experiment_data/boxplot_Commensal_HOBIC.csv
+data_5species/experiment_data/boxplot_Dysbiotic_Static.csv
+data_5species/experiment_data/boxplot_Dysbiotic_HOBIC.csv
+data_5species/experiment_data/fig2_membrane_distribution.csv
+data_5species/experiment_data/fig3_species_distribution_replicates.csv
+data_5species/experiment_data/fig3_species_distribution_summary.csv
+data_5species/experiment_data/fig4A_pH_timeseries.csv
+data_5species/experiment_data/figS1_total_species_distribution_replicates.csv
+data_5species/experiment_data/figS1_total_species_distribution_summary.csv
+
+# ---------------------------------------------------------------------------
+# 3. Figure / table / check scripts (+ the modules they import)
+# ---------------------------------------------------------------------------
+tools/make_paper_figures.py
+tools/make_eml_figs56.py
+tools/make_supplementary_tables.py
+tools/make_cost_table.py
+tools/plot_seed_maps.py
+tools/ph_check.py
+tools/fisher_ident.py
+tools/fit_ceiling.py
+tools/knockout_fn.py
+tools/eval_paper_runs.py
+tools/check_paper_runs.py
+tools/check_day_offset.py
+tools/gate_submit_ult.sh
+tools/thesis_style.py
+docs/generate_fig2_phi_version.py
+docs/generate_fig_phase_scatter.py
+# Fig. 1 (schematic, TikZ source)
+docs/revision/EML_submission/figures/fig1_pipeline.tex
+
+# ---------------------------------------------------------------------------
+# 4. Posterior samples and run records (final pipeline, 3 seeds each)
+#    Stage naming: (i) pilot, (ii) p1, (iii) p2, (iv) ult
+# ---------------------------------------------------------------------------
+docs/revision/generated/final_runs/README.md
+
+# CS -- commensal, static
+docs/revision/generated/final_runs/CS_pilot_mut80_seed*
+docs/revision/generated/final_runs/CS_pilot_a45zero_m120_seed*
+docs/revision/generated/final_runs/CS_p1_mut120_seed*
+docs/revision/generated/final_runs/CS_ult_wide2_sd4_seed*
+
+# CH -- commensal, HOBIC flow reactor
+docs/revision/generated/final_runs/CH_pilot_mut80_seed*
+docs/revision/generated/final_runs/CH_pilot_a45zero_m120_seed*
+docs/revision/generated/final_runs/CH_p1_mut150_seed*
+docs/revision/generated/final_runs/CH_ult_mut150_wide2_noph_sd4_seed*
+
+# DS -- dysbiotic, static   (PROVISIONAL: final stage (iv) pending)
+docs/revision/generated/final_runs/DS_pilot_wide80_seed*
+docs/revision/generated/final_runs/DS_pilot_a45zero_seed*
+docs/revision/generated/final_runs/DS_p1_wide80_p3k_seed*
+docs/revision/generated/final_runs/DS_p2_wide80_p18k_wide2_seed*
+?docs/revision/generated/final_runs/DS_ult_*_seed*
+
+# DH -- dysbiotic, HOBIC flow reactor   (PROVISIONAL: final stage (iv) pending)
+docs/revision/generated/final_runs/DH_pilot_mut80_seed*
+docs/revision/generated/final_runs/DH_pilot_a45zero_seed*
+docs/revision/generated/final_runs/DH_p1_mut80_seed*
+docs/revision/generated/final_runs/DH_p2_nonarrow_w3_noph_p14k_seed*
+?docs/revision/generated/final_runs/DH_ult_*_seed*
+
+# ---------------------------------------------------------------------------
+# 5. Final MAP estimates (stage (iv), best seed) and initial conditions
+# ---------------------------------------------------------------------------
+docs/revision/generated/final_theta_MAP/README.md
+docs/revision/generated/final_theta_MAP/CS.json
+docs/revision/generated/final_theta_MAP/CH.json
+docs/revision/generated/final_theta_MAP/phi_init.json
+?docs/revision/generated/final_theta_MAP/DS.json
+?docs/revision/generated/final_theta_MAP/DH.json
+
+# ---------------------------------------------------------------------------
+# 6. Derived outputs as used in the submitted manuscript (for comparison with a re-run)
+#    Directory name is the one \includegraphics/\input currently point to.
+# ---------------------------------------------------------------------------
+docs/revision/EML_submission/figures/provisional_2026-10-11/supp/spec_provisional.json
+docs/revision/EML_submission/figures/provisional_2026-10-11/supp/supp_S*.tex
+docs/revision/EML_submission/figures/provisional_2026-10-11/knockout_DH.json
+docs/revision/EML_submission/figures/provisional_2026-10-11/knockout_DS.json
+docs/revision/EML_submission/figures/provisional_2026-10-11/ph_check.json
+docs/revision/EML_submission/figures/provisional_2026-10-11/ph_check_bands.npz
+docs/revision/EML_submission/figures/provisional_2026-10-11/fisher_ident.json
+docs/revision/EML_submission/figures/provisional_2026-10-11/seed_maps_4cond.json
+docs/revision/EML_submission/figures/provisional_2026-10-11/paper_fig2_phi_transposed.pdf
+docs/revision/EML_submission/figures/provisional_2026-10-11/fig5_identifiability.pdf
+docs/revision/EML_submission/figures/provisional_2026-10-11/fig4_posteriors.pdf
+docs/revision/EML_submission/figures/provisional_2026-10-11/fig6_checks.pdf
+docs/revision/EML_submission/figures/provisional_2026-10-11/seed_maps_4cond.pdf

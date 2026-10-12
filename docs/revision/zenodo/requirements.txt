@@ -1,0 +1,13 @@
+# Python packages needed to run the inference and the figure/table scripts of this archive.
+# Versions: the set verified on 2026-10-12 (CPU, Python 3.11.15) -- see README "Software".
+# GPU runs additionally need the CUDA 12 build of JAX:  pip install "jax[cuda12]==0.10.2"
+jax==0.10.2
+jaxlib==0.10.2
+numpy==2.4.6
+scipy==1.17.1
+pandas==3.0.6
+matplotlib==3.11.2
+numba==0.68.0        # optional (legacy solver modules fall back to pure Python)
+requests==2.33.1     # imported by estimate_reduced_nishioka.py (unused Slack notifier)
+# optional: UMAP panel of make_paper_figures.py (skipped automatically if missing)
+# umap-learn

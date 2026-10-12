@@ -1,0 +1,148 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software or these posterior samples, please cite the article
+  (preferred-citation) and this archive. The experimental data are from
+  Heine et al. (2025); please cite that article as well.
+type: software
+title: >-
+  Code, run records and posterior samples for: Identifiability of species
+  interactions in a living material: Bayesian calibration of an extended
+  Hamilton principle multiphase model
+version: "1.0.0"
+# doi: "10.5281/zenodo.TODO"   # TODO: insert the DOI reserved on Zenodo, then uncomment
+license: MIT
+repository-code: "https://github.com/keisuke58/Tmcmc202601"
+keywords:
+  - Inverse characterization
+  - Bayesian calibration
+  - Uncertainty quantification
+  - Extended Hamilton principle
+  - Living materials
+  - GPU
+  - TMCMC
+  - JAX
+  - oral biofilm
+authors:
+  - family-names: Nishioka
+    given-names: Keisuke
+    email: keisuke.nishioka@stud.uni-hannover.de
+    affiliation: >-
+      Institute of Continuum Mechanics, Leibniz Universität Hannover, Germany;
+      Department of Prosthetic Dentistry and Biomedical Materials Science,
+      Hannover Medical School, Germany; Lower Saxony Centre for Biomedical
+      Engineering, Implant Research and Development (NIFE), Germany;
+      Graduate School of Science and Technology, Keio University, Japan
+  - family-names: Klempt
+    given-names: Felix
+    affiliation: "Institute of Continuum Mechanics, Leibniz Universität Hannover, Germany"
+  - family-names: Geisler
+    given-names: Hendrik
+    affiliation: "Institute of Continuum Mechanics, Leibniz Universität Hannover, Germany"
+  - family-names: Mukherjee
+    given-names: Rumjhum
+    affiliation: >-
+      Department of Prosthetic Dentistry and Biomedical Materials Science,
+      Hannover Medical School, Germany; Lower Saxony Centre for Biomedical
+      Engineering, Implant Research and Development (NIFE), Germany
+  - family-names: Heine
+    given-names: Nils
+    affiliation: >-
+      Department of Prosthetic Dentistry and Biomedical Materials Science,
+      Hannover Medical School, Germany; Lower Saxony Centre for Biomedical
+      Engineering, Implant Research and Development (NIFE), Germany
+  - family-names: Doll-Nikutta
+    given-names: Katharina
+    affiliation: >-
+      Department of Prosthetic Dentistry and Biomedical Materials Science,
+      Hannover Medical School, Germany; Lower Saxony Centre for Biomedical
+      Engineering, Implant Research and Development (NIFE), Germany
+  - family-names: Stiesch
+    given-names: Meike
+    affiliation: >-
+      Department of Prosthetic Dentistry and Biomedical Materials Science,
+      Hannover Medical School, Germany; Lower Saxony Centre for Biomedical
+      Engineering, Implant Research and Development (NIFE), Germany
+  - family-names: Szafrański
+    given-names: Szymon P.
+    affiliation: >-
+      Department of Prosthetic Dentistry and Biomedical Materials Science,
+      Hannover Medical School, Germany; Lower Saxony Centre for Biomedical
+      Engineering, Implant Research and Development (NIFE), Germany
+  - family-names: Soleimani
+    given-names: Meisam
+    affiliation: "Institute of Continuum Mechanics, Leibniz Universität Hannover, Germany"
+  - family-names: Junker
+    given-names: Philipp
+    affiliation: "Institute of Continuum Mechanics, Leibniz Universität Hannover, Germany"
+preferred-citation:
+  type: article
+  title: >-
+    Identifiability of species interactions in a living material: Bayesian
+    calibration of an extended Hamilton principle multiphase model
+  journal: "Extreme Mechanics Letters"
+  status: submitted
+  # doi: "TODO_PAPER_DOI"   # TODO: insert after acceptance
+  authors:
+    - family-names: Nishioka
+      given-names: Keisuke
+    - family-names: Klempt
+      given-names: Felix
+    - family-names: Geisler
+      given-names: Hendrik
+    - family-names: Mukherjee
+      given-names: Rumjhum
+    - family-names: Heine
+      given-names: Nils
+    - family-names: Doll-Nikutta
+      given-names: Katharina
+    - family-names: Stiesch
+      given-names: Meike
+    - family-names: Szafrański
+      given-names: Szymon P.
+    - family-names: Soleimani
+      given-names: Meisam
+    - family-names: Junker
+      given-names: Philipp
+references:
+  - type: article
+    title: >-
+      Influence of species composition and cultivation condition on
+      peri-implant biofilm dysbiosis in vitro
+    journal: "Frontiers in Oral Health"
+    volume: 6
+    start: 1649419
+    year: 2025
+    doi: "10.3389/froh.2025.1649419"
+    authors:
+      - family-names: Heine
+        given-names: Nils
+      - family-names: Bittroff
+        given-names: Kristina
+      - family-names: Szafrański
+        given-names: Szymon P.
+      - family-names: Duitscher
+        given-names: Maya
+      - family-names: Behrens
+        given-names: Wiebke
+      - family-names: Vollmer
+        given-names: Clarissa
+      - family-names: Mikolai
+        given-names: Carina
+      - family-names: Kommerein
+        given-names: Nadine
+      - family-names: Debener
+        given-names: Nicolas
+      - family-names: Frings
+        given-names: Katharina
+      - family-names: Heisterkamp
+        given-names: Alexander
+      - family-names: Scheper
+        given-names: Thomas
+      - family-names: Torres-Mapa
+        given-names: Maria L.
+      - family-names: Bahnemann
+        given-names: Janina
+      - family-names: Stiesch
+        given-names: Meike
+      - family-names: Doll-Nikutta
+        given-names: Katharina
