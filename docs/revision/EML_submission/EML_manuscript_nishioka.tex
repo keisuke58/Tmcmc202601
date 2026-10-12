@@ -5,6 +5,8 @@
 \usepackage{lmodern}
 \usepackage{amsmath,amssymb,bm}
 \usepackage{graphicx,booktabs,xcolor}
+\usepackage{xr}
+\externaldocument[S-]{EML_supplementary}
 \usepackage{xurl}
 \usepackage[hidelinks]{hyperref}
 \usepackage{lineno}
@@ -48,7 +50,7 @@ Biofilms are living materials whose composition, and with it their mechanical re
 We treat the identification of these interactions as a physics-constrained inverse characterization problem and calibrate a thermodynamically consistent multiphase model of a five-species oral biofilm, derived from the extended Hamilton principle, against in-vitro time courses under four combinations of community state and cultivation.
 All 15 entries of the symmetric interaction matrix are inferred jointly by transitional Markov chain Monte Carlo, with the stiff forward model compiled in JAX and evaluated for all particles in parallel on a GPU ($\sim$150$\times$ faster than on a CPU).
 The data enter in stages, from species composition to community viability, and every stage is accepted only after explicit checks of seed agreement, mixing and posterior mass at the prior bounds.
-The calibrated model reproduces the species fractions with root-mean-square errors of 0.03--0.08 in three conditions\TBD{prov.}; in the commensal static condition (0.18) the composition and the measured viability cannot both be matched.
+The calibrated model reproduces the species fractions with root-mean-square errors of 0.02--0.09 in three conditions\TBD{prov.}; in the commensal static condition (0.18) the composition and the measured viability cannot both be matched.
 Only part of the interaction matrix is determined by the data---four and six entries in the two commensal conditions, all among the early colonisers and with the same signs where they overlap, and eight and nine in the dysbiotic ones\TBD{prov.}---and we state explicitly which.
 The Fn--Pg coefficient, positive when only the composition is used, is no longer sign-determined once the viability is added\TBD{prov.}. The measured pH, not used in the inference, is reproduced in the dysbiotic flow condition through a fixed regression on the predicted composition, and removing Fn from the calibrated model abolishes the late increase of Pg, a prediction open to direct experimental test\TBD{prov.}.
 \end{abstract}
@@ -132,19 +134,19 @@ The model fractions are renormalised over the five species, $\hat y_i=\phi_i/\su
 \label{eq:lik}
 \end{equation}
 with $\sigma_i$ the replicate standard deviation of species $i$.
-The weights up-weight Pg ($\lambda_{\mathrm{Pg}}=5$), whose late increase is the main dynamic feature of the dysbiotic data, and the last two time points ($\lambda_{\mathrm{late}}=3$), and down-weight species below 5\% ($0.1$); without these weights the median of the key coefficient is unchanged but its interval widens (Supplementary Section~S9).
+The weights up-weight Pg ($\lambda_{\mathrm{Pg}}=5$), whose late increase is the main dynamic feature of the dysbiotic data, and the last two time points ($\lambda_{\mathrm{late}}=3$), and down-weight species below 5\% ($0.1$); without these weights the median of the key coefficient is unchanged but its interval widens (Supplementary Section~\ref{S-sec:S_lambda}).
 In the later stages a second Gaussian channel compares the predicted community viability $\sum_i\bar\phi_i/\sum_i\phi_i$ with the measured fraction of membrane-intact cells.
 The measured pH under dynamic cultivation is not used in the inference and serves as a check (Section~\ref{sec:results}).
 
 \paragraph{Prior and stages.}
 The prior is uniform on a box $[l_k,u_k]$ for each entry, set to contain earlier estimates; it encodes no sign constraint.
-Inference proceeds in four stages on the same data:
+Inference proceeds in four stages on the same data (Fig.~\ref{fig:pipeline}):
 (i)~composition likelihood on the box;
 (ii)~as (i), on the box narrowed to the stage-(i) posterior mean $\pm4$ standard deviations;
 (iii)~composition and viability, back on the full box, starting from the stage-(ii) particles;
 (iv)~as (iii), on the box narrowed to the stage-(iii) posterior mean $\pm4$ standard deviations.
 A $\pm4$\,SD box removes less than $10^{-4}$ of a Gaussian marginal, so narrowing shortens the tempering without truncating the posterior.
-If more than 20\% of the posterior mass of an entry lies in the outer 5\% of the box on one side, the bound is moved outwards and the stage is repeated; the boxes finally used are listed in Supplementary Table~S1.
+If more than 20\% of the posterior mass of an entry lies in the outer 5\% of the box on one side, the bound is moved outwards and the stage is repeated; the boxes finally used are listed in Supplementary Table~\ref{S-tab:S_boxes}.
 
 \paragraph{TMCMC on the GPU.}
 TMCMC~\citep{ChingChen2007TMCMC, DelMoral2006SMC} passes a particle population through the tempered posteriors $p_m(\btheta)\propto p(\yobs\mid\btheta)^{\beta_m}p(\btheta)$, $0=\beta_0<\dots<\beta_M=1$, choosing each increment so that the coefficient of variation of the importance weights stays at a target value~\citep{Betz2016TMCMC}.
@@ -179,7 +181,7 @@ The evidence estimate of TMCMC is used only to compare models on the same data a
 \subsection{Fit and convergence}
 All stages of all conditions were accepted under criteria (a)--(e) with three seeds each \TBD{DS, DH stage (iv) pending; their numbers below are from stage (ii)}.
 At stage (iv) the composition is reproduced with a root-mean-square error of 0.076--0.078 in CH, 0.172--0.179 in CS, 0.021--0.028 in DS and 0.081--0.090 in DH\TBD{prov.} (Fig.~\ref{fig:fit}).
-Accepting a stage often required more than one attempt: posterior mass accumulated at a bound of the initial box in every condition and was released by widening that bound (Supplementary Table~S1), and the dysbiotic conditions needed up to \TBD{18000 (DS) and 20000 (DH)} particles before the three seeds agreed (Supplementary Table~S2).
+Accepting a stage often required more than one attempt: posterior mass accumulated at a bound of the initial box in every condition and was released by widening that bound (Supplementary Table~\ref{S-tab:S_boxes}), and the dysbiotic conditions needed up to \TBD{18000 (DS) and 20000 (DH)} particles before the three seeds agreed (Supplementary Table~\ref{S-tab:S_runs}).
 Without the acceptance criteria, several of these runs would have been read as converged.
 
 \begin{figure*}[t]
@@ -190,7 +192,7 @@ Without the acceptance criteria, several of these runs would have been read as c
 \end{figure*}
 
 \subsection{What the data determine}
-Figure~\ref{fig:ident} and Supplementary Table~S4 classify every entry of $\mathbf{A}$ at stage (iv); the number of directions in which the likelihood itself is narrow at the MAP is of the same order (Supplementary Section~S6).
+Figure~\ref{fig:ident} and Supplementary Table~\ref{S-tab:S_ident} classify every entry of $\mathbf{A}$ at stage (iv); the number of directions in which the likelihood itself is narrow at the MAP is of the same order (Supplementary Section~\ref{S-sec:S_ident}).
 In the commensal conditions only a few entries are identified: four in CS ($a_{11}$, $a_{22}$, $a_{33}$, $a_{13}$) and six in CH ($a_{11}$, $a_{12}$, $a_{22}$, $a_{33}$, $a_{13}$, $a_{23}$), all among the early colonisers So, An and Vei.
 Where both conditions identify an entry, the sign agrees: the self-interaction of So is negative ($a_{11}$, 90\% intervals $[-4.9,-1.2]$ in CS and $[-2.5,-0.5]$ in CH) and the So--Vei coefficient is positive ($a_{13}$, $[+2.8,+9.2]$ and $[+0.01,+1.4]$), in line with the lactate cross-feeding between streptococci and \textit{Veillonella}~\citep{Kolenbrander2010OralMultispecies}, although $a_{13}$ is an effective coefficient and not a measurement of that mechanism.
 Two further entries of CH, $a_{14}$ and $a_{15}$, are determined in sign only (90\% intervals $[-4.8,-0.2]$ and $[-4.8,-0.3]$), and every other entry involving Fn or Pg spreads over its whole box.
@@ -210,10 +212,10 @@ The classification is a result in its own right: it states which conclusions abo
 
 \subsection{The Fn--Pg coefficient}
 The coefficient $a_{45}$ links the bridging organism Fn to the pathogen Pg.
-Comparing the full model with a model in which $a_{45}=0$, both inferred at stage (i), gives $\ln B=+0.10$ (CS), $+0.05$ (CH), $-2.67$ (DS) and $+1.94$ (DH) (Supplementary Table~S3).
+Comparing the full model with a model in which $a_{45}=0$, both inferred at stage (i), gives $\ln B=+0.10$ (CS), $+0.05$ (CH), $-2.67$ (DS) and $+1.94$ (DH) (Supplementary Table~\ref{S-tab:S_bayes}).
 Because the uniform prior penalises the full model by the log-width of the $a_{45}$ box, $\ln B$ is read only within a condition: in DS, where the box had to be widened to $[-15,20]$, the penalty alone is $\ln35\approx3.6$.
 In DH, the data favour a non-zero coefficient (Fig.~\ref{fig:post}).
-With the composition alone (stage (i)) $a_{45}$ is positive in all seeds (90\% interval about $[+0.5,+5.5]$); without the likelihood weights its median is unchanged but the interval reaches zero ($[-0.06,+5.6]$; Supplementary Section~S9).
+With the composition alone (stage (i)) $a_{45}$ is positive in all seeds (90\% interval about $[+0.5,+5.5]$); without the likelihood weights its median is unchanged but the interval reaches zero ($[-0.06,+5.6]$; Supplementary Section~\ref{S-sec:S_lambda}).
 Once the viability enters, the median of $a_{45}$ stays positive in both dysbiotic conditions ($+2.8$ in DS, $+1.2$ in DH) but the 90\% intervals include zero ($[-1.3,+15.1]$ and $[-1.9,+7.5]$)\TBD{prov.}.
 The composition data alone thus support a positive Fn--Pg coefficient in DH, and the viability data neither confirm nor contradict it.
 \begin{figure}[t]
@@ -245,7 +247,7 @@ The likelihood treats the five species fractions as independent although they su
 The fit is poorest in CS, almost entirely in So and Vei (per-species errors 0.31 and 0.24, all others below 0.05), where the So fraction rises from 0.18 to 0.70 between day~1 and day~3.
 The model can follow this rise: fitted to the composition alone it reaches an error of 0.075, but only with a live fraction near 0.97, against the measured 0.65--0.77.
 The composition and the live/dead staining cannot both be matched in CS, and the posterior settles on a compromise; we report it rather than weight the channels differently for one condition.
-The compromise is sharpest at the MAP: the bulk of the CS posterior lies closer to the composition data (pointwise posterior median, error 0.125), whereas the MAP, identical in all three seeds, sits where the live fraction is matched best (error 0.179); in the other conditions the two differ by less than 0.02 (Supplementary Section~S7).
+The compromise is sharpest at the MAP: the bulk of the CS posterior lies closer to the composition data (pointwise posterior median, error 0.125), whereas the MAP, identical in all three seeds, sits where the live fraction is matched best (error 0.179); in the other conditions the two differ by less than 0.02 (Supplementary Section~\ref{S-sec:S_seedmap}).
 The interaction coefficients are effective quantities of this model and data set; they lump mechanisms that the model does not resolve, such as metabolite exchange and pH, and are not direct measurements of pairwise mechanisms.
 The calibration covers a 0D material point; the spatial structure of the biofilm and its mechanics are not part of the inference.
 The calibrated dynamics are, however, the input that continuum growth models of biofilms require~\citep{Klempt2024ContinuumGrowth}: the total volume fraction of the point model can drive the growth variable of a finite-element model, so that differences in growth-induced stress between conditions follow from the calibrated interactions rather than from assumed species-specific growth weights.
