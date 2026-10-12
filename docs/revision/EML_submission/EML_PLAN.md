@@ -166,3 +166,18 @@ GPU・判定の話は要旨とハイライトで伝わるので、タイトル�
 - 今週投稿はやめる。DS・DH の ult が判定を通ってから。Meisam には連絡済み（10/12）。
 - 時間の対応は「t は接種からの時間、Day 1 の組成は最初の測定として t=0 の初期状態に使う」と書く（ずれではなく解釈として。Day 1 から始めた場合との差は最大 0.008）。
 - 同定性（B2）: Fisher 情報量（MAP での曲率）で決まる方向の数を補足 S6 に追加済み（CS 4・CH 4・DS 8・DH 5 vs 事後 4・6・8・9）。次は合成データでの回収テスト（GPU、本線の後）。
+
+
+## 15. GitHub 公開とデータ（2026-10-12）
+
+- **実験データ（Heine et al. 2025）は Zenodo で再配布しない（ユーザー判断）。** `docs/revision/zenodo/MANIFEST.txt` から CSV 10 本と `ph_check_bands.npz` を外し、README §6 に入手方法を書いた。
+- 原稿の Data availability は Zenodo だけを挙げる（GitHub の URL を外した、d768666）。Zenodo の README・.zenodo.json・CITATION.cff からも GitHub を外した。
+- 🔴 **ただしリポジトリ `keisuke58/Tmcmc202601` は public で、`data_5species/experiment_data/`（85 ファイル）が入っている。**
+- **対応（おすすめ・ユーザー了承）: 非公開（private）にする。ただし今はまだやらない。**
+  - 今切り替えると止まるもの:
+    1. IKMHIWI03 の `run_calibrated.ps1`（pde-fem-biofilm）が GitHub API と raw URL を**認証なし**で叩いて final_theta_MAP・phi_init を取っている → 失敗する
+    2. GPU クラスタの `git pull` の認証方式が不明 → 失敗すると古いコードで走る（前例あり）
+  - **切り替える時期:** DS・DH の ult が終わり、IKMHIWI03 の FEM 再計算（CH・CS・DS・DH）が済んだあと。
+  - **その前に:** GPU 側と IKMHIWI03 に、認証付きで pull・取得できるか確認を頼む（handoff）。`run_calibrated.ps1` はトークン（環境変数）対応が要るかもしれない。
+  - 手順: GitHub → Settings → General → Danger Zone → Change visibility → Private。MHH の了承が取れたら public に戻してもよい。
+  - 消すだけでは履歴に残るので、ファイル削除ではなく非公開で対応する。
