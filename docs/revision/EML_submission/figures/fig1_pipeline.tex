@@ -27,7 +27,7 @@
 % ---------- (b) data ----------
 \node[lab,anchor=west] at (11.0,3.2) {(b) Data};
 \node[box,anchor=north west,text width=40mm] (data) at (11.0,3.0) {
-  5 species, Days 1--21\\
+  5 species, days 1--21\\
   4 conditions:\\ commensal / dysbiotic\\ $\times$ static / HOBIC flow\\[2pt]
   composition $+$ viability\\
   {\color{gray} pH: held out for checking}};
@@ -38,8 +38,8 @@
 \node[stage,fill=orange!10,right=6mm of s2] (s3) {(iii) $+$ viability\\ initial box};
 \node[stage,fill=orange!10,right=6mm of s3] (s4) {(iv) $+$ viability\\ box $\pm4$\,SD};
 \foreach \a/\b in {s1/s2,s2/s3,s3/s4}{\draw[->,thick] (\a)--(\b);}
-\node[font=\scriptsize,above=0mm of $(s1.north)!0.5!(s2.north)$] {Phase 1};
-\node[font=\scriptsize,above=0mm of $(s3.north)!0.5!(s4.north)$] {Phase 2};
+\node[font=\scriptsize,above=0mm of $(s1.north)!0.5!(s2.north)$] {composition only};
+\node[font=\scriptsize,above=0mm of $(s3.north)!0.5!(s4.north)$] {composition + viability};
 \node[draw,rounded corners=2pt,fill=gray!5,inner sep=4pt,below=7mm of $(s2)!0.5!(s3)$,align=center] (gpu) {%
   each stage: tempering $\beta=0\to1$, resampling, $K$ MH moves (random walk / DE)\\
   implicit solver in JAX, \texttt{jit}$+$\texttt{vmap} over all particles on a GPU ($\sim$150$\times$)};
@@ -48,10 +48,10 @@
 % ---------- (d) acceptance ----------
 \node[box,right=6mm of s4,text width=38mm,anchor=west,fill=green!6] (acc) {
   \textbf{accept a stage only if}\\
-  3 seeds agree ($\max\log L$, medians)\\
-  $\ge5$ moves / parameter\\
-  no mass piled at a bound\\
-  {\scriptsize else: more particles or wider bound, repeat}};
+  3 seeds agree ($\max\ln L$, medians)\\
+  $\ge5$ moves per parameter\\
+  no posterior mass piled at a bound\\
+  {\scriptsize else: more particles or a wider bound, repeat}};
 \draw[->,thick] (s4)--(acc);
 \end{tikzpicture}
 \end{document}

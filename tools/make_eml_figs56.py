@@ -136,3 +136,60 @@ for p, tag in enumerate(["CH", "DH"]):
 fig.savefig(os.path.join(args.fig_dir, "fig6_checks.pdf"), bbox_inches="tight")
 fig.savefig(os.path.join(args.fig_dir, "fig6_checks.png"), dpi=150, bbox_inches="tight")
 print("図 6: 書き出し済み")
+
+# ---------------------------------------------------------------- 図 4（区間の図、バイオリン図の置き換え、2026-10-12）
+# 横軸は段 (iii) の箱（初期の箱に、端に積んだ成分だけ広げた箱）の中での位置 0..1。
+# 棒は事後の 50%（太）と 90%（細）区間、丸は中央値（3 seed 合算）。灰色の縦の刻みは a_ij = 0 の位置。
+# 色の濃さは図 3 と同じ分類（同定・符号のみ・同定されない）。
+COND_COL = {"CS": "#1f77b4", "CH": "#2ca02c", "DS": "#ff7f0e", "DH": "#d62728"}
+
+
+def _override(base, spec_str):
+    pb = base.copy()
+    for part in (spec_str or "").replace(";", ",").split(","):
+        if part.strip():
+            k, lo, hi = part.split(":")
+            pb[int(k)] = [float(lo), float(hi)]
+    return pb
+
+
+fig, axes = plt.subplots(1, 4, figsize=(7.2, 4.0), sharey=True)
+for c, tag in enumerate(CONDS):
+    ax = axes[c]
+    dirs = sorted(glob.glob(os.path.join(args.root, spec[tag]["ult"])))
+    S = np.concatenate([np.load(os.path.join(d, "samples.npy")) for d in dirs])
+    rec_f = json.load(open(os.path.join(dirs[0], "run_record.json")))
+    if "_ult_" in os.path.basename(dirs[0]):
+        pil = sorted(glob.glob(os.path.join(args.root, spec[tag]["pilot"])))[0]
+        b1 = np.array(json.load(open(os.path.join(pil, "run_record.json")))["prior_bounds_final"], dtype=float)
+        b3 = _override(b1, rec_f["args"].get("override_bounds"))
+    else:
+        b3 = np.array(rec_f["prior_bounds_final"], dtype=float)
+    for r, nm in enumerate(ORDER):
+        i = NAMES.index(nm)
+        lo, hi = b3[i]
+        u = lambda x: (x - lo) / (hi - lo)
+        q = u(np.percentile(S[:, i], [5, 25, 50, 75, 95]))
+        alpha = 1.0 if cls[r, c] == 2 else (0.65 if cls[r, c] == 1 else 0.3)
+        col = COND_COL[tag]
+        ax.add_patch(plt.Rectangle((0, r - 0.32), 1, 0.64, color="0.93", lw=0, zorder=0))
+        if lo < 0 < hi:
+            ax.plot([u(0), u(0)], [r - 0.32, r + 0.32], color="0.45", lw=0.8, zorder=1)
+        ax.plot([q[0], q[4]], [r, r], color=col, lw=1.0, alpha=alpha, zorder=2)
+        ax.plot([q[1], q[3]], [r, r], color=col, lw=3.2, alpha=alpha, zorder=3, solid_capstyle="butt")
+        ax.plot(q[2], r, "o", color="white", mec=col, ms=3.4, mew=1.0, alpha=max(alpha, 0.6), zorder=4)
+    ax.set_title(tag, color=COND_COL[tag])
+    ax.set_xlim(-0.03, 1.03)
+    ax.set_xticks([0, 0.5, 1])
+    ax.set_xticklabels(["lower", "", "upper"])
+    ax.set_xlabel("position in prior box")
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+axes[0].set_yticks(range(len(ORDER)))
+axes[0].set_yticklabels([f"{SP[n[1]]}--{SP[n[2]]}" if n[1] != n[2] else f"{SP[n[1]]} (self)" for n in ORDER])
+axes[0].set_ylim(len(ORDER) - 0.5, -0.5)
+axes[0].tick_params(axis="y", length=0)
+fig.tight_layout(w_pad=0.8)
+fig.savefig(os.path.join(args.fig_dir, "fig4_posteriors.pdf"))
+fig.savefig(os.path.join(args.fig_dir, "fig4_posteriors.png"), dpi=150)
+print("図 4: 書き出し済み")
