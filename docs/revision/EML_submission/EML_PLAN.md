@@ -273,3 +273,11 @@ RMSE（Day 3〜21、重みなし）。`docs/revision/generated/two_channel_pilot
 - GPU 側への指示: handoff `2026-10-13b_two_channel_go.md`（止めるジョブ、4 条件の段ごとの粒子数・箱、CH → CS → DS・DH の順）。
 - 待つ間: 本文の書き換えの下書き（尤度の式、全菌のデータ、CS の不一致の主張を外す、S_psi を結果に、図 2 に φψ を戻すか）。回収テストは 2 通路の CH・CS ult が通ってから同じ尤度で。
 - 見込み: CH・CS は 2〜3 日、DS・DH は 1〜2 週間（判定のやり直し次第）。共著者メールはそのあと。
+
+### 20.1 「2 通路よりよく当てる」の検討（2026-10-13、GPU 側メモ）
+- ユーザー指示: 改善案（2 通路）よりよく当てはまる実装を。クラウドにも相談（handoff `gpu_2026-10-13_fit_improve.md`）。
+- §18.1 のパイロットは 80 反復・1 回で収束前。DS・DH の ψ_i はデータから離れたまま。
+- `tools/two_channel_pilot.py` に `--psi-data W`（ψ_i を ψ_i^data に寄せる項）と `--seed` を追加。既定は変えない。
+- CPU で 4 条件 × W∈{0,1}、再スタート 2・250 反復を掃引中 → `docs/revision/generated/two_channel_pilot/improve/`。
+- 判断の目安: W=0 で収束しても ψ が離れるなら ch4（`LAMBDA_PSI_DATA`）を estimator に足して CH の p2 から 1 系列試す。
+  W=0 で近づくなら 2 通路のまま（二重数えを避ける）。2 通路の GPU ジョブは止めない。

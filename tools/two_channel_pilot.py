@@ -10,6 +10,12 @@
 「2 通路で同時に合わせられる θ があるか」の目安。fit_ceiling.py と同じ作法。
 
     python3 tools/two_channel_pilot.py --tag CH [--restarts 2 --maxiter 150]
+
+追加（2026-10-13、当てはまりの改善の検討）:
+  --psi-data W   ψ_i(day) をデータから出した ψ_i^data(day)（species_viability_from_data、
+                 全菌 < 2% の種・日は除く）に寄せる項 W * MSE(ψ, ψ^data) を J に足す。
+                 既定 0（= 13a の 2 通路のまま）。
+  --seed S       再スタートの乱数。
 """
 import argparse
 import glob
@@ -26,6 +32,8 @@ ap.add_argument("--lo", type=float, default=-15.0)
 ap.add_argument("--hi", type=float, default=20.0)
 ap.add_argument("--restarts", type=int, default=2)
 ap.add_argument("--maxiter", type=int, default=150)
+ap.add_argument("--psi-data", type=float, default=0.0)
+ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--out", default=None)
 args = ap.parse_args()
 sys.argv = [sys.argv[0]]
@@ -62,6 +70,12 @@ Yt = jnp.array(mc["data_total"])
 Yt = Yt / Yt.sum(1, keepdims=True)
 L = jnp.array(mc["data_viability"])
 k = jnp.array(idx[1:])  # Day 1 は初期値なので当てるのは 2 日目以降
+# データから出した種ごとの生存率 (n_obs, 5) と、使える（全菌 >= 2%）印
+PSI_D = E.species_viability_from_data(COND[0], COND[1], t_days, mc["data_viability"])
+_tot = np.asarray(mc["data_total"], dtype=float)
+_tot = _tot / _tot.sum(1, keepdims=True)
+PSI_M = jnp.array((_tot >= 0.02)[1:].astype(float))
+PSI_D = jnp.array(PSI_D[1:])
 
 
 def parts(th):
@@ -72,18 +86,20 @@ def parts(th):
     return {"viable_vs_phi": jnp.mean((Yv[1:] - n(phi)) ** 2),
             "viable_vs_phipsi": jnp.mean((Yv[1:] - n(pb)) ** 2),
             "total_vs_phi": jnp.mean((Yt[1:] - n(phi)) ** 2),
-            "live": jnp.mean((L[1:] - pb.sum(1) / phi.sum(1)) ** 2)}
+            "live": jnp.mean((L[1:] - pb.sum(1) / phi.sum(1)) ** 2),
+            "psi_vs_data": jnp.sum(PSI_M * (g[k, 6:11] - PSI_D) ** 2) / jnp.sum(PSI_M)}
 
 
 def J(th):
     p = parts(th)
-    return p["viable_vs_phipsi"] + p["total_vs_phi"] + p["live"]
+    return p["viable_vs_phipsi"] + p["total_vs_phi"] + p["live"] + args.psi_data * p["psi_vs_data"]
 
 
 def report(name, th):
     p = {k_: float(np.sqrt(v)) for k_, v in parts(jnp.array(th)).items()}
     print(f"{name}: RMSE  viable~phi {p['viable_vs_phi']:.3f}  viable~phipsi {p['viable_vs_phipsi']:.3f}"
-          f"  total~phi {p['total_vs_phi']:.3f}  live {p['live']:.3f}", flush=True)
+          f"  total~phi {p['total_vs_phi']:.3f}  live {p['live']:.3f}  psi~data {p['psi_vs_data']:.3f}",
+          flush=True)
     return p
 
 
@@ -100,7 +116,7 @@ def obj(z):
     return (1e6, np.zeros_like(z)) if not np.isfinite(v) else (v, np.nan_to_num(np.array(g)[free]))
 
 
-rng = np.random.default_rng(0)
+rng = np.random.default_rng(args.seed)
 best = None
 for r in range(args.restarts):
     z0 = np.clip(th0[free] + (0 if r == 0 else rng.normal(0, 2.0, len(free))), args.lo, args.hi)
@@ -115,6 +131,9 @@ out["two_channel_opt"] = report(f"{args.tag} two-channel optimum", bth)
 g = np.array(E.simulate_0d_full(jnp.array(bth), n_steps=2500, dt=1e-4, phi_init=jnp.array(phi0), K_hill=0.0, n_hill=4.0))
 out["psi_opt_median_days"] = np.median(g[idx[1:], 6:11], axis=0).round(3).tolist()
 out["theta_opt"] = bth.round(4).tolist()
+out["psi_data_median_days"] = np.median(np.array(PSI_D), axis=0).round(3).tolist()
+out["args"] = {"psi_data": args.psi_data, "restarts": args.restarts, "maxiter": args.maxiter,
+               "seed": args.seed, "lo": args.lo, "hi": args.hi}
 print("psi (median over days):", out["psi_opt_median_days"], flush=True)
 if args.out:
     json.dump(out, open(args.out, "w"), indent=1)
