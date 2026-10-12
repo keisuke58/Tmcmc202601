@@ -1,0 +1,24 @@
+{
+  "CS": {
+    "run": "CS_ult_wide2_sd4_seed42",
+    "phi_init": [
+      0.17930029154518953,
+      0.004859086491739553,
+      0.8066083576287658,
+      0.004859086491739553,
+      0.004373177842565599
+    ],
+    "note": "phi_init exactly as used by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99])"
+  },
+  "CH": {
+    "run": "CH_ult_mut150_wide2_noph_sd4_seed7",
+    "phi_init": [
+      0.7331932773109243,
+      0.05987394957983193,
+      0.10451680672268907,
+      0.09716386554621848,
+      0.005252100840336134
+    ],
+    "note": "phi_init exactly as used by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99])"
+  }
+}

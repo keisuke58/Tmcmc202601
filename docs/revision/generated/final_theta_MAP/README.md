@@ -28,3 +28,9 @@ FEM の要素へは `write_eco_cfg.py --theta-json <ここの json>` で渡す�
 - a11 は 3 seed とも下限 −5 の側の 5% に 0.12（止める基準の片側 0.20 未満）
 
 RMSE は組成（5 種の割合、Day 3・6・10・15・21）の、MAP での二乗平均平方根誤差。
+
+## 初期値（phi_init.json、2026-10-12）
+
+`phi_init.json` に、各条件の MAP と同じ run が推定で実際に使った初期値（`run_record.json` の `phi_init`、Day 1 の組成を正規化して [0.001, 0.99] に切ったもの）を置く。
+FEM（pde-fem-biofilm `run_calibrated.ps1`）は θ（`<C>.json`）と同じ commit の `phi_init.json` を `write_eco_cfg.py --phi-init` に渡す。
+旧推定の `config.json` の値とは最大 0.013 ほど違うので、較正と同じ軌道にはこちらを使う。DS・DH は確定したら足す。
