@@ -59,18 +59,18 @@ data_5species/model_config/prior_bounds_paper_20d.json
 
 # ---------------------------------------------------------------------------
 # 2. Experimental data actually read by the estimator (Heine et al. 2025, Front. Oral Health 6:1649419)
-#    TODO(co-authors): confirm redistribution is permitted -- see README "Experimental data".
+#    NOT redistributed (author decision 2026-10-12). Obtain from Heine et al. (2025) / MHH group -- see README section 6.
 # ---------------------------------------------------------------------------
-data_5species/experiment_data/boxplot_Commensal_Static.csv
-data_5species/experiment_data/boxplot_Commensal_HOBIC.csv
-data_5species/experiment_data/boxplot_Dysbiotic_Static.csv
-data_5species/experiment_data/boxplot_Dysbiotic_HOBIC.csv
-data_5species/experiment_data/fig2_membrane_distribution.csv
-data_5species/experiment_data/fig3_species_distribution_replicates.csv
-data_5species/experiment_data/fig3_species_distribution_summary.csv
-data_5species/experiment_data/fig4A_pH_timeseries.csv
-data_5species/experiment_data/figS1_total_species_distribution_replicates.csv
-data_5species/experiment_data/figS1_total_species_distribution_summary.csv
+# NOT INCLUDED (no redistribution of Heine et al. 2025 data): data_5species/experiment_data/boxplot_Commensal_Static.csv
+# NOT INCLUDED (no redistribution of Heine et al. 2025 data): data_5species/experiment_data/boxplot_Commensal_HOBIC.csv
+# NOT INCLUDED (no redistribution of Heine et al. 2025 data): data_5species/experiment_data/boxplot_Dysbiotic_Static.csv
+# NOT INCLUDED (no redistribution of Heine et al. 2025 data): data_5species/experiment_data/boxplot_Dysbiotic_HOBIC.csv
+# NOT INCLUDED (no redistribution of Heine et al. 2025 data): data_5species/experiment_data/fig2_membrane_distribution.csv
+# NOT INCLUDED (no redistribution of Heine et al. 2025 data): data_5species/experiment_data/fig3_species_distribution_replicates.csv
+# NOT INCLUDED (no redistribution of Heine et al. 2025 data): data_5species/experiment_data/fig3_species_distribution_summary.csv
+# NOT INCLUDED (no redistribution of Heine et al. 2025 data): data_5species/experiment_data/fig4A_pH_timeseries.csv
+# NOT INCLUDED (no redistribution of Heine et al. 2025 data): data_5species/experiment_data/figS1_total_species_distribution_replicates.csv
+# NOT INCLUDED (no redistribution of Heine et al. 2025 data): data_5species/experiment_data/figS1_total_species_distribution_summary.csv
 
 # ---------------------------------------------------------------------------
 # 3. Figure / table / check scripts (+ the modules they import)
@@ -145,7 +145,7 @@ docs/revision/EML_submission/figures/provisional_2026-10-11/supp/supp_S*.tex
 docs/revision/EML_submission/figures/provisional_2026-10-11/knockout_DH.json
 docs/revision/EML_submission/figures/provisional_2026-10-11/knockout_DS.json
 docs/revision/EML_submission/figures/provisional_2026-10-11/ph_check.json
-docs/revision/EML_submission/figures/provisional_2026-10-11/ph_check_bands.npz
+# NOT INCLUDED (no redistribution of Heine et al. 2025 data): docs/revision/EML_submission/figures/provisional_2026-10-11/ph_check_bands.npz
 docs/revision/EML_submission/figures/provisional_2026-10-11/fisher_ident.json
 docs/revision/EML_submission/figures/provisional_2026-10-11/seed_maps_4cond.json
 docs/revision/EML_submission/figures/provisional_2026-10-11/paper_fig2_phi_transposed.pdf

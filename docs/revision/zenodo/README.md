@@ -24,7 +24,7 @@ Development repository: <https://github.com/keisuke58/Tmcmc202601>
 | | `data_5species/model_config/prior_bounds_paper_20d.json` | Prior box of the paper (before the per-condition overrides recorded in each run) |
 | Job script | `data_5species/main/paper_gateoff_job.sh` | PBS job that defines the four stages (exact CLI arguments per stage) |
 | | `tools/gate_submit_ult.sh` | Checks a finished stage (iii) group with `check_paper_runs.py` and submits stage (iv) only if it passes |
-| Experimental data | `data_5species/experiment_data/*.csv` | Only the 10 files read by the estimator (Heine et al. 2025) — see §6 |
+| Experimental data | — | **Not included** (Heine et al. 2025); see §6 for how to obtain them |
 | Runs | `docs/revision/generated/final_runs/<COND>_<stage>_<tag>_seed{7,42,123}/` | Every run shown in the paper: `samples.npy` (final particles, N_p × 20), `logL.npy` (log-likelihood per particle), `theta_MAP.json`, `run_record.json` (effective arguments, prior box, initial state, tempering history, acceptance, moves per particle, ln Z, log-likelihood recheck), `config.json` (superset of run_record) |
 | Final MAPs | `docs/revision/generated/final_theta_MAP/` | `CS.json`, `CH.json` (stage (iv), best seed), `phi_init.json` (initial state actually used), README with provenance |
 | Figure/table scripts | `tools/*.py`, `docs/generate_fig2_phi_version.py`, `docs/generate_fig_phase_scatter.py` | See §3 |
@@ -179,12 +179,11 @@ The calibration data (species fractions at days 1, 3, 6, 10, 15, 21, total biofi
 > N. Heine, K. Bittroff, S. P. Szafrański, M. Duitscher, W. Behrens, C. Vollmer, C. Mikolai, N. Kommerein, N. Debener, K. Frings, A. Heisterkamp, T. Scheper, M. L. Torres-Mapa, J. Bahnemann, M. Stiesch, K. Doll-Nikutta.
 > Influence of species composition and cultivation condition on peri-implant biofilm dysbiosis in vitro. *Frontiers in Oral Health* 6 (2025) 1649419. <https://doi.org/10.3389/froh.2025.1649419>
 
-Users of these data must cite that article. Files included (exactly those read by the estimator and the figure scripts):
-`boxplot_{Commensal,Dysbiotic}_{Static,HOBIC}.csv`, `fig2_membrane_distribution.csv`, `fig3_species_distribution_{replicates,summary}.csv`, `fig4A_pH_timeseries.csv`, `figS1_total_species_distribution_{replicates,summary}.csv`.
+**The experimental data are not redistributed in this archive.** They are published by Heine et al. (2025) and can be obtained from that article and its supplementary material, or on request from the corresponding authors (Hannover Medical School, Department of Prosthetic Dentistry and Biomedical Materials Science / NIFE). Users of these data must cite that article.
 
-> **TODO (confirm with co-authors N. Heine, K. Doll-Nikutta, M. Stiesch, S. P. Szafrański before publishing):**
-> may these tables — in particular the per-replicate files `fig3_species_distribution_replicates.csv` and `figS1_total_species_distribution_replicates.csv` — be redistributed under this record's license?
-> If not, remove section 2 of `MANIFEST.txt`, rebuild, and replace this section by instructions for obtaining the data from Heine et al. (2025) / the MHH group.
+To re-run the inference or the figure scripts, place the following tables in `data_5species/experiment_data/` (file names as expected by the code):
+`boxplot_{Commensal,Dysbiotic}_{Static,HOBIC}.csv`, `fig2_membrane_distribution.csv`, `fig3_species_distribution_{replicates,summary}.csv`, `fig4A_pH_timeseries.csv`, `figS1_total_species_distribution_{replicates,summary}.csv`.
+The posterior samples, run records and figures in this archive can be inspected without the data; the run records contain only the derived quantities used by the likelihood (initial composition `phi_init` and per-species noise level `sigma_obs`).
 
 ## 7. License and citation
 
@@ -194,5 +193,5 @@ Funded by the European Union (ERC, Gen-TSM, project number 101124463). Views and
 ## 8. Publishing checklist (for the authors)
 
 1. On Zenodo: *New upload* → *Reserve DOI*; put the DOI into `README.md`, `CITATION.cff` (`doi:`), the manuscript (Data and code availability), and `.zenodo.json` if uploading via API.
-2. Resolve the TODOs above (DS/DH, data redistribution, GPU software versions); replace `TODO_PAPER_DOI` in `.zenodo.json` (or delete that related identifier until the paper DOI exists — Zenodo rejects an invalid DOI).
+2. Resolve the TODOs above (DS/DH, GPU software versions); replace `TODO_PAPER_DOI` in `.zenodo.json` (or delete that related identifier until the paper DOI exists — Zenodo rejects an invalid DOI).
 3. `bash docs/revision/zenodo/build_archive.sh` → upload `docs/revision/zenodo/dist/tmcmc_eml_archive_v1.0.0.zip`; copy title, authors, description, keywords, license and funding from `.zenodo.json`.
