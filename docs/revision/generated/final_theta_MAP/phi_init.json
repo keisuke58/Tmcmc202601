@@ -8,7 +8,14 @@
       0.004859086491739553,
       0.004373177842565599
     ],
-    "note": "phi_init exactly as used by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99])"
+    "note": "phi_init: as recorded by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99]). phi_init_state: the state the forward model starts from (hamilton_ode_jax_paper.make_initial_state: scaled to a sum of 0.999999); pass this one to write_eco_cfg.py --phi-init.",
+    "phi_init_state": [
+      0.17930029154518953,
+      0.004859086491739553,
+      0.8066083576287658,
+      0.004859086491739553,
+      0.004373177842565599
+    ]
   },
   "CH": {
     "run": "CH_ult_mut150_wide2_noph_sd4_seed7",
@@ -19,6 +26,13 @@
       0.09716386554621848,
       0.005252100840336134
     ],
-    "note": "phi_init exactly as used by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99])"
+    "note": "phi_init: as recorded by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99]). phi_init_state: the state the forward model starts from (hamilton_ode_jax_paper.make_initial_state: scaled to a sum of 0.999999); pass this one to write_eco_cfg.py --phi-init.",
+    "phi_init_state": [
+      0.7331932773109243,
+      0.05987394957983193,
+      0.10451680672268907,
+      0.09716386554621848,
+      0.005252100840336134
+    ]
   }
 }
