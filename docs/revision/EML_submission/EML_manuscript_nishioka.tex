@@ -47,7 +47,7 @@ All 15 entries of the symmetric interaction matrix are inferred jointly by trans
 The data enter in stages, from species composition to community viability, and every stage is accepted only after explicit checks of seed agreement, mixing and posterior mass at the prior bounds.
 The calibrated model reproduces the species fractions with root-mean-square errors of 0.03--0.08 in three conditions\TBD{prov.}; in the commensal static condition (0.18) the composition and the measured viability cannot both be matched.
 Only part of the interaction matrix is determined by the data---four and six entries in the two commensal conditions, all among the early colonisers and with the same signs where they overlap, and eight and nine in the dysbiotic ones\TBD{prov.}---and we state explicitly which.
-The Fn--Pg coefficient, positive when only the composition is used, is no longer sign-determined once the viability is added\TBD{prov.}. \TBD{pH check, knockout prediction.}
+The Fn--Pg coefficient, positive when only the composition is used, is no longer sign-determined once the viability is added\TBD{prov.}. The measured pH, not used in the inference, is reproduced in the dysbiotic flow condition through a fixed regression on the predicted composition, and removing Fn from the calibrated model abolishes the late increase of Pg, a prediction open to direct experimental test\TBD{prov.}.
 \end{abstract}
 
 \begin{keyword}
@@ -197,7 +197,13 @@ Once the viability enters, the median of $a_{45}$ stays positive in both dysbiot
 The composition data alone thus support a positive Fn--Pg coefficient in DH, and the viability data neither confirm nor contradict it.
 
 \subsection{Checks against data not used in the inference}
-\TBD{pH check (Eq.~(S$\cdot$), fixed regression on measured species fractions, $R^2$) and the Fn-knockout prediction (Fig.~6).}
+The pH measured under dynamic cultivation was not used in the inference.
+A linear regression of the measured pH on the measured species fractions (intercept and four fractions, Vei as reference; $R^2=0.93$ over 90 time points in CH and DH) was fitted once on the data alone and then applied, unchanged, to the posterior predictive composition.
+In DH the predicted pH follows the measured rise from about 6.3 to 7.0 ($R^2=0.63$, RMSE 0.12)\TBD{prov.}; in CH it is offset upwards by about 0.13, because the model keeps Fn and Pg near 4--5\% where the data show below 1\%, a consequence of down-weighting rare species in the likelihood, and these two taxa carry the largest regression coefficients.
+The calibrated model can also be used in silico: removing Fn from the dysbiotic flow-reactor community abolishes the late increase of Pg.
+The Day-21/Day-15 ratio of Pg falls from 2.9 (90\% interval $[2.3,3.5]$; measured 2.74) to 1.1 ($[0.3,1.8]$), and only 2--7\% of the posterior samples keep a ratio of 1.5 or more\TBD{prov.}.
+Setting only $a_{45}=0$ removes the increase in most but not all samples (16--52\% keep it, depending on the seed), so the prediction rests mainly, though not only, on the Fn--Pg coefficient; it can be tested directly by a co-culture without Fn.
+Under static cultivation the model shows no comparable late increase (ratio 1.1), so the knockout is not informative there.
 
 \subsection{Limitations}
 The likelihood treats the five species fractions as independent although they sum to one, so the posterior intervals may be somewhat too narrow.

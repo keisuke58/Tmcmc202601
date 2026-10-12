@@ -1,0 +1,34 @@
+{
+  "beta": [
+    6.367176350474788,
+    -0.09463258612190345,
+    0.20840818786004206,
+    0.6953163438473144,
+    2.4838060195863543
+  ],
+  "regression_r2_on_data": 0.9312393458713993,
+  "CH": {
+    "runs": [
+      "CH_ult_mut150_wide2_noph_sd4_seed123",
+      "CH_ult_mut150_wide2_noph_sd4_seed42",
+      "CH_ult_mut150_wide2_noph_sd4_seed7"
+    ],
+    "n_points": 45,
+    "rmse_posterior_median": 0.13414002850064566,
+    "r2_posterior_median": -6.875691325908118,
+    "coverage_90": 0.0,
+    "rmse_regression_on_measured_composition": 0.046980753000307914
+  },
+  "DH": {
+    "runs": [
+      "DH_p2_nonarrow_w3_noph_p14k_seed123",
+      "DH_p2_nonarrow_w3_noph_p14k_seed42",
+      "DH_p2_nonarrow_w3_noph_p14k_seed7"
+    ],
+    "n_points": 45,
+    "rmse_posterior_median": 0.11815705970797126,
+    "r2_posterior_median": 0.6272870729931737,
+    "coverage_90": 0.26666666666666666,
+    "rmse_regression_on_measured_composition": 0.056422009715330984
+  }
+}
