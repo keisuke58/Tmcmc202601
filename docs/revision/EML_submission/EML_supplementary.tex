@@ -143,9 +143,9 @@ Figure~\ref{fig:network} and Table~\ref{tab:active} summarise interactions repor
     \node[species, fill=yellow!20] (vei) at (0, 0.6) {Vei};
     \node[species, fill=purple!15] (fn) at (1.9, 0.6) {Fn};
     \node[species, fill=red!15] (pg) at (0, -1.0) {Pg};
-    \draw[edge, blue!70!black] (so) -- (an) node[midway, left, font=\tiny] {co-agg};
+    \draw[blue!70!black, thick] (so) -- (an) node[midway, left, font=\tiny] {co-agg};
     \draw[uniedge] (so) -- (vei) node[midway, right, font=\tiny] {lactate};
-    \draw[edge, blue!70!black] (so) -- (fn) node[midway, right, font=\tiny] {formate};
+    \draw[blue!70!black, thick] (so) -- (fn) node[midway, right, font=\tiny] {co-agg};
     \draw[uniedge] (vei) -- (pg) node[midway, left, font=\tiny] {pH};
     \draw[edge, blue!70!black] (fn) -- (pg) node[midway, right, font=\tiny] {peptides};
     \draw[weakedge] (an) -- (vei);
@@ -163,17 +163,17 @@ Figure~\ref{fig:network} and Table~\ref{tab:active} summarise interactions repor
 \toprule
 \textbf{Pair} & \textbf{Mechanism} & \textbf{Reported flow}\\
 \midrule
-So--An & Co-aggregation & mutual\\
+So--An & Co-aggregation & --\\
 So--Vei & Lactate exchange & So to Vei\\
-So--Fn & Formate symbiosis & mutual\\
+So--Fn & Co-aggregation (Fn as bridging organism) & --\\
 Vei--Pg & pH elevation & Vei to Pg\\
 Fn--Pg & Peptide supply & mutual\\
 \bottomrule
 \end{tabular}
-\captionof{table}{Previously reported or biologically supported interactions~\citep{Kolenbrander2010OralMultispecies, heine2025influence} used to interpret the inferred coefficients. The model coefficients $a_{ij}$ are symmetric; the last column refers to the reported metabolite flow, not to the model. All 15 parameters are estimated; none is fixed a priori.}
+\captionof{table}{Previously reported or biologically supported interactions~\citep{Kolenbrander2010OralMultispecies, heine2025influence} used to interpret the inferred coefficients. The model coefficients $a_{ij}$ are symmetric; the last column refers to the reported metabolite flow (--: physical co-aggregation, no metabolite flow), not to the model. All 15 parameters are estimated; none is fixed a priori.}
 \label{tab:active}
 \end{minipage}
-\caption{Interactions considered in interpreting the inferred coefficients, compiled from the literature~\citep{Kolenbrander2010OralMultispecies, heine2025influence}. Solid: previously reported or biologically supported interaction (labels: reported mechanism; arrows: reported metabolite flow, not a property of the model, whose matrix $\mathbf{A}$ is symmetric). Dotted grey: no interaction considered in the interpretation; this does not mean that none exists. The network is not used in the inference: all 15 entries of $\mathbf{A}$ are estimated with the same uniform prior box.}
+\caption{Interactions considered in interpreting the inferred coefficients, compiled from the literature~\citep{Kolenbrander2010OralMultispecies, heine2025influence}. Solid: previously reported or biologically supported interaction (labels: reported mechanism; arrows: reported metabolite flow; lines without arrows: co-aggregation; neither is a property of the model, whose matrix $\mathbf{A}$ is symmetric). Dotted grey: no interaction considered in the interpretation; this does not mean that none exists. The network is not used in the inference: all 15 entries of $\mathbf{A}$ are estimated with the same uniform prior box.}
 \label{fig:network}
 \end{figure}
 
