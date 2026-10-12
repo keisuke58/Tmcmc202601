@@ -194,3 +194,22 @@ Funded by the European Union (ERC, Gen-TSM, project number 101124463). Views and
 1. On Zenodo: *New upload* → *Reserve DOI*; put the DOI into `README.md`, `CITATION.cff` (`doi:`), the manuscript (Data and code availability), and `.zenodo.json` if uploading via API.
 2. Resolve the TODOs above (DS/DH, GPU software versions); replace `TODO_PAPER_DOI` in `.zenodo.json` (or delete that related identifier until the paper DOI exists — Zenodo rejects an invalid DOI).
 3. `bash docs/revision/zenodo/build_archive.sh` → upload `docs/revision/zenodo/dist/tmcmc_eml_archive_v1.0.0.zip`; copy title, authors, description, keywords, license and funding from `.zenodo.json`.
+
+---
+
+<!-- maintainer notes (remove before building the final archive) -->
+## Maintainer checklist: Zenodo draft (status 2026-10-12)
+
+Draft record saved; DOI reserved **10.5281/zenodo.23320423** (in manuscript, cover letter, CITATION.cff, .zenodo.json).
+To fix in the web form before publishing (user, later):
+
+1. **Delete `EML_manuscript_nishioka.pdf`** from Files (uploaded by mistake; the record holds only the archive zip).
+2. Upload `dist/tmcmc_eml_archive_v1.0.0.zip` after DS/DH stage (iv) are in (`bash build_archive.sh`).
+3. Title: "Code, run records and posterior samples for: Identifiability of species interactions in a living material: Bayesian calibration of an extended Hamilton principle multiphase model".
+4. Resource type: Software (Dataset also acceptable).
+5. License: **MIT** (form default is CC BY 4.0).
+6. Creators: all 10 authors in manuscript order (Family name / Given names; Nishioka = family name). ORCID for K. Nishioka as `0009-0001-9360-1336` only (current entry gives "No valid scheme recognized").
+7. Description, keywords, version 1.0.0, funding (ERC 101124463; DFG TRR 298 / 426335750): copy from `.zenodo.json`.
+8. Publication date: the day of publishing. Leave the Thesis/Conference/Journal sections empty.
+9. Experimental data: include only if MHH agrees (EML_PLAN §15.1).
+10. Then Publish (irreversible).
