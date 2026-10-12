@@ -262,6 +262,7 @@ Table~\ref{tab:S_runs} lists, for every condition and stage, the number of parti
 Criteria (a) and (b) are met by all runs.
 Stages (ii)--(iv) of CS and CH and stages (ii)--(iii) of DS meet all criteria; the DH stage-(iii) group does not yet meet (e) (median spread 0.64 posterior SD, for $a_{22}$; also $a_{35}$ and $a_{45}$ above 0.5)\TBD{prov.}.
 Stage (i) is exploratory: CS and CH do not meet (c), and DS does not meet (e) because of the two $a_{33}$ modes (Section~\ref{sec:S_bayes}).
+Criterion (e) is stricter than common practice. Treating the three seeds as chains, the potential scale reduction factor $\hat R$~\citep{GelmanRubin1992} of the identified entries is at most 1.001 for CS and CH (stages (ii)--(iv)) and 1.005 for DS (stage (iii)), and 1.036 for the DH stage-(iii) group that fails (e) (1.059 over all 15 entries)\TBD{prov.}. The DH group would therefore pass the conventional threshold $\hat R<1.1$, but not the recommended $\hat R<1.01$~\citep{Vehtari2021Rhat} nor criterion (e); we keep (e) as stated and report the group as not yet accepted. Values from \texttt{tools/rhat\_seeds.py}.
 For CS and CH, stage (ii) was started from stage-(i) runs with 120 mutation steps that are not archived; the stage-(i) runs listed here (80 steps) give stage-(ii) bounds within 0.17 of those used.
 
 \begin{table}[h]

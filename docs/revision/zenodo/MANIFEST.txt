@@ -84,6 +84,7 @@ tools/ph_check.py
 tools/fisher_ident.py
 tools/ident_threshold_table.py
 tools/growth_stress_check.py
+tools/rhat_seeds.py
 tools/fit_ceiling.py
 tools/knockout_fn.py
 tools/eval_paper_runs.py

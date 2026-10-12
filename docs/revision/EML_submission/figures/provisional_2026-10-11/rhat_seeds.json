@@ -1,0 +1,62 @@
+{
+ "CS_p1": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.0013753178749398,
+  "rhat_max_all": 1.0018227023124782,
+  "median_spread_max_identified": 0.1414071239510258
+ },
+ "CS_p2": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.0009107050528265,
+  "rhat_max_all": 1.0009107050528265,
+  "median_spread_max_identified": 0.09838870554269798
+ },
+ "CS_ult": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.0012450434213196,
+  "rhat_max_all": 1.0016836355865164,
+  "median_spread_max_identified": 0.13288292067553537
+ },
+ "CH_p1": {
+  "n_seeds": 3,
+  "rhat_max_identified": 0.9999220437940998,
+  "rhat_max_all": 1.0007554564850984,
+  "median_spread_max_identified": 0.04890111661554017
+ },
+ "CH_p2": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.000091894795972,
+  "rhat_max_all": 1.0001268244752757,
+  "median_spread_max_identified": 0.06827831798223206
+ },
+ "CH_ult": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.0001594746804747,
+  "rhat_max_all": 1.0003070890464898,
+  "median_spread_max_identified": 0.0728872137254956
+ },
+ "DS_p1": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.00094552202394,
+  "rhat_max_all": 1.0048432607063078,
+  "median_spread_max_identified": 0.09250039779784179
+ },
+ "DS_ult": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.0052289434908408,
+  "rhat_max_all": 1.0119822913938852,
+  "median_spread_max_identified": 0.45054603055688136
+ },
+ "DH_p1": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.002084554661308,
+  "rhat_max_all": 1.0031804487731575,
+  "median_spread_max_identified": 0.20739146708438924
+ },
+ "DH_ult": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.0359183556573723,
+  "rhat_max_all": 1.0593339443306062,
+  "median_spread_max_identified": 0.6430446154847982
+ }
+}
