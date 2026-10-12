@@ -104,12 +104,14 @@ docs/revision/generated/final_runs/README.md
 docs/revision/generated/final_runs/CS_pilot_mut80_seed*
 docs/revision/generated/final_runs/CS_pilot_a45zero_m120_seed*
 docs/revision/generated/final_runs/CS_p1_mut120_seed*
+docs/revision/generated/final_runs/CS_p2_mut160_wide2_seed*
 docs/revision/generated/final_runs/CS_ult_wide2_sd4_seed*
 
 # CH -- commensal, HOBIC flow reactor
 docs/revision/generated/final_runs/CH_pilot_mut80_seed*
 docs/revision/generated/final_runs/CH_pilot_a45zero_m120_seed*
 docs/revision/generated/final_runs/CH_p1_mut150_seed*
+docs/revision/generated/final_runs/CH_p2_mut150_wide2_noph_seed*
 docs/revision/generated/final_runs/CH_ult_mut150_wide2_noph_sd4_seed*
 
 # DS -- dysbiotic, static   (PROVISIONAL: final stage (iv) pending)
