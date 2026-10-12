@@ -9,7 +9,7 @@ title: >-
   interactions in a living material: Bayesian calibration of an extended
   Hamilton principle multiphase model
 version: "1.0.0"
-# doi: "10.5281/zenodo.TODO"   # TODO: insert the DOI reserved on Zenodo, then uncomment
+doi: "10.5281/zenodo.23320423"
 license: MIT
 keywords:
   - Inverse characterization

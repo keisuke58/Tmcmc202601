@@ -89,6 +89,12 @@ tools/check_paper_runs.py
 tools/check_day_offset.py
 tools/gate_submit_ult.sh
 tools/thesis_style.py
+# synthetic recovery test (co-author review B2; results added to the supplement when available)
+tools/recovery_common.py
+tools/recovery_make_synthetic.py
+tools/recovery_run.py
+tools/recovery_evaluate.py
+tools/recovery_job.sh
 docs/generate_fig2_phi_version.py
 docs/generate_fig_phase_scatter.py
 # Fig. 1 (schematic, TikZ source)

@@ -6,7 +6,7 @@ Archive accompanying the article
 > *Identifiability of species interactions in a living material: Bayesian calibration of an extended Hamilton principle multiphase model.*
 > Extreme Mechanics Letters (submitted). DOI: **TODO_PAPER_DOI**
 
-Archive DOI: **10.5281/zenodo.TODO** (reserve on Zenodo before submission) · Version 1.0.0 · License: MIT (see `LICENSE`)
+Archive DOI: **10.5281/zenodo.23320423** (reserved; registered when the record is published) · Version 1.0.0 · License: MIT (see `LICENSE`)
 
 > **PROVISIONAL — DS and DH final stage pending.** See [the section below](#5-provisional-ds-and-dh-final-stage-pending) before publishing.
 
