@@ -62,6 +62,7 @@ ULT_NSIGMA="${ULT_NSIGMA:-4}"
 # 尤度の重みの上書き（空なら estimator の既定 λPg=5・λlate=3）。重みの感度を見る run 用（2026-10-08f）
 LAMBDA_PG="${LAMBDA_PG:-}"
 LAMBDA_LATE="${LAMBDA_LATE:-}"
+LAMBDA_RARE="${LAMBDA_RARE:-}"   # 重みの感度（2026-10-13）。空なら estimator の既定
 # 低 beta で mutation 回数を絞る下限。1.0 = 絞らない（2026-10-05 の修正、既定）
 THROTTLE_FLOOR="${THROTTLE_FLOOR:-1.0}"
 # 出力ディレクトリ名の末尾に付ける識別子。過去の run を上書きしないために使う
@@ -138,6 +139,7 @@ fi
 [ -n "$OVERRIDE" ] && ARGS+=(--override-bounds "$OVERRIDE")
 [ -n "$LAMBDA_PG" ] && ARGS+=(--lambda-pg "$LAMBDA_PG")
 [ -n "$LAMBDA_LATE" ] && ARGS+=(--lambda-late "$LAMBDA_LATE")
+[ -n "$LAMBDA_RARE" ] && ARGS+=(--lambda-rare "$LAMBDA_RARE")
 
 SUFFIX=""
 [ "$STAGE" = "ident" ] && SUFFIX="_prior${PRIOR_SCALE}"

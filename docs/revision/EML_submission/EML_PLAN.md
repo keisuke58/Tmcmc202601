@@ -304,3 +304,4 @@ RMSE（Day 3〜21、重みなし）。`docs/revision/generated/two_channel_pilot
 4. 箱への依存の確認: 最終段の箱を 1.5 倍に広げた run で、同定される成分が変わらないか（CH・CS で 1 系列）
 5. 予測の確認: 1 日分を抜いて推定し、その日を予測する（leave-one-day-out、CH で）
 6. 力学: 拘束点の図に加えて、修論の FEM（最終 MAP で計算し直したもの）から条件ごとの応力の図を補足に 1 枚
+7. **尤度の重みの感度（2026-10-13 追加）**: CPU で 4 条件 × A（今の重み）/ B（重みなし）/ C（λψ 全条件 2.0）の決定論的な比較（`two_channel_pilot_v2.py`、`docs/revision/generated/weight_sensitivity/`）。GPU に CH・DH の重みなし p2（handoff 13g）。結果が出たら補足 `sec:S_lambda` を 2 通路で書き直し、重みの理由を 1 段落。

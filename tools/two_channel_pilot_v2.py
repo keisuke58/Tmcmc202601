@@ -33,6 +33,11 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--tag", required=True, choices=["CS", "CH", "DS", "DH"])
 ap.add_argument("--override", default=None, help="idx:lo:hi;... 既定は 13b の p2 の OVERRIDE")
 ap.add_argument("--lambda-ch2", type=float, default=1.0)
+# 重みの感度（2026-10-13）。既定は推定と同じ
+ap.add_argument("--lambda-pg", type=float, default=5.0)
+ap.add_argument("--lambda-late", type=float, default=3.0)
+ap.add_argument("--lambda-rare", type=float, default=0.1)
+ap.add_argument("--lambda-ch3", type=float, default=None, help="既定は条件ごとの自動調整（LAMBDA_CH3）")
 ap.add_argument("--restarts", type=int, default=2)
 ap.add_argument("--maxiter", type=int, default=250)
 ap.add_argument("--seed", type=int, default=0)
@@ -67,10 +72,10 @@ idx = np.clip(idx, 0, 2500)
 phi0 = np.clip(phi0 / phi0.sum(), 0.001, 0.99)
 mc = E.load_multichannel_data(data_dir=E.DATA_DIR / "experiment_data", condition=COND[0],
                               cultivation=COND[1], days_filter=t_days.tolist())
-lam = {1: 1.0, 2: args.lambda_ch2, 3: LAMBDA_CH3[args.tag], 5: 0.0}
+lam = {1: 1.0, 2: args.lambda_ch2, 3: LAMBDA_CH3[args.tag] if args.lambda_ch3 is None else args.lambda_ch3, 5: 0.0}
 logL = E.make_log_likelihood_jax_ode(
     data=data, t_days=t_days, idx_sparse=idx, sigma_obs=sig, phi_init=phi0, dt=1e-4, n_steps=2500,
-    K_hill=0.0, n_hill=4.0, lambda_pg=5.0, lambda_late=3.0, lambda_rare=0.1,
+    K_hill=0.0, n_hill=4.0, lambda_pg=args.lambda_pg, lambda_late=args.lambda_late, lambda_rare=args.lambda_rare,
     data_total=mc["data_total"], sigma_obs_total=mc["sigma_obs_total"],
     data_viability=mc["data_viability"], sigma_obs_viability=mc["sigma_obs_viability"],
     lambda_ch=lam, two_channel=True)
@@ -153,11 +158,15 @@ g = np.array(E.simulate_0d_full(jnp.array(bth), n_steps=2500, dt=1e-4, phi_init=
 out["psi_opt_median_days"] = np.median(g[idx[1:], 6:11], axis=0).round(3).tolist()
 out["psi_data_median_days"] = np.median(np.array(PSI_D), axis=0).round(3).tolist()
 out["theta_opt"] = bth.round(4).tolist()
+_j15, _j21 = int(np.where(np.asarray(t_days) == 15)[0][0]), int(np.where(np.asarray(t_days) == 21)[0][0])
+_fr = g[:, 0:5] / g[:, 0:5].sum(1, keepdims=True)
+out["pg_ratio_21_15"] = float(_fr[idx[_j21], 4] / max(_fr[idx[_j15], 4], 1e-12))
 # 箱の端（幅の 5% 以内）にある自由次元
 edge = [i for i in free if min(bth[i] - bounds[i, 0], bounds[i, 1] - bth[i]) < 0.05 * (bounds[i, 1] - bounds[i, 0])]
 out["at_edge"] = edge
 out["bounds"] = bounds.round(4).tolist()
-out["args"] = {"version": 2, "lambda_ch": lam, "override": ovr, "restarts": args.restarts,
+out["args"] = {"version": 2, "lambda_ch": lam, "lambda_pg": args.lambda_pg, "lambda_late": args.lambda_late,
+               "lambda_rare": args.lambda_rare, "override": ovr, "restarts": args.restarts,
                "maxiter": args.maxiter, "seed": args.seed}
 print("psi (median over days):", out["psi_opt_median_days"], " data:", out["psi_data_median_days"],
       " at_edge:", edge, flush=True)
