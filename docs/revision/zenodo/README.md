@@ -7,7 +7,6 @@ Archive accompanying the article
 > Extreme Mechanics Letters (submitted). DOI: **TODO_PAPER_DOI**
 
 Archive DOI: **10.5281/zenodo.TODO** (reserve on Zenodo before submission) · Version 1.0.0 · License: MIT (see `LICENSE`)
-Development repository: <https://github.com/keisuke58/Tmcmc202601>
 
 > **PROVISIONAL — DS and DH final stage pending.** See [the section below](#5-provisional-ds-and-dh-final-stage-pending) before publishing.
 
