@@ -16,7 +16,7 @@
 
 尤度は run_record.json の実効値（sigma_obs・phi_init・psi_fixed・K_hill など）から組み直し、
 **保存した logL.npy を再現できることを確かめてから**最大化する（再現できなければ止まる）。
-対象は ψ 固定・単一チャネルの run（pilot / ident）だけ。
+対象は ψ 固定・単一チャネル（pilot / ident）、多チャネル（p2 / ult）、2 通路（2026-10-13）の run。
 
 使い方:
     python3 tools/polish_max_logL.py data_5species/main/_runs/paper_gateoff --glob '*ident*mut80*'
@@ -88,9 +88,10 @@ def _mc_kwargs(rec, t_days):
     ψ 固定・単一チャネルの run（pilot / p1 / ident）は {} のまま。重みは record の lambda_ch_effective
     （DH / Commensal の自動調整後の値）をそのまま使う。正しく組めたかは polish() の logL 再現で確かめる。"""
     a = rec["args"]
-    if not a.get("multichannel"):
+    two = bool(a.get("two_channel"))
+    if not a.get("multichannel") and not two:
         return {"lambda_ch": {}}
-    if a.get("fix_psi"):
+    if a.get("fix_psi") and a.get("multichannel"):
         raise ValueError("多チャネル + fix_psi の run は未対応")
     mc = EP.load_multichannel_data(
         data_dir=EP.DATA_DIR / "experiment_data",
@@ -102,10 +103,14 @@ def _mc_kwargs(rec, t_days):
     kw = {
         "data_total": mc.get("data_total"),
         "sigma_obs_total": mc.get("sigma_obs_total"),
-        "data_viability": mc.get("data_viability"),
-        "sigma_obs_viability": mc.get("sigma_obs_viability", 0.10),
         "lambda_ch": lambda_ch,
     }
+    if two:  # 2 通路（2026-10-13）。pilot・p1 は fix_psi（種ごとの ψ は run_record の psi_fixed）
+        kw["two_channel"] = True
+    if not a.get("multichannel"):
+        return kw
+    kw["data_viability"] = mc.get("data_viability")
+    kw["sigma_obs_viability"] = mc.get("sigma_obs_viability", 0.10)
     if mc.get("data_pH") is not None:
         _, idx_pH = EP.convert_days_to_model_time(mc["t_pH_days"], a["dt"], a["n_steps"], day_scale=None)
         kw["data_pH"] = mc["data_pH"]
@@ -177,6 +182,8 @@ def main():
     ap.add_argument("--top-k", type=int, default=20, help="磨く上位粒子の数")
     ap.add_argument("--maxiter", type=int, default=300, help="L-BFGS-B の反復の上限")
     ap.add_argument("--json", default=None, help="結果（磨いた θ を含む）の書き出し先")
+    ap.add_argument("--write-run", action="store_true",
+                    help="各 run のディレクトリに polish.json を書く（check_paper_runs.py の判定 3 が磨いた値で判定する）")
     args = ap.parse_args()
 
     dirs = [d for d in sorted(Path(args.root).glob(args.glob)) if (d / "run_record.json").exists()]
@@ -185,6 +192,10 @@ def main():
         return 1
     print(f"JAX devices: {jax.devices()}")
     rows = [polish(d, args.top_k, args.maxiter) for d in dirs]
+    if args.write_run:
+        for d, r in zip(dirs, rows):
+            with open(d / "polish.json", "w") as f:
+                json.dump({**r, "top_k": args.top_k, "maxiter": args.maxiter}, f, indent=1)
 
     print(f"{'run':<40}{'粒子の最良':>11}{'磨いた値':>11}{'差':>8}{'反復':>6}{'収束':>5}")
     for r in rows:

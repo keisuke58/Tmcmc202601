@@ -20,7 +20,10 @@ run 以上になるはずで、これは「探索が主要なモードに届い�
      記録が無い古い run は 平均受理率 × mutation 回数 で代用する）
   2b. 1 粒子が run 全体で各自由次元あたり 5 回以上動く（移動回数 × ステージ数 / 自由次元数）
      — 判定 2 を通っても、15 次元を 23 回の移動で埋めることはできない
-  3. seed 間で max logL の幅が 1 nat 以内
+  3. seed 間で max logL の幅が 1 nat 以内。**2026-10-13 から（ユーザー決定、2 通路の run の結果を見る前）、
+     各 run に polish.json（tools/polish_max_logL.py --write-run: 上位粒子から尤度を L-BFGS-B で局所最大化）が
+     そろっていて全部収束していれば、磨いた値の幅で判定する。** 粒子の最良値は粒子数と偶然で揺れるので、
+     「seed が同じ山に届いたか」を直接見る。そろっていなければ今までどおり粒子の最良値で判定し、そう表示する
   4. seed 間で各自由次元の中央値の幅が、プールした事後 sd の 0.5 倍以内。ただし（2026-10-10 ユーザー承認）
      - データが決めていない成分（プールした事後 sd が箱の一様分布の sd の 0.8 倍以上）は判定 4 から外し、
        「同定されていない」として名前を出す（平らな事後の中央値には意味がない）
@@ -193,7 +196,7 @@ def main(root, pattern="*", modes=None):
     any_fail = False
     for key, dirs in sorted(groups.items()):
         print(f"\n=== {key}  ({len(dirs)} seeds)")
-        recs, samples, maxll, med = [], [], [], []
+        recs, samples, maxll, med, polished = [], [], [], [], []
         for d in dirs:
             seed = re.search(r"_seed(\d+)$", d.name).group(1)
             rec, s, _ll, cfg = load(d)
@@ -247,6 +250,8 @@ def main(root, pattern="*", modes=None):
             recs.append(rec)
             samples.append(s)
             maxll.append(rec["max_logL"])
+            pol = d / "polish.json"
+            polished.append(json.load(open(pol)) if pol.exists() else None)
             med.append(np.median(s[:, free], axis=0))
 
         free = recs[0]["free_dims"]
@@ -281,6 +286,10 @@ def main(root, pattern="*", modes=None):
                 )
             med_spread[k] = worst_in
         judged = ~unident
+        # 判定 3: 全 seed の polish.json がそろって収束していれば磨いた値で（2026-10-13）
+        use_pol = len(polished) >= 2 and all(p is not None and p.get("converged") for p in polished)
+        maxll3 = [p["polished_max"] for p in polished] if use_pol else maxll
+        label3 = "3 maxlogL 幅<=1（磨いた値）" if use_pol else "3 maxlogL 幅<=1（粒子の最良値、polish.json なし）"
         checks = {
             "0 logL と粒子の対応": all(r.get("logL_consistent") is True for r in recs),
             "1 beta=1": all(
@@ -295,7 +304,7 @@ def main(root, pattern="*", modes=None):
             "2b 次元あたりの移動(>=5)": all(_moves_per_dim(r) >= 5.0 for r in recs),
             # 1 run だけの群は seed 間の比較ができないので 3・4 は FAIL にする
             # （CS ult が 1 seed のまま素通りしていた。2026-10-10d）
-            "3 maxlogL 幅<=1": len(maxll) >= 2 and float(np.ptp(maxll)) <= 1.0,
+            label3: len(maxll3) >= 2 and float(np.ptp(maxll3)) <= 1.0,
             "4 中央値幅<=0.5sd（同定された成分・多峰は山ごと）": len(med) >= 2
             and (not judged.any() or float(med_spread[judged].max()) <= 0.5),
         }
@@ -312,7 +321,8 @@ def main(root, pattern="*", modes=None):
         )
         for k, v in checks.items():
             print(f"  {'PASS' if v else 'FAIL'} {k}")
-        print(f"       maxlogL 幅 = {np.ptp(maxll):.2f}、中央値幅/sd 上位: {', '.join(worst)}")
+        pol_txt = f"（磨いた値 {np.ptp(maxll3):.2f}）" if use_pol else ""
+        print(f"       maxlogL 幅 = {np.ptp(maxll):.2f}{pol_txt}、中央値幅/sd 上位: {', '.join(worst)}")
         for line in mode_lines:
             print(line)
         if unident.any():

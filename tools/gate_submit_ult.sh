@@ -35,6 +35,8 @@
 #                 （2026-10-13: vancouver01 は 2 枚が他ユーザーの jupyterlab に確保されていて 3 本目が Q で止まる）
 #   WALLTIME      既定 12:00:00
 #   TWO_CHANNEL=1 2 通路の尤度（ult にも渡す。p2 も 2 通路で回したときだけ付ける）
+#   POLISH        既定 1: 判定の前に各 seed を磨いて polish.json を書く（判定 3 は磨いた値）。gate を gpus=1 で投げること
+#   POLISH_TOP_K / POLISH_MAXITER  既定 10 / 300
 #   DRY_RUN=1     qsub せず、投げる内容を出すだけ
 # ============================================================
 set -uo pipefail
@@ -88,7 +90,14 @@ FOUND="$(ls -d $RUNS_ROOT/$GLOB 2>/dev/null | wc -l)"
 WANT="$(echo $SEEDS | wc -w)"
 echo "    前段の run: $FOUND / $WANT"
 
-# 2. 判定
+# 2. 判定。その前に各 seed の上位粒子を磨いて polish.json を書く（判定 3 を磨いた値で見る、2026-10-13）。
+#    磨くのは GPU が要る（ODE を通す勾配）ので、gate は gpus=1 で投げる。POLISH=0 で飛ばせる。
+#    失敗しても判定は続ける（そのときは粒子の最良値で判定され、その旨が表示される）
+if [ "${POLISH:-1}" = "1" ]; then
+  POLISH_DEVICE="${POLISH_DEVICE:-gpu}" "$PYTHON" tools/polish_max_logL.py "$RUNS_ROOT" --glob "$GLOB" \
+      --top-k "${POLISH_TOP_K:-10}" --maxiter "${POLISH_MAXITER:-300}" --write-run \
+    || echo "    polish に失敗（粒子の最良値で判定する）"
+fi
 CHECK_OUT="$("$PYTHON" tools/check_paper_runs.py "$RUNS_ROOT" --glob "$GLOB" --modes "$MODES" 2>&1)"
 VERDICT="$(echo "$CHECK_OUT" | grep -E "^(全群 PASS|FAIL を含む群)" | tail -1)"
 echo "$CHECK_OUT"

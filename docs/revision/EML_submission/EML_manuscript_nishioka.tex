@@ -165,7 +165,7 @@ Every stage is run with three independent seeds and accepted only if
 (a)~the stored log-likelihood of every particle agrees with a recomputation;
 (b)~the tempering reaches $\beta=1$;
 (c)~each particle is moved at least twice per tempering step and at least five times per free parameter over the run;
-(d)~the maximum log-likelihood differs by at most 1 across seeds; and
+(d)~the maximum log-likelihood, refined by a local optimisation (L-BFGS-B) from the best particles of each seed, differs by at most 1 across seeds, i.e.\ all seeds reach the same likelihood peak; and
 (e)~every posterior median differs across seeds by at most half a posterior SD; an entry whose pooled posterior SD is at least 0.8 times that of a uniform distribution on the prior box of the stage is reported as not identified and excluded from this criterion, and for an entry with several posterior modes the criterion is applied within each mode, with the mode weights reported together with their spread across seeds.
 We call all other entries identified: the data constrain them beyond their prior box.
 Criterion~(c) counts accepted moves rather than the acceptance rate: with optimally scaled random-walk proposals~\citep{RobertsRosenthal2001Optimal}, $5d$ accepted moves displace each coordinate by about five posterior standard deviations, independently of the dimension~$d$.
