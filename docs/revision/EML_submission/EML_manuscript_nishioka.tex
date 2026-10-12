@@ -120,8 +120,8 @@ Removing a species is represented by holding its volume fraction at zero.
 
 \paragraph{Likelihood.}
 The data are the species fractions at Days 3, 6, 10, 15 and 21 (Day~1 is the initial condition), averaged over eight biological replicates~\citep{heine2025influence}.
-Model time is proportional to the day number, $t=s\,d$ with $s=0.2375/21$, and the Day-1 composition is used as the state at $t=0$; the observation days are thus mapped with a common offset of one day.
-Removing this offset ($t=s\,(d-1)$) changes the composition error of the MAP by at most 0.008 in any condition without re-inference\TBD{prov.}.
+Model time is the time since inoculation, $t=s\,d$ with $s=0.2375/21$; the Day-1 composition, the earliest measurement, serves as the initial state at $t=0$.
+Starting the model at Day~1 instead ($t=s\,(d-1)$) changes the composition error of the MAP by at most 0.008 in any condition without re-inference\TBD{prov.}.
 The model fractions are renormalised over the five species, $\hat y_i=\phi_i/\sum_j\phi_j$, and compared through a weighted Gaussian log-likelihood
 \begin{equation}
 \ln p(\yobs\mid\btheta)=-\frac12\sum_{k}\sum_{i=1}^{5}w_{ik}\,\frac{\bigl(y_{\mathrm{obs},i}(t_k)-\hat y_i(t_k;\btheta)\bigr)^2}{\sigma_i^2}+\mathrm{const},
@@ -186,7 +186,7 @@ Without the acceptance criteria, several of these runs would have been read as c
 \end{figure*}
 
 \subsection{What the data determine}
-Figure~\ref{fig:ident} and Supplementary Table~S4 classify every entry of $\mathbf{A}$ at stage (iv).
+Figure~\ref{fig:ident} and Supplementary Table~S4 classify every entry of $\mathbf{A}$ at stage (iv); the number of directions in which the likelihood itself is narrow at the MAP is of the same order (Supplementary Section~S6).
 In the commensal conditions only a few entries are identified: four in CS ($a_{11}$, $a_{22}$, $a_{33}$, $a_{13}$) and six in CH ($a_{11}$, $a_{12}$, $a_{22}$, $a_{33}$, $a_{13}$, $a_{23}$), all among the early colonisers So, An and Vei.
 Where both conditions identify an entry, the sign agrees: the self-interaction of So is negative ($a_{11}$, 90\% intervals $[-4.9,-1.2]$ in CS and $[-2.5,-0.5]$ in CH) and the So--Vei coefficient is positive ($a_{13}$, $[+2.8,+9.2]$ and $[+0.01,+1.4]$), in line with the lactate cross-feeding between streptococci and \textit{Veillonella}~\citep{Kolenbrander2010OralMultispecies}, although $a_{13}$ is an effective coefficient and not a measurement of that mechanism.
 Two further entries of CH, $a_{14}$ and $a_{15}$, are determined in sign only (90\% intervals $[-4.8,-0.2]$ and $[-4.8,-0.3]$), and every other entry involving Fn or Pg spreads over its whole box.

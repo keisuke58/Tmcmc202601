@@ -279,6 +279,12 @@ An entry whose posterior standard deviation is at least 0.8 times that of a unif
 \small\input{\suppdir/supp_S4_ident}
 \end{table}
 
+\paragraph{Curvature of the likelihood.}
+As a check that does not use the posterior samples, we computed the Hessian $\mathbf{H}$ of $-\ln p(\yobs\mid\btheta)$ at the MAP over the 15 free entries, scaled each entry by the standard deviation of a uniform distribution on its box, and counted the eigen-directions with scaled curvature of at least $1/0.8^2$, i.e.\ directions in which the likelihood is narrower than the identification threshold.
+Their number is 4, 4, 8 and 5 in CS, CH, DS and DH, against 4, 6, 8 and 9 entries identified from the posterior\TBD{prov.}.
+The counts agree in CS and DS; in CH and DH the posterior identifies more entries than the local curvature, because several entries are constrained jointly along correlated directions and by the non-quadratic shape of the likelihood, which a single Hessian at the MAP does not capture.
+The MAP is the best particle and not an exact optimum (4--5 small negative eigenvalues), so entry-wise Laplace intervals are not reported.
+
 \section{MAP and posterior bulk by seed}
 \label{sec:S_seedmap}
 Figure~\ref{fig:S_seedmap} overlays the MAP of each seed on the posterior predictive band pooled over the three seeds.
