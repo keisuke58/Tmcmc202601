@@ -123,8 +123,8 @@ Funding・謝辞は BMB 版と同じ文言（DFG は Nils 指定の文言、ERC 
 
 ## 12. タイトル（2026-10-12 決定）
 
-**決定:** Identifiable and unidentifiable species interactions in a living material: Bayesian inverse characterization of a model derived from the extended Hamilton principle
-（案 3 から "physics-constrained" を外し、モデルの出自として extended Hamilton principle を明記（IKM の枠組みを示す）。物理制約付き学習（PINN 等）と誤解されるため。本文・カバーレターの同語も "model-based" に変更）
+**決定:** Identifiability of species interactions in a living material: Bayesian calibration of an extended Hamilton principle multiphase model
+（H7 案。"physics-constrained" は PINN 型と誤解されるため不採用、モデルの出自として extended Hamilton principle を明記（IKM の枠組み）、"calibration" でモデルのパラメータであることを示す（共著者レビュー D1）。物理制約付き学習（PINN 等）と誤解されるため。本文・カバーレターの同語も "model-based" に変更）
 
 ### 以下は検討時の候補
 
