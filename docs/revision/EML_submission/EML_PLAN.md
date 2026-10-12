@@ -120,3 +120,19 @@ Funding・謝辞は BMB 版と同じ文言（DFG は Nils 指定の文言、ERC 
   Elsevier の規格（531 × 1328 px 以上、5 × 13 cm で読める）に合わせ、提出時は `pdftoppm -r 270` で PNG/TIFF にする。
 - `EML_supplementary.tex`（6 ページ、エラー 0）: BMB 版の補足に、本文から外した S1 モデルの導出・S2 文献上の相互作用（図と表）・S3 尤度の重み・Algorithm・計算時間の表を足した。
   S 番号は結果がそろってから振り直す（本文の参照も）。
+
+## 12. タイトル候補（2026-10-12、未決定）
+
+方向は **A（同定性＝「データで何が決まるか」を前に出す）** で、ここから選ぶ。本文の `\title` はまだ旧案のまま。
+
+| # | 案 | メモ |
+|---|---|---|
+| A | What can time-course data tell us about species interactions in a living material? Physics-constrained Bayesian inverse characterization of an oral biofilm | 元の A。長め |
+| A' | Physics-constrained Bayesian inverse characterization of interspecies interactions in an oral biofilm | A の後半だけ（短縮版） |
+| 1 | Which species interactions can be inferred from biofilm time courses? Physics-constrained Bayesian inverse characterization of a living material | 問いを具体的に |
+| 2 | Inferring what the data determine: physics-constrained Bayesian identification of species interactions in an oral biofilm | 問いの形を避ける |
+| 3 | Identifiable and unidentifiable species interactions in a living material: a physics-constrained Bayesian inverse characterization | **おすすめ**（問いの形を避けるならこれ） |
+| 4 | From composition to interaction: what time-course data reveal about a five-species biofilm through physics-constrained Bayesian inference | 逆問題の向き。長め |
+| 5 | How much of a biofilm's interaction network do time-course data determine? Physics-constrained Bayesian inverse characterization | **おすすめ**（「一部しか決まらない」という結論に一番素直） |
+
+参考（方向が違う案）: B「GPU-accelerated Bayesian inverse characterization of a variational multiphase biofilm model: staged inference with explicit convergence and identifiability checks」（手法を前に）、C「Identifying species interactions in a living material by physics-constrained Bayesian inference」（短い）。
