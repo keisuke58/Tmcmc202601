@@ -33,12 +33,23 @@ DAYS = [1, 3, 6, 10, 15, 21]
 DAY_GRID = np.linspace(1, 21, 2501)
 
 
-def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=188.0):
+def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=188.0,
+         group_gap=0.035):
     st.apply()
     rep = pd.read_csv(rep_csv)
     W, H = st.DOUBLE_MM, height_mm
     fig, axes = plt.subplots(5, 4, figsize=(W * st.MM, H * st.MM), sharex=True, sharey=True)
     fig.subplots_adjust(left=0.085, right=0.995, top=0.893, bottom=0.05, hspace=0.12, wspace=0.07)
+    # commensal（CS, CH）と dysbiotic（DS, DH）の間を広げる: Veillonella 種と Pg 株が組で違うため
+    if group_gap > 0:
+        p0, p3 = axes[0, 0].get_position(), axes[0, 3].get_position()
+        sp = axes[0, 1].get_position().x0 - p0.x1
+        w = (p3.x1 - p0.x0 - 3 * sp - group_gap) / 4
+        for c in range(4):
+            x0 = p0.x0 + c * (w + sp) + (group_gap if c >= 2 else 0)
+            for i in range(5):
+                q = axes[i, c].get_position()
+                axes[i, c].set_position([x0, q.y0, w, q.height])
     for c, tag in enumerate(CONDS):
         z = np.load(f"{cache_dir}/fig2_phi_{tag}.npz")
         trajs = z["trajs"]
