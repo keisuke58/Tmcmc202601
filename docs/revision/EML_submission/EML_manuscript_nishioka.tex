@@ -255,6 +255,7 @@ The interaction coefficients are effective quantities of this model and data set
 The calibration covers a 0D material point; the spatial structure of the biofilm and its mechanics are not part of the inference.
 The calibrated dynamics are, however, the input that continuum growth models of biofilms require~\citep{Klempt2024ContinuumGrowth}: the total volume fraction of the point model can drive the growth variable of a finite-element model, so that differences in growth-induced stress between conditions follow from the calibrated interactions rather than from assumed species-specific growth weights.
 Because the likelihood uses species fractions only, the absolute amount of biomass is a prediction of the model rather than a calibrated quantity, and its posterior spread has to be propagated into such a coupling.
+At a material point constrained in all directions, growth driven by the living volume separates the conditions, whereas growth driven by the total volume, which the data do not constrain, does not (Supplementary Section~\ref{S-sec:S_growth}).
 
 %==============================================================================
 \section{Conclusions}
