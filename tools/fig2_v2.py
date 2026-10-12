@@ -34,7 +34,7 @@ DAY_GRID = np.linspace(1, 21, 2501)
 
 
 def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=188.0,
-         group_gap=0.035):
+         group_gap=0.035, show_phibar=False):
     st.apply()
     rep = pd.read_csv(rep_csv)
     W, H = st.DOUBLE_MM, height_mm
@@ -81,8 +81,9 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
             ax.fill_between(DAY_GRID, q10[:, i], q90[:, i], color=col, alpha=0.12, lw=0, zorder=2)
             ax.fill_between(DAY_GRID, q25[:, i], q75[:, i], color=col, alpha=0.28, lw=0, zorder=2)
             ax.plot(DAY_GRID, z["phi_map"][:, i], color=col, lw=1.2, zorder=4)
-            ax.plot(DAY_GRID, z["phibar_map"][:, i], color=col, lw=0.8, ls=(0, (3, 1.6)),
-                    alpha=0.8, zorder=3)
+            if show_phibar:  # 種ごとの φψ はデータで決まらない（2026-10-13、既定で出さない）
+                ax.plot(DAY_GRID, z["phibar_map"][:, i], color=col, lw=0.8, ls=(0, (3, 1.6)),
+                        alpha=0.8, zorder=3)
             ax.scatter(days, dat[:, i], s=9, color=col, edgecolors=st.INK, linewidths=0.35,
                        zorder=5)
             ax.set_xlim(-0.2, 22.2)
@@ -119,7 +120,9 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
           Patch(facecolor=mpl.colors.to_rgba(g, 0.13), edgecolor=mpl.colors.to_rgba(g, 0.6), lw=0.4)]
     L_ = [r"MAP $\varphi_i$", r"MAP $\bar\varphi_i=\varphi_i\psi_i$", r"50\% band", r"80\% band",
           "data (median)", "replicates (IQR)"]
-    fig.legend(H_, L_, loc="upper center", ncol=6, bbox_to_anchor=(0.54, 1.0), fontsize=7,
+    if not show_phibar:
+        del H_[1], L_[1]
+    fig.legend(H_, L_, loc="upper center", ncol=len(L_), bbox_to_anchor=(0.54, 1.0), fontsize=7,
                handlelength=2.0, handletextpad=0.5, columnspacing=1.8, borderaxespad=0.2)
     st.save(fig, out_noext)
     plt.close(fig)
