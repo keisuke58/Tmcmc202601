@@ -1,0 +1,84 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs,tabularx,xcolor,enumitem}
+\usepackage[hidelinks]{hyperref}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\setlist{nosep}
+\newcommand{\done}{\textcolor{green!45!black}{\textbf{addressed}}}
+\newcommand{\partly}{\textcolor{orange!80!black}{\textbf{partly}}}
+\newcommand{\na}{\textcolor{gray}{\textbf{n/a}}}
+\newcommand{\open}{\textcolor{red!70!black}{\textbf{open}}}
+\title{Response to the co-author comments of 25 September 2026\\[2pt]
+\large TMCMC biofilm manuscript, now prepared for \textit{Extreme Mechanics Letters} (VSI: AI \& CM)}
+\author{Keisuke Nishioka}
+\date{\today}
+\begin{document}
+\maketitle
+
+\noindent Thank you very much, Szymon and Rumjhum, for the careful review of the version circulated on 17 September.
+Below, each point is listed with how it was handled in the new manuscript.
+Because the paper is now prepared for \textit{Extreme Mechanics Letters} (fewer than 4000 words, at most six figures), it is a shorter version that focuses on the modelling and inference framework; several items of the previous version (UMAP, cross-condition transfer, phase-correlation table) are therefore no longer part of the paper.
+Section numbers refer to the new manuscript; ``S'' refers to the Supplementary Material.
+
+\paragraph{General point: effective parameters vs.\ biological interactions.}
+We follow this throughout: the coefficients $a_{ij}$ are introduced as \emph{effective, undirected interactions of the model} that lump unresolved mechanisms (Section 2), all biological readings are phrased as consistency with the literature, never as demonstration of a mechanism, and a new analysis states explicitly which coefficients the data determine at all (Fig.~3, Table S4).
+
+\section*{Errors in the previous version}
+\begin{tabularx}{\textwidth}{@{}l Y l@{}}
+\toprule
+\# & Comment and response & Status\\
+\midrule
+A1 & \emph{$\ln\hat Z$ exceeded $\max\ln L$.} All runs were redone; in every run used in the paper $\ln\hat Z\le\max\ln L$, which is now checked automatically. & \done\\
+A2 & \emph{RMSE $<$ MAE in a table.} MAE is no longer reported; the composition RMSE is computed from one stored MAP and cross-checked against the inference code. & \done\\
+A3 & \emph{Explanation of $R^2$ inverted.} The sentence was removed; $R^2$ is used only for the pH regression, with its standard meaning. & \done\\
+A4 & \emph{A symmetric matrix cannot give directions.} All pairs are written without direction (e.g.\ Vei--Pg, Fn--Pg); the literature network in S2 is shown only for interpretation. & \done\\
+A5 & \emph{Boundary handling of the sampler.} Proposals outside the prior box are rejected without solving the model (Section 3); this is now stated explicitly. & \done\\
+\bottomrule
+\end{tabularx}
+
+\section*{Points that required computation}
+\begin{tabularx}{\textwidth}{@{}l Y l@{}}
+\toprule
+B1 & \emph{Same data used three times (narrowing the prior).} Narrowed boxes are the stage posterior mean $\pm4$ standard deviations, which removes less than $10^{-4}$ of a Gaussian marginal; when the viability channel is added the inference returns to the full box, and any bound at which posterior mass accumulates is widened and the stage repeated (Section 3, Table S1). A comparison with a single inference on the wide box only is not shown. & \partly\\
+B2 & \emph{Sparsity / identifiability not demonstrated.} New: every entry is classified as identified, sign-only or not identified from the posterior spread relative to its box (Fig.~3, Table S4); every stage is repeated with three seeds and must agree; the number of narrow directions of the likelihood at the MAP (Fisher information) is reported as an independent check (S6). A recovery test on synthetic data is planned. & \partly\\
+B3 & \emph{No convergence diagnostics for Phase 2.} Every stage, including the final one, is run with three independent seeds and accepted only after explicit criteria (log-likelihood recomputation, tempering to $\beta=1$, moves per particle and per dimension, agreement of $\max\ln L$ and of the medians across seeds; Section 3, Table S2). & \done\\
+B4 & \emph{Independent Gaussian errors for compositional data.} Stated as a limitation (Section 4: intervals may be somewhat too narrow); $\sigma_i$ is the replicate standard deviation of each species. & \done\\
+B5 & \emph{Model-to-data mapping implicit.} Section 3 now states the renormalisation of the volume fractions over the five species, the void fraction, the time mapping (time since inoculation, Day 1 as initial state, with the sensitivity to starting at Day 1) and the likelihood weights. & \done\\
+\bottomrule
+\end{tabularx}
+
+\section*{Wording}
+\begin{tabularx}{\textwidth}{@{}l Y l@{}}
+\toprule
+C1--C2 & \emph{``discovers the network'', ``activating cross-feeding''.} Removed; the abstract speaks of which interactions the data determine. & \done\\
+C3 & \emph{Static vs.\ dynamic cultivation} (Rumjhum). The conditions are described as static or dynamic (HOBIC flow reactor) cultivation. & \done\\
+C4 & \emph{``high fidelity''.} Removed; the fit is reported per condition, and the poor fit in the commensal static condition (S.~oralis and Veillonella) is discussed as a limitation with its cause. & \done\\
+C5 & \emph{UMAP as validation.} UMAP is no longer in the paper. & \na\\
+C6 & \emph{pH as independent validation.} Called a check: the pH is not used in the inference; a regression fitted once on the measured composition and pH is applied to the predicted composition. Results are given for both HOBIC conditions, including the offset in CH. & \done\\
+C7 & \emph{Gingipain / metabolic signs as validation.} No longer in the paper. & \na\\
+C8 & \emph{So--Vei sign and lactate cross-feeding.} In the new runs $a_{13}$ is positive in both commensal conditions; it is described as consistent with lactate cross-feeding but explicitly not as a measurement of that mechanism. & \done\\
+C9--C10 & \emph{Phase-correlation table, cross-condition transfer.} No longer in the paper. & \na\\
+C11 & \emph{NUTS/HMC ``fail on GPU''.} No longer claimed; the paper only reports the speed-up of our implementation. & \done\\
+C12 & \emph{Figure 7 caption vs.\ values.} Figure no longer in the paper. & \na\\
+C13 & \emph{Internal consistency.} Four stages defined once and used throughout; one speed-up figure (about 150$\times$, measured); notation $a_{ij}$ / $\mathbf{A}$ unified. & \done\\
+C14 & \emph{Biological interaction network.} Moved to S2 as ``previously reported or biologically supported interactions considered in the interpretation of the model'', with the kind of evidence stated per pair and a note that the model matrix is symmetric. & \done\\
+C15 & \emph{Confounding of state with strains.} New sentence in Section 4: commensal and dysbiotic communities also differ in the Veillonella species and the P.~gingivalis strain, so differences between them combine state, strain physiology and cultivation; static vs.\ dynamic comparisons within one community are free of this confound. & \done\\
+\bottomrule
+\end{tabularx}
+
+\section*{Formal points}
+\begin{tabularx}{\textwidth}{@{}l Y l@{}}
+\toprule
+D1 & \emph{Title should not suggest experimentally resolved interactions.} The final title will make clear that the inferred quantities are model parameters; we would welcome your view on the proposal sent with the manuscript. & \open\\
+D2 & \emph{Author order.} As agreed. & \done\\
+D3 & \emph{Affiliations.} MHH and NIFE added for K.~Nishioka. & \done\\
+D4 & \emph{Rewritten clinical/microbiological introduction.} The EML introduction had to be shortened to about 300 words; its clinical framing follows your rewrite in condensed form. Please check whether the key points are kept. & \partly\\
+D5 & \emph{Zenodo archive.} Code, run configurations, convergence records and posterior samples will be archived with a DOI at submission. & \open\\
+\bottomrule
+\end{tabularx}
+
+\bigskip
+\noindent Remaining before submission: the final numbers of the two dysbiotic conditions (computations running), the title (D1) and the Zenodo DOI (D5).
+\end{document}
