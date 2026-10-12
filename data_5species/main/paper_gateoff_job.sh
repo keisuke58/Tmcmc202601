@@ -21,6 +21,7 @@
 #           （2026-10-08: ± 2σ だと、よく決まる成分ごとに事後の約 5% を切り落とし、10 成分で 3〜4 割になる。
 #            同じデータの事後で箱を作るので査読で指摘されやすい。± 4σ なら成分ごとに 0.01% 未満）
 #           粒子数は N_PART（既定 5000）、mutation は N_MUT（既定 80）。2026-10-08 の実測で決めた
+#   TWO_CHANNEL=1 : 2 通路の組成（生きた菌 ↔ φψ、全菌 ↔ φ）。下の LAMBDA_CH5 の後ろの説明を参照
 #   ident : 識別性の検証。ψ 固定・箱 [-15, 20]・2000 粒子・40 mutation・DE-MC。
 #           PRIOR_SCALE=0 で事前分布なし、6 で N(0, 6^2)
 # pilot〜ult は 2026-03 の論文の手順（run_production_2000p.sh / run_phase2_free_psi.sh /
@@ -82,6 +83,11 @@ esac
 # pH（ch5）は推定に使わない（2026-10-08 ユーザー判断）。pH は全種の回帰式による答え合わせにだけ使う。
 # 以前の値（HOBIC で 0.3）に戻すときは LAMBDA_CH5=0.3 を渡す。
 LAMBDA_CH5="${LAMBDA_CH5:-0.0}"
+# 2 通路の組成（2026-10-13）: TWO_CHANNEL=1 で全段に --two-channel を付ける。
+#   ch1 生きた菌 ↔ φψ/Σφψ、ch2 全菌 ↔ φ/Σφ（重み LAMBDA_CH2_2C、既定 1.0）。pilot・p1（--fix-psi）は ψ を種ごとの値に固定。
+#   既定（未設定）は今までと同じ尤度。RUNTAG に _2c を付けて、今までの run と混ぜないこと。
+TWO_CHANNEL="${TWO_CHANNEL:-}"
+LAMBDA_CH2_2C="${LAMBDA_CH2_2C:-1.0}"
 # 初期値にする観測日（既定 1 = 論文の手順）。3 なら Day 3 の組成を初期値にし Day 6 以降で当てる（2026-10-11f）。
 # 連鎖の全段（pilot→p1→p2→ult）で同じ値を渡すこと
 IC_DAY="${IC_DAY:-1}"
@@ -112,6 +118,7 @@ case "$STAGE" in
                --prior-scale "$PRIOR_SCALE") ;;
   *) echo "unknown STAGE $STAGE"; exit 1 ;;
 esac
+[ -n "$TWO_CHANNEL" ] && ARGS+=(--two-channel --lambda-ch2 "$LAMBDA_CH2_2C")
 
 # N_MUT が指定されていれば --n-mutation-steps を差し替える
 if [ -n "$N_MUT" ]; then

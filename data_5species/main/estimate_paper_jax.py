@@ -135,6 +135,37 @@ B_DIMS = [3, 4, 8, 9, 15]
 PAPER_BOUNDS_JSON = DATA_DIR / "model_config" / "prior_bounds_paper_20d.json"
 
 
+def species_viability_from_data(condition, cultivation, t_days, live, min_total=0.02):
+    """データから出した種ごとの生存率 (n_obs, 5)（2026-10-13、tools/psi_from_data.py と同じ式）。
+
+    ψ_i = (生きた菌の組成 Fig. 3 / 全菌の組成 Fig. S1) × 群集の生きた割合（反復の中央値）。
+    全菌の割合が min_total 未満の種・日は比が不安定なので群集の値を使う。[0.01, 0.99] に切る。
+    """
+    import pandas as pd
+
+    sp = {"S. oralis": 0, "A. naeslundii": 1, "V. dispar": 2, "V. parvula": 2, "F. nucleatum": 3,
+          "P. gingivalis_20709": 4, "P. gingivalis_W83": 4, "P. gingivalis": 4}
+
+    def comp(fname):
+        df = pd.read_csv(DATA_DIR / "experiment_data" / fname)
+        df = df[(df.condition == condition) & (df.cultivation == cultivation)]
+        out = {}
+        for _, r in df.iterrows():
+            if r.species in sp:
+                out.setdefault(int(r.day), np.zeros(5))[sp[r.species]] += r["median"]
+        return {k: v / v.sum() for k, v in out.items()}
+
+    v = comp("fig3_species_distribution_summary.csv")
+    t = comp("figS1_total_species_distribution_summary.csv")
+    psi = np.tile(np.asarray(live, dtype=float)[:, None], (1, 5))
+    for k, d in enumerate(np.asarray(t_days, dtype=float)):
+        d = int(round(d))
+        if d in v and d in t:
+            ok = t[d] >= min_total
+            psi[k, ok] = v[d][ok] / t[d][ok] * live[k]
+    return np.clip(psi, 0.01, 0.99)
+
+
 def make_log_likelihood_jax_ode(
     data: np.ndarray,
     t_days: np.ndarray,
@@ -166,6 +197,8 @@ def make_log_likelihood_jax_ode(
     rare_threshold: float = 0.05,
     # Fix ψ to experimental viability
     psi_fixed: np.ndarray | None = None,
+    # 2 通路の組成（2026-10-13）: 生きた菌の組成 ↔ φψ/Σφψ、全菌の組成（ch2）↔ φ/Σφ
+    two_channel: bool = False,
 ):
     """
     Build JAX-differentiable log-likelihood using Hamilton ODE.
@@ -231,7 +264,7 @@ def make_log_likelihood_jax_ode(
     # Fixed ψ mode: interpolate experimental viability to ODE timesteps
     _fix_psi = psi_fixed is not None
     if _fix_psi:
-        _psi_at_obs = jnp.array(psi_fixed, dtype=jnp.float64)  # (n_obs,)
+        _psi_at_obs = jnp.array(psi_fixed, dtype=jnp.float64)  # (n_obs,) 一様、または (n_obs, 5) 種ごと
         # Disable viability and pH channels (need g_traj which requires full solver)
         _has_viab = False
         _has_pH = False
@@ -246,7 +279,7 @@ def make_log_likelihood_jax_ode(
         return -0.5 * (_nu + 1) * jnp.log(1.0 + residual_scaled_sq / _nu)
 
     # Use full state solver when viability/pH channels are needed
-    _need_full = (_has_viab or _has_pH) and not _fix_psi
+    _need_full = (_has_viab or _has_pH or two_channel) and not _fix_psi
 
     def log_likelihood(theta):
         if _need_full:
@@ -274,15 +307,21 @@ def make_log_likelihood_jax_ode(
         # Sample at observation indices
         phi_pred = phi_traj[idx, :]  # (n_obs, 5)
         phi_pred = jnp.clip(phi_pred, 1e-10, 1.0 - 1e-10)
+        phi_raw = phi_pred
 
         if _fix_psi:
-            # φ̄ = φ × ψ_exp (ψ is uniform across species, from experiment)
-            psi_broadcast = _psi_at_obs[:, jnp.newaxis]  # (n_obs, 1)
+            # φ̄ = φ × ψ_exp（一様なら正規化で消える。種ごと (n_obs, 5) なら消えない）
+            psi_broadcast = _psi_at_obs if _psi_at_obs.ndim == 2 else _psi_at_obs[:, jnp.newaxis]
             phi_pred = phi_pred * psi_broadcast
+        elif two_channel:
+            # 生きた菌の組成はモデルの生きた体積 φψ と比べる
+            phi_pred = phi_pred * jnp.clip(g_traj[idx, 6:11], 1e-10, 1.0)
 
         # Normalize to fractions
         phi_sum = jnp.sum(phi_pred, axis=1, keepdims=True)
         phi_pred = phi_pred / jnp.maximum(phi_sum, 1e-12)
+        # 全菌の組成（ch2）と比べる φ/Σφ（2 通路のときだけ ch1 と別になる）
+        phi_tot_pred = phi_raw / jnp.maximum(jnp.sum(phi_raw, axis=1, keepdims=True), 1e-12)
 
         # Ch1: viable species (primary)
         residual = obs - phi_pred
@@ -296,7 +335,7 @@ def make_log_likelihood_jax_ode(
 
         # Ch2: total species distribution (φ without ψ weighting)
         if _has_total:
-            residual_total = obs_total - phi_pred
+            residual_total = obs_total - (phi_tot_pred if two_channel else phi_pred)
             logL_total = -0.5 * jnp.sum((residual_total / sig_total) ** 2)
             logL = logL + lw2 * logL_total
 
@@ -508,6 +547,12 @@ def main():
         "Goal: focus likelihood on A matrix estimation.",
     )
     parser.add_argument(
+        "--two-channel",
+        action="store_true",
+        help="2 通路の組成（2026-10-13）: 生きた菌の組成（PMA）を φψ/Σφψ、全菌の組成を φ/Σφ（ch2、"
+        "重みは --lambda-ch2）と比べる。--fix-psi と一緒なら ψ_i をデータから出した種ごとの値に固定する。",
+    )
+    parser.add_argument(
         "--estimate-b",
         action="store_true",
         help="b=θ[3,4,8,9,15] も推定する。既定では 0 固定（alpha=0 で尤度に入らないため）",
@@ -686,6 +731,25 @@ def main():
             f"pH={'yes' if mc_data.get('data_pH') is not None else 'no'}"
         )
 
+    # --two-channel: 全菌の組成（ch2）を必ず読み込む（pilot・p1 は --multichannel なしでも）
+    if args.two_channel:
+        if not args.multichannel:
+            mc_data = load_multichannel_data(
+                data_dir=DATA_DIR / "experiment_data",
+                condition=args.condition,
+                cultivation=args.cultivation,
+                days_filter=t_days.tolist(),
+            )
+            mc_kwargs = {
+                "data_total": mc_data.get("data_total"),
+                "sigma_obs_total": mc_data.get("sigma_obs_total"),
+                "lambda_ch": {1: args.lambda_ch1, 2: args.lambda_ch2, 3: 0.0, 5: 0.0},
+            }
+        if mc_kwargs.get("data_total") is None:
+            raise RuntimeError("--two-channel: 全菌の組成（data_total）が読めない")
+        mc_kwargs["two_channel"] = True
+        logger.info(f"[two-channel] ch1 生きた菌 ↔ φψ、ch2 全菌 ↔ φ（λ2={mc_kwargs['lambda_ch'].get(2)}）")
+
     # --fix-psi: load experimental viability and fix ψ_i = viab(t) for all species
     psi_fixed_arr = None
     if args.fix_psi:
@@ -702,6 +766,11 @@ def main():
         # Interpolate viability to observation days (t_days)
         psi_fixed_arr = np.interp(t_days, viab_days, viab_intact)
         psi_fixed_arr = np.clip(psi_fixed_arr, 0.01, 0.99)
+        if args.two_channel:
+            # 種ごと: ψ_i = (生きた菌の割合 / 全菌の割合) × 群集の生きた割合（全菌 < 2% の種は群集の値）
+            psi_fixed_arr = species_viability_from_data(
+                args.condition, args.cultivation, t_days, psi_fixed_arr
+            )
         logger.info(
             f"[fix-psi] ψ fixed to exp viability: {dict(zip(t_days, psi_fixed_arr.round(3)))}"
         )
