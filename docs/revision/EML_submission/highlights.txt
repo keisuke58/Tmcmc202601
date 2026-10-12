@@ -1,7 +1,5 @@
-Highlights (3-5 bullets, max 85 characters each incl. spaces; updated 2026-10-12, numbers provisional until DS/DH final)
-
-- Interaction matrix of a variational multiphase biofilm model inferred by TMCMC   (78)
-- Stiff forward model compiled in JAX; all particles solved in parallel on one GPU   (80)
-- Data enter in stages, from species composition to community viability   (69)
-- Explicit seed, mixing and prior-bound checks decide when a stage is accepted   (76)
-- Data determine only 4-9 of 15 interactions; the model predicts an Fn knockout   (77)
+Interaction matrix of a variational multiphase biofilm model inferred by TMCMC
+Stiff forward model compiled in JAX; all particles solved in parallel on one GPU
+Data enter in stages, from species composition to community viability
+Explicit seed, mixing and prior-bound checks decide when a stage is accepted
+Data determine 4-9 of 15 interactions; removing F. nucleatum halts late P. gingivalis

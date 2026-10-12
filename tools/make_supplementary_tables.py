@@ -113,43 +113,59 @@ def fmt(x, nd=2):
     return "--" if x is None else f"{x:.{nd}f}"
 
 
+def _apply_override(base, spec):
+    """estimator の --override-bounds（"idx:lo:hi,..."）を箱に当てる。"""
+    pb = base.copy()
+    for part in (spec or "").replace(";", ",").split(","):
+        if part.strip():
+            k, lo, hi = part.split(":")
+            pb[int(k)] = [float(lo), float(hi)]
+    return pb
+
+
+def _fmt_box(lo, hi):
+    f = lambda x: ("%.2f" % x).rstrip("0").rstrip(".") if abs(x - round(x)) > 1e-9 else "%d" % round(x)
+    return "[%s, %s]" % (f(lo), f(hi))
+
+
 def box_table(groups):
-    """S1: 条件ごとに段 × 自由次元の箱。pilot と違う箱は太字。"""
-    lines = []
+    """S4（補足の表番号）: 条件ごとに 4 段の箱を 2×2 に並べる。
+
+    (i)  pilot の箱（初期の箱）
+    (ii) (i) の事後の ±4SD に絞った箱（p1 の run の箱）
+    (iii) (i) の箱に戻し、端に質量が積んだ成分だけ広げた箱（最終群の override_bounds を (i) に当てる）。広げた成分は太字
+    (iv) (iii) の事後の ±4SD（最終群のうち max logL 最大の seed の箱）。最終群が p2 なら --（仮）
+    """
+    blocks = []
     for tag in CONDS:
-        stages = [(st, groups[tag].get(st)) for st in STAGES]
-        stages = [(st, g) for st, g in stages if g]
-        if not stages:
+        g = groups[tag]
+        if not g.get("pilot") or not g.get("ult"):
             continue
-        rec0 = stages[0][1][0][1]
-        free = list(rec0["free_dims"])
-        base = np.array(rec0["prior_bounds_final"], dtype=float)
-        lines.append(r"\multicolumn{%d}{@{}l}{\textbf{%s}}\\" % (len(stages) + 1, tag))
-        lines.append(
-            " & ".join(["Entry"] + ["Stage " + STAGE_LABEL[st] for st, _ in stages]) + r"\\"
-        )
-        lines.append(r"\midrule")
+        rec_i = g["pilot"][0][1]
+        free = list(rec_i["free_dims"])
+        b1 = np.array(rec_i["prior_bounds_final"], dtype=float)
+        b2 = np.array(g["p1"][0][1]["prior_bounds_final"], dtype=float) if g.get("p1") else None
+        fin = max(g["ult"], key=lambda t: t[1].get("max_logL", -np.inf))
+        fin_is_ult = "_ult_" in fin[0]
+        b3 = _apply_override(b1, fin[1]["args"].get("override_bounds"))
+        b4 = np.array(fin[1]["prior_bounds_final"], dtype=float) if fin_is_ult else None
+        rows = [r"\multicolumn{5}{@{}l}{\textbf{%s}%s}\\" % (tag, "" if fin_is_ult else r" \textit{(stage (iii) is final, provisional)}"),
+                r"Entry & (i) & (ii) & (iii) & (iv)\\", r"\midrule"]
         for i in free:
-            cells = [tex_name(NAMES[i])]
-            for st, g in stages:
-                pb = np.array(g[0][1]["prior_bounds_final"], dtype=float)
-                s = "[%g, %g]" % (pb[i, 0], pb[i, 1])
-                if st != "ult" and not np.allclose(pb[i], base[i]):
-                    s = r"\textbf{%s}" % s
-                if st == "ult":
-                    s = r"$\pm4$\,SD"  # 段 (iv) は事後の ±4SD（seed ごとに違う）
-                cells.append(s)
-            lines.append(" & ".join(cells) + r"\\")
-        cells = [r"$\ln V$"]
-        for st, g in stages:
-            pb = np.array(g[0][1]["prior_bounds_final"], dtype=float)
-            w = pb[free, 1] - pb[free, 0]
-            cells.append(
-                fmt(float(np.sum(np.log(w))), 1) if np.all(w > 0) and st != "ult" else "--"
-            )
-        lines.append(" & ".join(cells) + r"\\")
-        lines.append(r"\midrule")
-    return "\n".join(lines)
+            c3 = _fmt_box(*b3[i])
+            if not np.allclose(b3[i], b1[i]):
+                c3 = r"\textbf{%s}" % c3
+            rows.append(" & ".join([tex_name(NAMES[i]), _fmt_box(*b1[i]),
+                                    _fmt_box(*b2[i]) if b2 is not None else "--", c3,
+                                    _fmt_box(*b4[i]) if b4 is not None else "--"]) + r"\\")
+        lnv = lambda b: fmt(float(np.sum(np.log(b[free, 1] - b[free, 0]))), 1) if b is not None else "--"
+        rows.append(r"\midrule")
+        rows.append(" & ".join([r"$\ln V$", lnv(b1), lnv(b2), lnv(b3), lnv(b4)]) + r"\\")
+        blocks.append("\\begin{tabular}{@{}lllll@{}}\\toprule\n" + "\n".join(rows) + "\n\\bottomrule\\end{tabular}")
+    out = []
+    for k, blk in enumerate(blocks):
+        out.append(r"\begin{minipage}[t]{0.49\textwidth}\centering\scriptsize\setlength{\tabcolsep}{2pt}" + "\n" + blk + "\n" + r"\end{minipage}" + ("\\hfill" if k % 2 == 0 else "\\par\\medskip"))
+    return "\n".join(out)
 
 
 def moves_per_dim(rec):
@@ -161,7 +177,7 @@ def moves_per_dim(rec):
 def run_table(groups):
     """S2: 条件 × 段ごとに 1 行（3 seed をまとめる）。"""
     lines = [
-        r"Cond. & Stage & $N_p$ & $K$ & Stages & Accept. & Moves/dim & $\max\log L$ (spread) & Hours\\",
+        r"Cond. & Stage & $N_p$ & $K$ & Steps & Accept. & Moves/dim & $\max\log L$ (spread) & Hours\\",
         r"\midrule",
     ]
     for tag in CONDS:
@@ -181,7 +197,8 @@ def run_table(groups):
                 " & ".join(
                     [
                         tag,
-                        STAGE_LABEL[st],
+                        # 仮の段: 最終群が p2 の run（ult がまだ）のときは (iii) と表示する
+                        "(iii)" if st == "ult" and "_p2_" in g[0][0] else STAGE_LABEL[st],
                         "/".join(str(n) for n in npart),
                         "/".join(str(n) for n in nmut),
                         "%d--%d" % (min(nst), max(nst)) if min(nst) != max(nst) else str(nst[0]),
@@ -320,6 +337,10 @@ def main():
     ]:
         p = os.path.join(a.out_dir, name + ".tex")
         with open(p, "w", encoding="utf-8") as fh:
+            if name == "supp_S1_boxes":  # 4 条件を 2×2 に並べた完成品（tabular を中に持つ）
+                fh.write("% generated by tools/make_supplementary_tables.py\n" + body + "\n")
+                print("wrote", p)
+                continue
             fh.write(
                 "% generated by tools/make_supplementary_tables.py\n"
                 + "\\begin{tabular}{%s}\\toprule\n" % COLS[name]

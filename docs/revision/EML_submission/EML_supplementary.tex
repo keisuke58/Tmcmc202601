@@ -28,7 +28,7 @@
 \date{}
 
 \input{../generated/numbers}
-% 表の置き場所: 仮（DS・DH は stage (ii)）。ult がそろったら ../generated に戻す
+% table location: provisional (DS, DH from stage (ii)); switch back to ../generated after the final runs
 \newcommand{\suppdir}{figures/provisional_2026-10-11/supp}
 \begin{document}
 \maketitle
@@ -117,10 +117,10 @@ Evaluating the stationarity conditions yields the coupled evolution equations~\c
 \label{eq:constraint_eq}
 \end{equation}
 In the numerical implementation, a logarithmic barrier penalty $\Psi_{\mathrm{bar}}$ with $K_p=\eta_i\times10^{-4}$ is added to enforce the box constraints $\phi_i,\psi_i\in(0,1)$~\citep{Klempt2025ContinuumBiofilm}; its contribution is omitted from Eqs.~\eqref{eq:phi}--\eqref{eq:phi0} for clarity.
-The system~\eqref{eq:phi}--\eqref{eq:constraint_eq} constitutes $2n+2$ coupled non-linear equations for the unknowns $(\phi_1,\dots,\phi_n,\phi_0,\psi_1,\dots,\psi_n,\gamma)$, solved at each time step via Newton's method with an implicit Euler discretisation ($\Delta t = 10^{-4}$, $N_{\mathrm{step}}=2{,}500$ steps, $t_{\max}=0.25$ corresponding to the 21-day experimental window).
+The system~\eqref{eq:phi}--\eqref{eq:constraint_eq} constitutes $2n+2$ coupled non-linear equations for the unknowns $(\phi_1,\dots,\phi_n,\phi_0,\psi_1,\dots,\psi_n,\gamma)$, solved at each time step via Newton's method with an implicit Euler discretisation ($\Delta t = 10^{-4}$, $N_{\mathrm{step}}=2{,}500$ steps, $t_{\max}=0.25$; day~$d$ is mapped to $t=0.2375\,d/21$, so day~21 lies at 95\% of the integration window).
 
-The variational derivation automatically ensures symmetry $A_{ij}=A_{ji}$ and thermodynamic consistency~\citep{JunkerBalzani2021ExtendedHamilton}.
-Since $c^*$ enters the evolution equations only through the product $c^*A_{ij}$, its absolute value is non-identifiable; we fix $c^*=25$ so that the inferred $A_{ij}$ remain $\mathcal{O}(1)$.
+Only the symmetric part of $\mathbf{A}$ enters the quadratic free energy, so $\mathbf{A}$ is taken symmetric, $a_{ij}=a_{ji}$; the variational derivation ensures thermodynamic consistency~\citep{JunkerBalzani2021ExtendedHamilton}.
+Since $c^*$ enters the evolution equations only through the product $c^*a_{ij}$, its absolute value is non-identifiable; we fix $c^*=25$ so that the inferred $a_{ij}$ remain $\mathcal{O}(1)$.
 The Heine et al.\ experiments do not involve antibiotic agents, so we set $\alpha^*=0$, which eliminates the decay term $\alpha^*b_i\psi_i$ from Eq.~\eqref{eq:psi_evol}; the antibiotic sensitivity matrix~$\mathbf{B}$ is therefore inactive and excluded from estimation.
 The symmetric interaction matrix~$\mathbf{A}$ has 15 independent entries (the main text); these form the 15-dimensional parameter vector~$\btheta$.
 
@@ -235,7 +235,7 @@ $\lambda_{\psi}$ & 3.0 (DH), 2.0 (DS), 1.5 (CS, CH) & viability channel, Phase~2
 \bottomrule
 \end{tabular}
 \caption{Computational cost comparison.
-The matched benchmark (500 particles, identical settings) isolates the GPU speedup at about 150--170$\times$ (170$\times$ per stage, 147$\times$ in total).
+The matched benchmark (500 particles, identical settings) isolates the GPU speed-up at about 150$\times$ (170$\times$ per tempering step, 147$\times$ end to end).
 The final-stage times are measured per seed \TBD{update with the final runs}.
 $^\dagger$Extrapolated from the 500-particle CPU benchmark assuming linear scaling in~$N_p$.}
 \label{tab:timing}
@@ -250,14 +250,14 @@ The last column gives $\ln V=\sum_k\ln(u_k-l_k)$, the log-volume of the box, whi
 
 \begin{table}[h]
 \centering
-\caption{Prior boxes per condition and stage for the 15 free entries; entries widened relative to stage (i) in bold. Stage (iv) uses the stage-(iii) posterior mean $\pm4$\,SD, clipped to the stage-(iii) box. $\ln V=\sum_k\ln(u_k-l_k)$ over the free entries.}
+\caption{Prior boxes per condition and stage for the 15 free entries. (i)~initial box; (ii)~stage-(i) posterior mean $\pm4$\,SD; (iii)~back on the box of stage~(i), with the bounds widened (bold) where more than 20\% of the posterior mass lay in the outer 5\% on one side; (iv)~stage-(iii) posterior mean $\pm4$\,SD, clipped to the stage-(iii) box (seed with the highest log-likelihood). $\ln V=\sum_k\ln(u_k-l_k)$ over the free entries. \TBD{DS, DH: stage (iv) pending.}}
 \label{tab:S_boxes}
-\footnotesize\setlength{\tabcolsep}{4pt}\resizebox{\textwidth}{!}{\input{\suppdir/supp_S1_boxes.tex}}
+\input{\suppdir/supp_S1_boxes.tex}
 \end{table}
 
 \section{Runs and convergence}
 \label{sec:S_runs}
-Table~\ref{tab:S_runs} lists, for every condition and stage, the number of particles and mutation steps, the number of tempering stages, the acceptance rate, the moves per parameter, and the spread over the three seeds of the maximum log-likelihood and of the posterior medians (criteria (i)--(iv) of the main text).
+Table~\ref{tab:S_runs} lists, for every condition and stage, the number of particles and mutation steps, the number of tempering stages, the acceptance rate, the moves per parameter, and the spread over the three seeds of the maximum log-likelihood and of the posterior medians (criteria (a)--(e) of the main text).
 
 \begin{table}[h]
 \centering
@@ -328,7 +328,7 @@ $a_{33}<-5$   & 1239 & $+0.8$ [$-0.3$, $+1.6$] & $-1.49$\\
 \end{tabular}
 \end{table}
 
-\section{Likelihood weights}
+\section{Effect of the likelihood weights}
 \label{sec:S_lambda}
 Stage~(i) for DH was repeated with $\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}}=1$ (1000 particles, 100 mutation steps, three seeds; all convergence criteria met). Table~\ref{tab:S_lambda} compares it with the weighted run.
 
