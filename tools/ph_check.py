@@ -88,6 +88,7 @@ print("回帰式（実測だけ）: pH = " + f"{beta[0]:+.3f}" +
 
 # 2. 事後予測
 out = {"beta": beta.tolist(), "regression_r2_on_data": float(fit_r2)}
+bands = {}
 fig, axes = plt.subplots(1, 2, figsize=(9, 3.4), sharey=True)
 for ax, (tag, cond, glob) in zip(axes, [("CH", "Commensal", args.glob_CH), ("DH", "Dysbiotic", args.glob_DH)]):
     runs = sorted(Path(args.root).glob(glob))
@@ -117,6 +118,7 @@ for ax, (tag, cond, glob) in zip(axes, [("CH", "Commensal", args.glob_CH), ("DH"
                 "r2_posterior_median": r2, "coverage_90": cover, "rmse_regression_on_measured_composition": rmse_reg}
     print(f"{tag}: 事後中央値 RMSE {rmse:.3f}  R² {r2:.3f}  90% 帯の被覆 {cover:.2f}"
           f"  （実測組成を回帰式に通した RMSE {rmse_reg:.3f}、{mask.sum()} 点）")
+    bands[tag] = dict(days=days_axis, lo=lo, med=med, hi=hi, t_meas=tt, ph_meas=yy)
     ax.fill_between(days_axis, lo, hi, color="0.75", lw=0, label="model, 90% band")
     ax.plot(days_axis, med, color="0.2", lw=1.2, label=f"model, median (RMSE {rmse:.2f})")
     ax.plot(tt, yy, "o", ms=3, color="C3", label="measured pH (not used in inference)")
@@ -129,3 +131,4 @@ fig.tight_layout()
 fig.savefig(args.out + ".pdf")
 fig.savefig(args.out + ".png", dpi=130)
 json.dump(out, open(args.out + ".json", "w"), indent=2)
+np.savez(args.out + "_bands.npz", **{f"{t}_{k}": v for t, d in bands.items() for k, v in d.items()})

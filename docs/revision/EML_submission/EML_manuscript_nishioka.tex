@@ -157,6 +157,13 @@ Every stage is run with three independent seeds and accepted only if
 Criterion~(c) counts accepted moves rather than the acceptance rate: with optimally scaled random-walk proposals~\citep{RobertsRosenthal2001Optimal}, $5d$ accepted moves displace each coordinate by about five posterior standard deviations, independently of the dimension~$d$.
 Stages that fail are repeated with more particles or mutation steps, never interpreted.
 The evidence estimate of TMCMC is used only to compare models on the same data and box (Section~\ref{sec:results}).
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig1_pipeline.pdf}
+\caption{Model and inference. A material point carries the volume fractions $\phi_i$ and viabilities $\psi_i$ of five taxa, coupled through the symmetric interaction matrix $\mathbf{A}$ (15 unknowns). TMCMC with a GPU-compiled forward model infers $\mathbf{A}$ in four stages, from species composition to community viability; every stage is accepted only after the checks (a)--(e).}
+\label{fig:pipeline}
+\end{figure}
+
 
 %==============================================================================
 \section{Results and discussion}
@@ -177,7 +184,7 @@ Without the acceptance criteria, several of these runs would have been read as c
 \end{figure*}
 
 \subsection{What the data determine}
-Supplementary Table~S4 classifies every entry of $\mathbf{A}$ at stage (iv).
+Figure~\ref{fig:ident} and Supplementary Table~S4 classify every entry of $\mathbf{A}$ at stage (iv).
 In the commensal conditions only a few entries are identified: four in CS ($a_{11}$, $a_{22}$, $a_{33}$, $a_{13}$) and six in CH ($a_{11}$, $a_{12}$, $a_{22}$, $a_{33}$, $a_{13}$, $a_{23}$), all among the early colonisers So, An and Vei.
 Where both conditions identify an entry, the sign agrees: the self-interaction of So is negative ($a_{11}$, 90\% intervals $[-4.9,-1.2]$ in CS and $[-2.5,-0.5]$ in CH) and the So--Vei coefficient is positive ($a_{13}$, $[+2.8,+9.2]$ and $[+0.01,+1.4]$), in line with the lactate cross-feeding between streptococci and \textit{Veillonella}~\citep{Kolenbrander2010OralMultispecies}, although $a_{13}$ is an effective coefficient and not a measurement of that mechanism.
 Two further entries of CH, $a_{14}$ and $a_{15}$, are determined in sign only (90\% intervals $[-4.8,-0.2]$ and $[-4.8,-0.3]$), and every other entry involving Fn or Pg spreads over its whole box.
@@ -185,25 +192,46 @@ This is expected: Fn and Pg stay below 1\% of the commensal communities from day
 In the dysbiotic conditions, where Fn and Pg reach 10--25\% of the community, more entries are identified: eight in DS and nine in DH, now including interactions of the late colonisers\TBD{prov.}.
 The Vei--Pg coefficient $a_{35}$ is identified in both but with opposite signs, positive under static cultivation (DS, $[+0.3,+2.4]$) and negative in the flow reactor (DH, $[-13.4,-1.7]$), and the An--Fn coefficient $a_{24}$ is positive in DH ($[+2.7,+7.1]$).
 A sign change between cultivation modes is a statement about the effective model under different nutrient and flow conditions, not about the pairwise mechanism itself.
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.55\textwidth]{figures/provisional_2026-10-11/fig5_identifiability.pdf}
+\caption{What the data determine. Entries of $\mathbf{A}$ (rows) in the four conditions (columns) at the final stage, three seeds pooled. Coloured with value: identified (posterior standard deviation below 0.8 times that of a uniform distribution on the box), colour and number give the posterior median; light colour with sign: only the sign is determined (90\% interval excludes zero); grey: not identified. \TBD{DS, DH from stage (ii).}}
+\label{fig:ident}
+\end{figure}
+
 The classification is a result in its own right: it states which conclusions about the interaction network the data can support, and it is obtained from the same runs at no additional cost.
 
 \subsection{The Fn--Pg coefficient}
 The coefficient $a_{45}$ links the bridging organism Fn to the pathogen Pg.
 Comparing the full model with a model in which $a_{45}=0$, both inferred at stage (i), gives $\ln B=+0.10$ (CS), $+0.05$ (CH), $-2.67$ (DS) and $+1.94$ (DH) (Supplementary Table~S3).
 Because the uniform prior penalises the full model by the log-width of the $a_{45}$ box, $\ln B$ is read only within a condition: in DS, where the box had to be widened to $[-15,20]$, the penalty alone is $\ln35\approx3.6$.
-In DH, the data favour a non-zero coefficient.
+In DH, the data favour a non-zero coefficient (Fig.~\ref{fig:post}).
 With the composition alone (stage (i)) $a_{45}$ is positive in all seeds (90\% interval about $[+0.5,+5.5]$); without the likelihood weights its median is unchanged but the interval reaches zero ($[-0.06,+5.6]$; Supplementary Section~S5).
 Once the viability enters, the median of $a_{45}$ stays positive in both dysbiotic conditions ($+2.8$ in DS, $+1.2$ in DH) but the 90\% intervals include zero ($[-1.3,+15.1]$ and $[-1.9,+7.5]$)\TBD{prov.}.
 The composition data alone thus support a positive Fn--Pg coefficient in DH, and the viability data neither confirm nor contradict it.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/provisional_2026-10-11/paper_posterior_violin_sharey.pdf}
+\caption{Marginal posteriors of the 15 entries of $\mathbf{A}$ at the final stage in the four conditions (three seeds pooled). \TBD{DS, DH from stage (ii).}}
+\label{fig:post}
+\end{figure}
+
 
 \subsection{Checks against data not used in the inference}
-The pH measured under dynamic cultivation was not used in the inference.
+The pH measured under dynamic cultivation was not used in the inference (Fig.~\ref{fig:checks}b,c).
 A linear regression of the measured pH on the measured species fractions (intercept and four fractions, Vei as reference; $R^2=0.93$ over 90 time points in CH and DH) was fitted once on the data alone and then applied, unchanged, to the posterior predictive composition.
 In DH the predicted pH follows the measured rise from about 6.3 to 7.0 ($R^2=0.63$, RMSE 0.12)\TBD{prov.}; in CH it is offset upwards by about 0.13, because the model keeps Fn and Pg near 4--5\% where the data show below 1\%, a consequence of down-weighting rare species in the likelihood, and these two taxa carry the largest regression coefficients.
-The calibrated model can also be used in silico: removing Fn from the dysbiotic flow-reactor community abolishes the late increase of Pg.
+The calibrated model can also be used in silico: removing Fn from the dysbiotic flow-reactor community abolishes the late increase of Pg (Fig.~\ref{fig:checks}a).
 The Day-21/Day-15 ratio of Pg falls from 2.9 (90\% interval $[2.3,3.5]$; measured 2.74) to 1.1 ($[0.3,1.8]$), and only 2--7\% of the posterior samples keep a ratio of 1.5 or more\TBD{prov.}.
 Setting only $a_{45}=0$ removes the increase in most but not all samples (16--52\% keep it, depending on the seed), so the prediction rests mainly, though not only, on the Fn--Pg coefficient; it can be tested directly by a co-culture without Fn.
 Under static cultivation the model shows no comparable late increase (ratio 1.1), so the knockout is not informative there.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/provisional_2026-10-11/fig6_checks.pdf}
+\caption{Checks against data and predictions not used in the inference. (a)~DH: ratio of the Pg fraction on day~21 to day~15 for the calibrated model, with Fn removed, and with $a_{45}=0$ (posterior median and 90\% interval, one bar per seed; dashed: measured). (b,c)~pH predicted from the posterior composition through a regression fitted once on the measured data (band: 90\%), against the measured pH. \TBD{DH from stage (ii).}}
+\label{fig:checks}
+\end{figure}
+
 
 \subsection{Limitations}
 The likelihood treats the five species fractions as independent although they sum to one, so the posterior intervals may be somewhat too narrow.
