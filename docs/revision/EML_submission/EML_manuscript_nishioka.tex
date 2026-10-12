@@ -120,6 +120,8 @@ Removing a species is represented by holding its volume fraction at zero.
 
 \paragraph{Likelihood.}
 The data are the species fractions at Days 3, 6, 10, 15 and 21 (Day~1 is the initial condition), averaged over eight biological replicates~\citep{heine2025influence}.
+Model time is proportional to the day number, $t=s\,d$ with $s=0.2375/21$, and the Day-1 composition is used as the state at $t=0$; the observation days are thus mapped with a common offset of one day.
+Removing this offset ($t=s\,(d-1)$) changes the composition error of the MAP by at most 0.008 in any condition without re-inference\TBD{prov.}.
 The model fractions are renormalised over the five species, $\hat y_i=\phi_i/\sum_j\phi_j$, and compared through a weighted Gaussian log-likelihood
 \begin{equation}
 \ln p(\yobs\mid\btheta)=-\frac12\sum_{k}\sum_{i=1}^{5}w_{ik}\,\frac{\bigl(y_{\mathrm{obs},i}(t_k)-\hat y_i(t_k;\btheta)\bigr)^2}{\sigma_i^2}+\mathrm{const},
