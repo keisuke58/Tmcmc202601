@@ -82,6 +82,8 @@ tools/make_cost_table.py
 tools/plot_seed_maps.py
 tools/ph_check.py
 tools/fisher_ident.py
+tools/ident_threshold_table.py
+tools/growth_stress_check.py
 tools/fit_ceiling.py
 tools/knockout_fn.py
 tools/eval_paper_runs.py
@@ -155,6 +157,7 @@ docs/revision/EML_submission/figures/provisional_2026-10-11/knockout_DS.json
 docs/revision/EML_submission/figures/provisional_2026-10-11/ph_check.json
 # NOT INCLUDED (no redistribution of Heine et al. 2025 data): docs/revision/EML_submission/figures/provisional_2026-10-11/ph_check_bands.npz
 docs/revision/EML_submission/figures/provisional_2026-10-11/fisher_ident.json
+docs/revision/EML_submission/figures/provisional_2026-10-11/growth_stress.json
 docs/revision/EML_submission/figures/provisional_2026-10-11/seed_maps_4cond.json
 docs/revision/EML_submission/figures/provisional_2026-10-11/paper_fig2_phi_transposed.pdf
 docs/revision/EML_submission/figures/provisional_2026-10-11/fig5_identifiability.pdf
