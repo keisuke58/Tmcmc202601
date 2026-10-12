@@ -3,7 +3,6 @@
 \usepackage{lmodern}
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{amsmath,amssymb,booktabs,graphicx,xcolor,multirow,array}
-\usepackage{mathptmx}
 \usepackage[authoryear,round]{natbib}
 \usepackage{tikz}\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 \usepackage{algorithm,algorithmic,capt-of,enumitem}
@@ -253,7 +252,7 @@ The last column gives $\ln V=\sum_k\ln(u_k-l_k)$, the log-volume of the box, whi
 \centering
 \caption{Prior boxes per condition and stage for the 15 free entries; entries widened relative to stage (i) in bold. Stage (iv) uses the stage-(iii) posterior mean $\pm4$\,SD, clipped to the stage-(iii) box. $\ln V=\sum_k\ln(u_k-l_k)$ over the free entries.}
 \label{tab:S_boxes}
-\small\input{\suppdir/supp_S1_boxes.tex}
+\footnotesize\setlength{\tabcolsep}{4pt}\resizebox{\textwidth}{!}{\input{\suppdir/supp_S1_boxes.tex}}
 \end{table}
 
 \section{Runs and convergence}
@@ -276,7 +275,7 @@ An entry whose posterior standard deviation is at least 0.8 times that of a unif
 \centering
 \caption{Posterior median [5\%, 95\%] of the 15 entries at stage (iv), three seeds pooled. Grey: the posterior spreads over most of the box (standard deviation $\ge0.8$ times that of a uniform distribution on the box); n.i.: not identified, s.o.: sign only (the 90\% interval excludes zero).}
 \label{tab:S_ident}
-\small\input{\suppdir/supp_S4_ident}
+\footnotesize\setlength{\tabcolsep}{3pt}\resizebox{\textwidth}{!}{\input{\suppdir/supp_S4_ident}}
 \end{table}
 
 \paragraph{Curvature of the likelihood.}
@@ -335,11 +334,12 @@ Stage~(i) for DH was repeated with $\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}
 
 \begin{table}[h]
 \centering
-\caption{DH, stage (i): weighted ($\lambda_{\mathrm{Pg}}=5$, $\lambda_{\mathrm{late}}=3$) and unweighted likelihood. Ranges over three seeds.}
+\caption{DH, stage (i): weighted ($\lambda_{\mathrm{Pg}}=5$, $\lambda_{\mathrm{late}}=3$) and unweighted likelihood. Ranges over three seeds; the measured Pg ratio of day 21 to day 15 is 2.74.}
 \label{tab:S_lambda}
-\begin{tabular}{lccc}
+\small\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lccc@{}}
 \toprule
- & $a_{45}$ median [5\%, 95\%] & Pg D21/D15 (measured 2.74) & RMSE\\
+ & $a_{45}$ median [5\%, 95\%] & Pg D21/D15 & RMSE\\
 \midrule
 Weighted   & $+2.9$ to $+3.2$ [$+0.5$ to $+1.1$, $+5.2$ to $+5.5$] & 2.4--2.9 & 0.058--0.065\\
 Unweighted & $+3.0$ [$-0.06$ to $+0.17$, $+5.6$] & 1.7--3.1 & 0.059--0.068\\

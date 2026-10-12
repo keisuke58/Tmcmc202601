@@ -35,6 +35,14 @@ import matplotlib  # noqa: E402
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
+# 体裁: 本文・ほかの図と同じ Latin Modern（usetex）。LaTeX が無ければ通常の描画
+try:
+    plt.rcParams.update({"text.usetex": True, "font.family": "serif",
+                         "text.latex.preamble": r"\usepackage{lmodern}", "font.size": 9})
+    plt.figure(); plt.text(0, 0, r"$x$"); plt.savefig("/dev/null", format="pdf"); plt.close()
+except Exception:  # noqa: BLE001
+    plt.rcParams.update({"text.usetex": False, "font.family": "serif", "font.size": 9})
+
 import estimate_paper_jax as E  # noqa: E402
 
 GROUPS = [
@@ -95,12 +103,12 @@ for c, (tag, cond, cult, prefix, stage) in enumerate(GROUPS):
     for k in range(5):
         ax = axes[k, c]
         ax.fill_between(days_axis, lo[:, k], hi[:, k], color="0.6", alpha=0.3, lw=0,
-                        label="posterior 10–90% (3 seeds)" if k == 0 else None)
+                        label=r"posterior 10--90\% (3 seeds)" if k == 0 else None)
         ax.plot(days_axis, med[:, k], color="0.3", lw=1.0, ls="--",
                 label=f"posterior median, RMSE {rmse_med:.3f}" if k == 0 else None)
         ax.plot(t_days, data[:, k], "ko", ms=4)
         if c == 0:
-            ax.set_ylabel(SP[k], style="italic")
+            ax.set_ylabel(r"\textit{%s}" % SP[k] if plt.rcParams["text.usetex"] else SP[k])
         ax.set_ylim(-0.02, 1.0)
         ax.grid(alpha=0.2)
     axes[0, c].set_title(f"{tag} ({stage})")
