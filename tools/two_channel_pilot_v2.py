@@ -27,7 +27,7 @@ OVERRIDE_13B = {
     "DS": "5:-15:20;6:-15:20;19:-15:20;14:-5:4;12:-5:3;16:-5:2.5",
     "DH": "12:-15:20;5:-15:20;6:-15:20;18:-25:20;13:-15:20;0:-5:5;11:-8:3;19:-5:20;1:-5:3;2:-10:5;7:-10:5;10:-8:3",
 }
-LAMBDA_CH3 = {"CS": 2.0, "CH": 1.5, "DS": 2.0, "DH": 3.0}  # estimate_paper_jax の自動調整と同じ
+LAMBDA_CH3 = {"CS": 1.5, "CH": 1.5, "DS": 2.0, "DH": 3.0}  # estimate_paper_jax の自動調整と同じ（Commensal は 1.5、DH は 3.0。2026-10-13d: CS を 2.0 → 1.5 に訂正）
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--tag", required=True, choices=["CS", "CH", "DS", "DH"])
