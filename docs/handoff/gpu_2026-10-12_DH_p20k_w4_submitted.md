@@ -16,7 +16,7 @@ PREV=_runs/paper_gateoff/DH_p1_mut80_seed$S   walltime 48h
 | 3395 | seed 42 | vancouver01 | R |
 | 3396 | seed 123 | vancouver01 | R |
 | 3397 | seed 7 | vancouver03 | R |
-| 3398 | gate_ult（09c 版、MODES なし） | — | H（`afterany:3395:3396:3397`） |
+| ~~3398~~ → 3399 | gate_ult（09c 版、MODES なし、12d で N_PART=20000 を追加） | — | H（`afterany:3395:3396:3397`） |
 
 - gate が PASS なら ult は `N_MUT=150 RUNTAG=nonarrow_w4_noph_p20k_sd4`、vancouver01 で出る。
 - **ult の walltime は 24h にした**（11l の gate は 12h）。20000 粒子の ult が 12h に収まるか未確認で、実行中の walltime は延ばせないため。
@@ -31,3 +31,10 @@ PREV=_runs/paper_gateoff/DH_p1_mut80_seed$S   walltime 48h
 | 通知 | 3387・3391 | 2 |
 
 上限 15 本以内。
+
+## 追記（12d）: gate を N_PART=20000 で仕掛け直した
+
+- 3398 を qdel（`C` を確認）→ pull 後の `gate_submit_ult.sh` で **3399** を投入。依存は `afterany:3395:3396:3397` のまま、3395-3397 は R のまま。
+- Variable_List を全文確認: `N_PART=20000`、OVERRIDE 末尾 `10:-8:3`、`ULT_RUNTAG=nonarrow_w4_noph_p20k_sd4`、`N_MUT=150`、`NODE=vancouver01`。
+- **ult の walltime は 48h**（DS ult p18k 3384-3386 はまだ走行中で実測なし。12d の指示どおり）。
+- `DRY_RUN=1` は流していない。p2 の run がまだ無いので段 1（seed がそろっているか）で止まり、qsub 行まで届かないため。N_PART が VARS に入る行は diff で確認した。
