@@ -5,7 +5,7 @@
   fig3_species_distribution_summary.csv / _replicates.csv     ← qPCR「only living cells」（PMA あり、生きた菌）
   figS1_total_species_distribution_summary.csv / _replicates.csv ← qPCR「all cells」（PMA なし、全菌）
   fig2_membrane_distribution.csv                               ← LIVE/DEAD の画像ごとの値（intact = 画像の平均、error = 画像の SD）
-  biofilm_boxplot_data.csv                                     ← LIVE/DEAD の画像ごとの体積（中央値・四分位・ひげ、×1e6 µm³）
+  biofilm_boxplot_data.csv・boxplot_<条件>_<培養>.csv            ← LIVE/DEAD の画像ごとの体積（中央値・四分位・ひげ、×1e6 µm³）
 推定は --data-source raw でこのフォルダを読む（既定 digitised は今までどおり）。
 値の形は今の CSV と同じ（% 単位、summary は median/mean/std/min/max/q1/q3、replicates は replicate/distribution_pct）。
 注意: qPCR の測定は反復 × 技術反復を区別せずに並べたもの（日・条件で 3〜18 個）。σ はそのまま全測定の SD から作られる。
@@ -56,6 +56,11 @@ def main():
     pd.DataFrame(rows, columns=["condition", "cultivation", "day", "median", "q1", "q3", "whisker_low",
                                 "whisker_high", "fliers"]).to_csv(OUT / "biofilm_boxplot_data.csv", index=False)
     print(f"biofilm_boxplot_data: {len(rows)} rows")
+    # 推定は boxplot_<condition>_<cultivation>.csv を biofilm_boxplot_data.csv より先に読むので、
+    # 複製した読み取りの版をここで生データの版に置き換える（2026-10-13j）
+    bp = pd.read_csv(OUT / "biofilm_boxplot_data.csv")
+    for (c, cu), x in bp.groupby(["condition", "cultivation"]):
+        x.to_csv(OUT / f"boxplot_{c}_{cu}.csv", index=False)
 
 
 if __name__ == "__main__":
