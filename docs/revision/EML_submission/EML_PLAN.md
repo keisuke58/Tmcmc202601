@@ -308,3 +308,8 @@ RMSE（Day 3〜21、重みなし）。`docs/revision/generated/two_channel_pilot
 - **22.7 結果（CPU、決定論的、2026-10-13）**: C（λψ 全条件 2.0）は符号 15/15・14/15・15/15・15/15（CS・CH・DS・DH）で誤差もほぼ同じ → λψ の条件ごとの違いは結論に効かない。B（重みなし）は 13・14・12・12/15、生きた菌・生きた割合はやや良く全菌はやや悪い。符号が変わる成分が「同定された」ものかは GPU の事後（13g）で。DH の Pg 比（Day21/15）は 2 通路の最適で 1.8〜1.9（実測 2.74）、重みにほぼよらない → ノックアウトの予測に関わるので GPU の事後で確認。
 - **21.2**: Nils 宛て（Szymon CC）の qPCR 反復値の依頼を **2026-10-13 08:00（ドイツ時間）に送信済み**（Gmail message 1a134b1399fab8cc）。返事が 1 週間なければ今のデータで進める（§22）。
 - **21.3**: 同じスレッドに追伸を送信（2026-10-13、message 1a134e18cb7f9086）: Fig. 2 の LIVE/DEAD（SYTO9/PI）の生きた割合も画像ごと・反復ごとの値を依頼。これで推定に使う 3 つのデータ（生きた菌・全菌・生きた割合）を全部頼んだ。
+
+## 23. 生データは既にあった（2026-10-13 Nils の返事）
+- Nils: 「前に送った表が qPCR の割合」→ `pde-fem-biofilm/data/heine_species_distribution_biofilm.xlsx`（10/12 にリポジトリに入っている）。シート Commensal / Dysbiotic、ブロック「Static all cells / Static only living cells / HOBIC all cells / HOBIC only living cells」、日 1〜21、種ごとに 12〜15 測定（Dysbiotic HOBIC は 9 列幅）。**全菌（PMA なし）と生きた菌（PMA あり）の両方の反復値**。
+- 生存率（LIVE/DEAD）の画像ごとの値: 返信の添付「Zusammenfassung HOBIC+Static.xlsx」（色付きの列が画像ごとの割合、HOBIC22=commensal、HOBIC24=dysbiotic）。添付はこのセッションから取り出せない → 本人が保存する。
+- 図から読み取った値との差（中央値を正規化、日ごとの最大差）: 生きた菌は多くが < 0.09 だが DS 3 日目 0.17、**DH 6・10 日目 0.28・0.42**。全菌（Fig. S1 の読み取り）は 0.05〜0.42 と大きくずれる。→ **読み取りの誤差は無視できない。最終の run は生データで。** ブロックの読み方（列幅・技術反復）を確かめてから CSV に変換する。
