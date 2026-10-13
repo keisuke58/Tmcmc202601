@@ -79,6 +79,8 @@ tmcmc/_runs/
 data_5species/main/_runs/paper_gateoff/
 data_5species/main/_runs/*_20260930/
 data_5species/main/_runs/gateoff_summary_20260930.*
+data_5species/main/_runs/recovery/   # 回収テストの出力（合成データ・run）
+docs/revision/EML_submission/figures/generated/_cache/   # make_paper_figures.py のキャッシュ（再生成可、43 MB）
 tmcmc/case2_*_results/
 tmcmc/case2_*_results*/
 tmcmc/*_results/
