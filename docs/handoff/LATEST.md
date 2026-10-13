@@ -114,6 +114,7 @@
 
 | 日付 | ファイル | 要点 |
 |---|---|---|
+| 2026-10-13 | [gpu_2026-10-13_2c_raw_pilot_DH.md](gpu_2026-10-13_2c_raw_pilot_DH.md) | **自動通知**: run 終了。FAIL を含む群は回し直すまで解釈しない |
 | 2026-10-13 | [gpu_2026-10-13_2c_raw_pilot_CH.md](gpu_2026-10-13_2c_raw_pilot_CH.md) | **自動通知**: run 終了。FAIL を含む群は回し直すまで解釈しない |
 | 2026-10-13 | [gpu_2026-10-13_2c_raw_pilot_CS.md](gpu_2026-10-13_2c_raw_pilot_CS.md) | **自動通知**: run 終了。FAIL を含む群は回し直すまで解釈しない |
 | 2026-10-13 | [gpu_2026-10-13_13g_prep.md](gpu_2026-10-13_13g_prep.md) | **13g 準備済み・未投入**（`submit_13g.sh`、RMSE の内訳は新しい `fit_metrics_2c.py`）。ジョブは変化なし（p2 12・polish 3 が R）。リポジトリ整理 |
