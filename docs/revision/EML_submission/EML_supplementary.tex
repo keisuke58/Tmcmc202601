@@ -453,7 +453,7 @@ The likelihood of the main text therefore uses the two compositions as separate 
 \label{sec:S_tradeoff}
 To test whether the CS tension depends on the weights, we minimised the negative log-likelihood of the main text (measured data, two compositions and the live fraction, biofilm-level $\sigma_\ell$) with L-BFGS-B, started from the previous MAP, for $\lambda_\psi=1.5$, 3, 6, 12 and 24 (Fig.~\ref{fig:S_tradeoff}).
 The errors move along a single curve: no weight brings both the composition and the live-fraction errors below 0.1.
-The same holds with the initial state taken from the day-1 data (total-count composition, species viabilities from the data; live-fraction error 0.237 against 0.231)\TBD{per-day $\sigma_\ell$}.
+The same holds with the initial state taken from the day-1 data (total-count composition, species viabilities from the data; live-fraction error 0.237 against 0.231) and with a day-specific $\sigma_\ell$ (the between-biofilm SD of each day, at least 0.03), which moves CS along the same curve (live fraction 0.18, viable composition 0.12, total-count composition 0.09).
 In CH the same procedure gives errors of 0.07 (viable), 0.07 (total) and 0.12 (live fraction) at the default weight.
 
 \begin{figure}[h]
