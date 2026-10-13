@@ -184,12 +184,12 @@ Vei--Pg & pH rise from \textit{Veillonella} lactate metabolism (hypothesised in 
 \begin{table}[htbp]\centering\small
 \begin{tabular}{@{}lll@{}}\toprule
 Weight & Value & Applies to\\\midrule
-$\lambda_{\mathrm{Pg}}$ & 5 & Pg, all time points\\
+$\lambda_{\mathrm{Pg}}$ & 5 & Pg, all time points, both compositions\\
 $\lambda_{\mathrm{late}}$ & 3 & Days 15 and 21, all species\\
 $\lambda_{\mathrm{rare}}$ & 0.1 & species with mean fraction $<5\%$\\
 $\lambda_{\psi}$ & 3.0 (DH), 2.0 (DS), 1.5 (CS, CH) & viability channel, stages (iii)--(iv)\\\bottomrule
 \end{tabular}
-\caption{Likelihood weights. The composition data are viable-cell (PMA-qRT-PCR) species fractions; the viability channel is the community live fraction from SYTO9/propidium iodide staining.}
+\caption{Likelihood weights. $\lambda_{\mathrm{Pg}}$, $\lambda_{\mathrm{late}}$ and $\lambda_{\mathrm{rare}}$ act on both compositions (viable-cell fractions from PMA-qRT-PCR and total-count fractions without PMA); the viability channel is the community live fraction from SYTO9/propidium iodide staining.}
 \label{tab:weights}
 \end{table}
 
@@ -199,7 +199,7 @@ $\lambda_{\psi}$ & 3.0 (DH), 2.0 (DS), 1.5 (CS, CH) & viability channel, stages 
 \begin{algorithmic}[1]
 \REQUIRE Composition data $\yobs$, viability data, $N_p$ particles, GPU device
 \ENSURE MAP estimate $\hat{\btheta}^{\mathrm{MAP}}$, posterior samples, log-evidence $\ln\hat{Z}$
-\STATE $\triangleright$ \textbf{Stage (i): composition likelihood, initial box}
+\STATE $\triangleright$ \textbf{Stage (i): viable and total-count composition, $\psi_i$ fixed to the data, initial box}
 \STATE Draw $\{\btheta_j\}_{j=1}^{N_p}$ from the stage prior; set $\beta_0\leftarrow 0$
 \WHILE{$\beta_m < 1$}
     \STATE Find $\beta_{m+1}$ s.t.\ $\mathrm{CoV}[\{w_j\}]=\delta_{\mathrm{target}}$ via bisection
@@ -217,7 +217,7 @@ $\lambda_{\psi}$ & 3.0 (DH), 2.0 (DS), 1.5 (CS, CH) & viability channel, stages 
 \STATE $\triangleright$ \textbf{Stage (ii): composition likelihood, box mean $\pm4$\,SD}
 \STATE Repeat lines 2--14 on the narrowed box, starting from the previous particles
 \STATE $\triangleright$ \textbf{Stages (iii)--(iv): add the viability channel; initial box, then mean $\pm4$\,SD}
-\STATE Augment likelihood with the weighted viability channel (Table~\ref{tab:weights})
+\STATE Evolve $\psi_i$ and add the weighted live-fraction channel (Table~\ref{tab:weights})
 \STATE Repeat lines 2--14 for each stage
 \RETURN $\hat{\btheta}^{\mathrm{MAP}}$, posterior samples, $\ln\hat{Z}$
 \end{algorithmic}
@@ -431,7 +431,7 @@ Table~\ref{tab:S_psi} compares it with the viability $\psi_i$ of the final MAP.
 In the data, the viabilities of most species lie close to the community live fraction; the exception is Fn in the commensal community, which is mostly dead ($\psi^{\mathrm{data}}\approx0.09$ in CS\TBD{raw: recheck CH, Pg below 2\%}) but make up only a few percent of the total count.
 The assumption of a species-independent viability in the composition channel is therefore violated mainly for these two rare species, which is why the viable and the total-count compositions differ little (Section~\ref{sec:S_total}).
 The model viabilities do not reproduce $\psi^{\mathrm{data}}$: they are close to it in CS but lie near 0 or 1 for several species in the other conditions, because the likelihood constrains only the community live fraction.
-Using the two compositions as separate channels---the viable fractions against $\bar\phi_i/\sum_j\bar\phi_j$ and the total-count fractions against $\phi_i/\sum_j\phi_j$---would constrain $\psi_i$ species by species; this is not done here and is left to future work.
+The likelihood of the main text therefore uses the two compositions as separate channels---the viable fractions against $\phi_i\psi_i/\sum_j\phi_j\psi_j$ and the total-count fractions against $\phi_i/\sum_j\phi_j$---which constrains $\psi_i$ species by species\TBD{2c raw: rewrite this section with the new results}.
 
 \begin{table}[h]
 \centering
