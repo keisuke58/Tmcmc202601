@@ -141,7 +141,8 @@ THETA_NAMES = [
     "a45",
 ]
 B_DIMS = [3, 4, 8, 9, 15]
-PAPER_BOUNDS_JSON = DATA_DIR / "model_config" / "prior_bounds_paper_20d.json"
+# model_config は data_5species/ 直下（DATA_DIR が raw_dataset/ になったので DATA_DIR からは辿らない、2026-10-13）
+PAPER_BOUNDS_JSON = SCRIPT_DIR.parent / "model_config" / "prior_bounds_paper_20d.json"
 
 
 def species_viability_from_data(condition, cultivation, t_days, live, min_total=0.02):

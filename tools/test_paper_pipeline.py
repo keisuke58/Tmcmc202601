@@ -75,7 +75,7 @@ def paper_maps():
 def data_for(tag):
     cond, cult = CC[tag]
     data, t_days, sig, phi_exp, _ = EP.load_experimental_data(
-        EP.DATA_DIR, cond, cult, 1, normalize=True, use_exp_init=True
+        EP.DATA_DIRS["digitised"], cond, cult, 1, normalize=True, use_exp_init=True  # 論文の再現は読み取りデータで
     )
     _, idx = EP.convert_days_to_model_time(t_days, 1e-4, 2500, day_scale=None)
     p0 = np.clip(phi_exp / phi_exp.sum(), 0.001, 0.99)  # 論文時点の estimator と同じ
