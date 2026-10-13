@@ -10,8 +10,8 @@
 3. σ の比較: 推定が使う種ごとの σ（build_replicate_sigma、IQR/1.35）を、読み取り（合成の反復）・生データ
    （全測定）・生データ（技術反復を平均した生物学的反復）で並べる。
 4. 正規の近似: 生物学的反復の平均 − 2SD が 0 を割る (日, 種) の割合（割合のデータに正規の尤度を使う妥当性）。
-5. ψ_i^data の信頼区間: 生物学的反復のブートストラップ（生きた菌・全菌の qPCR、画像の生きた割合をそれぞれ
-   独立に引き直す。PMA あり・なしの対応は不明なので対にしない）。式は tools/psi_from_data.py と同じ。
+5. ψ_i^data の信頼区間: 生物学的反復のブートストラップ（生きた菌・全菌の qPCR の生物学的反復、LIVE/DEAD は
+   バイオフィルム（5 枚ずつ）を単位にそれぞれ独立に引き直す。PMA あり・なしの対応は不明なので対にしない）。式は tools/psi_from_data.py と同じ。
 6. 種ごとの生きた体積: 体積（画像）× 生きた割合（画像）× 生きた菌の組成（qPCR）。モデルの φ_i ψ_i を
    体積と比べる新しい観測（推定には使わない、検証用）。
 7. Day 1（初期値）の組成: 生データと読み取りの差。推定の phi_init は Day 1 から作るので、ここの差は全段に効く。
@@ -172,6 +172,12 @@ def sec4_gauss(q):
     return pd.DataFrame(rows, columns=["cond", "n(day,species)", "mean-2SD<0", "fraction"])
 
 
+def biofilm_means(df, col, scale):
+    """日 → バイオフィルムごとの平均（5 枚 = 1 バイオフィルム、N. Heine）。ブートストラップはこの単位で引き直す。"""
+    df = df.assign(biofilm=(df.image - 1) // 5)
+    return {d: x.groupby("biofilm")[col].mean().values / scale for d, x in df.groupby("day")}
+
+
 def psi_of(vc, tc, live):
     with np.errstate(divide="ignore", invalid="ignore"):
         return np.where(tc >= MIN_TOTAL, vc / tc * live, np.nan)
@@ -181,7 +187,7 @@ def sec5_psi(q, ld):
     res = {}
     for tag, (c, cu) in CONDS.items():
         V, T = bio_table(q, c, cu, "viable"), bio_table(q, c, cu, "total")
-        L = {d: x.live_pct.values / 100 for d, x in ld[(ld.condition == c) & (ld.cultivation == cu)].groupby("day")}
+        L = biofilm_means(ld[(ld.condition == c) & (ld.cultivation == cu)], "live_pct", 100)
         res[tag] = {}
         for d in DAYS[1:]:
             pt = psi_of(np.median(V[d], 0) / np.median(V[d], 0).sum(), np.median(T[d], 0) / np.median(T[d], 0).sum(),
@@ -204,8 +210,8 @@ def sec6_livevol(q, ld, v):
     res = {}
     for tag, (c, cu) in CONDS.items():
         V = bio_table(q, c, cu, "viable")
-        L = {d: x.live_pct.values / 100 for d, x in ld[(ld.condition == c) & (ld.cultivation == cu)].groupby("day")}
-        W = {d: x.volume.values / 1e6 for d, x in v[(v.condition == c) & (v.cultivation == cu)].groupby("day")}
+        L = biofilm_means(ld[(ld.condition == c) & (ld.cultivation == cu)], "live_pct", 100)
+        W = biofilm_means(v[(v.condition == c) & (v.cultivation == cu)], "volume", 1e6)
         res[tag] = {}
         for d in DAYS:
             if d not in V or d not in L or d not in W:
