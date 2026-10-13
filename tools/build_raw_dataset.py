@@ -62,6 +62,13 @@ def main():
     print(f"biofilm_boxplot_data: {len(rows)} rows")
     # 推定は boxplot_<condition>_<cultivation>.csv を biofilm_boxplot_data.csv より先に読むので、
     # 複製した読み取りの版をここで生データの版に置き換える（2026-10-13j）
+    # pH（tools/convert_raw_ph.py の出力があるときだけ。反復の平均。推定には使わず ph_check の検証用）
+    if (RAW / "ph_long.csv").exists():
+        ph = pd.read_csv(RAW / "ph_long.csv")
+        w = ph.groupby(["time_days", "condition"]).pH.mean().unstack()
+        pd.DataFrame({"time_days": w.index, "pH_commensal": w.get("Commensal"),
+                      "pH_dysbiotic": w.get("Dysbiotic")}).to_csv(OUT / "fig4A_pH_timeseries.csv", index=False)
+        print(f"fig4A_pH_timeseries: {len(w)} rows")
     bp = pd.read_csv(OUT / "biofilm_boxplot_data.csv")
     for (c, cu), x in bp.groupby(["condition", "cultivation"]):
         x.to_csv(OUT / f"boxplot_{c}_{cu}.csv", index=False)

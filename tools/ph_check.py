@@ -27,6 +27,8 @@ ap.add_argument("--glob-CH", default="CH_ult_mut150_wide2_noph_sd4_seed*")
 ap.add_argument("--glob-DH", default="DH_p2_nonarrow_w3_noph_p14k_seed*")
 ap.add_argument("--n-post", type=int, default=200)
 ap.add_argument("--start-day", type=float, default=0.0, help="モデル時刻 0 を何日目に置くか（0 = 接種、本文の対応。1 = Day 1 から始める）")
+ap.add_argument("--data-dir", default=None, help="組成・pH を読む場所（既定は CH の run の data_source: EP.data_dir_for）")
+ap.add_argument("--ph-csv", default=None, help="pH の CSV（time_days, pH_commensal, pH_dysbiotic）。既定は <data-dir>/experiment_data/fig4A_pH_timeseries.csv")
 ap.add_argument("--out", default=str(ROOT / "docs/revision/EML_submission/figures/provisional_2026-10-11/ph_check"))
 args = ap.parse_args()
 sys.argv = [sys.argv[0]]
@@ -44,14 +46,24 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 import estimate_paper_jax as E  # noqa: E402
 
-EXP = ROOT / "data_5species" / "digitised_dataset" / "experiment_data"  # 過去の run の確認用
+sys.path.insert(0, str(ROOT / "tools"))
+import comp_pred as CP  # noqa: E402  （2 通路の run では φψ/Σφψ を生きた菌の組成と比べる）
+
+# データの場所: run が読んだデータ（2026-10-13、raw / digitised）。--data-dir で上書き
+_r0 = sorted(Path(args.root).glob(args.glob_CH))
+DDIR = Path(args.data_dir) if args.data_dir else E.data_dir_for(json.load(open(_r0[0] / "run_record.json"))["args"])
+EXP = DDIR / "experiment_data"
+PH_CSV = Path(args.ph_csv) if args.ph_csv else EXP / "fig4A_pH_timeseries.csv"
+if not PH_CSV.exists():
+    raise SystemExit(f"pH の CSV が無い: {PH_CSV}（生データの pH は tools/convert_raw_ph.py で作る。--ph-csv で指定も可）")
+print(f"データ: {EXP}  pH: {PH_CSV}")
 SPECIES = ["So", "An", "Vei", "Fn", "Pg"]
 REG = [0, 1, 3, 4]  # So・An・Fn・Pg（Vei が基準）
 EXP_DAYS = np.array([1.0, 3.0, 6.0, 10.0, 15.0, 21.0])
 CMAP = {"S. oralis": "So", "A. naeslundii": "An", "V. dispar": "Vei", "V. parvula": "Vei",
         "F. nucleatum": "Fn", "P. gingivalis_20709": "Pg", "P. gingivalis_W83": "Pg"}
 
-ph = pd.read_csv(EXP / "fig4A_pH_timeseries.csv")
+ph = pd.read_csv(PH_CSV)
 t_ph = ph["time_days"].values
 PH = {"CH": ph["pH_commensal"].values, "DH": ph["pH_dysbiotic"].values}
 sp = pd.read_csv(EXP / "fig3_species_distribution_summary.csv")
@@ -97,12 +109,12 @@ for ax, (tag, cond, glob) in zip(axes, [("CH", "Commensal", args.glob_CH), ("DH"
     a = rec["args"]
     S = np.concatenate([np.load(r / "samples.npy") for r in runs])
     pick = S[np.random.default_rng(0).choice(len(S), size=min(args.n_post, len(S)), replace=False)]
-    sim = jax.jit(jax.vmap(lambda th: E.simulate_0d(th, n_steps=a["n_steps"], dt=a["dt"],
-                                                    phi_init=jnp.array(rec["phi_init"]),
-                                                    K_hill=a["K_hill"], n_hill=a["n_hill"])))
-    P = np.clip(np.asarray(sim(jnp.array(pick))), 1e-10, 1)
-    P = P / P.sum(2, keepdims=True)
-    data, t_days, _, _, _ = E.load_experimental_data(E.DATA_DIR, cond, "HOBIC", 1, normalize=True, use_exp_init=True)
+    sim = jax.jit(jax.vmap(lambda th: E.simulate_0d_full(th, n_steps=a["n_steps"], dt=a["dt"],
+                                                         phi_init=jnp.array(rec["phi_init"]),
+                                                         K_hill=a["K_hill"], n_hill=a["n_hill"])))
+    # 回帰式は実測の生きた菌の組成 → pH なので、モデル側も生きた菌の組成の予測（尤度と同じ対応）
+    P = CP.fractions(np.asarray(sim(jnp.array(pick))), CP.is_two_channel(rec))["viable"]
+    data, t_days, _, _, _ = E.load_experimental_data(E.data_dir_for(a), cond, "HOBIC", 1, normalize=True, use_exp_init=True)
     _, idx = E.convert_days_to_model_time(t_days, a["dt"], a["n_steps"], day_scale=None)
     days_axis = args.start_day + np.arange(a["n_steps"] + 1) * (t_days[-1] / idx[-1])
     pH_post = beta[0] + P[..., REG] @ beta[1:]  # (n, steps)

@@ -274,6 +274,7 @@ def make_fig2(g2, out_dir, cache_dir, style="both", color_by="condition"):
         fig2_v2.make(cache_dir, str(out_dir / "paper_fig2_v2"), rmse, rep_csv, color_by=color_by)
     if style == "v2":
         return
+    F2.REP_CSV = CP.replicate_csv(EP, next(iter(g2.values()))["best"]["rec"])  # run が読んだデータの反復
     F2.CACHE_DIR = cache_dir
     F2.RUNS = Path("/")
     F2.P2_DIRS = {tag: str(g["best"]["dir"].resolve()) for tag, g in g2.items()}
@@ -885,7 +886,8 @@ def main():
     if "ident" not in args.skip:
         num["identifiability"] = identifiability(args.root, args.ident_glob, args.ident_tags)
     for t, p in num["phase2"].items():
-        if p["rmse_estimator"] is not None and abs(p["rmse"] - p["rmse_estimator"]) > 1e-6:
+        # 2 通路の run では estimator の config の RMSE は φ/Σφ と比べた値なので、ここの rmse（φψ/Σφψ）とは別物
+        if p["rmse_estimator"] is not None and not p.get("two_channel") and abs(p["rmse"] - p["rmse_estimator"]) > 1e-6:
             print(
                 f"警告 {t}: RMSE がestimator の値と合わない（{p['rmse']:.6f} vs {p['rmse_estimator']:.6f}）"
             )
