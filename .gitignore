@@ -165,3 +165,6 @@ docs/revision/BMB_submission/generated/_cache/
 # Heine 提供の生データ（MHH、再配布しない約束。2026-10-13）。ローカルと GPU 側にだけ置く
 data_5species/experiment_data/raw_heine/
 data_5species/raw_dataset/
+
+# 生データから計算した表・図（共著者の了承まで公開しない）
+docs/revision/generated/raw_analysis/
