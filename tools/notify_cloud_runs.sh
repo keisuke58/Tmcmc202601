@@ -117,6 +117,28 @@ case "$RUN_GLOB" in
     ;;
 esac
 
+# 各 run が読んだデータの出どころ（13j §4、2026-10-13）。run_record の args と EP.data_dir_for で示す
+SRC_OUT="$("$PYTHON" - "$RUNS_ROOT" "$RUN_GLOB" <<'PY' 2>&1 | grep -v -E '^(INFO|WARNING):'
+import glob, json, os, sys
+sys.path.insert(0, "data_5species/main")
+sys.argv = sys.argv[:3]
+root, pat = sys.argv[1], sys.argv[2]
+import estimate_paper_jax as EP
+print("| run | data_source | two_channel | data_dir_for（experiment_data） | ファイル数 |")
+print("|---|---|---|---|---|")
+for d in sorted(glob.glob(os.path.join(root, pat))):
+    f = os.path.join(d, "run_record.json")
+    if not os.path.exists(f):
+        print(f"| {os.path.basename(d)} | run_record.json が無い | | | |")
+        continue
+    a = json.load(open(f)).get("args", {})
+    p = EP.data_dir_for(a) / "experiment_data"
+    n = len(os.listdir(p)) if p.is_dir() else "無い"
+    print(f"| {os.path.basename(d)} | {a.get('data_source', '（無し＝digitised）')} | {a.get('two_channel')} | "
+          f"`{os.path.relpath(p)}` | {n} |")
+PY
+)"
+
 {
   echo "# GPU 側 → クラウド側: run 終了の自動通知（${TODAY} / ${LABEL}）"
   echo
@@ -134,6 +156,10 @@ esac
   echo "$MOVES"
   echo
   echo "判定 2b の目標は **5 回/次元**。下回っていれば混合不足なので解釈しない。"
+  echo
+  echo "## データの出どころ（13j §4）"
+  echo
+  echo "$SRC_OUT"
   echo
   echo "## 回収した数字（tools/eval_paper_runs.py）"
   echo
