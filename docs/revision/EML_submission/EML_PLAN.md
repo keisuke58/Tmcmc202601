@@ -313,3 +313,35 @@ RMSE（Day 3〜21、重みなし）。`docs/revision/generated/two_channel_pilot
 - Nils: 「前に送った表が qPCR の割合」→ `pde-fem-biofilm/data/heine_species_distribution_biofilm.xlsx`（10/12 にリポジトリに入っている）。シート Commensal / Dysbiotic、ブロック「Static all cells / Static only living cells / HOBIC all cells / HOBIC only living cells」、日 1〜21、種ごとに 12〜15 測定（Dysbiotic HOBIC は 9 列幅）。**全菌（PMA なし）と生きた菌（PMA あり）の両方の反復値**。
 - 生存率（LIVE/DEAD）の画像ごとの値: 返信の添付「Zusammenfassung HOBIC+Static.xlsx」（色付きの列が画像ごとの割合、HOBIC22=commensal、HOBIC24=dysbiotic）。添付はこのセッションから取り出せない → 本人が保存する。
 - 図から読み取った値との差（中央値を正規化、日ごとの最大差）: 生きた菌は多くが < 0.09 だが DS 3 日目 0.17、**DH 6・10 日目 0.28・0.42**。全菌（Fig. S1 の読み取り）は 0.05〜0.42 と大きくずれる。→ **読み取りの誤差は無視できない。最終の run は生データで。** ブロックの読み方（列幅・技術反復）を確かめてから CSV に変換する。
+
+## 24. 生データへの切り替えと 2 通路の本番（2026-10-13 午後〜夜のまとめ）
+
+### 24.1 データ
+- **最終の run は Heine 提供の生データ**（ユーザー決定）。qPCR（生物学的反復 3〜5 × 技術反復 3、PMA あり・なし）、LIVE/DEAD（画像ごと、**5 枚 = 1 バイオフィルム**、N. Heine）、体積（画像ごと）。
+- 置き場: `data_5species/experiment_data/raw_heine/`（gitignore）→ `tools/convert_raw_heine.py` → `tools/build_raw_dataset.py` → `data_5species/raw_dataset/experiment_data/`（gitignore、生データから作った 10 ファイルだけ）。
+- **読み取りデータは `data_5species/digitised_dataset/` に隔離**（過去の run の再現専用）。estimator の既定は `--data-source raw`。`EP.data_dir_for(args)` が run ごとのデータの場所を返す。
+- **公開**: N. Heine の希望で「請求に応じて提供」。Zenodo・原稿・修論に反復の値そのものは載せない（中央値・平均の図表は可）。
+- 読み取りとの差（補足 `sec:S_raw` の表と図）: 生きた割合・体積はほぼ一致（体積は DS Day 10 だけ 57%）、組成は dysbiotic で最大 0.42。
+- 未着: **pH**（10/14 に Nils から。`tools/convert_raw_ph.py --inspect` → 変換 → build → `ph_check.py`）。qPCR の絶対量（Nils が NIFE で確認）。PMA あり・なしの対応は不明（対にしない）。
+
+### 24.2 尤度と σ
+- 2 通路（生きた菌 ↔ φψ/Σφψ、全菌 ↔ φ/Σφ、生きた割合 ↔ Σφψ/Σφ）。重み λ_Pg・終盤・珍しい種は両方の組成に。
+- 組成の σ: 全測定の IQR/1.35（下限 0.05）。生物学的反復だけにすると DH が 3 点で不安定なので、全測定のまま。合成の反復から作った以前の σ は大きすぎた（commensal の So 0.21 → 0.11）。
+- **生きた割合の σ: バイオフィルム間の SD に変更（13m）**。画像 1 枚の SD だと大きすぎて、生きた割合の重みが尤度全体の 2.5〜9% しかなく、commensal で生きた割合を捨てていた。変更後 σ_ℓ = CS 0.113・CH 0.095・DS 0.059・DH 0.075。
+- 正規の近似: 平均 − 2SD < 0 の (日, 種) が 3〜5 割（0 に近い種）。限界の節に 1 文の候補。
+- ψ^data の 90% 区間（バイオフィルム単位のブートストラップ）は幅の中央値 0.57、上端 > 1 が 45% → 尤度には入れない（段 (i)(ii) の固定値と確認用）。
+
+### 24.3 CPU の確認（決定論的、`docs/revision/generated/two_channel_pilot/raw/`）
+- 生データ・2 通路で最適化すると組成は 4 条件ともよく合う（生きた菌 0.06〜0.09）が、σ を直す前は commensal で生きた割合 0.23。
+- **CH は σ の修正で生きた割合 0.22 → 0.12**（組成 0.07）。**CS は 0.23 のまま**（σ の変化 ×1.3 だけ）→ λψ のスイープ中: λψ 6 で生きた割合 0.13・組成 0.12（λψ 1.5 では 0.23・0.09）。兼ね合いの曲線で CS の λψ を決める（13p）。
+- 箱の端に張り付く成分が多い（CS 7・CH 6〜8・DS 2・DH 3）→ 張り付いた側だけ広げた p2 の箱（13o）。CH で箱だけ広げても生きた割合は直らなかった（原因は σ）。
+- 段分け（ψ 固定 → ψ 自由）は計算の工夫で理論上は不要。p2 は粒子の半分を p1 の MAP の近くから始める → CH で事前分布から始める cold p2（13l、`P2_COLD=1`）で偏りを確認。
+
+### 24.4 GPU（handoff 13j〜13o）
+- 読み取りデータの 2 通路の run は全停止。raw の pilot 12 本完了（2b 以外 PASS）、p1 12 本実行中（10/14 に終わる見込み）。
+- p2: CH・DS・DH は 13o の箱で p1 の判定のあと。CS は 13p 待ち。cold p2（CH）も 13o の箱で。
+
+### 24.5 道具・原稿
+- 図・表の道具を 2 通路の尤度と同じ対応に（`tools/comp_pred.py`）。一括で作り直す `tools/rebuild_eml_raw.sh`（`figures/raw/spec_raw.json`、試験用の小さな run で Fisher 以外通過）。Fig. 2 は 2 通路の run で生きた菌（実線・塗り）と全菌（破線・白抜き）を描く。
+- 原稿: データの記述（実測の反復）、方法の尤度（2 通路の式、段 (i)(ii) は ψ をデータで固定）、σ_ℓ、障壁の項（逆 2 乗型、対数ではない）、初期状態（φ_0(0)≈0、ψ_i(0)=0.999）、補足 `sec:S_raw`。結果の数値・CS の段落は \TBD（raw の結果待ち）。カバーレター・ハイライトも更新。
+- 修論の本体は `pde-fem-biofilm/thesis/`（10/03〜）。提出予定 11/13、Kolloquium 12/16 13:00 IKM Room 320。**raw の run が 11 月上旬までに通らなければ、修論は暫定と明記して出すか提出を少し遅らせるかを決める。**
