@@ -40,10 +40,11 @@ def comp(df, c, cu):
     return {k: v / v.sum() for k, v in out.items()}
 
 
-def data_psi(c, cu):
-    v = comp(pd.read_csv(D / "fig3_species_distribution_summary.csv"), c, cu)
-    t = comp(pd.read_csv(D / "figS1_total_species_distribution_summary.csv"), c, cu)
-    m = pd.read_csv(D / "fig2_membrane_distribution.csv")
+def data_psi(c, cu, d_dir=None):
+    D_ = Path(d_dir) if d_dir is not None else D  # run が読んだデータ（EP.data_dir_for(args) / "experiment_data"）
+    v = comp(pd.read_csv(D_ / "fig3_species_distribution_summary.csv"), c, cu)
+    t = comp(pd.read_csv(D_ / "figS1_total_species_distribution_summary.csv"), c, cu)
+    m = pd.read_csv(D_ / "fig2_membrane_distribution.csv")
     out = {}
     for d in DAYS:
         live = m[(m.condition == c) & (m.cultivation == cu) & (m.day == d)].intact_membrane_pct.values[0] / 100

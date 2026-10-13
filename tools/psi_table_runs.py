@@ -40,7 +40,7 @@ def summarize(root, pattern, tag):
         return None
     rec0 = g["runs"][0]["rec"]
     cond, cult = MF.CK_of(rec0)
-    dp = data_psi(cond, cult)
+    dp = data_psi(cond, cult, MF.EP.data_dir_for(rec0["args"]) / "experiment_data")  # run が読んだデータ
     A = np.array([dp[d] for d in sorted(dp)])
     data = [None if np.all(np.isnan(A[:, i])) else float(np.nanmedian(A[:, i])) for i in range(5)]
     n_days = [int(np.sum(~np.isnan(A[:, i]))) for i in range(5)]
