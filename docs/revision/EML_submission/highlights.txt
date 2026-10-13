@@ -1,5 +1,5 @@
 Bayesian calibration of the interaction matrix of a variational biofilm model
-Stiff forward model compiled in JAX; all particles solved in parallel on one GPU
-Data enter in stages; seed, mixing and prior-bound checks decide acceptance
-Data constrain only 4 to 9 of 15 species interactions in an oral biofilm
+Viable and total species fractions and live fraction fitted as separate channels
+GPU-parallel TMCMC; each stage passes seed, mixing and prior-bound checks
+Data constrain only [TBD] of 15 species interactions in an oral biofilm
 In silico removal of F. nucleatum stops the late rise of P. gingivalis
