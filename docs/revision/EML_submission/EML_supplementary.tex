@@ -116,7 +116,7 @@ Evaluating the stationarity conditions yields the coupled evolution equations~\c
 0 = \sum_{l=0}^{n}\phi_l - 1,
 \label{eq:constraint_eq}
 \end{equation}
-In the numerical implementation, a logarithmic barrier penalty $\Psi_{\mathrm{bar}}$ with $K_p=\eta_i\times10^{-4}$ is added to enforce the box constraints $\phi_i,\psi_i\in(0,1)$~\citep{Klempt2025ContinuumBiofilm}; its contribution is omitted from Eqs.~\eqref{eq:phi}--\eqref{eq:phi0} for clarity.
+In the numerical implementation, a barrier penalty $\Psi_{\mathrm{bar}}=K_p\bigl[\sum_{i=0}^{n}\phi_i^{-2}(1-\phi_i)^{-2}+\sum_{i=1}^{n}\psi_i^{-2}(1-\psi_i)^{-2}\bigr]$ with $K_p=\eta_i\times10^{-4}$, which diverges at 0 and 1, is added to enforce the box constraints $\phi_i,\psi_i\in(0,1)$~\citep{Klempt2025ContinuumBiofilm}; its contribution is omitted from Eqs.~\eqref{eq:phi}--\eqref{eq:phi0} for clarity.
 The system~\eqref{eq:phi}--\eqref{eq:constraint_eq} constitutes $2n+2$ coupled non-linear equations for the unknowns $(\phi_1,\dots,\phi_n,\phi_0,\psi_1,\dots,\psi_n,\gamma)$, solved at each time step via Newton's method with an implicit Euler discretisation ($\Delta t = 10^{-4}$, $N_{\mathrm{step}}=2{,}500$ steps, $t_{\max}=0.25$; day~$d$ is mapped to $t=0.2375\,d/21$, so day~21 lies at 95\% of the integration window).
 
 Only the symmetric part of $\mathbf{A}$ enters the quadratic free energy, so $\mathbf{A}$ is taken symmetric, $a_{ij}=a_{ji}$, and the interactions derive from this potential; the variational derivation ensures thermodynamic consistency~\citep{JunkerBalzani2021ExtendedHamilton}.

@@ -116,7 +116,7 @@ For $n=5$ species, stationarity gives $2n+2=12$ coupled non-linear equations, fo
 0&=-c^*\phi_i(\mathbf{A}\bar{\bphi})_i+\eta_i\bigl(\dot\psi_i\phi_i^2+\bar\phi_i\dot\phi_i\bigr)+\gamma,\label{eq:psi}
 \end{align}
 together with $0=\gamma+\dot\phi_0$ and the volume constraint.
-They are integrated by an implicit Euler scheme with Newton iterations (2500 steps covering the 21-day experiment), with a logarithmic barrier keeping $\phi_i,\psi_i$ inside $(0,1)$.
+They are integrated by an implicit Euler scheme with Newton iterations (2500 steps covering the 21-day experiment), with a barrier term that diverges at 0 and 1 keeping $\phi_i,\psi_i$ inside $(0,1)$.
 Only the symmetric part of $\mathbf{A}$ enters the quadratic free energy, so $\mathbf{A}$ is taken symmetric, with 15 independent entries, which form the parameter vector $\btheta\in\mathbb{R}^{15}$.
 The coefficient $a_{ij}$ is an effective, undirected interaction of the model; it lumps mechanisms that the model does not resolve, such as metabolite exchange or co-aggregation.
 Only the product $c^*a_{ij}$ enters, so we fix $c^*=25$ to keep $a_{ij}=\mathcal{O}(1)$.
