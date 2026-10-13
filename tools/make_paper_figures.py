@@ -156,7 +156,8 @@ _sim_cache = {}
 def _sim_fn(rec, full):
     """run の実効値で jit + vmap した前進計算を 1 回だけ作って使い回す（1 本ずつ呼ぶと再コンパイルでメモリが尽きる）。"""
     a = rec["args"]
-    key = (full, a["n_steps"], a["dt"], tuple(rec["phi_init"]), a["K_hill"], a["n_hill"])
+    _pi = rec.get("psi_init")
+    key = (full, a["n_steps"], a["dt"], tuple(rec["phi_init"]), None if _pi is None else tuple(_pi), a["K_hill"], a["n_hill"])
     if key not in _sim_cache:
         sim = EP.simulate_0d_full if full else EP.simulate_0d
         phi0 = jnp.array(rec["phi_init"], dtype=jnp.float64)
@@ -167,6 +168,7 @@ def _sim_fn(rec, full):
                 n_steps=a["n_steps"],
                 dt=a["dt"],
                 phi_init=phi0,
+                psi_init=_pi,
                 K_hill=a["K_hill"],
                 n_hill=a["n_hill"],
             )

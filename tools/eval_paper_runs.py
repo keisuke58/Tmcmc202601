@@ -80,6 +80,7 @@ def evaluate(d):
         n_steps=a["n_steps"],
         dt=a["dt"],
         phi_init=jnp.array(rec["phi_init"], dtype=jnp.float64),
+        psi_init=rec.get("psi_init"),
         K_hill=a["K_hill"],
         n_hill=a["n_hill"],
     )

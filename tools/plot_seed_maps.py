@@ -68,7 +68,7 @@ def comp_traj(theta, rec):
     """生きた菌の組成と比べる予測（2 通路なら φψ/Σφψ、それ以外 φ/Σφ、tools/comp_pred.py）。"""
     a = rec["args"]
     g = E.simulate_0d_full(jnp.array(theta), n_steps=a["n_steps"], dt=a["dt"],
-                           phi_init=jnp.array(rec["phi_init"]), K_hill=a["K_hill"], n_hill=a["n_hill"])
+                           phi_init=jnp.array(rec["phi_init"]), psi_init=rec.get("psi_init"), K_hill=a["K_hill"], n_hill=a["n_hill"])
     return CP.fractions(np.asarray(g), CP.is_two_channel(rec))["viable"]
 
 
@@ -90,7 +90,7 @@ for c, (tag, cond, cult, prefix, stage) in enumerate(GROUPS):
     pick = S[rng.choice(len(S), size=min(args.n_post, len(S)), replace=False)]
     rec0 = recs[SEEDS[0]]
     sim = jax.jit(jax.vmap(lambda th: E.simulate_0d_full(th, n_steps=a["n_steps"], dt=a["dt"],
-                                                         phi_init=jnp.array(rec0["phi_init"]),
+                                                         phi_init=jnp.array(rec0["phi_init"]), psi_init=rec0.get("psi_init"),
                                                          K_hill=a["K_hill"], n_hill=a["n_hill"])))
     P = CP.fractions(np.asarray(sim(jnp.array(pick))), CP.is_two_channel(rec0))["viable"]
     lo, med, hi = np.percentile(P, [10, 50, 90], axis=0)

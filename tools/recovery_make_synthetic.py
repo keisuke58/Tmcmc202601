@@ -75,7 +75,7 @@ lam = RC.lambda_effective(rec)
 
 # ---- 真値での前進計算（尤度と同じ simulate_0d_full）
 g = np.asarray(E.simulate_0d_full(jnp.array(theta), n_steps=a["n_steps"], dt=a["dt"],
-                                  phi_init=jnp.array(rec["phi_init"]), K_hill=a["K_hill"], n_hill=a["n_hill"]))
+                                  phi_init=jnp.array(rec["phi_init"]), psi_init=rec.get("psi_init"), K_hill=a["K_hill"], n_hill=a["n_hill"]))
 rows, idx = lay["rows"], lay["idx_lik"]
 phi = np.clip(g[idx, 0:5], 1e-10, 1 - 1e-10)
 phi_raw, psi_raw = g[idx, 0:5], g[idx, 6:11]
@@ -134,7 +134,7 @@ syn = {
                                         "n_particles", "n_mutation_steps", "mutation", "use_de_mc",
                                         "mutation_throttle_floor", "max_stages")},
     "lambda_ch_effective": {str(k): v for k, v in lam.items()},
-    "phi_init": rec["phi_init"],
+    "phi_init": rec["phi_init"], "psi_init": rec.get("psi_init"), "ic_from_data": bool(a.get("ic_from_data")),
     "days": lay["t_days"].tolist(), "likelihood_rows": rows.tolist(), "idx_likelihood": idx.tolist(),
     "two_channel": TWO, "data_source": a.get("data_source") or "digitised",
     "composition": comp.tolist(), "composition_noise_free": comp_clean.tolist(),

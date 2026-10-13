@@ -263,7 +263,7 @@ def make_log_likelihood_jax_ode(
         )
     if _has_viab:
         obs_viab = jnp.array(data_viability, dtype=jnp.float64)
-        sig_viab = jnp.float64(sigma_obs_viability)
+        sig_viab = jnp.asarray(sigma_obs_viability, dtype=jnp.float64)  # スカラーか観測日ごと（n_obs,）
     if _has_pH:
         obs_pH = jnp.array(data_pH, dtype=jnp.float64)
         idx_ph = jnp.array(idx_pH, dtype=jnp.int32)
@@ -439,6 +439,12 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--use-exp-init", action="store_true")
     parser.add_argument("--start-from-day", type=int, default=1)
+    parser.add_argument(
+        "--ic-from-data",
+        action="store_true",
+        help="初期値を Day 1 のデータから（2026-10-13）: φ(0) = 全菌の組成（PMA なし）、ψ(0) = 種ごとの生存率"
+        "（生きた菌/全菌 × 生きた割合、全菌 2%% 未満の種は群集の値）。2 通路の対応（φ = 全菌）に合わせる。既定は今まで（φ(0) = 生きた菌、ψ(0) = 0.999）",
+    )
     parser.add_argument(
         "--ic-day",
         type=int,
@@ -684,6 +690,17 @@ def main():
         if total > 0:
             phi_init = phi_init / total
         phi_init = np.clip(phi_init, 0.001, 0.99)
+    psi_init = None
+    if args.ic_from_data:
+        if args.ic_day > 1 or not args.use_exp_init:
+            raise ValueError("--ic-from-data は --use-exp-init と一緒に、--ic-day 1 で使う")
+        _m1 = load_multichannel_data(data_dir=DATA_DIR / "experiment_data", condition=args.condition,
+                                     cultivation=args.cultivation, days_filter=[1])
+        _t1 = np.asarray(_m1["data_total"], dtype=float)[0]
+        phi_init = np.clip(_t1 / _t1.sum(), 0.001, 0.99)
+        psi_init = np.asarray(species_viability_from_data(args.condition, args.cultivation, [1.0],
+                                                          np.asarray(_m1["data_viability"], dtype=float))[0])
+        logger.info(f"[ic-from-data] phi_init（全菌）{np.round(phi_init, 4).tolist()}  psi_init {np.round(psi_init, 3).tolist()}")
 
     # --ic-day: 指定日の組成を初期値にし、その日を t=0 に置く（day_scale は Day 1 のときと同じ）
     ic_offset = 0
@@ -841,6 +858,7 @@ def main():
         student_t_nu=args.student_t_nu,
         lambda_rare=args.lambda_rare,
         psi_fixed=psi_fixed_arr,
+        psi_init=psi_init,
         **mc_kwargs,
     )
 
@@ -1066,6 +1084,7 @@ def main():
         "free_dims": [int(i) for i in free_idx],
         "prior_bounds_final": prior_bounds.tolist(),
         "phi_init": np.asarray(phi_init).tolist(),
+        "psi_init": None if psi_init is None else np.asarray(psi_init).tolist(),  # None = 全種 0.999
         "sigma_obs": np.asarray(sigma_obs).tolist(),
         "lambda_ch_effective": {str(k): v for k, v in mc_kwargs.get("lambda_ch", {}).items()},
         "psi_fixed": None if psi_fixed_arr is None else np.asarray(psi_fixed_arr).tolist(),
@@ -1126,6 +1145,7 @@ def main():
             phi_init=jnp.array(phi_init, dtype=jnp.float64),
             K_hill=args.K_hill,
             n_hill=args.n_hill,
+            psi_init=psi_init,
         )
         phi_traj_map = g_traj_map[:, 0:5]
     else:
@@ -1136,6 +1156,7 @@ def main():
             phi_init=jnp.array(phi_init, dtype=jnp.float64),
             K_hill=args.K_hill,
             n_hill=args.n_hill,
+            psi_init=psi_init,
         )
         g_traj_map = None
     phi_pred_map = np.array(phi_traj_map[idx_sparse, :])

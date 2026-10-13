@@ -131,7 +131,7 @@ def build_likelihood(E, rec, data, t_days, idx_lik, mc):
         raise NotImplementedError("fix_psi の段（pilot・p1）は回復テストの対象外（最終段は多チャネル）")
     return E.make_log_likelihood_jax_ode(
         data=data, t_days=t_days, idx_sparse=idx_lik, sigma_obs=np.asarray(rec["sigma_obs"]),
-        phi_init=np.asarray(rec["phi_init"]), dt=a["dt"], n_steps=a["n_steps"], K_hill=a["K_hill"],
+        phi_init=np.asarray(rec["phi_init"]), psi_init=rec.get("psi_init"), dt=a["dt"], n_steps=a["n_steps"], K_hill=a["K_hill"],
         n_hill=a["n_hill"], lambda_pg=a["lambda_pg"], lambda_late=a["lambda_late"],
         use_student_t=a.get("use_student_t", False), student_t_nu=a.get("student_t_nu", 5.0),
         lambda_rare=a["lambda_rare"], psi_fixed=None, two_channel=bool(a.get("two_channel", False)), **kw)

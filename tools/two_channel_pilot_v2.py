@@ -44,6 +44,8 @@ ap.add_argument("--maxiter", type=int, default=250)
 ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--out", default=None)
 ap.add_argument("--ic-from-data", action="store_true", help="初期値を Day 1 のデータから: φ(0) = 全菌の組成、ψ(0) = 種ごとの生存率（2026-10-13）")
+ap.add_argument("--viab-sigma-per-day", type=float, default=None, metavar="FLOOR",
+                help="生きた割合の σ を日ごと（バイオフィルム間の SD、下限 FLOOR）にする（2026-10-13 の確認用）")
 ap.add_argument("--rescore", default=None, help="保存した JSON の theta_opt で内訳だけ出し直す（最適化しない）。--out に書く")
 args = ap.parse_args()
 sys.argv = [sys.argv[0], "--device", "cpu"]
@@ -83,12 +85,19 @@ if args.ic_from_data:  # 2 通路の対応に合わせた初期値: φ は全菌
     print("IC from data: phi0", np.round(phi0, 3), "psi0", np.round(np.asarray(PSI0), 3), flush=True)
 mc = E.load_multichannel_data(data_dir=E.DATA_DIR / "experiment_data", condition=COND[0],
                               cultivation=COND[1], days_filter=t_days.tolist())
+SIG_V = mc["sigma_obs_viability"]
+if args.viab_sigma_per_day is not None:
+    import pandas as _pd
+    _m = _pd.read_csv(E.DATA_DIR / "experiment_data" / "fig2_membrane_distribution.csv")
+    _m = _m[(_m.condition == COND[0]) & (_m.cultivation == COND[1])].set_index("day")
+    SIG_V = jnp.array(np.maximum(_m.loc[[int(d) for d in t_days], "error_pct"].values / 100.0, args.viab_sigma_per_day))
+    print("σ_viab per day:", np.round(np.asarray(SIG_V), 3), flush=True)
 lam = {1: 1.0, 2: args.lambda_ch2, 3: LAMBDA_CH3[args.tag] if args.lambda_ch3 is None else args.lambda_ch3, 5: 0.0}
 logL = E.make_log_likelihood_jax_ode(
     data=data, t_days=t_days, idx_sparse=idx, sigma_obs=sig, phi_init=phi0, dt=1e-4, n_steps=2500,
     K_hill=0.0, n_hill=4.0, lambda_pg=args.lambda_pg, lambda_late=args.lambda_late, lambda_rare=args.lambda_rare,
     data_total=mc["data_total"], sigma_obs_total=mc["sigma_obs_total"],
-    data_viability=mc["data_viability"], sigma_obs_viability=mc["sigma_obs_viability"],
+    data_viability=mc["data_viability"], sigma_obs_viability=SIG_V,
     lambda_ch=lam, two_channel=True, psi_init=PSI0)
 
 # 箱: 論文の箱 + OVERRIDE（estimate_paper_jax と同じ規則。固定次元は上書きしない）
@@ -185,7 +194,7 @@ out["at_edge"] = edge
 out["bounds"] = bounds.round(4).tolist()
 out["args"] = {"version": 2, "data_source": args.data_source, "lambda_ch": lam, "lambda_pg": args.lambda_pg, "lambda_late": args.lambda_late,
                "lambda_rare": args.lambda_rare, "override": ovr, "restarts": args.restarts,
-               "maxiter": args.maxiter, "seed": args.seed, "ic_from_data": args.ic_from_data}
+               "maxiter": args.maxiter, "seed": args.seed, "ic_from_data": args.ic_from_data, "viab_sigma_per_day": args.viab_sigma_per_day}
 print("psi (median over days):", out["psi_opt_median_days"], " data:", out["psi_data_median_days"],
       " at_edge:", edge, flush=True)
 if args.out:

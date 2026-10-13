@@ -123,6 +123,8 @@ case "$STAGE" in
   *) echo "unknown STAGE $STAGE"; exit 1 ;;
 esac
 [ -n "$TWO_CHANNEL" ] && ARGS+=(--two-channel --lambda-ch2 "$LAMBDA_CH2_2C")
+# 初期値を Day 1 のデータから（2026-10-13）: IC_DATA=1 で --ic-from-data（φ(0) = 全菌、ψ(0) = 種ごとの生存率）。RUNTAG に _icd を付ける
+[ -n "${IC_DATA:-}" ] && ARGS+=(--ic-from-data)
 # 予測の確認（2026-10-13）: HOLDOUT_DAY=10 などでその日を尤度から外す。RUNTAG に _ho<日> を付ける
 [ -n "${HOLDOUT_DAY:-}" ] && ARGS+=(--holdout-day "$HOLDOUT_DAY")
 # データの出どころ（2026-10-13）: DATA_SOURCE=raw で Heine 提供の生データ（RUNTAG に _raw を付ける）

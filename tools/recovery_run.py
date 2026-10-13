@@ -83,6 +83,8 @@ argv = ["estimate_paper_jax.py",
         "--override-bounds", ovr, "--output-dir", str(args.output_dir)]
 if st.get("use_exp_init"):
     argv.append("--use-exp-init")
+if a_src.get("ic_from_data"):
+    argv.append("--ic-from-data")  # 元 run と同じ初期値（φ = 全菌、ψ = 種ごとの生存率）
 if a_src.get("two_channel"):
     argv.append("--two-channel")  # 2 通路（λ_ch2 は上の lam_raw[1]）
 argv += ["--data-source", a_src.get("data_source") or "digitised"]  # 元 run と同じデータ（σ・観測日・初期値は本物）

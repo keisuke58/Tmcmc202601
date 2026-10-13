@@ -52,7 +52,7 @@ FN, PG, A45 = 3, 4, 19
 _H = EP._H
 
 
-def simulate_masked(theta, active_mask, n_steps, dt, phi_init, K_hill, n_hill):
+def simulate_masked(theta, active_mask, n_steps, dt, phi_init, K_hill, n_hill, psi_init=None):
     """hamilton_ode_jax_paper.simulate_0d と同じ計算で、active_mask だけを指定できる版。
 
     Fn を「居ない」ことにするには active_mask[3] = 0 が要る。初期値を 0 にするだけでは
@@ -60,7 +60,7 @@ def simulate_masked(theta, active_mask, n_steps, dt, phi_init, K_hill, n_hill):
     active_mask は毎ステップ Fn の phi と psi を 0 にし、ゲート ON のときは h(Fn)=0 になる。
     """
     A, b_diag = _H.theta_to_matrices(theta)
-    g0 = _H.make_initial_state(phi_init, active_mask)
+    g0 = _H.make_initial_state(phi_init, active_mask, psi_init)
     params = {
         "dt_h": dt,
         "Kp1": 1e-4,
@@ -115,16 +115,17 @@ def run_dir(d, n_samples, seed):
         n_steps=a["n_steps"],
         dt=a["dt"],
         phi_init=phi0,
+        psi_init=rec.get("psi_init"),
         K_hill=a["K_hill"],
         n_hill=a["n_hill"],
     )
-    mine = simulate_masked(th[0], mask_all, a["n_steps"], a["dt"], phi0, a["K_hill"], a["n_hill"])
+    mine = simulate_masked(th[0], mask_all, a["n_steps"], a["dt"], phi0, a["K_hill"], a["n_hill"], rec.get("psi_init"))
     dmax = float(jnp.max(jnp.abs(ref - mine)))
     if dmax > 1e-12:
         raise RuntimeError(f"{d.name}: simulate_masked が simulate_0d と一致しない（{dmax:.2e}）")
 
     def sim(theta, mask):
-        traj = simulate_masked(theta, mask, a["n_steps"], a["dt"], phi0, a["K_hill"], a["n_hill"])
+        traj = simulate_masked(theta, mask, a["n_steps"], a["dt"], phi0, a["K_hill"], a["n_hill"], rec.get("psi_init"))
         p = jnp.clip(traj[jnp.array([k15, k21])], 1e-10, 1.0)
         p = p / p.sum(axis=1, keepdims=True)  # 尤度・RMSE と同じ正規化
         return p[1, PG] / p[0, PG], p[1, PG], traj[k21, FN]

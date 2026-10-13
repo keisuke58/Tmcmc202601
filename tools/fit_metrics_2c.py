@@ -60,7 +60,7 @@ def metrics(d):
     theta = jnp.array([th[str(i)] for i in range(20)], dtype=jnp.float64)
     D = data_for(a["condition"], a["cultivation"], a["dt"], a["n_steps"], E.data_dir_for(a))
     g = np.asarray(E.simulate_0d_full(theta, n_steps=a["n_steps"], dt=a["dt"],
-                                      phi_init=jnp.array(rec["phi_init"], dtype=jnp.float64),
+                                      phi_init=jnp.array(rec["phi_init"], dtype=jnp.float64), psi_init=rec.get("psi_init"),
                                       K_hill=a["K_hill"], n_hill=a["n_hill"]))
     # load_experimental_data(use_exp_init=True) は Day 1 を既に外している（観測は Day 3〜21 の 5 行）。[1:] は Day 3 を落としていた（2026-10-13 修正）
     k = D["idx"]

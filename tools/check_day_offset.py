@@ -11,7 +11,7 @@ for t,(c,cu,run) in G.items():
     th=json.load(open(d+"/theta_MAP.json")); th=jnp.array([th[str(i)] for i in range(20)])
     data,td,_,_,_=E.load_experimental_data(E.DATA_DIR,c,cu,1,normalize=True,use_exp_init=True)
     sc=0.95*a["n_steps"]*a["dt"]/td.max()
-    g=np.asarray(E.simulate_0d(th,n_steps=a["n_steps"],dt=a["dt"],phi_init=jnp.array(rec["phi_init"]),K_hill=a["K_hill"],n_hill=a["n_hill"]))
+    g=np.asarray(E.simulate_0d(th,n_steps=a["n_steps"],dt=a["dt"],phi_init=jnp.array(rec["phi_init"]),psi_init=rec.get("psi_init"),K_hill=a["K_hill"],n_hill=a["n_hill"]))
     out=[]
     for off in [0,1]:
         idx=np.round((td-off)*sc/a["dt"]).astype(int); p=np.clip(g[idx],1e-10,1); p/=p.sum(1,keepdims=True)

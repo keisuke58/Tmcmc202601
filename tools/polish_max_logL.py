@@ -73,6 +73,7 @@ def build_loglik(rec):
         idx_sparse=np.clip(idx, 0, a["n_steps"]),
         sigma_obs=np.asarray(rec["sigma_obs"]),
         phi_init=np.asarray(rec["phi_init"]),
+        psi_init=rec.get("psi_init"),
         dt=a["dt"],
         n_steps=a["n_steps"],
         K_hill=a["K_hill"],

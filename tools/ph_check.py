@@ -110,7 +110,7 @@ for ax, (tag, cond, glob) in zip(axes, [("CH", "Commensal", args.glob_CH), ("DH"
     S = np.concatenate([np.load(r / "samples.npy") for r in runs])
     pick = S[np.random.default_rng(0).choice(len(S), size=min(args.n_post, len(S)), replace=False)]
     sim = jax.jit(jax.vmap(lambda th: E.simulate_0d_full(th, n_steps=a["n_steps"], dt=a["dt"],
-                                                         phi_init=jnp.array(rec["phi_init"]),
+                                                         phi_init=jnp.array(rec["phi_init"]), psi_init=rec.get("psi_init"),
                                                          K_hill=a["K_hill"], n_hill=a["n_hill"])))
     # 回帰式は実測の生きた菌の組成 → pH なので、モデル側も生きた菌の組成の予測（尤度と同じ対応）
     P = CP.fractions(np.asarray(sim(jnp.array(pick))), CP.is_two_channel(rec))["viable"]

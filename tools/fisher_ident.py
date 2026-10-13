@@ -59,7 +59,7 @@ for tag, (cond, cult, pat) in GROUPS.items():
     lam = {int(k): float(v) for k, v in rec.get("lambda_ch_effective", {}).items()} or {1: 1.0, 2: 0.0, 3: 2.0, 5: 0.0}
     ll = E.make_log_likelihood_jax_ode(
         data=data, t_days=t_days, idx_sparse=idx, sigma_obs=np.array(rec["sigma_obs"]),
-        phi_init=np.array(rec["phi_init"]), dt=a["dt"], n_steps=a["n_steps"], K_hill=a["K_hill"],
+        phi_init=np.array(rec["phi_init"]), psi_init=rec.get("psi_init"), dt=a["dt"], n_steps=a["n_steps"], K_hill=a["K_hill"],
         n_hill=a["n_hill"], lambda_pg=a["lambda_pg"], lambda_late=a["lambda_late"],
         use_student_t=a.get("use_student_t", False), student_t_nu=a.get("student_t_nu", 5.0),
         lambda_rare=a["lambda_rare"], psi_fixed=None,
