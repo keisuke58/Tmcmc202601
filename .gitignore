@@ -110,6 +110,7 @@ tmcmc/*.json
 *.aux
 *.bbl
 *.blg
+*.spl
 *.fdb_latexmk
 *.fls
 *.lof
