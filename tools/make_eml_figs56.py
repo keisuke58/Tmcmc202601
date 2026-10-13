@@ -107,7 +107,9 @@ print("図 5: 同定 " + ", ".join(f"{t} {int((cls[:, c] == 2).sum())}" for c, t
 
 # ---------------------------------------------------------------- 図 6
 ko = json.load(open(os.path.join(args.fig_dir, "knockout_DH.json")))
-B = np.load(os.path.join(args.fig_dir, "ph_check_bands.npz"))
+_phb = os.path.join(args.fig_dir, "ph_check_bands.npz")
+B = np.load(_phb) if os.path.exists(_phb) else None  # pH は推定に使わない検証。無ければ図 5 を飛ばす（生データの pH 待ち）
+OBS_RATIO = ko[0].get("obs_ratio", 2.74)  # 実測の Pg D21/D15（run が読んだデータ、knockout_fn.py）
 fig = plt.figure(figsize=(7.0, 2.4))
 gs = fig.add_gridspec(1, 3, width_ratios=[1.0, 1.1, 1.1], wspace=0.35)
 ax = fig.add_subplot(gs[0])
@@ -119,15 +121,15 @@ for j, (lab, k) in enumerate(zip(labels, keys)):
         x = j + (s - 1) * 0.18
         ax.plot([x, x], [lo, hi], color=f"C{j}", lw=1.2)
         ax.plot(x, md, "o", color=f"C{j}", ms=3.5)
-ax.axhline(2.74, color="k", lw=0.8, ls="--")
-ax.text(0.5, 2.82, "measured", fontsize=7, ha="center", va="bottom")
+ax.axhline(OBS_RATIO, color="k", lw=0.8, ls="--")
+ax.text(0.5, OBS_RATIO + 0.08, "measured", fontsize=7, ha="center", va="bottom")
 ax.axhline(1.0, color="0.6", lw=0.6, ls=":")
 ax.set_xticks(range(3))
 ax.set_xticklabels(labels, fontsize=8)
 ax.set_xlim(-0.6, 2.6)
 ax.set_ylabel("Pg ratio day 21 / day 15")
 ax.set_title("(a) DH: in-silico knockout", fontsize=9)
-for p, tag in enumerate(["CH", "DH"]):
+for p, tag in enumerate(["CH", "DH"] if B is not None else []):
     ax = fig.add_subplot(gs[p + 1])
     d = B[f"{tag}_days"]
     ax.fill_between(d, B[f"{tag}_lo"], B[f"{tag}_hi"], color="0.8", lw=0, label="model, 90\\%")
@@ -222,4 +224,7 @@ if V2:
     vmax = V2F.fig3_matrix(M, cls, ORDER, CONDS, os.path.join(args.fig_dir, "fig3_ident_matrix"))
     print(f"図 3 (v2): fig3_ident_matrix、色の範囲 ±{vmax:g}")
     V2F.fig4_v2(Q4, U0, cls, M, ORDER, CONDS, SP, os.path.join(args.fig_dir, "fig4_posteriors_v2"))
-    V2F.fig6_v2(ko, B, os.path.join(args.fig_dir, "fig6_checks_v2"))
+    if B is not None:
+        V2F.fig6_v2(ko, B, os.path.join(args.fig_dir, "fig6_checks_v2"))
+    else:
+        print("図 5 (v2): pH の帯（ph_check_bands.npz）が無いので飛ばした")

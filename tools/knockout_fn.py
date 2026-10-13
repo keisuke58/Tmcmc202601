@@ -92,7 +92,7 @@ def run_dir(d, n_samples, seed):
     idx = rng.choice(len(S), size=min(n_samples, len(S)), replace=False)
     th = jnp.array(S[idx])
 
-    _, t_days, _, _, _ = EP.load_experimental_data(
+    obs, t_days, _, _, _ = EP.load_experimental_data(
         EP.data_dir_for(a),  # run が読んだデータ
         a["condition"],
         a["cultivation"],
@@ -151,6 +151,8 @@ def run_dir(d, n_samples, seed):
         "frac_surge_noFn": float(np.mean(nofn[0] >= 1.5)),
         "frac_surge_a45_0": float(np.mean(a45z[0] >= 1.5)),
         "fn_D21_noFn_max": float(np.max(nofn[2])),  # Fn が本当に居ないことの確認
+        # 実測の Pg D21/D15（run が読んだデータの生きた菌の組成。図 5 の破線）
+        "obs_ratio": float(np.asarray(obs)[days.index(21), 4] / max(np.asarray(obs)[days.index(15), 4], 1e-12)),
     }
 
 
@@ -186,7 +188,7 @@ def main():
     bad = [r["run"] for r in rows if r["fn_D21_noFn_max"] > 1e-4]
     if bad:
         print(f"\n警告: Fn を除いたのに Day21 で Fn が 1e-4 を超えて戻っている run: {bad}")
-    print("\n比は事後サンプルの中央値 [5%, 95%]。実測の Pg D21/D15 は DH 2.74。")
+    print(f"\n比は事後サンプルの中央値 [5%, 95%]。実測の Pg D21/D15 は {rows[0]['obs_ratio']:.2f}（run のデータ）。")
     if args.json:
         with open(args.json, "w") as f:
             json.dump(rows, f, indent=2)

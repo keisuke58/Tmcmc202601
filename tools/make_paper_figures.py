@@ -269,7 +269,11 @@ def make_fig2(g2, out_dir, cache_dir, style="both", color_by="condition"):
     if style in ("v2", "both"):  # 新デザイン（tools/fig2_v2.py、2026-10-12）→ paper_fig2_v2.{pdf,png}
         import fig2_v2
 
-        rmse = {t: g["best"]["cfg"].get("rmse") for t, g in g2.items()}
+        # 列見出しの RMSE: 生きた菌の組成とその予測（2 通路なら φψ/Σφψ。estimator の config の値は φ/Σφ）
+        rmse = {}
+        for t, g in g2.items():
+            p_, d_ = predict_fractions(g["best"]["theta"], g["best"]["rec"])
+            rmse[t] = float(np.sqrt(np.mean((d_ - p_) ** 2)))
         rep_csv = CP.replicate_csv(EP, next(iter(g2.values()))["best"]["rec"])  # run が読んだデータの反復
         fig2_v2.make(cache_dir, str(out_dir / "paper_fig2_v2"), rmse, rep_csv, color_by=color_by)
     if style == "v2":

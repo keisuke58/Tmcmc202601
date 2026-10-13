@@ -39,7 +39,9 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
     rep = pd.read_csv(rep_csv)
     W, H = st.DOUBLE_MM, height_mm
     fig, axes = plt.subplots(5, 4, figsize=(W * st.MM, H * st.MM), sharex=True, sharey=True)
-    fig.subplots_adjust(left=0.085, right=0.995, top=0.893, bottom=0.05, hspace=0.12, wspace=0.07)
+    _z0 = np.load(f"{cache_dir}/fig2_phi_{CONDS[0]}.npz")
+    _two0 = bool(_z0["two_channel"]) if "two_channel" in _z0.files else False  # 2 通路なら凡例が 2 行
+    fig.subplots_adjust(left=0.085, right=0.995, top=0.875 if _two0 else 0.893, bottom=0.05, hspace=0.12, wspace=0.07)
     # commensal（CS, CH）と dysbiotic（DS, DH）の間を広げる: Veillonella 種と Pg 株が組で違うため
     if group_gap > 0:
         p0, p3 = axes[0, 0].get_position(), axes[0, 3].get_position()
@@ -136,7 +138,7 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
               r"50\% band", r"80\% band", "viable data (median)", "total data (median)", "viable replicates"]
     elif not show_phibar:
         del H_[1], L_[1]
-    fig.legend(H_, L_, loc="upper center", ncol=len(L_), bbox_to_anchor=(0.54, 1.0), fontsize=7,
+    fig.legend(H_, L_, loc="upper center", ncol=4 if two else len(L_), bbox_to_anchor=(0.54, 1.0), fontsize=7,
                handlelength=2.0, handletextpad=0.5, columnspacing=1.8, borderaxespad=0.2)
     st.save(fig, out_noext)
     plt.close(fig)
