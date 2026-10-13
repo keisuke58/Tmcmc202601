@@ -21,6 +21,9 @@ RUN_GLOB="${RUN_GLOB:?RUN_GLOB を渡す（例 'DH_ident*mut80*'）}"
 LABEL="${LABEL:-polish}"
 TOP_K="${TOP_K:-20}"
 MAXITER="${MAXITER:-300}"
+# WRITE_RUN=1: 各 run に polish.json を書く（check_paper_runs.py が判定 3 で読む、2026-10-13e）
+EXTRA=()
+[ "${WRITE_RUN:-0}" = "1" ] && EXTRA+=(--write-run)
 PYTHON="${PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3}"
 
 cd "$REPO" || exit 1
@@ -46,7 +49,7 @@ RAWLOG="polish_maxlogL_${PBS_JOBID:-local}_raw.log"
 echo "生ログ: $REPO/$RAWLOG（実行中も読める）"
 # POLISH_DEVICE=gpu: estimator の早期デバイス判定に gpu を渡す（既定 cpu だと GPU が隠れる）
 POLISH_DEVICE=gpu "$PYTHON" -u tools/polish_max_logL.py data_5species/main/_runs/paper_gateoff \
-  --glob "$RUN_GLOB" --top-k "$TOP_K" --maxiter "$MAXITER" --json "$JSON" 2>&1 \
+  --glob "$RUN_GLOB" --top-k "$TOP_K" --maxiter "$MAXITER" --json "$JSON" "${EXTRA[@]}" 2>&1 \
   | tee "$RAWLOG"
 RC="${PIPESTATUS[0]}"
 OUT="$(grep -v -E '^(INFO|WARNING):' "$RAWLOG" | tail -40)"
