@@ -210,6 +210,8 @@ def make_log_likelihood_jax_ode(
     psi_fixed: np.ndarray | None = None,
     # 2 通路の組成（2026-10-13）: 生きた菌の組成 ↔ φψ/Σφψ、全菌の組成（ch2）↔ φ/Σφ
     two_channel: bool = False,
+    # 初期の生存率（2026-10-13）。None なら全種 0.999（今まで）。--ic-from-data で Day 1 のデータから
+    psi_init: np.ndarray | None = None,
 ):
     """
     Build JAX-differentiable log-likelihood using Hamilton ODE.
@@ -302,6 +304,7 @@ def make_log_likelihood_jax_ode(
                 K_hill=K_hill,
                 n_hill=n_hill,
                 c_const=c_const,
+                psi_init=psi_init,
             )
             phi_traj = g_traj[:, 0:5]
         else:
@@ -313,6 +316,7 @@ def make_log_likelihood_jax_ode(
                 K_hill=K_hill,
                 n_hill=n_hill,
                 c_const=c_const,
+                psi_init=psi_init,
             )
 
         # Sample at observation indices

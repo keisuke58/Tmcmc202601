@@ -254,8 +254,8 @@ def newton_step(g_prev, params):
     return g_final
 
 
-def make_initial_state(phi_init, active_mask):
-    """Build g0 from phi_init (5,) or scalar."""
+def make_initial_state(phi_init, active_mask, psi_init=None):
+    """Build g0 from phi_init (5,) or scalar. psi_init (5,) を渡すとその生存率から始める（既定は全種 0.999、2026-10-13）。"""
     phi = jnp.asarray(phi_init, dtype=jnp.float64)
     if phi.ndim == 0 or phi.size == 1:
         phi = jnp.full(5, float(phi.flat[0]))
@@ -263,7 +263,10 @@ def make_initial_state(phi_init, active_mask):
     phi_sum = jnp.minimum(jnp.sum(phi), 0.999999)
     phi = phi * (0.999999 / phi_sum)
     phi0 = 1.0 - jnp.sum(phi)
-    psi = jnp.where(active_mask == 1, 0.999, 0.0)
+    if psi_init is None:
+        psi = jnp.where(active_mask == 1, 0.999, 0.0)
+    else:
+        psi = jnp.where(active_mask == 1, jnp.clip(jnp.asarray(psi_init, dtype=jnp.float64), 0.01, 0.99), 0.0)
     return jnp.concatenate([phi, phi0[jnp.newaxis], psi, jnp.array([0.0])])
 
 
@@ -281,6 +284,7 @@ def simulate_0d_nutrient(
     g_consumption=None,
     supply_rate=0.1,
     S_ext=1.0,
+    psi_init=None,
 ):
     """
     Run 0D Hamilton ODE with Monod nutrient coupling.
@@ -310,7 +314,7 @@ def simulate_0d_nutrient(
 
     if phi_init is None:
         phi_init = jnp.full(5, 0.2)
-    g0 = make_initial_state(phi_init, active_mask)
+    g0 = make_initial_state(phi_init, active_mask, psi_init)
 
     if g_consumption is None:
         g_consumption = jnp.array([1.0, 0.8, 0.3, 0.5, 0.3])
@@ -373,6 +377,7 @@ def simulate_0d(
     n_hill=2.0,
     c_const=25.0,
     alpha_const=0.0,
+    psi_init=None,
 ):
     """
     Run 0D Hamilton ODE. Returns phi trajectory (n_steps+1, 5).
@@ -395,7 +400,7 @@ def simulate_0d(
 
     if phi_init is None:
         phi_init = jnp.full(5, 0.2)
-    g0 = make_initial_state(phi_init, active_mask)
+    g0 = make_initial_state(phi_init, active_mask, psi_init)
 
     params = {
         "dt_h": dt,
@@ -431,6 +436,7 @@ def simulate_0d_full(
     n_hill=2.0,
     c_const=25.0,
     alpha_const=0.0,
+    psi_init=None,
 ):
     """
     Run 0D Hamilton ODE. Returns full state trajectory (n_steps+1, 12).
@@ -447,7 +453,7 @@ def simulate_0d_full(
 
     if phi_init is None:
         phi_init = jnp.full(5, 0.2)
-    g0 = make_initial_state(phi_init, active_mask)
+    g0 = make_initial_state(phi_init, active_mask, psi_init)
 
     params = {
         "dt_h": dt,

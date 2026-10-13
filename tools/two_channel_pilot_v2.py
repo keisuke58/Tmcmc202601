@@ -43,6 +43,7 @@ ap.add_argument("--restarts", type=int, default=2)
 ap.add_argument("--maxiter", type=int, default=250)
 ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--out", default=None)
+ap.add_argument("--ic-from-data", action="store_true", help="初期値を Day 1 のデータから: φ(0) = 全菌の組成、ψ(0) = 種ごとの生存率（2026-10-13）")
 ap.add_argument("--rescore", default=None, help="保存した JSON の theta_opt で内訳だけ出し直す（最適化しない）。--out に書く")
 args = ap.parse_args()
 sys.argv = [sys.argv[0], "--device", "cpu"]
@@ -73,6 +74,13 @@ data, t_days, sig, phi0, _ = E.load_experimental_data(E.DATA_DIR, *COND, 1, norm
 _, idx = E.convert_days_to_model_time(t_days, 1e-4, 2500, day_scale=None)
 idx = np.clip(idx, 0, 2500)
 phi0 = np.clip(phi0 / phi0.sum(), 0.001, 0.99)
+PSI0 = None
+if args.ic_from_data:  # 2 通路の対応に合わせた初期値: φ は全菌、ψ は Day 1 の種ごとの生存率
+    _m1 = E.load_multichannel_data(data_dir=E.DATA_DIR / "experiment_data", condition=COND[0], cultivation=COND[1], days_filter=[1])
+    _t1 = np.asarray(_m1["data_total"], dtype=float)[0]
+    phi0 = np.clip(_t1 / _t1.sum(), 0.001, 0.99)
+    PSI0 = jnp.array(E.species_viability_from_data(COND[0], COND[1], [1.0], np.asarray(_m1["data_viability"], dtype=float))[0])
+    print("IC from data: phi0", np.round(phi0, 3), "psi0", np.round(np.asarray(PSI0), 3), flush=True)
 mc = E.load_multichannel_data(data_dir=E.DATA_DIR / "experiment_data", condition=COND[0],
                               cultivation=COND[1], days_filter=t_days.tolist())
 lam = {1: 1.0, 2: args.lambda_ch2, 3: LAMBDA_CH3[args.tag] if args.lambda_ch3 is None else args.lambda_ch3, 5: 0.0}
@@ -81,7 +89,7 @@ logL = E.make_log_likelihood_jax_ode(
     K_hill=0.0, n_hill=4.0, lambda_pg=args.lambda_pg, lambda_late=args.lambda_late, lambda_rare=args.lambda_rare,
     data_total=mc["data_total"], sigma_obs_total=mc["sigma_obs_total"],
     data_viability=mc["data_viability"], sigma_obs_viability=mc["sigma_obs_viability"],
-    lambda_ch=lam, two_channel=True)
+    lambda_ch=lam, two_channel=True, psi_init=PSI0)
 
 # 箱: 論文の箱 + OVERRIDE（estimate_paper_jax と同じ規則。固定次元は上書きしない）
 bounds = np.array(E.load_prior_bounds(*COND), dtype=float)
@@ -111,7 +119,7 @@ PSI_D = jnp.array(PSI_D)
 
 
 def parts(th):
-    g = E.simulate_0d_full(th, n_steps=2500, dt=1e-4, phi_init=jnp.array(phi0), K_hill=0.0, n_hill=4.0)
+    g = E.simulate_0d_full(th, n_steps=2500, dt=1e-4, phi_init=jnp.array(phi0), K_hill=0.0, n_hill=4.0, psi_init=PSI0)
     phi = jnp.clip(g[k, 0:5], 1e-10, 1)
     pb = jnp.clip(phi * g[k, 6:11], 1e-12, 1)
     n = lambda x: x / x.sum(1, keepdims=True)  # noqa: E731
@@ -164,7 +172,7 @@ for r in range(args.restarts):
     if best is None or res.fun < best.fun:
         best, bth = res, th
 out["two_channel_opt"] = report(f"{args.tag} two-channel optimum (2c logL)", bth)
-g = np.array(E.simulate_0d_full(jnp.array(bth), n_steps=2500, dt=1e-4, phi_init=jnp.array(phi0), K_hill=0.0, n_hill=4.0))
+g = np.array(E.simulate_0d_full(jnp.array(bth), n_steps=2500, dt=1e-4, phi_init=jnp.array(phi0), K_hill=0.0, n_hill=4.0, psi_init=PSI0))
 out["psi_opt_median_days"] = np.median(g[idx, 6:11], axis=0).round(3).tolist()
 out["psi_data_median_days"] = np.median(np.array(PSI_D), axis=0).round(3).tolist()
 out["theta_opt"] = bth.round(4).tolist()
@@ -177,7 +185,7 @@ out["at_edge"] = edge
 out["bounds"] = bounds.round(4).tolist()
 out["args"] = {"version": 2, "data_source": args.data_source, "lambda_ch": lam, "lambda_pg": args.lambda_pg, "lambda_late": args.lambda_late,
                "lambda_rare": args.lambda_rare, "override": ovr, "restarts": args.restarts,
-               "maxiter": args.maxiter, "seed": args.seed}
+               "maxiter": args.maxiter, "seed": args.seed, "ic_from_data": args.ic_from_data}
 print("psi (median over days):", out["psi_opt_median_days"], " data:", out["psi_data_median_days"],
       " at_edge:", edge, flush=True)
 if args.out:
