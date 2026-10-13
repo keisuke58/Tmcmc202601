@@ -134,7 +134,7 @@ def build_likelihood(E, rec, data, t_days, idx_lik, mc):
         phi_init=np.asarray(rec["phi_init"]), dt=a["dt"], n_steps=a["n_steps"], K_hill=a["K_hill"],
         n_hill=a["n_hill"], lambda_pg=a["lambda_pg"], lambda_late=a["lambda_late"],
         use_student_t=a.get("use_student_t", False), student_t_nu=a.get("student_t_nu", 5.0),
-        lambda_rare=a["lambda_rare"], psi_fixed=None, **kw)
+        lambda_rare=a["lambda_rare"], psi_fixed=None, two_channel=bool(a.get("two_channel", False)), **kw)
 
 
 def pH_layout(E, rec, mc_real, ic_offset):

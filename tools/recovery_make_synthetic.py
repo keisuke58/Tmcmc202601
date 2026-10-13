@@ -78,8 +78,15 @@ g = np.asarray(E.simulate_0d_full(jnp.array(theta), n_steps=a["n_steps"], dt=a["
                                   phi_init=jnp.array(rec["phi_init"]), K_hill=a["K_hill"], n_hill=a["n_hill"]))
 rows, idx = lay["rows"], lay["idx_lik"]
 phi = np.clip(g[idx, 0:5], 1e-10, 1 - 1e-10)
-comp_clean = phi / np.maximum(phi.sum(1, keepdims=True), 1e-12)
 phi_raw, psi_raw = g[idx, 0:5], g[idx, 6:11]
+TWO = bool(a.get("two_channel", False))
+# 全菌の組成（ch2）は φ/Σφ。2 通路なら生きた菌の組成（ch1）は φψ/Σφψ（estimator と同じ clip）、そうでなければ ch1 も φ/Σφ
+tot_clean = phi / np.maximum(phi.sum(1, keepdims=True), 1e-12)
+if TWO:
+    pv = phi * np.clip(psi_raw, 1e-10, 1.0)
+    comp_clean = pv / np.maximum(pv.sum(1, keepdims=True), 1e-12)
+else:
+    comp_clean = tot_clean
 viab_clean = (phi_raw * psi_raw).sum(1) / np.maximum(phi_raw.sum(1), 1e-12)
 
 rng = np.random.default_rng(args.rng_seed)
@@ -98,7 +105,7 @@ viab_all[rows] = np.clip(viab_clean + args.noise * sig_v * rng.standard_normal(l
 total = None
 if mc_real.get("data_total") is not None:
     total = np.asarray(mc_real["data_total"], dtype=float).copy()
-    total[rows] = noisy_comp(comp_clean, sig_tot, rng) if args.noise > 0 else comp_clean
+    total[rows] = noisy_comp(tot_clean, sig_tot, rng) if args.noise > 0 else tot_clean
 pH = None
 t_pH, idx_pH, keep = RC.pH_layout(E, rec, mc_real, lay["ic_offset"])
 if t_pH is not None:
@@ -129,7 +136,9 @@ syn = {
     "lambda_ch_effective": {str(k): v for k, v in lam.items()},
     "phi_init": rec["phi_init"],
     "days": lay["t_days"].tolist(), "likelihood_rows": rows.tolist(), "idx_likelihood": idx.tolist(),
+    "two_channel": TWO, "data_source": a.get("data_source") or "digitised",
     "composition": comp.tolist(), "composition_noise_free": comp_clean.tolist(),
+    "total_noise_free": tot_clean.tolist(),
     "viability": {str(float(d)): float(v) for d, v in zip(lay["t_days"], viab_all)},
     "viability_noise_free": viab_clean.tolist(),
     "total": None if total is None else total.tolist(),
@@ -175,7 +184,8 @@ def ll_numpy(c, v, t=None):
     out = lam.get(1, 1.0) * -0.5 * np.sum(w * ((c - comp_clean) / sig) ** 2)
     out += lam.get(3, 2.0) * -0.5 * np.sum(((v - viab_clean) / sig_v) ** 2)
     if t is not None:
-        out += lam.get(2, 0.5) * -0.5 * np.sum(((t - comp_clean) / sig_tot) ** 2)
+        wt = w if TWO else 1.0  # 2 通路では ch2 にも ch1 と同じ重み
+        out += lam.get(2, 0.5) * -0.5 * np.sum(wt * ((t - tot_clean) / sig_tot) ** 2)
     return out
 
 
@@ -186,7 +196,7 @@ if args.noise > 0:
     mc_vals = np.array([
         ll_numpy(noisy_comp(comp_clean, sig, r2),
                  np.clip(viab_clean + args.noise * sig_v * r2.standard_normal(n_obs), 0, 1),
-                 None if total is None else noisy_comp(comp_clean, sig_tot, r2))
+                 None if total is None else noisy_comp(tot_clean, sig_tot, r2))
         for _ in range(args.n_mc)])
 syn["checks"] = {
     "logL_truth_on_synthetic": ll_true,
