@@ -108,10 +108,13 @@ case "$STAGE" in
   pilot) ARGS=(--fix-psi --n-particles 1000 --n-mutation-steps 40) ;;
   p1)    need_prev; ARGS=(--fix-psi --n-particles 2000 --n-mutation-steps 40
                           --init-from-dir "$PREV" --posterior-prior-nsigma 4) ;;
-  p2)    need_prev; ARGS=(--multichannel --lambda-ch1 1.0 --lambda-ch2 0.0 --lambda-ch3 2.0
-                          --lambda-ch5 "$LAMBDA_CH5" --n-particles 2000 --n-mutation-steps 40
-                          --init-from-dir "$PREV")
-         [ -n "$P2_NSIGMA" ] && ARGS+=(--posterior-prior-nsigma "$P2_NSIGMA") ;;
+  p2)    ARGS=(--multichannel --lambda-ch1 1.0 --lambda-ch2 0.0 --lambda-ch3 2.0
+               --lambda-ch5 "$LAMBDA_CH5" --n-particles 2000 --n-mutation-steps 40)
+         # P2_COLD=1: warm start なし（事前分布から始める。段階分けの偏りの確認、2026-10-13l）
+         if [ -z "${P2_COLD:-}" ]; then
+           need_prev; ARGS+=(--init-from-dir "$PREV")
+           [ -n "$P2_NSIGMA" ] && ARGS+=(--posterior-prior-nsigma "$P2_NSIGMA")
+         fi ;;
   ult)   need_prev; ARGS=(--multichannel --lambda-ch1 1.0 --lambda-ch2 0.0 --lambda-ch3 2.0
                           --lambda-ch5 "$LAMBDA_CH5" --n-particles 5000 --n-mutation-steps 80
                           --init-from-dir "$PREV" --posterior-prior-nsigma "$ULT_NSIGMA") ;;
