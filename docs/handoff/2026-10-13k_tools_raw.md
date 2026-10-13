@@ -16,3 +16,9 @@
 
 ## 3. pilot が終わったら
 13j §4 の確認に加え、`python3 tools/raw_data_report.py` は **走らせなくてよい**（クラウドで実施済み、出力は gitignore）。
+
+## 追記: estimate_paper_jax.py の PROJECT_ROOT（0a9cef7 で私が壊した、この commit で修正）
+`PROJECT_ROOT = DATA_DIR.parent.parent` が DATA_DIR の既定変更でリポジトリ直下を指すようになっていた（以前はその 1 つ上）。
+sys.path に入るだけで、2 通路の推定はこれまでどおり動いていた見込み（test_two_channel ALL OK）。以前と同じ場所に戻した。
+あわせて `--replicate-sigma` の replicate CSV の場所も DATA_DIR/experiment_data に直した（今のジョブは使っていない）。
+**pull は次のジョブが起動する前ならいつでもよい。** 5a3de8e（PAPER_BOUNDS_JSON）の修正、ありがとう。

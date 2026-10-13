@@ -57,7 +57,8 @@ import numpy as np
 SCRIPT_DIR = Path(__file__).resolve().parent
 MAIN_DIR = SCRIPT_DIR
 DATA_DIR = SCRIPT_DIR.parent / "raw_dataset"  # 既定は生データ（2026-10-13、読み取りデータは digitised_dataset/ に隔離）
-PROJECT_ROOT = DATA_DIR.parent.parent
+# 以前と同じ場所（DATA_DIR = data_5species だったときの DATA_DIR.parent.parent）。DATA_DIR からは辿らない（2026-10-13）
+PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent
 # データの出どころ（2026-10-13）: digitised = 論文の図から読み取った CSV（experiment_data/、今までの run）、
 # raw = Heine 提供の生データから作った CSV（raw_dataset/experiment_data/、tools/build_raw_dataset.py）
 # digitised = 論文の図からの読み取り（2026-10-13 に digitised_dataset/ へ隔離。過去の run の再現だけに使う）
@@ -641,11 +642,7 @@ def main():
     if args.replicate_sigma:
         from estimate_reduced_nishioka import build_replicate_sigma
 
-        replicate_csv = DATA_DIR / "fig3_species_distribution_replicates.csv"
-        if not replicate_csv.exists():
-            replicate_csv = (
-                DATA_DIR.parent / "experiment_data" / "fig3_species_distribution_replicates.csv"
-            )
+        replicate_csv = DATA_DIR / "experiment_data" / "fig3_species_distribution_replicates.csv"
         _rep_species_map = {
             "S. oralis": 0,
             "A. naeslundii": 1,
