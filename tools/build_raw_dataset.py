@@ -5,7 +5,7 @@
 digitised_dataset/ からは何も複製しない（2026-10-13j、ユーザー指示）。pH・OD600 などは無いので推定では使われない）
   fig3_species_distribution_summary.csv / _replicates.csv     ← qPCR「only living cells」（PMA あり、生きた菌）
   figS1_total_species_distribution_summary.csv / _replicates.csv ← qPCR「all cells」（PMA なし、全菌）
-  fig2_membrane_distribution.csv                               ← LIVE/DEAD の画像ごとの値（intact = 画像の平均、error = 画像の SD）
+  fig2_membrane_distribution.csv                               ← LIVE/DEAD（5 枚 = 1 バイオフィルム。intact = バイオフィルムの平均の平均、error = その SD）
   biofilm_boxplot_data.csv・boxplot_<条件>_<培養>.csv            ← LIVE/DEAD の画像ごとの体積（中央値・四分位・ひげ、×1e6 µm³）
 推定は --data-source raw でこのフォルダを読む（既定 digitised は今までどおり）。
 値の形は今の CSV と同じ（% 単位、summary は median/mean/std/min/max/q1/q3、replicates は replicate/distribution_pct）。
@@ -37,7 +37,11 @@ def main():
         summ.to_csv(OUT / f"{stem}_summary.csv", index=False)
         print(f"{stem}: {len(s)} replicate rows, {len(summ)} summary rows")
     ld = pd.read_csv(RAW / "livedead_long.csv")
-    g = ld.groupby(["condition", "cultivation", "day"]).live_pct
+    # 5 枚ずつ同じバイオフィルム（N. Heine、2026-10-13）。error_pct はバイオフィルムの平均どうしの SD
+    # （組成の σ と同じく生物学的反復のばらつき。画像 1 枚の SD はバイオフィルム内のばらつきを含んで大きすぎた）
+    ld = ld.assign(biofilm=(ld.image - 1) // 5)
+    bio = ld.groupby(["condition", "cultivation", "day", "biofilm"]).live_pct.mean().reset_index()
+    g = bio.groupby(["condition", "cultivation", "day"]).live_pct
     m = pd.DataFrame({"intact_membrane_pct": g.mean(), "error_pct": g.std()}).reset_index()
     m["damaged_membrane_pct"] = 100 - m["intact_membrane_pct"]
     m[["condition", "cultivation", "day", "intact_membrane_pct", "damaged_membrane_pct", "error_pct"]].to_csv(
