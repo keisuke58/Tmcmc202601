@@ -212,6 +212,8 @@ def make_log_likelihood_jax_ode(
     two_channel: bool = False,
     # 初期の生存率（2026-10-13）。None なら全種 0.999（今まで）。--ic-from-data で Day 1 のデータから
     psi_init: np.ndarray | None = None,
+    # 死ぬ項の強さ α*（2026-10-13 の確認用）。既定 0 = 抗菌剤なし（b_i は尤度に入らない）
+    alpha_const: float = 0.0,
 ):
     """
     Build JAX-differentiable log-likelihood using Hamilton ODE.
@@ -305,6 +307,7 @@ def make_log_likelihood_jax_ode(
                 n_hill=n_hill,
                 c_const=c_const,
                 psi_init=psi_init,
+                alpha_const=alpha_const,
             )
             phi_traj = g_traj[:, 0:5]
         else:
@@ -317,6 +320,7 @@ def make_log_likelihood_jax_ode(
                 n_hill=n_hill,
                 c_const=c_const,
                 psi_init=psi_init,
+                alpha_const=alpha_const,
             )
 
         # Sample at observation indices
