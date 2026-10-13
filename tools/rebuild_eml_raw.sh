@@ -16,20 +16,23 @@ SPEC="${SPEC:-docs/revision/EML_submission/figures/raw/spec_raw.json}"
 F="${F:-docs/revision/EML_submission/figures/raw}"
 STAGE="${STAGE:-ult}"
 SKIP="${SKIP:-ph}"
+# run 名の型（{tag} を条件に置き換える）。spec の glob と同じものにする
+PAT="${PAT:-{tag\}_${STAGE}_2c_raw_seed*}"
+P1PAT="${P1PAT:-{tag\}_p1_2c_raw_seed*}"
 mkdir -p "$F/supp"
 skip() { [[ " $SKIP " == *" $1 "* ]]; }
 glob_of() { python3 -c "import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]][sys.argv[3]])" "$SPEC" "$1" "$2"; }
-echo "=== R=$R  SPEC=$SPEC  F=$F  STAGE=$STAGE  SKIP='$SKIP'"
+echo "=== R=$R  SPEC=$SPEC  F=$F  STAGE=$STAGE  PAT=$PAT  SKIP='$SKIP'"
 
 # 0. 判定 (a)–(e) と、run ごとの数値（2 通路の内訳つき）
 skip check   || python3 tools/check_paper_runs.py "$R" | tee "$F/check_paper_runs.txt"
-skip eval    || python3 tools/eval_paper_runs.py "$R" --glob "*_${STAGE}_2c_raw*" | tee "$F/eval_paper_runs.txt"
+skip eval    || python3 tools/eval_paper_runs.py "$R" --glob "${PAT//\{tag\}/*}" | tee "$F/eval_paper_runs.txt"
 skip metrics || python3 tools/fit_metrics_2c.py "$R" $(for t in CS CH DS DH; do glob_of $t "$STAGE"; done) --out "$F/fit_metrics_2c"
-skip psi     || python3 tools/psi_table_runs.py "$R" --pattern "{tag}_${STAGE}_2c_raw_seed*" --out "$F/psi_table"
+skip psi     || python3 tools/psi_table_runs.py "$R" --pattern "$PAT" --out "$F/psi_table"
 
 # 1. Fig. 2（生きた菌 ↔ φψ/Σφψ、全菌 ↔ φ/Σφ）と事後のまとめ（paper_numbers.json・tables.tex）
 skip fig2 || python3 tools/make_paper_figures.py "$R" \
-    --p2-glob "{tag}_${STAGE}_2c_raw_seed*" --p1-glob "{tag}_p1_2c_raw_seed*" \
+    --p2-glob "$PAT" --p1-glob "$P1PAT" \
     --out-dir "$F" --skip ident knockout umap
 
 # 2. ノックアウト（Fn・a45=0、DS・DH）
@@ -62,5 +65,5 @@ json.dump({t: v[sys.argv[2]].rstrip("*") for t, v in sp.items() if sys.argv[2] i
 PY
   python3 tools/plot_seed_maps.py --root "$R" --spec "$F/_seed_prefix.json" --stage-label "$STAGE" --n-post 200 --out "$F/seed_maps_4cond"
 fi
-skip growth || python3 tools/growth_stress_check.py "$R" --p2-glob "{tag}_${STAGE}_2c_raw_seed*" --out "$F/growth_stress"
+skip growth || python3 tools/growth_stress_check.py "$R" --p2-glob "$PAT" --out "$F/growth_stress"
 echo "=== done -> $F"
