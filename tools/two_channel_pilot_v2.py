@@ -43,6 +43,7 @@ ap.add_argument("--restarts", type=int, default=2)
 ap.add_argument("--maxiter", type=int, default=250)
 ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--out", default=None)
+ap.add_argument("--rescore", default=None, help="保存した JSON の theta_opt で内訳だけ出し直す（最適化しない）。--out に書く")
 args = ap.parse_args()
 sys.argv = [sys.argv[0], "--device", "cpu"]
 sys.path.insert(0, str(ROOT / "data_5species" / "main"))
@@ -100,12 +101,13 @@ Yv = jnp.array(data)
 Yt = jnp.array(mc["data_total"])
 Yt = Yt / Yt.sum(1, keepdims=True)
 L = jnp.array(mc["data_viability"])
-k = jnp.array(idx[1:])
+# load_experimental_data(use_exp_init=True) は Day 1 を既に外している（観測は Day 3〜21 の 5 行）。[1:] は Day 3 を落としていた（2026-10-13 修正）
+k = jnp.array(idx)
 PSI_D = E.species_viability_from_data(COND[0], COND[1], t_days, mc["data_viability"])
 _tot = np.asarray(mc["data_total"], dtype=float)
 _tot = _tot / _tot.sum(1, keepdims=True)
-PSI_M = jnp.array((_tot >= 0.02)[1:].astype(float))
-PSI_D = jnp.array(PSI_D[1:])
+PSI_M = jnp.array((_tot >= 0.02).astype(float))
+PSI_D = jnp.array(PSI_D)
 
 
 def parts(th):
@@ -113,10 +115,10 @@ def parts(th):
     phi = jnp.clip(g[k, 0:5], 1e-10, 1)
     pb = jnp.clip(phi * g[k, 6:11], 1e-12, 1)
     n = lambda x: x / x.sum(1, keepdims=True)  # noqa: E731
-    return {"viable_vs_phi": jnp.mean((Yv[1:] - n(phi)) ** 2),
-            "viable_vs_phipsi": jnp.mean((Yv[1:] - n(pb)) ** 2),
-            "total_vs_phi": jnp.mean((Yt[1:] - n(phi)) ** 2),
-            "live": jnp.mean((L[1:] - pb.sum(1) / phi.sum(1)) ** 2),
+    return {"viable_vs_phi": jnp.mean((Yv - n(phi)) ** 2),
+            "viable_vs_phipsi": jnp.mean((Yv - n(pb)) ** 2),
+            "total_vs_phi": jnp.mean((Yt - n(phi)) ** 2),
+            "live": jnp.mean((L - pb.sum(1) / phi.sum(1)) ** 2),
             "psi_vs_data": jnp.sum(PSI_M * (g[k, 6:11] - PSI_D) ** 2) / jnp.sum(PSI_M)}
 
 
@@ -131,6 +133,12 @@ def report(name, th):
 
 print(f"{args.tag}: lambda_ch {lam}, override '{ovr}', free dims {free}", flush=True)
 out = {"tag": args.tag, "map": report(f"{args.tag} MAP (now, under 2c logL)", th0)}
+if args.rescore:
+    _old = json.load(open(args.rescore))
+    out = dict(_old, map=out["map"], two_channel_opt=report(f"{args.tag} rescored optimum", np.array(_old["theta_opt"])), rescored=True)
+    if args.out:
+        json.dump(out, open(args.out, "w"), indent=1)
+    sys.exit(0)
 vg = jax.jit(jax.value_and_grad(lambda th: -logL(th)))
 
 
@@ -157,7 +165,7 @@ for r in range(args.restarts):
         best, bth = res, th
 out["two_channel_opt"] = report(f"{args.tag} two-channel optimum (2c logL)", bth)
 g = np.array(E.simulate_0d_full(jnp.array(bth), n_steps=2500, dt=1e-4, phi_init=jnp.array(phi0), K_hill=0.0, n_hill=4.0))
-out["psi_opt_median_days"] = np.median(g[idx[1:], 6:11], axis=0).round(3).tolist()
+out["psi_opt_median_days"] = np.median(g[idx, 6:11], axis=0).round(3).tolist()
 out["psi_data_median_days"] = np.median(np.array(PSI_D), axis=0).round(3).tolist()
 out["theta_opt"] = bth.round(4).tolist()
 _j15, _j21 = int(np.where(np.asarray(t_days) == 15)[0][0]), int(np.where(np.asarray(t_days) == 21)[0][0])

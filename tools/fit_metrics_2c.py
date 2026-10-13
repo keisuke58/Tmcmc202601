@@ -62,21 +62,22 @@ def metrics(d):
     g = np.asarray(E.simulate_0d_full(theta, n_steps=a["n_steps"], dt=a["dt"],
                                       phi_init=jnp.array(rec["phi_init"], dtype=jnp.float64),
                                       K_hill=a["K_hill"], n_hill=a["n_hill"]))
-    k = D["idx"][1:]
+    # load_experimental_data(use_exp_init=True) は Day 1 を既に外している（観測は Day 3〜21 の 5 行）。[1:] は Day 3 を落としていた（2026-10-13 修正）
+    k = D["idx"]
     phi = np.clip(g[k, 0:5], 1e-10, 1)
     psi = g[k, 6:11]
     pb = np.clip(phi * psi, 1e-12, 1)
     n = lambda x: x / x.sum(1, keepdims=True)  # noqa: E731
-    Yv, Yt, L = D["data"][1:], D["tot"][1:], D["live"][1:]
-    M = D["psi_m"][1:]
+    Yv, Yt, L = D["data"], D["tot"], D["live"]
+    M = D["psi_m"]
     out = {
         "viable_vs_phipsi": np.sqrt(np.mean((Yv - n(pb)) ** 2)),
         "viable_vs_phi": np.sqrt(np.mean((Yv - n(phi)) ** 2)),
         "total_vs_phi": np.sqrt(np.mean((Yt - n(phi)) ** 2)),
         "live": np.sqrt(np.mean((L - pb.sum(1) / phi.sum(1)) ** 2)),
-        "psi_vs_data": np.sqrt(np.sum(M * (psi - D["psi_d"][1:]) ** 2) / np.sum(M)),
+        "psi_vs_data": np.sqrt(np.sum(M * (psi - D["psi_d"]) ** 2) / np.sum(M)),
     }
-    days = D["t_days"][1:]
+    days = D["t_days"]
     k15, k21 = days.index(15.0), days.index(21.0)
     out["pg_ratio"] = n(pb)[k21, 4] / max(n(pb)[k15, 4], 1e-12)
     out["obs_pg_ratio"] = Yv[k21, 4] / max(Yv[k15, 4], 1e-12)
