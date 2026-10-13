@@ -37,6 +37,7 @@ ap.add_argument("--lambda-ch2", type=float, default=1.0)
 ap.add_argument("--lambda-pg", type=float, default=5.0)
 ap.add_argument("--lambda-late", type=float, default=3.0)
 ap.add_argument("--lambda-rare", type=float, default=0.1)
+ap.add_argument("--data-source", choices=["digitised", "raw"], default="digitised")
 ap.add_argument("--lambda-ch3", type=float, default=None, help="既定は条件ごとの自動調整（LAMBDA_CH3）")
 ap.add_argument("--restarts", type=int, default=2)
 ap.add_argument("--maxiter", type=int, default=250)
@@ -53,6 +54,7 @@ import jax.numpy as jnp  # noqa: E402
 from scipy.optimize import minimize  # noqa: E402
 
 import estimate_paper_jax as E  # noqa: E402
+E.DATA_DIR = E.DATA_DIRS[args.data_source]
 
 COND = {"CS": ("Commensal", "Static"), "CH": ("Commensal", "HOBIC"),
         "DS": ("Dysbiotic", "Static"), "DH": ("Dysbiotic", "HOBIC")}[args.tag]
@@ -165,7 +167,7 @@ out["pg_ratio_21_15"] = float(_fr[idx[_j21], 4] / max(_fr[idx[_j15], 4], 1e-12))
 edge = [i for i in free if min(bth[i] - bounds[i, 0], bounds[i, 1] - bth[i]) < 0.05 * (bounds[i, 1] - bounds[i, 0])]
 out["at_edge"] = edge
 out["bounds"] = bounds.round(4).tolist()
-out["args"] = {"version": 2, "lambda_ch": lam, "lambda_pg": args.lambda_pg, "lambda_late": args.lambda_late,
+out["args"] = {"version": 2, "data_source": args.data_source, "lambda_ch": lam, "lambda_pg": args.lambda_pg, "lambda_late": args.lambda_late,
                "lambda_rare": args.lambda_rare, "override": ovr, "restarts": args.restarts,
                "maxiter": args.maxiter, "seed": args.seed}
 print("psi (median over days):", out["psi_opt_median_days"], " data:", out["psi_data_median_days"],

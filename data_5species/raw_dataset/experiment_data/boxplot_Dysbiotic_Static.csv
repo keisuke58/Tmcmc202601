@@ -1,0 +1,7 @@
+condition,cultivation,day,median,q1,q3,whisker_low,whisker_high,fliers
+Dysbiotic,Static,1,0.4,0.35,0.45,0.2,0.55,
+Dysbiotic,Static,3,0.35,0.3,0.4,0.25,0.5,0.75
+Dysbiotic,Static,6,0.38,0.3,0.55,0.2,0.78,
+Dysbiotic,Static,10,0.3,0.1,0.55,0.05,0.6,
+Dysbiotic,Static,15,0.6,0.3,0.8,0.1,0.98,
+Dysbiotic,Static,21,0.55,0.1,0.7,0.05,0.9,

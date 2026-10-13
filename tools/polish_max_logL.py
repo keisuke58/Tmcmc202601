@@ -53,6 +53,7 @@ assert Path(EP._H.__file__).name == "hamilton_ode_jax_paper.py", EP._H.__file__
 
 def build_loglik(rec):
     a = rec["args"]
+    EP.DATA_DIR = EP.data_dir_for(a)  # run が読んだデータ（digitised / raw）で組み直す
     data, t_days, _sig, _phi, _ = EP.load_experimental_data(
         EP.DATA_DIR,
         a["condition"],

@@ -129,7 +129,8 @@ _data_cache = {}
 
 
 def exp_data(cond, cult, a):
-    key = (cond, cult, a["dt"], a["n_steps"])
+    EP.DATA_DIR = EP.data_dir_for(a)  # run が読んだデータ（digitised / raw）
+    key = (cond, cult, a["dt"], a["n_steps"], a.get("data_source") or "digitised")
     if key not in _data_cache:
         data, t_days, _s, _p, _ = EP.load_experimental_data(
             EP.DATA_DIR,

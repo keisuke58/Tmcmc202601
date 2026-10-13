@@ -58,6 +58,14 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 MAIN_DIR = SCRIPT_DIR
 DATA_DIR = SCRIPT_DIR.parent
 PROJECT_ROOT = DATA_DIR.parent.parent
+# データの出どころ（2026-10-13）: digitised = 論文の図から読み取った CSV（experiment_data/、今までの run）、
+# raw = Heine 提供の生データから作った CSV（raw_dataset/experiment_data/、tools/build_raw_dataset.py）
+DATA_DIRS = {"digitised": SCRIPT_DIR.parent, "raw": SCRIPT_DIR.parent / "raw_dataset"}
+
+
+def data_dir_for(run_args):
+    """run の args（run_record の "args"）から、その run が読んだデータの場所を返す（後から尤度を組み直す道具用）。"""
+    return DATA_DIRS[(run_args or {}).get("data_source") or "digitised"]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 
@@ -551,6 +559,12 @@ def main():
         "Goal: focus likelihood on A matrix estimation.",
     )
     parser.add_argument(
+        "--data-source",
+        choices=["digitised", "raw"],
+        default="digitised",
+        help="digitised = 論文の図からの読み取り（今まで）、raw = Heine 提供の生データ（2026-10-13）",
+    )
+    parser.add_argument(
         "--holdout-day",
         type=int,
         default=None,
@@ -587,6 +601,9 @@ def main():
         help="起動時の感度チェック（全自由次元が尤度を動かすか）を省く。通常は使わない",
     )
     args = parser.parse_args()
+    global DATA_DIR
+    DATA_DIR = DATA_DIRS[args.data_source]
+    logger.info(f"[data-source] {args.data_source}: {DATA_DIR}")
 
     if args.quick:
         args.n_particles = 50

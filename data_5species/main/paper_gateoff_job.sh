@@ -122,6 +122,8 @@ esac
 [ -n "$TWO_CHANNEL" ] && ARGS+=(--two-channel --lambda-ch2 "$LAMBDA_CH2_2C")
 # 予測の確認（2026-10-13）: HOLDOUT_DAY=10 などでその日を尤度から外す。RUNTAG に _ho<日> を付ける
 [ -n "${HOLDOUT_DAY:-}" ] && ARGS+=(--holdout-day "$HOLDOUT_DAY")
+# データの出どころ（2026-10-13）: DATA_SOURCE=raw で Heine 提供の生データ（RUNTAG に _raw を付ける）
+[ -n "${DATA_SOURCE:-}" ] && ARGS+=(--data-source "$DATA_SOURCE")
 
 # N_MUT が指定されていれば --n-mutation-steps を差し替える
 if [ -n "$N_MUT" ]; then
