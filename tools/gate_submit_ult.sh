@@ -35,6 +35,7 @@
 #                 （2026-10-13: vancouver01 は 2 枚が他ユーザーの jupyterlab に確保されていて 3 本目が Q で止まる）
 #   WALLTIME      既定 12:00:00
 #   TWO_CHANNEL=1 2 通路の尤度（ult にも渡す。p2 も 2 通路で回したときだけ付ける）
+#   DATA_SOURCE   raw / digitised（ult にも渡す）。未設定なら p2 の run_record.json の data_source を引き継ぐ
 #   POLISH        既定 1: 判定の前に各 seed を磨いて polish.json を書く（判定 3 は磨いた値）。gate を gpus=1 で投げること
 #   POLISH_TOP_K / POLISH_MAXITER  既定 10 / 300
 #   DRY_RUN=1     qsub せず、投げる内容を出すだけ
@@ -63,6 +64,7 @@ N_MUT="${N_MUT:-150}"
 N_PART="${N_PART:-}"
 OVERRIDE="${OVERRIDE:-}"
 TWO_CHANNEL="${TWO_CHANNEL:-}"   # 2 通路（2026-10-13）。付けると ult にも TWO_CHANNEL=1 を渡す
+DATA_SOURCE="${DATA_SOURCE:-}"   # データの出どころ（2026-10-13j）。p2 と同じものを ult に渡す
 MODES="${MODES:-}"
 MODES="${MODES//;/,}"
 SEEDS="${SEEDS:-42 7 123}"
@@ -151,6 +153,11 @@ for S in $SEEDS; do
   [ -n "$N_PART" ] && VARS="${VARS},N_PART=${N_PART}"
   [ -n "$OVERRIDE" ] && VARS="${VARS},OVERRIDE=${OVERRIDE}"
   [ -n "$TWO_CHANNEL" ] && VARS="${VARS},TWO_CHANNEL=1"
+  DS_S="$DATA_SOURCE"
+  if [ -z "$DS_S" ] && [ -f "$MAIN/$PREV/run_record.json" ]; then
+    DS_S="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["args"].get("data_source") or "")' "$MAIN/$PREV/run_record.json" 2>/dev/null)"
+  fi
+  [ -n "$DS_S" ] && [ "$DS_S" != "digitised" ] && VARS="${VARS},DATA_SOURCE=${DS_S}"
   if [ "$DRY_RUN" = "1" ]; then
     echo "DRY_RUN: qsub -l nodes=1:ppn=1:gpus=1:${N} -l walltime=${WALLTIME} -v ${VARS} paper_gateoff_job.sh"
     continue
