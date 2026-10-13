@@ -53,7 +53,7 @@ if COND == ("Dysbiotic", "HOBIC"):
 
 d = json.load(open(ROOT / f"docs/revision/generated/final_theta_MAP/{args.tag}.json"))
 th0 = np.array([d[str(i)] for i in range(20)])
-D = E.DATA_DIR
+D = E.DATA_DIRS["digitised"]  # final_theta_MAP（読み取りデータの run）の確認用
 data, t_days, sig, phi0, _ = E.load_experimental_data(D, *COND, 1, normalize=True, use_exp_init=True)
 _, idx = E.convert_days_to_model_time(t_days, 1e-4, 2500, day_scale=None)
 idx = np.clip(idx, 0, 2500)

@@ -44,7 +44,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 import estimate_paper_jax as E  # noqa: E402
 
-EXP = ROOT / "data_5species" / "experiment_data"
+EXP = ROOT / "data_5species" / "digitised_dataset" / "experiment_data"  # 過去の run の確認用
 SPECIES = ["So", "An", "Vei", "Fn", "Pg"]
 REG = [0, 1, 3, 4]  # So・An・Fn・Pg（Vei が基準）
 EXP_DAYS = np.array([1.0, 3.0, 6.0, 10.0, 15.0, 21.0])

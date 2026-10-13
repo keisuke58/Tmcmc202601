@@ -35,14 +35,14 @@ KEYS = ["viable_vs_phipsi", "viable_vs_phi", "total_vs_phi", "live", "psi_vs_dat
 _cache = {}
 
 
-def data_for(cond, cult, dt, n_steps):
-    key = (cond, cult, dt, n_steps)
+def data_for(cond, cult, dt, n_steps, ddir):
+    key = (cond, cult, dt, n_steps, str(ddir))
     if key not in _cache:
-        data, t_days, _sig, _phi0, _ = E.load_experimental_data(E.DATA_DIR, cond, cult, 1, normalize=True,
+        data, t_days, _sig, _phi0, _ = E.load_experimental_data(ddir, cond, cult, 1, normalize=True,
                                                                 use_exp_init=True)
         _, idx = E.convert_days_to_model_time(t_days, dt, n_steps, day_scale=None)
         idx = np.clip(idx, 0, n_steps)
-        mc = E.load_multichannel_data(data_dir=E.DATA_DIR / "experiment_data", condition=cond,
+        mc = E.load_multichannel_data(data_dir=ddir / "experiment_data", condition=cond,
                                       cultivation=cult, days_filter=t_days.tolist())
         tot = np.asarray(mc["data_total"], dtype=float)
         tot = tot / tot.sum(1, keepdims=True)
@@ -58,7 +58,7 @@ def metrics(d):
     a = rec["args"]
     th = json.load(open(d / "theta_MAP.json"))
     theta = jnp.array([th[str(i)] for i in range(20)], dtype=jnp.float64)
-    D = data_for(a["condition"], a["cultivation"], a["dt"], a["n_steps"])
+    D = data_for(a["condition"], a["cultivation"], a["dt"], a["n_steps"], E.data_dir_for(a))
     g = np.asarray(E.simulate_0d_full(theta, n_steps=a["n_steps"], dt=a["dt"],
                                       phi_init=jnp.array(rec["phi_init"], dtype=jnp.float64),
                                       K_hill=a["K_hill"], n_hill=a["n_hill"]))

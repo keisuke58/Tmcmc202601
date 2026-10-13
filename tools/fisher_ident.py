@@ -43,6 +43,7 @@ for tag, (cond, cult, pat) in GROUPS.items():
     best = max(runs, key=lambda r: float(np.load(r / "logL.npy").max()))
     rec = json.load(open(best / "run_record.json"))
     a = rec["args"]
+    E.DATA_DIR = E.data_dir_for(a)  # run が読んだデータ
     th = json.load(open(best / "theta_MAP.json"))
     th = np.array([th[str(i)] for i in range(20)])
     pb = np.array(rec["prior_bounds_final"], dtype=float)

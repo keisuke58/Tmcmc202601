@@ -27,6 +27,7 @@ def evaluate(root, pattern, day, n, rng):
         raise SystemExit(f"run が無い: {root}/{pattern}")
     rec = g["best"]["rec"]
     a = rec["args"]
+    MPF.EP.DATA_DIR = MPF.EP.data_dir_for(a)  # run が読んだデータ
     days = MPF.model_days(rec)
     k = int(np.argmin(np.abs(days - day)))
     S = g["pooled"]

@@ -33,6 +33,7 @@ def check(c, msg):
 
 
 cond = ("Commensal", "HOBIC")
+E.DATA_DIR = E.DATA_DIRS["digitised"]  # 比べる相手（final_runs の CH）が読み取りデータの run なので
 d = json.load(open(ROOT / "docs/revision/generated/final_theta_MAP/CH.json"))
 th = jnp.array([d[str(i)] for i in range(20)])
 data, t_days, sig, phi0, _ = E.load_experimental_data(E.DATA_DIR, *cond, 1, normalize=True, use_exp_init=True)

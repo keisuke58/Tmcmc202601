@@ -55,6 +55,7 @@ runs = RC.load_group(args.root, glob)
 best = RC.best_run(runs)
 rec = RC.read_record(best)
 a = rec["args"]
+E.DATA_DIR = E.data_dir_for(a)  # run が読んだデータ
 assert (a["condition"], a["cultivation"]) == (cond, cult), (a["condition"], a["cultivation"])
 if not a.get("multichannel"):
     raise SystemExit("最終段（多チャネル）の run を渡すこと")

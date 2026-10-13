@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """生データ（raw_heine/*.csv、tools/convert_raw_heine.py の出力）から、推定が読む形の CSV 一式を作る（2026-10-13）。
 
-出力先: data_5species/raw_dataset/experiment_data/（今の experiment_data/ の CSV を全部複製し、次の 6 つを生データで置き換える）
+出力先: data_5species/raw_dataset/experiment_data/（**生データから作ったファイルだけ**を置く。読み取りデータ
+digitised_dataset/ からは何も複製しない（2026-10-13j、ユーザー指示）。pH・OD600 などは無いので推定では使われない）
   fig3_species_distribution_summary.csv / _replicates.csv     ← qPCR「only living cells」（PMA あり、生きた菌）
   figS1_total_species_distribution_summary.csv / _replicates.csv ← qPCR「all cells」（PMA なし、全菌）
   fig2_membrane_distribution.csv                               ← LIVE/DEAD の画像ごとの値（intact = 画像の平均、error = 画像の SD）
@@ -17,15 +18,14 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1] / "data_5species"
-SRC = ROOT / "experiment_data"
-RAW = SRC / "raw_heine"
+RAW = ROOT / "experiment_data" / "raw_heine"  # 生データ（gitignore、再配布しない）
 OUT = ROOT / "raw_dataset" / "experiment_data"
 
 
 def main():
-    OUT.mkdir(parents=True, exist_ok=True)
-    for f in SRC.glob("*.csv"):
-        shutil.copy(f, OUT / f.name)
+    if OUT.exists():
+        shutil.rmtree(OUT)  # 以前の版で複製した読み取りデータを残さない
+    OUT.mkdir(parents=True)
     q = pd.read_csv(RAW / "qpcr_long.csv")
     for pool, stem in (("viable", "fig3_species_distribution"), ("total", "figS1_total_species_distribution")):
         s = q[q.pool == pool].rename(columns={"rep": "replicate", "pct": "distribution_pct"})

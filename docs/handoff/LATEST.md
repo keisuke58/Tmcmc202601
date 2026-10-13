@@ -4,7 +4,7 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
-| 2026-10-13 | [2026-10-13j_raw_go.md](2026-10-13j_raw_go.md) | **raw で投入（ユーザー決定、最優先）: digitised 2c は **CH・CS・DS・DH すべて止める**（追記 2、ユーザー指示）。13i の置き場所のあと、`DATA_SOURCE=raw TWO_CHANNEL=1`、RUNTAG `2c_raw` で 4 条件を pilot から（設定は 13b と同じ）。gate に DATA_SOURCE を追加済み（pull してから gate）。GPU 側の道具に data_dir_for** | **最新・未着手** |
+| 2026-10-13 | [2026-10-13j_raw_go.md](2026-10-13j_raw_go.md) | **raw で投入（ユーザー決定、最優先）: digitised 2c は **CH・CS・DS・DH すべて止める**（追記 2）。**読み取りデータは digitised_dataset/ に隔離、既定 raw（追記 3）**。13i の置き場所のあと、`DATA_SOURCE=raw TWO_CHANNEL=1`、RUNTAG `2c_raw` で 4 条件を pilot から（設定は 13b と同じ）。gate に DATA_SOURCE を追加済み（pull してから gate）。GPU 側の道具に data_dir_for** | **最新・未着手** |
 | 2026-10-13 | [2026-10-13i_raw_data_fetch.md](2026-10-13i_raw_data_fetch.md) | **生データ 2 つをサーバーに置く: b2751e9 から `git show` で取り出し → convert_raw_heine.py → build_raw_dataset.py。git add しない。raw での投入はまだ（→ 13j で投入に変更）** | **最新・未着手** |
 | 2026-10-13 | [2026-10-13h_raw_data.md](2026-10-13h_raw_data.md) | **Heine の生データ（qPCR・LIVE/DEAD）が入った。`--data-source raw` / `DATA_SOURCE=raw` を追加（既定は今まで）。最終の run は生データで。今の 2c は止めない。切り替えの時期はユーザー判断。GPU 側の道具にも data_dir_for を** | **最新・投入待ち** |
 | 2026-10-13 | [2026-10-13g_weights.md](2026-10-13g_weights.md) | **重みの感度: CH・DH の 2 通路 p2 を重みなし（LAMBDA_PG=LAMBDA_LATE=LAMBDA_RARE=1、job に LAMBDA_RARE 追加）で 3 seed。13b → 13f のあと** | **最新・準備済み・未投入**。`tools/submit_13g.sh`（TAG=CH/DH、RUNTAG `2c_now`、DRY_RUN 可）。対照は `tools/compare_run_groups.py`（分類・符号）と `tools/fit_metrics_2c.py`（RMSE の内訳・Pg D21/D15）、判定は通知 |

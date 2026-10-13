@@ -56,11 +56,12 @@ import numpy as np
 # Project root for imports
 SCRIPT_DIR = Path(__file__).resolve().parent
 MAIN_DIR = SCRIPT_DIR
-DATA_DIR = SCRIPT_DIR.parent
+DATA_DIR = SCRIPT_DIR.parent / "raw_dataset"  # 既定は生データ（2026-10-13、読み取りデータは digitised_dataset/ に隔離）
 PROJECT_ROOT = DATA_DIR.parent.parent
 # データの出どころ（2026-10-13）: digitised = 論文の図から読み取った CSV（experiment_data/、今までの run）、
 # raw = Heine 提供の生データから作った CSV（raw_dataset/experiment_data/、tools/build_raw_dataset.py）
-DATA_DIRS = {"digitised": SCRIPT_DIR.parent, "raw": SCRIPT_DIR.parent / "raw_dataset"}
+# digitised = 論文の図からの読み取り（2026-10-13 に digitised_dataset/ へ隔離。過去の run の再現だけに使う）
+DATA_DIRS = {"digitised": SCRIPT_DIR.parent / "digitised_dataset", "raw": SCRIPT_DIR.parent / "raw_dataset"}
 
 
 def data_dir_for(run_args):
@@ -561,8 +562,8 @@ def main():
     parser.add_argument(
         "--data-source",
         choices=["digitised", "raw"],
-        default="digitised",
-        help="digitised = 論文の図からの読み取り（今まで）、raw = Heine 提供の生データ（2026-10-13）",
+        default="raw",
+        help="raw = Heine 提供の生データ（既定、2026-10-13〜）、digitised = 論文の図からの読み取り（過去の run の再現用のみ）",
     )
     parser.add_argument(
         "--holdout-day",

@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-D = ROOT / "data_5species" / "experiment_data"
+D = ROOT / "data_5species" / "raw_dataset" / "experiment_data"  # 生データ（2026-10-13〜）
 SP = {"S. oralis": 0, "A. naeslundii": 1, "V. dispar": 2, "V. parvula": 2, "F. nucleatum": 3,
       "P. gingivalis_20709": 4, "P. gingivalis_W83": 4, "P. gingivalis": 4}
 NAMES = ["So", "An", "Vei", "Fn", "Pg"]

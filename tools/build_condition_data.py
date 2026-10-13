@@ -45,7 +45,7 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-ED = ROOT / "data_5species" / "experiment_data"
+ED = ROOT / "data_5species" / "digitised_dataset" / "experiment_data"  # 過去の run の確認用
 DH_RUN = ROOT / "_runs" / "Dysbiotic_HOBIC_K0.05_n4.0_1k30"
 
 # species_distribution_data.csv は色名キー

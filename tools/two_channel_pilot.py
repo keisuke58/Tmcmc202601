@@ -58,6 +58,7 @@ else:  # DS・DH は段 (iii) の群で max logL の seed
     best = max(runs, key=lambda r: json.load(open(Path(r) / "run_record.json"))["max_logL"])
     d = json.load(open(Path(best) / "theta_MAP.json"))
 th0 = np.array([d[str(i)] for i in range(20)])
+E.DATA_DIR = E.DATA_DIRS["digitised"]  # v1 は読み取りデータの run が相手（記録用。今は v2 を使う）
 
 data, t_days, _s, phi0, _ = E.load_experimental_data(E.DATA_DIR, *COND, 1, normalize=True, use_exp_init=True)
 _, idx = E.convert_days_to_model_time(t_days, 1e-4, 2500, day_scale=None)

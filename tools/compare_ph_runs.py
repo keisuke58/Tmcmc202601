@@ -51,6 +51,7 @@ A45 = 19  # θ の並びでの a45
 def build_loglik(rec, drop_pH):
     """run_record の実効値から多チャネル尤度を組み直す。drop_pH なら λ5 = 0 にする。"""
     a = rec["args"]
+    EP.DATA_DIR = EP.data_dir_for(a)  # run が読んだデータ
     data, t_days, _sig, _phi, _ = EP.load_experimental_data(
         EP.DATA_DIR,
         a["condition"],
