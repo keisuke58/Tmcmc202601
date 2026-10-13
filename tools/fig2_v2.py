@@ -54,6 +54,8 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
         z = np.load(f"{cache_dir}/fig2_phi_{tag}.npz")
         trajs = z["trajs"]
         q10, q25, q75, q90 = np.percentile(trajs, [10, 25, 75, 90], axis=0)
+        two = bool(z["two_channel"]) if "two_channel" in z.files else False  # 2 通路: 線は φψ/Σφψ、全菌は別の印
+        main_map = z["viable_map"] if two else z["phi_map"]
         days = np.concatenate([[1], z["t_days"]])
         dat = np.vstack([z["d1n"][None, :], z["data_norm"]])
         cond, cult = CK[tag]
@@ -80,7 +82,11 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
                     p.set_edgecolor(mpl.colors.to_rgba(col, 0.6))
             ax.fill_between(DAY_GRID, q10[:, i], q90[:, i], color=col, alpha=0.12, lw=0, zorder=2)
             ax.fill_between(DAY_GRID, q25[:, i], q75[:, i], color=col, alpha=0.28, lw=0, zorder=2)
-            ax.plot(DAY_GRID, z["phi_map"][:, i], color=col, lw=1.2, zorder=4)
+            ax.plot(DAY_GRID, main_map[:, i], color=col, lw=1.2, zorder=4)
+            if two:  # 全菌の組成（PMA なし）と φ/Σφ
+                ax.plot(DAY_GRID, z["total_map"][:, i], color=col, lw=0.7, ls=(0, (2, 1.4)), alpha=0.9, zorder=3)
+                ax.scatter(z["t_days"], z["data_total"][:, i], s=9, facecolors="white", edgecolors=col,
+                           linewidths=0.6, zorder=5)
             if show_phibar:  # 種ごとの φψ はデータで決まらない（2026-10-13、既定で出さない）
                 ax.plot(DAY_GRID, z["phibar_map"][:, i], color=col, lw=0.8, ls=(0, (3, 1.6)),
                         alpha=0.8, zorder=3)
@@ -111,8 +117,8 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
         if tag in rmse and rmse[tag] is not None:
             top.text(0.5, 1, rf"RMSE ${rmse[tag]:.3f}$", transform=tr(1.0), ha="center",
                      va="bottom", fontsize=7, color=st.MUTE)
-    fig.text(0.008, 0.46, r"volume fraction $\varphi_i$", rotation=90, ha="left", va="center",
-             fontsize=8)
+    fig.text(0.008, 0.46, r"species fraction" if two else r"volume fraction $\varphi_i$", rotation=90,
+             ha="left", va="center", fontsize=8)
     g = st.MUTE
     H_ = [Line2D([], [], color=g, lw=1.2), Line2D([], [], color=g, lw=0.8, ls=(0, (3, 1.6))),
           Patch(facecolor=g, alpha=0.40, lw=0), Patch(facecolor=g, alpha=0.16, lw=0),
@@ -120,7 +126,15 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
           Patch(facecolor=mpl.colors.to_rgba(g, 0.13), edgecolor=mpl.colors.to_rgba(g, 0.6), lw=0.4)]
     L_ = [r"MAP $\varphi_i$", r"MAP $\bar\varphi_i=\varphi_i\psi_i$", r"50\% band", r"80\% band",
           "data (median)", "replicates (IQR)"]
-    if not show_phibar:
+    if two:  # 2 通路: 実線 = 生きた菌の予測、破線 = 全菌の予測、白抜き = 全菌のデータ
+        H_ = [Line2D([], [], color=g, lw=1.2), Line2D([], [], color=g, lw=0.7, ls=(0, (2, 1.4))),
+              Patch(facecolor=g, alpha=0.40, lw=0), Patch(facecolor=g, alpha=0.16, lw=0),
+              Line2D([], [], marker="o", color="none", mfc=g, mec=st.INK, mew=0.35, ms=3.6),
+              Line2D([], [], marker="o", color="none", mfc="white", mec=g, mew=0.6, ms=3.6),
+              Patch(facecolor=mpl.colors.to_rgba(g, 0.13), edgecolor=mpl.colors.to_rgba(g, 0.6), lw=0.4)]
+        L_ = [r"MAP viable $\varphi_i\psi_i/\sum_j\varphi_j\psi_j$", r"MAP total $\varphi_i/\sum_j\varphi_j$",
+              r"50\% band", r"80\% band", "viable data (median)", "total data (median)", "viable replicates"]
+    elif not show_phibar:
         del H_[1], L_[1]
     fig.legend(H_, L_, loc="upper center", ncol=len(L_), bbox_to_anchor=(0.54, 1.0), fontsize=7,
                handlelength=2.0, handletextpad=0.5, columnspacing=1.8, borderaxespad=0.2)

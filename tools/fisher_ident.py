@@ -19,6 +19,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 ap = argparse.ArgumentParser()
 ap.add_argument("--root", default=str(ROOT / "docs/revision/generated/final_runs"))
+ap.add_argument("--spec", default=None, help="JSON（make_supplementary_tables と同じ形: 条件 → 段 → glob）。ult の glob を使う")
 ap.add_argument("--out", default=str(ROOT / "docs/revision/EML_submission/figures/provisional_2026-10-11/fisher_ident.json"))
 args = ap.parse_args()
 sys.argv = [sys.argv[0]]
@@ -35,6 +36,9 @@ GROUPS = {"CS": ("Commensal", "Static", "CS_ult_wide2_sd4_seed*"),
           "CH": ("Commensal", "HOBIC", "CH_ult_mut150_wide2_noph_sd4_seed*"),
           "DS": ("Dysbiotic", "Static", "DS_p2_wide80_p18k_wide2_seed*"),
           "DH": ("Dysbiotic", "HOBIC", "DH_p2_nonarrow_w3_noph_p14k_seed*")}
+if args.spec:  # raw の run など（2026-10-13）
+    _sp = json.load(open(args.spec))
+    GROUPS = {t: (c, u, _sp[t]["ult"]) for t, (c, u, _p) in GROUPS.items() if t in _sp and "ult" in _sp[t]}
 NAMES = E.THETA_NAMES
 UNIDENT_RATIO = 0.8
 out = {}
@@ -61,7 +65,7 @@ for tag, (cond, cult, pat) in GROUPS.items():
         lambda_rare=a["lambda_rare"], psi_fixed=None,
         data_total=mc.get("data_total"), sigma_obs_total=mc.get("sigma_obs_total"),
         data_viability=mc.get("data_viability"), sigma_obs_viability=mc.get("sigma_obs_viability", 0.10),
-        lambda_ch=lam)
+        lambda_ch=lam, two_channel=bool(a.get("two_channel", False)))
     l0 = float(jax.jit(ll)(jnp.array(th)))
     free = [i for i in range(20) if pb[i, 1] > pb[i, 0]]
 

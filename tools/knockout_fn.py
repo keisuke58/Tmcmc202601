@@ -93,7 +93,7 @@ def run_dir(d, n_samples, seed):
     th = jnp.array(S[idx])
 
     _, t_days, _, _, _ = EP.load_experimental_data(
-        EP.DATA_DIR,
+        EP.data_dir_for(a),  # run が読んだデータ
         a["condition"],
         a["cultivation"],
         a["start_from_day"],

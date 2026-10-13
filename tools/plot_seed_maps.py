@@ -21,6 +21,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--root", default=str(ROOT / "docs/revision/generated/final_runs"))
 ap.add_argument("--n-post", type=int, default=200, help="帯に使う事後標本の数（3 seed 合算から）")
 ap.add_argument("--out", default=str(ROOT / "docs/revision/EML_submission/figures/provisional_2026-10-11/seed_maps_4cond"))
+ap.add_argument("--spec", default=None, help='JSON {"CS": "<seed の前までの run 名>", ...}（例 "CS_ult_2c_raw_seed"）。既定は下の GROUPS')
+ap.add_argument("--stage-label", default=None, help="列見出しの段の表記（--spec のとき、既定 ult）")
 args = ap.parse_args()
 sys.argv = [sys.argv[0]]
 
@@ -45,23 +47,29 @@ except Exception:  # noqa: BLE001
 
 import estimate_paper_jax as E  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import comp_pred as CP  # noqa: E402
+
 GROUPS = [
     ("CS", "Commensal", "Static", "CS_ult_wide2_sd4_seed", "ult"),
     ("CH", "Commensal", "HOBIC", "CH_ult_mut150_wide2_noph_sd4_seed", "ult"),
     ("DS", "Dysbiotic", "Static", "DS_p2_wide80_p18k_wide2_seed", "p2, provisional"),
     ("DH", "Dysbiotic", "HOBIC", "DH_p2_nonarrow_w3_noph_p14k_seed", "p2, provisional"),
 ]
+if args.spec:  # raw の run など（2026-10-13）
+    _sp = json.load(open(args.spec))
+    GROUPS = [(t, c, u, _sp[t], args.stage_label or "ult") for (t, c, u, _p, _s) in GROUPS if t in _sp]
 SEEDS = [42, 123, 7]
 SEED_COL = {42: "#d62728", 123: "#1f77b4", 7: "#2ca02c"}
 SP = ["S. oralis", "A. naeslundii", "Veillonella", "F. nucleatum", "P. gingivalis"]
 
 
 def comp_traj(theta, rec):
+    """生きた菌の組成と比べる予測（2 通路なら φψ/Σφψ、それ以外 φ/Σφ、tools/comp_pred.py）。"""
     a = rec["args"]
-    g = E.simulate_0d(jnp.array(theta), n_steps=a["n_steps"], dt=a["dt"],
-                      phi_init=jnp.array(rec["phi_init"]), K_hill=a["K_hill"], n_hill=a["n_hill"])
-    p = np.clip(np.asarray(g), 1e-10, 1 - 1e-10)
-    return p / p.sum(1, keepdims=True)
+    g = E.simulate_0d_full(jnp.array(theta), n_steps=a["n_steps"], dt=a["dt"],
+                           phi_init=jnp.array(rec["phi_init"]), K_hill=a["K_hill"], n_hill=a["n_hill"])
+    return CP.fractions(np.asarray(g), CP.is_two_channel(rec))["viable"]
 
 
 fig, axes = plt.subplots(5, 4, figsize=(13, 13), sharex=True, sharey="row")
@@ -70,7 +78,7 @@ for c, (tag, cond, cult, prefix, stage) in enumerate(GROUPS):
     runs = {s: Path(args.root) / f"{prefix}{s}" for s in SEEDS}
     recs = {s: json.load(open(r / "run_record.json")) for s, r in runs.items()}
     a = recs[SEEDS[0]]["args"]
-    data, t_days, _, _, _ = E.load_experimental_data(E.DATA_DIR, cond, cult, 1, normalize=True, use_exp_init=True)
+    data, t_days, _, _, _ = E.load_experimental_data(E.data_dir_for(a), cond, cult, 1, normalize=True, use_exp_init=True)
     _, idx = E.convert_days_to_model_time(t_days, a["dt"], a["n_steps"], day_scale=None)
     idx = np.clip(idx, 0, a["n_steps"])
     day_per_step = (t_days[-1] - 0) / idx[-1]  # convert_days_to_model_time は線形（day 0 ↔ step 0）
@@ -81,11 +89,10 @@ for c, (tag, cond, cult, prefix, stage) in enumerate(GROUPS):
     rng = np.random.default_rng(0)
     pick = S[rng.choice(len(S), size=min(args.n_post, len(S)), replace=False)]
     rec0 = recs[SEEDS[0]]
-    sim = jax.jit(jax.vmap(lambda th: E.simulate_0d(th, n_steps=a["n_steps"], dt=a["dt"],
-                                                    phi_init=jnp.array(rec0["phi_init"]),
-                                                    K_hill=a["K_hill"], n_hill=a["n_hill"])))
-    P = np.clip(np.asarray(sim(jnp.array(pick))), 1e-10, 1)
-    P = P / P.sum(2, keepdims=True)
+    sim = jax.jit(jax.vmap(lambda th: E.simulate_0d_full(th, n_steps=a["n_steps"], dt=a["dt"],
+                                                         phi_init=jnp.array(rec0["phi_init"]),
+                                                         K_hill=a["K_hill"], n_hill=a["n_hill"])))
+    P = CP.fractions(np.asarray(sim(jnp.array(pick))), CP.is_two_channel(rec0))["viable"]
     lo, med, hi = np.percentile(P, [10, 50, 90], axis=0)
     rmse_med = float(np.sqrt(np.mean((data - med[idx]) ** 2)))
 

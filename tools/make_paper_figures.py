@@ -52,6 +52,7 @@ import jax  # noqa: E402
 jax.config.update("jax_enable_x64", True)
 import estimate_paper_jax as EP  # noqa: E402
 import jax.numpy as jnp  # noqa: E402
+import comp_pred as CP  # noqa: E402  （2 通路の尤度と同じ組成の対応）
 
 sys.argv = _argv
 assert Path(EP._H.__file__).name == "hamilton_ode_jax_paper.py", EP._H.__file__
@@ -201,13 +202,17 @@ def CK_of(rec):
     return a["condition"], a["cultivation"]
 
 
-def predict_fractions(theta, rec):
-    """estimator の RMSE と同じ正規化で、観測日の組成を返す（観測日, 5）。"""
+def predict_fractions(theta, rec, which="viable"):
+    """観測日の組成の予測（観測日, 5）とデータ。尤度と同じ対応（tools/comp_pred.py）:
+    which="viable" は生きた菌の組成（2 通路なら φψ/Σφψ、それ以外 φ/Σφ）、"total" は全菌の組成 φ/Σφ。"""
     a = rec["args"]
-    data, _t, idx = exp_data(*CK_of(rec), a)
-    traj = np.asarray(_sim_fn(rec, False)(jnp.atleast_2d(jnp.array(theta))))[0]
-    p = np.clip(traj[idx, :], 1e-10, 1 - 1e-10)
-    return p / p.sum(axis=1, keepdims=True), data
+    data, t_days, idx = exp_data(*CK_of(rec), a)
+    g = simulate_full(theta, rec)[0][idx]
+    fr = CP.fractions(g, CP.is_two_channel(rec))
+    if which == "total":
+        tot, _live = CP.observations(EP, rec, t_days)
+        return fr["total"], tot
+    return fr["viable"], data
 
 
 def theta_to_A(theta):
@@ -226,10 +231,14 @@ def write_fig2_cache(g2, cache_dir):
         gm = simulate_full(best["theta"], rec)[0]
         phi = gm[:, 0:5]
         phibar = gm[:, 0:5] * gm[:, 6:11]
+        two = CP.is_two_channel(rec)
+        fr = CP.fractions(gm, two)
         rng = np.random.default_rng(42)
         S = g["pooled"]
         sel = rng.choice(len(S), size=min(N_TRAJ, len(S)), replace=False)
-        trajs = simulate_full(S[sel], rec)[:, :, 0:5]
+        gs = simulate_full(S[sel], rec)
+        # 2 通路: 帯は生きた菌の組成の予測 φψ/Σφψ（データの点と同じ量）。今までの run は φ のまま
+        trajs = CP.fractions(gs, True)["viable"] if two else gs[:, :, 0:5]
 
         def on_grid(y):
             return np.stack([np.interp(DAY_GRID, days, y[:, j]) for j in range(5)], axis=1)
@@ -237,10 +246,15 @@ def write_fig2_cache(g2, cache_dir):
         data, t_days, _idx = exp_data(*CK_of(rec), rec["args"])
         keep = t_days > 1.0 + 1e-9  # Day 1 は初期値として別に渡す
         d1 = np.asarray(rec["phi_init"], dtype=float)
+        tot_obs, _live = CP.observations(EP, rec, t_days[keep])
         np.savez(
             cache_dir / f"fig2_phi_{tag}.npz",
             phi_map=on_grid(phi),
             phibar_map=on_grid(phibar),
+            two_channel=two,
+            viable_map=on_grid(fr["viable"]),
+            total_map=on_grid(fr["total"]),
+            data_total=np.full((int(keep.sum()), 5), np.nan) if tot_obs is None else tot_obs,
             trajs=np.stack([on_grid(t) for t in trajs]),
             data_norm=data[keep],
             d1n=d1 / d1.sum(),
@@ -256,7 +270,8 @@ def make_fig2(g2, out_dir, cache_dir, style="both", color_by="condition"):
         import fig2_v2
 
         rmse = {t: g["best"]["cfg"].get("rmse") for t, g in g2.items()}
-        fig2_v2.make(cache_dir, str(out_dir / "paper_fig2_v2"), rmse, F2.REP_CSV, color_by=color_by)
+        rep_csv = CP.replicate_csv(EP, next(iter(g2.values()))["best"]["rec"])  # run が読んだデータの反復
+        fig2_v2.make(cache_dir, str(out_dir / "paper_fig2_v2"), rmse, rep_csv, color_by=color_by)
     if style == "v2":
         return
     F2.CACHE_DIR = cache_dir
@@ -456,8 +471,11 @@ def fit_metrics(g):
     return {
         "run": best["dir"].name,
         "seeds": [r["dir"].name for r in g["runs"]],
-        "rmse": float(np.sqrt(np.mean((data - pred) ** 2))),
-        "rmse_estimator": cfg.get("rmse"),
+        "rmse": float(np.sqrt(np.mean((data - pred) ** 2))),  # 生きた菌の組成（尤度と同じ対応）
+        "two_channel": CP.is_two_channel(rec),
+        "rmse_total": _rmse_total(best),
+        "rmse_live": _rmse_live(best),
+        "rmse_estimator": cfg.get("rmse"),  # estimator の値は常に φ/Σφ と比べたもの（2 通路では rmse と違う）
         "mae": float(np.mean(np.abs(data - pred))),
         "mean_accept": rec.get("mean_accept"),
         "max_logL": rec.get("max_logL"),
@@ -468,6 +486,19 @@ def fit_metrics(g):
         "r2": r2_per_species(pred, data),
         "pg_ratio_D21_D15": pg_ratio(pred, best["rec"]),
     }
+
+
+def _rmse_total(best):
+    p, d = predict_fractions(best["theta"], best["rec"], which="total")
+    return None if d is None else float(np.sqrt(np.mean((d - p) ** 2)))
+
+
+def _rmse_live(best):
+    rec = best["rec"]
+    _data, t_days, idx = exp_data(*CK_of(rec), rec["args"])
+    g = simulate_full(best["theta"], rec)[0][idx]
+    _tot, live = CP.observations(EP, rec, t_days)
+    return None if live is None else float(np.sqrt(np.mean((live - CP.fractions(g, False)["live"]) ** 2)))
 
 
 def pg_ratio(pred, rec):

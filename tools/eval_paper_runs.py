@@ -40,6 +40,8 @@ import estimate_paper_jax as EP
 import jax.numpy as jnp
 
 sys.argv = _argv
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import comp_pred as CP  # noqa: E402
 assert Path(EP._H.__file__).name == "hamilton_ode_jax_paper.py", EP._H.__file__
 
 WATCH = {"a33": 5, "a35": 18, "a45": 19}  # a33 は DS で箱の端に積んでいた成分
@@ -47,11 +49,12 @@ EDGE_FRAC = 0.05
 _data_cache = {}
 
 
-def load_data(cond, cult, dt, n_steps, ic_day=1):
-    key = (cond, cult, dt, n_steps, ic_day)
+def load_data(cond, cult, dt, n_steps, ic_day=1, ddir=None):
+    ddir = EP.DATA_DIR if ddir is None else ddir
+    key = (cond, cult, dt, n_steps, ic_day, str(ddir))
     if key not in _data_cache:
         data, t_days, _sig, _phi, _ = EP.load_experimental_data(
-            EP.DATA_DIR, cond, cult, 1, normalize=True, use_exp_init=True
+            ddir, cond, cult, 1, normalize=True, use_exp_init=True
         )
         _, idx = EP.convert_days_to_model_time(t_days, dt, n_steps, day_scale=None)
         idx = np.clip(idx, 0, n_steps)
@@ -70,9 +73,9 @@ def evaluate(d):
         th = json.load(f)
     theta = np.array([th[str(i)] for i in range(20)], dtype=np.float64)
     data, t_days, idx = load_data(
-        a["condition"], a["cultivation"], a["dt"], a["n_steps"], a.get("ic_day", 1)
+        a["condition"], a["cultivation"], a["dt"], a["n_steps"], a.get("ic_day", 1), EP.data_dir_for(a)
     )
-    traj = EP.simulate_0d(
+    traj = (EP.simulate_0d_full if a.get("two_channel") else EP.simulate_0d)(
         jnp.array(theta),
         n_steps=a["n_steps"],
         dt=a["dt"],
@@ -80,9 +83,14 @@ def evaluate(d):
         K_hill=a["K_hill"],
         n_hill=a["n_hill"],
     )
-    pred = np.clip(np.asarray(traj)[idx, :], 1e-10, 1 - 1e-10)
-    pred = pred / pred.sum(axis=1, keepdims=True)  # estimator の RMSE と同じ正規化
+    if a.get("two_channel"):  # 生きた菌の組成は φψ/Σφψ と比べる（尤度と同じ、tools/comp_pred.py）
+        pred = CP.fractions(np.asarray(traj)[idx], True)["viable"]
+    else:
+        pred = np.clip(np.asarray(traj)[idx, :], 1e-10, 1 - 1e-10)
+        pred = pred / pred.sum(axis=1, keepdims=True)  # estimator の RMSE と同じ正規化
     rmse = float(np.sqrt(np.mean((data - pred) ** 2)))
+    _pp = np.clip(np.asarray(traj)[idx, 0:5], 1e-10, 1 - 1e-10)
+    rmse_phi = float(np.sqrt(np.mean((data - _pp / _pp.sum(axis=1, keepdims=True)) ** 2)))  # estimator が config に書く量
     k15, k21 = t_days.index(15), t_days.index(21)
     row = {
         "run": d.name,
@@ -99,7 +107,7 @@ def evaluate(d):
         with open(cfg) as f:
             r0 = json.load(f).get("rmse")
         row["rmse_estimator"] = r0
-        row["rmse_match"] = r0 is not None and abs(r0 - rmse) < 1e-6
+        row["rmse_match"] = r0 is not None and abs(r0 - rmse_phi) < 1e-6  # 2 通路でも estimator の値は φ/Σφ
     else:
         row["rmse_estimator"], row["rmse_match"] = None, None
     s = np.load(d / "samples.npy")
