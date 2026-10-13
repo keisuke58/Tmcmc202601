@@ -107,6 +107,16 @@ if [ -n "$DS_DIRS" ]; then
   [ -z "$A33_OUT" ] && A33_OUT="（a33_mode_weight.py が出力なし）"
 fi
 
+# 2 通路の run は ψ_i と ψ_i^data を並べる（13b §4、2026-10-13）。RUN_GLOB の先頭 2 文字を条件とみなす
+PSI_OUT=""
+case "$RUN_GLOB" in
+  *_2c*)
+    PSI_OUT="$(timeout 1800 "$PYTHON" tools/psi_table_runs.py "$RUNS_ROOT" --pattern "$RUN_GLOB" \
+      --tags "${RUN_GLOB:0:2}" 2>&1 | sed -n '/^run: /,$p' | tail -30)"
+    [ -z "$PSI_OUT" ] && PSI_OUT="（psi_table_runs.py が出力なし）"
+    ;;
+esac
+
 {
   echo "# GPU 側 → クラウド側: run 終了の自動通知（${TODAY} / ${LABEL}）"
   echo
@@ -147,6 +157,12 @@ fi
     echo '```'
     echo "$A33_OUT"
     echo '```'
+    echo
+  fi
+  if [ -n "$PSI_OUT" ]; then
+    echo "## ψ_i とデータの ψ_i^data（tools/psi_table_runs.py、13b §4）"
+    echo
+    echo "$PSI_OUT"
     echo
   fi
   echo "## check_paper_runs.py の出力（そのまま）"
