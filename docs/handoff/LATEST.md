@@ -4,6 +4,7 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
+| 2026-10-13 | [2026-10-13n_p2_hold.md](2026-10-13n_p2_hold.md) | **raw の p2 は箱をクラウドが 13o で渡すまで投入しない（13b の箱だと raw では端に張り付く）。13m の作り直し → p1 続行 → p2 保留。cold p2 も 13o 待ち** | **最新・未着手** |
 | 2026-10-13 | [2026-10-13m_live_sigma.md](2026-10-13m_live_sigma.md) | **生きた割合の σ をバイオフィルム単位（5 枚 = 1 個）に。p2 の前に build_raw_dataset.py を作り直す。pilot・p1 は影響なし。cold p2 も σ_viab を確認** | **最新・未着手** |
 | 2026-10-13 | [2026-10-13l_p2_cold.md](2026-10-13l_p2_cold.md) | **CH の p2 を warm start なし（`P2_COLD=1`、RUNTAG `2c_raw_cold`、seed 42）で 1 本。段階分けの偏りの確認（ユーザー承認）。warm の p2 と compare_run_groups で比べる** | **最新・未着手** |
 | 2026-10-13 | [2026-10-13k_tools_raw.md](2026-10-13k_tools_raw.md) | **13j §5 の道具（fit_metrics_2c・psi_table_runs）はクラウドで対応済み。0a9cef7 を pull したら build_raw_dataset.py をジョブの起動と重ならないときに 1 回** | **最新・未着手** |
