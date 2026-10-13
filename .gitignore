@@ -161,3 +161,7 @@ career_*.md
 docs/slides_nishioka*.pdf
 docs/slides_nishioka*.pptx
 docs/revision/BMB_submission/generated/_cache/
+
+# Heine 提供の生データ（MHH、再配布しない約束。2026-10-13）。ローカルと GPU 側にだけ置く
+data_5species/experiment_data/raw_heine/
+data_5species/raw_dataset/
