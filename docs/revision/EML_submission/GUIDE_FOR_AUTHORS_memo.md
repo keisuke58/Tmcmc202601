@@ -71,9 +71,12 @@
 - オープンアクセスにするなら APC は責任著者側の負担（所属で割引が決まる）。
 
 ## 本論文で投稿前に残っていること（この規程から）
-- [ ] 図を 1 枚ずつ別ファイルにする（PDF、フォント埋め込み）。
-- [ ] MHH・NIFE の住所を確認（10-14 に足した値は確認していない）。
+- [ ] 図を 1 枚ずつ別ファイルにする（PDF、フォント埋め込み）。→ `python3 tools/export_submission_figs.py`（本文の \includegraphics の順に Figure_N.pdf、6 枚以下・フォント埋め込み・画像 300 dpi・GA の大きさを確認）。10-14 の時点では問題なし、ただし Fig. 2〜4 はまだ provisional の図 → raw の図に差し替えてから回し直す。
+- [x] MHH・NIFE の住所を確認（10-14、MHH の公式頁: Carl-Neuberg-Straße 1, 30625 Hannover／NIFE の Impressum: Stadtfelddamm 34, 30625 Hannover）。
 - [ ] 著者と順番を全員と確定。CRediT を全員に確認（今は \TBD）。
 - [ ] declarations tool の .docx を作る。
 - [ ] 投稿システムのデータ声明を本文と同じ内容にする。
 - [ ] 要旨が結果を入れても 250 語以内か、本文が 4000 語未満か、最後にもう一度数える。
+- [ ] Zenodo: MANIFEST.txt の run を raw・2 通路の run（*_2c_raw_seed*）と final_theta_MAP の 2c_raw 版に差し替えてから DOI を確定。
+      `build_archive.sh` は Heine らの実験データ（raw_dataset・raw_heine・digitised_dataset・experiment_data・反復・xlsx など）が
+      入ったら止まる（10-14 に追加、わざと raw の csv を入れて止まることを確認）。

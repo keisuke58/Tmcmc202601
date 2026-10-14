@@ -114,6 +114,14 @@ cp -p "$HERE/MANIFEST.txt" "$STAGE/MANIFEST.txt"
 bad="$(cd "$STAGE" && find . \( -name '__pycache__' -o -name '*.pyc' -o -name '*.pkl' -o -name '.env' -o -name '.env.*' \) -print)"
 [ -z "$bad" ] || die "excluded files in staging area: $bad"
 
+# No experimental data of Heine et al. (2025): available from those authors on request, never redistributed (2026-10-13).
+# Measured replicates (raw_dataset/, raw_heine/), the digitised copies (digitised_dataset/, experiment_data/),
+# per-image/per-biofilm tables and spreadsheets must not enter the archive, whatever MANIFEST.txt says.
+bad="$(cd "$STAGE" && find . -type f \( -path '*/raw_dataset/*' -o -path '*/raw_heine/*' -o -path '*/digitised_dataset/*' \
+        -o -path '*/experiment_data/*' -o -path '*/heine_volume/*' -o -path '*/raw_analysis/*' -o -iname '*replicate*' \
+        -o -iname 'boxplot_*' -o -iname 'biofilm_level*' -o -iname '*.xlsx' -o -iname '*.xls' \) -print)"
+[ -z "$bad" ] || die "experimental data (Heine et al.) in staging area -- remove from MANIFEST.txt: $bad"
+
 # Checksums over every file (paths relative to the archive root)
 ( cd "$STAGE" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum | sed 's#  \./#  #' > SHA256SUMS )
 

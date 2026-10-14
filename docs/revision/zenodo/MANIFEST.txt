@@ -1,3 +1,10 @@
+# ---------------------------------------------------------------------------
+# 2026-10-14: the experimental data are NOT archived (Heine et al. 2025; available from those authors on request).
+# This covers the measured replicates (data_5species/raw_dataset/, experiment_data/raw_heine/) and the digitised
+# copies (data_5species/digitised_dataset/). build_archive.sh aborts if any of them is staged.
+# TODO before the final DOI: replace the run globs below by the measured-data, two-channel runs (*_2c_raw_seed*)
+#      that the paper reports, and the final_theta_MAP files by their 2c_raw versions.
+# ---------------------------------------------------------------------------
 # MANIFEST.txt -- explicit file list of the Zenodo archive (read by build_archive.sh)
 #
 # Syntax
