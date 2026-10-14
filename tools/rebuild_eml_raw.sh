@@ -17,7 +17,7 @@ F="${F:-docs/revision/EML_submission/figures/raw}"
 STAGE="${STAGE:-ult}"
 SKIP="${SKIP:-ph}"
 # run 名の型（{tag} を条件に置き換える）。spec の glob と同じものにする
-PAT="${PAT:-{tag\}_${STAGE}_2c_raw_seed*}"
+PAT="${PAT:-{tag\}_${STAGE}_2c_raw*_seed*}"  # CH は 2c_raw_a33w（14b）も拾う
 P1PAT="${P1PAT:-{tag\}_p1_2c_raw_seed*}"
 mkdir -p "$F/supp"
 skip() { [[ " $SKIP " == *" $1 "* ]]; }
