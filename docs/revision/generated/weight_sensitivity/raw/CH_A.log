@@ -1,0 +1,16 @@
+INFO:estimate_reduced_nishioka:Using species distribution file: fig3_species_distribution_summary.csv
+INFO:estimate_reduced_nishioka:Loading Commensal HOBIC data: 6 timepoints, days=[np.int64(1), np.int64(3), np.int64(6), np.int64(10), np.int64(15), np.int64(21)]
+INFO:estimate_reduced_nishioka:Per-species sigma_obs (error prop): {'So': '0.1254', 'An': '0.0388', 'Vd': '0.0580', 'Fn': '0.0221', 'Pg': '0.0168'}
+INFO:estimate_reduced_nishioka:Data normalized to species fractions (sum=1 per timepoint)
+INFO:estimate_reduced_nishioka:Per-species sigma_obs (fraction): {'So': '0.1624', 'An': '0.0866', 'Vd': '0.1170', 'Fn': '0.0598', 'Pg': '0.0500'}
+INFO:estimate_reduced_nishioka:Excluding Day 1 from likelihood (used as IC): 5 timepoints remaining
+INFO:estimate_reduced_nishioka:Initial condition from Day 1: [0.3862685064108061, 0.012563990271093093, 0.05745343021009217, 0.050720626190561155, 0.0]
+INFO:estimate_reduced_nishioka:Auto-calculated day_scale: 0.011310
+INFO:estimate_reduced_nishioka:Loaded total species distribution: (5, 5)
+INFO:estimate_reduced_nishioka:Loaded viability data: (5,), σ_viab=0.095
+INFO:jax._src.xla_bridge:Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory
+CH: lambda_ch {1: 1.0, 2: 1.0, 3: 1.5, 5: 0.0}, override '1:-5:2.5;11:-5:1;16:-5:1;0:-5:1.5;6:-5:1;7:-1:5;13:-5:1;14:-5:1.5;17:-5:1;18:-5:1', free dims [0, 1, 2, 5, 6, 7, 10, 11, 12, 13, 14, 16, 17, 18, 19]
+CH MAP (now, under 2c logL): -logL 41.171  RMSE viable~phi 0.092  viable~phipsi 0.132  total~phi 0.064  live 0.100  psi~data 0.458
+  restart 0 (nit 150, STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT): -logL 25.861  RMSE viable~phi 0.102  viable~phipsi 0.059  total~phi 0.078  live 0.121  psi~data 0.438
+CH two-channel optimum (2c logL): -logL 25.861  RMSE viable~phi 0.102  viable~phipsi 0.059  total~phi 0.078  live 0.121  psi~data 0.438
+psi (median over days): [0.359, 0.89, 0.898, 0.058, 0.045]  data: [0.345, 0.239, 0.529, 0.366, 0.366]  at_edge: [6, 13, 16, 17, 18]

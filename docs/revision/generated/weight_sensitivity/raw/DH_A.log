@@ -1,0 +1,16 @@
+INFO:estimate_reduced_nishioka:Using species distribution file: fig3_species_distribution_summary.csv
+INFO:estimate_reduced_nishioka:Loading Dysbiotic HOBIC data: 6 timepoints, days=[np.int64(1), np.int64(3), np.int64(6), np.int64(10), np.int64(15), np.int64(21)]
+INFO:estimate_reduced_nishioka:Per-species sigma_obs (error prop): {'So': '0.0322', 'An': '0.1051', 'Vd': '0.1358', 'Fn': '0.0719', 'Pg': '0.0330'}
+INFO:estimate_reduced_nishioka:Data normalized to species fractions (sum=1 per timepoint)
+INFO:estimate_reduced_nishioka:Per-species sigma_obs (fraction): {'So': '0.0545', 'An': '0.1634', 'Vd': '0.0875', 'Fn': '0.1122', 'Pg': '0.0512'}
+INFO:estimate_reduced_nishioka:Excluding Day 1 from likelihood (used as IC): 5 timepoints remaining
+INFO:estimate_reduced_nishioka:Initial condition from Day 1: [0.019033441558660002, 0.000266524628045, 0.43378535322684997, 0.0005957506661750001, 0.008746237017694999]
+INFO:estimate_reduced_nishioka:Auto-calculated day_scale: 0.011310
+INFO:estimate_reduced_nishioka:Loaded total species distribution: (5, 5)
+INFO:estimate_reduced_nishioka:Loaded viability data: (5,), σ_viab=0.075
+INFO:jax._src.xla_bridge:Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory
+DH: lambda_ch {1: 1.0, 2: 1.0, 3: 3.0, 5: 0.0}, override '12:-15:20;5:-15:20;6:-15:20;18:-25:20;13:-15:20;11:-8:3;19:-5:20;2:-10:5;7:-10:5;10:-8:3;0:-10:5;1:-10:3;17:-5:2.5', free dims [0, 1, 2, 5, 6, 7, 10, 11, 12, 13, 14, 16, 17, 18, 19]
+DH MAP (now, under 2c logL): -logL 87.767  RMSE viable~phi 0.112  viable~phipsi 0.181  total~phi 0.147  live 0.110  psi~data 0.465
+  restart 0 (nit 150, STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT): -logL 51.390  RMSE viable~phi 0.100  viable~phipsi 0.088  total~phi 0.152  live 0.077  psi~data 0.455
+DH two-channel optimum (2c logL): -logL 51.390  RMSE viable~phi 0.100  viable~phipsi 0.088  total~phi 0.152  live 0.077  psi~data 0.455
+psi (median over days): [0.065, 0.917, 0.331, 0.886, 0.055]  data: [0.359, 0.261, 0.576, 0.45, 0.482]  at_edge: []

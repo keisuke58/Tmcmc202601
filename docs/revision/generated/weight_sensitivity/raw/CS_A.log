@@ -1,0 +1,16 @@
+INFO:estimate_reduced_nishioka:Using species distribution file: fig3_species_distribution_summary.csv
+INFO:estimate_reduced_nishioka:Loading Commensal Static data: 6 timepoints, days=[np.int64(1), np.int64(3), np.int64(6), np.int64(10), np.int64(15), np.int64(21)]
+INFO:estimate_reduced_nishioka:Per-species sigma_obs (error prop): {'So': '0.0686', 'An': '0.0274', 'Vd': '0.0612', 'Fn': '0.0162', 'Pg': '0.0162'}
+INFO:estimate_reduced_nishioka:Data normalized to species fractions (sum=1 per timepoint)
+INFO:estimate_reduced_nishioka:Per-species sigma_obs (fraction): {'So': '0.1061', 'An': '0.0711', 'Vd': '0.1262', 'Fn': '0.0500', 'Pg': '0.0500'}
+INFO:estimate_reduced_nishioka:Excluding Day 1 from likelihood (used as IC): 5 timepoints remaining
+INFO:estimate_reduced_nishioka:Initial condition from Day 1: [0.052444232412000004, 0.00165204478725, 0.3628435009485, 0.0095190807855, 0.0022684784693999998]
+INFO:estimate_reduced_nishioka:Auto-calculated day_scale: 0.011310
+INFO:estimate_reduced_nishioka:Loaded total species distribution: (5, 5)
+INFO:estimate_reduced_nishioka:Loaded viability data: (5,), σ_viab=0.113
+INFO:jax._src.xla_bridge:Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory
+CS: lambda_ch {1: 1.0, 2: 1.0, 3: 1.5, 5: 0.0}, override '5:-15:20;10:-1:20;0:-10:2;6:-5:1;11:-5:1;12:-5:3;13:-5:1;16:-5:1;17:-5:1;18:-5:1', free dims [0, 1, 2, 5, 6, 7, 10, 11, 12, 13, 14, 16, 17, 18, 19]
+CS MAP (now, under 2c logL): -logL 62.163  RMSE viable~phi 0.195  viable~phipsi 0.140  total~phi 0.146  live 0.086  psi~data 0.255
+  restart 0 (nit 100, CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH): -logL 33.011  RMSE viable~phi 0.111  viable~phipsi 0.091  total~phi 0.039  live 0.232  psi~data 0.360
+CS two-channel optimum (2c logL): -logL 33.011  RMSE viable~phi 0.111  viable~phipsi 0.091  total~phi 0.039  live 0.232  psi~data 0.360
+psi (median over days): [0.97, 0.956, 0.965, 0.056, 0.05]  data: [0.8, 0.595, 0.496, 0.659, 0.665]  at_edge: []
