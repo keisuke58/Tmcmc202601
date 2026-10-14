@@ -26,7 +26,7 @@ by K.~Nishioka, F.~Klempt, H.~Geisler, R.~Mukherjee, N.~Heine, K.~Doll-Nikutta, 
 for the special issue ``Artificial Intelligence and Computational Mechanics for Materials Design'' (VSI: AI \& CM), following the invitation sent to Prof.~Junker.
 
 The interactions between species in a biofilm set how its composition, and with it its mechanical behaviour, develops, but they cannot be measured directly.
-We treat their identification as a model-based inverse characterization problem: a thermodynamically consistent multiphase model, derived from the extended Hamilton principle, fixes the structure, and Bayesian inference calibrates all 15 interaction coefficients against in-vitro time courses of a five-species oral biofilm and shows which of them the data determine.
+We treat their identification as a model-based inverse characterisation problem: a thermodynamically consistent multiphase model, derived from the extended Hamilton principle, fixes the structure, and Bayesian inference calibrates all 15 interaction coefficients against in-vitro time courses of a five-species oral biofilm and shows which of them the data determine.
 The calibration uses the measured replicate data of the experiments (species fractions of viable and of all cells from qPCR with and without propidium monoazide, and the live fraction from LIVE/DEAD staining) and compares each with its own model counterpart, so that the viability of each species is constrained by the data rather than assumed equal for all species.
 The forward model is compiled in JAX and evaluated for all particles in parallel on a GPU, which makes it affordable to repeat every inference stage with independent seeds and to accept a stage only after explicit checks of mixing, seed agreement and posterior mass at the prior bounds.
 \TBD{raw-data results: check every number and claim in this paragraph and the next} The data constrain only part of the interaction matrix---four to nine of the 15 entries, depending on the condition---and we state which; the entries constrained in both commensal conditions agree in sign, while one coefficient (\textit{Veillonella}--\textit{P.~gingivalis}) changes sign between static and flow cultivation of the dysbiotic community.
@@ -34,7 +34,7 @@ Used in silico, the calibrated model predicts that removing \textit{F.~nucleatum
 
 The calibrated composition dynamics are the input that a finite-element model of biofilm growth derived from the same variational principle requires; we are coupling the two, so that differences between communities enter the growth-induced stresses through calibrated rather than assumed parameters.
 
-The work combines a variationally derived continuum model with probabilistic inference for the inverse characterization of a soft biological material, and it reports which conclusions the data support, which is the scope of the special issue.
+The work combines a variationally derived continuum model with probabilistic inference for the inverse characterisation of a soft biological material, and it reports which conclusions the data support, which is the scope of the special issue.
 
 The manuscript has not been published and is not under consideration elsewhere.
 All authors have approved the submission \TBD{confirm}.

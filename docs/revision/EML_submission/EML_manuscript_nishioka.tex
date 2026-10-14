@@ -43,9 +43,9 @@
 \cortext[cor]{Corresponding author}
 
 \address[ikm]{Institute of Continuum Mechanics, Leibniz Universit\"at Hannover, An der Universit\"at 1, 30823 Garbsen, Germany}
-\address[mhh]{Department of Prosthetic Dentistry and Biomedical Materials Science, Hannover Medical School, Hannover, Germany}
-\address[nife]{Lower Saxony Centre for Biomedical Engineering, Implant Research and Development (NIFE), Hannover, Germany}
-\address[keio]{School of Science for Open and Environmental Systems, Graduate School of Science and Technology, Keio University, Yokohama, Japan}
+\address[mhh]{Department of Prosthetic Dentistry and Biomedical Materials Science, Hannover Medical School, Carl-Neuberg-Stra\ss{}e 1, 30625 Hannover, Germany}
+\address[nife]{Lower Saxony Centre for Biomedical Engineering, Implant Research and Development (NIFE), Stadtfelddamm 34, 30625 Hannover, Germany}
+\address[keio]{School of Science for Open and Environmental Systems, Graduate School of Science and Technology, Keio University, 3-14-1 Hiyoshi, Kohoku-ku, Yokohama 223-8522, Japan}
 
 \begin{abstract}
 Biofilms are living materials whose composition, and with it their mechanical response, depends on species interactions that cannot be measured directly.
@@ -59,7 +59,7 @@ The pH predicted from the calibrated composition follows the measured pH in the 
 \end{abstract}
 
 \begin{keyword}
-Inverse characterization \sep Bayesian calibration \sep Uncertainty quantification \sep Extended Hamilton principle \sep Oral biofilm \sep GPU
+Inverse characterisation \sep Bayesian calibration \sep Uncertainty quantification \sep Extended Hamilton principle \sep Oral biofilm \sep GPU
 \end{keyword}
 
 \end{frontmatter}
@@ -76,7 +76,7 @@ Which interactions between the species drive such a shift is difficult to measur
 
 Continuum mechanics offers a route from composition to interaction.
 Based on the extended Hamilton principle~\citep{JunkerBalzani2021ExtendedHamilton}, \citet{Klempt2025ContinuumBiofilm} derived a multiphase model in which species volume fractions and viabilities evolve under a free energy that contains an interaction matrix~$\mathbf{A}$, taken symmetric so that the interactions derive from this potential; thermodynamic consistency follows from the variational structure.
-Calibrating $\mathbf{A}$ against data is an inverse characterization problem: the physics fixes the structure of the model, and the data determine its coefficients.
+Calibrating $\mathbf{A}$ against data is an inverse characterisation problem: the physics fixes the structure of the model, and the data determine its coefficients.
 Data-driven methods for such problems are most reliable when they are guided by physics and by explicit checks of what the data can determine.
 Once calibrated, the model can be used as an in-silico test bed, for example to ask how the community would develop if one species were removed.
 Bayesian updating has been used to calibrate constitutive parameters of biofilm models with surrogates~\citep{Fritsch2025BayesianMicrofilms}, but the interaction matrix poses two specific difficulties.
@@ -266,27 +266,11 @@ At a material point constrained in all directions, growth driven by the living v
 %==============================================================================
 
 The interaction matrix of a variational multiphase biofilm model was calibrated against time courses of a five-species oral community in four conditions, with a GPU-compiled forward model, a staged likelihood and explicit acceptance criteria for every stage.
-Three points carry over to other inverse characterizations of living materials.
+Three points carry over to other inverse characterisations of living materials.
 First, convergence has to be checked, not assumed: posterior mass at the prior bounds was found in every condition and disagreement between seeds in the dysbiotic ones, and both were addressed only by widening bounds and adding particles.
 Second, identifiability is a result: with 20 independent composition values and five viability values for 15 unknowns the data determine only some interactions, and stating which ones limits the biological conclusions that can be drawn from the model.
 Third, a misfit can be informative: in the commensal static condition the composition and the viability data cannot be matched at once, which may point to a process the model lacks, or to a mismatch between the live/dead stain and the model viability, rather than to a failed calibration.
 In the dysbiotic conditions more interactions are identified, and the Fn--Pg coefficient, which the composition data favour as positive in DH within the stage-(i) box, is constrained but not sign-determined by the full data set\TBD{prov.}.
-
-\section*{Declaration of competing interest}
-The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
-
-\section*{Declaration of generative AI and AI-assisted technologies in the writing process}
-During the preparation of this work the authors used Claude (Anthropic) in order to improve the language and readability of the manuscript and to assist with programming the analysis and plotting scripts. After using this tool, the authors reviewed and edited the content as needed and take full responsibility for the content of the publication.
-
-\section*{Data and code availability}
-Code, run configurations, convergence records and posterior samples are archived at Zenodo (\href{https://doi.org/10.5281/zenodo.23320423}{doi:10.5281/zenodo.23320423}). The experimental data are those of \citet{heine2025influence} and are available from those authors; they are not redistributed with the archive.
-
-\section*{Funding}
-{\sloppy This work was funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) under the Collaborative Research Center SFB/TRR-298-SIIRI -- Project ID 426335750.\par}
-{\sloppy Funded by the European Union (ERC, Gen-TSM, project number 101124463). Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.\par}
-
-\section*{Acknowledgements}
-Computational resources of the Multiphysics Materials Computation Research Group (Assoc.\ Prof.\ M.~Muramatsu), Department of Mechanical Engineering, Keio University, are gratefully acknowledged.
 
 \section*{CRediT authorship contribution statement}
 {\sloppy\setlength{\parindent}{0pt}
@@ -302,6 +286,22 @@ Computational resources of the Multiphysics Materials Computation Research Group
 \textbf{Meisam Soleimani:} Conceptualization, Methodology, Supervision, Project administration, Writing -- review \& editing.\par
 \textbf{Philipp Junker:} Conceptualization, Supervision, Funding acquisition, Writing -- review \& editing.\par
 }
+
+\section*{Declaration of competing interest}
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+
+\section*{Funding}
+{\sloppy This work was funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) under the Collaborative Research Center SFB/TRR-298-SIIRI -- Project ID 426335750.\par}
+{\sloppy Funded by the European Union (ERC, Gen-TSM, project number 101124463). Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.\par}
+
+\section*{Data and code availability}
+Code, run configurations, convergence records and posterior samples are archived at Zenodo (\href{https://doi.org/10.5281/zenodo.23320423}{doi:10.5281/zenodo.23320423}). The experimental data are those of \citet{heine2025influence} and are available from those authors; they are not redistributed with the archive.
+
+\section*{Declaration of generative AI and AI-assisted technologies in the manuscript preparation process}
+During the preparation of this work the authors used Claude (Anthropic) in order to improve the language and readability of the manuscript and to assist with programming the analysis and plotting scripts. After using this tool, the authors reviewed and edited the content as needed and take full responsibility for the content of the publication.
+
+\section*{Acknowledgements}
+Computational resources of the Multiphysics Materials Computation Research Group (Assoc.\ Prof.\ M.~Muramatsu), Department of Mechanical Engineering, Keio University, are gratefully acknowledged.
 
 \bibliographystyle{elsarticle-num-names}
 \bibliography{references_ikm}
