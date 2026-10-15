@@ -118,6 +118,7 @@
 
 | 日付 | ファイル | 要点 |
 |---|---|---|
+| 2026-10-15 | [gpu_2026-10-15_2c_raw_p2_DH.md](gpu_2026-10-15_2c_raw_p2_DH.md) | **自動通知**: run 終了。全群 PASS |
 | 2026-10-15 | [gpu_2026-10-15_2c_raw_a33w_p2_CH.md](gpu_2026-10-15_2c_raw_a33w_p2_CH.md) | **自動通知**: run 終了。全群 PASS |
 | 2026-10-15 | [gpu_2026-10-15_cs_a33_flat.md](gpu_2026-10-15_cs_a33_flat.md) | **CS の a33 は −15 でも下端（尤度が平ら）→ 広げず片側の上限で書く提案。CS の gate 3527 が polish 中に walltime 4h で kill、CS の gate を 8h で投げ直し（3546）、CH a33w の gate 3544 も 8h に延長** |
 | 2026-10-15 | [gpu_2026-10-15_2c_raw_p2_CH_cold.md](gpu_2026-10-15_2c_raw_p2_CH_cold.md) | **自動通知**: run 終了。FAIL を含む群は回し直すまで解釈しない |
