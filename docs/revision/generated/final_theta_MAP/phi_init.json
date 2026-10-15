@@ -18,21 +18,41 @@
     ]
   },
   "CH": {
-    "run": "CH_ult_mut150_wide2_noph_sd4_seed7",
+    "run": "CH_ult_2c_raw_a33w_seed123",
+    "data_source": "raw",
+    "two_channel": true,
     "phi_init": [
-      0.7331932773109243,
-      0.05987394957983193,
-      0.10451680672268907,
-      0.09716386554621848,
-      0.005252100840336134
+      0.761860974108381,
+      0.024780725603456608,
+      0.11331891049687755,
+      0.1000393897912847,
+      0.001
     ],
-    "note": "phi_init: as recorded by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99]). phi_init_state: the state the forward model starts from (hamilton_ode_jax_paper.make_initial_state: scaled to a sum of 0.999999); pass this one to write_eco_cfg.py --phi-init.",
     "phi_init_state": [
-      0.7331932773109243,
-      0.05987394957983193,
-      0.10451680672268907,
-      0.09716386554621848,
-      0.005252100840336134
-    ]
+      0.761860974108381,
+      0.024780725603456608,
+      0.11331891049687755,
+      0.1000393897912847,
+      0.001
+    ],
+    "psi_init": null,
+    "note": "phi_init: as recorded by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99]). phi_init_state: the state the forward model starts from (hamilton_ode_jax_paper.make_initial_state: scaled to a sum of 0.999999); pass this one to write_eco_cfg.py --phi-init. psi_init null = the estimator default (0.999 for every species). Measured-data, two-channel run (2026-10-15).",
+    "superseded": {
+      "run": "CH_ult_mut150_wide2_noph_sd4_seed7",
+      "phi_init": [
+        0.7331932773109243,
+        0.05987394957983193,
+        0.10451680672268907,
+        0.09716386554621848,
+        0.005252100840336134
+      ],
+      "phi_init_state": [
+        0.7331932773109243,
+        0.05987394957983193,
+        0.10451680672268907,
+        0.09716386554621848,
+        0.005252100840336134
+      ]
+    }
   }
 }
