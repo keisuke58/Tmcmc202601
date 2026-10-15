@@ -124,7 +124,7 @@ def _mc_kwargs(rec, t_days):
     return kw
 
 
-def polish(d, top_k, maxiter):
+def polish(d, top_k, maxiter, ftol=1e-7):
     with open(d / "run_record.json") as f:
         rec = json.load(f)
     S, L = np.load(d / "samples.npy"), np.load(d / "logL.npy")
@@ -161,7 +161,7 @@ def polish(d, top_k, maxiter):
 
     bounds = [tuple(pb[i]) for i in free] * K
     x0 = base[:, free].ravel()
-    r = minimize(f, x0, jac=True, method="L-BFGS-B", bounds=bounds, options={"maxiter": maxiter})
+    r = minimize(f, x0, jac=True, method="L-BFGS-B", bounds=bounds, options={"maxiter": maxiter, "ftol": ftol})
     th = base.copy()
     th[:, free] = r.x.reshape(K, nf)
     vals = np.asarray(ll_vmap(jnp.array(th)))
@@ -186,6 +186,8 @@ def main():
     ap.add_argument("--glob", default="*ident*")
     ap.add_argument("--top-k", type=int, default=20, help="磨く上位粒子の数")
     ap.add_argument("--maxiter", type=int, default=3000, help="L-BFGS-B の反復の上限")
+    ap.add_argument("--ftol", type=float, default=1e-7,
+                    help="L-BFGS-B の相対的な減り方の止め（既定 1e-7: −logL ~60 で ~1e-5 の変化。判定 3 の幅 1 には十分。scipy の既定 2.2e-9 は厳しすぎて止まらない、16b）")
     ap.add_argument("--json", default=None, help="結果（磨いた θ を含む）の書き出し先")
     ap.add_argument("--write-run", action="store_true",
                     help="各 run のディレクトリに polish.json を書く（check_paper_runs.py の判定 3 が磨いた値で判定する）")
@@ -196,11 +198,11 @@ def main():
         print(f"対象の run が無い: {args.root}/{args.glob}")
         return 1
     print(f"JAX devices: {jax.devices()}")
-    rows = [polish(d, args.top_k, args.maxiter) for d in dirs]
+    rows = [polish(d, args.top_k, args.maxiter, args.ftol) for d in dirs]
     if args.write_run:
         for d, r in zip(dirs, rows):
             with open(d / "polish.json", "w") as f:
-                json.dump({**r, "top_k": args.top_k, "maxiter": args.maxiter}, f, indent=1)
+                json.dump({**r, "top_k": args.top_k, "maxiter": args.maxiter, "ftol": args.ftol}, f, indent=1)
 
     print(f"{'run':<40}{'粒子の最良':>11}{'磨いた値':>11}{'差':>8}{'反復':>6}{'収束':>5}")
     for r in rows:

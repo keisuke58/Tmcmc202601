@@ -37,7 +37,7 @@
 #   TWO_CHANNEL=1 2 通路の尤度（ult にも渡す。p2 も 2 通路で回したときだけ付ける）
 #   DATA_SOURCE   raw / digitised（ult にも渡す）。未設定なら p2 の run_record.json の data_source を引き継ぐ
 #   POLISH        既定 1: 判定の前に各 seed を磨いて polish.json を書く（判定 3 は磨いた値）。gate を gpus=1 で投げること
-#   POLISH_TOP_K / POLISH_MAXITER  既定 10 / 3000（16a: 300 では 21 本中 20 本が未収束だった）
+#   POLISH_TOP_K / POLISH_MAXITER  既定 3 / 3000（16a: 300 では 21 本中 20 本が未収束だった）
 #   DRY_RUN=1     qsub せず、投げる内容を出すだけ
 # ============================================================
 set -uo pipefail
@@ -106,7 +106,7 @@ if [ "${POLISH:-1}" = "1" ]; then
   fi
   env -u JAX_PLATFORMS CUDA_VISIBLE_DEVICES="${POLISH_GPU:-0}" XLA_PYTHON_CLIENT_PREALLOCATE=false \
     POLISH_DEVICE="${POLISH_DEVICE:-gpu}" "$PYTHON" -u tools/polish_max_logL.py "$RUNS_ROOT" --glob "$GLOB" \
-      --top-k "${POLISH_TOP_K:-10}" --maxiter "${POLISH_MAXITER:-3000}" --write-run \
+      --top-k "${POLISH_TOP_K:-3}" --maxiter "${POLISH_MAXITER:-3000}" --write-run \
     || echo "    polish に失敗（粒子の最良値で判定する）"
 fi
 CHECK_OUT="$("$PYTHON" tools/check_paper_runs.py "$RUNS_ROOT" --glob "$GLOB" --modes "$MODES" 2>&1)"
