@@ -118,6 +118,8 @@
 
 | 日付 | ファイル | 要点 |
 |---|---|---|
+| 2026-10-15 | [gpu_2026-10-15_cs_gate_polish_gpu.md](gpu_2026-10-15_cs_gate_polish_gpu.md) | **CS の gate 3546 も 8h で kill。gate の polish は `JAX_PLATFORMS=cpu` で CPU で走っていた。polish を seed ごとに GPU（3553-3555）→ CS の gate 3557（POLISH=0）。DH 3525・DS 3529 の gate も同じ恐れ** |
+| 2026-10-15 | [gpu_2026-10-15_gate_CH_ult.md](gpu_2026-10-15_gate_CH_ult.md) | **CH a33w の p2 が全群 PASS → ult 3547-3549 を投入（gate の git push が vancouver03 で失敗したので手で push）** |
 | 2026-10-15 | [gpu_2026-10-15_2c_raw_p2_DH.md](gpu_2026-10-15_2c_raw_p2_DH.md) | **自動通知**: run 終了。全群 PASS |
 | 2026-10-15 | [gpu_2026-10-15_2c_raw_a33w_p2_CH.md](gpu_2026-10-15_2c_raw_a33w_p2_CH.md) | **自動通知**: run 終了。全群 PASS |
 | 2026-10-15 | [gpu_2026-10-15_cs_a33_flat.md](gpu_2026-10-15_cs_a33_flat.md) | **CS の a33 は −15 でも下端（尤度が平ら）→ 広げず片側の上限で書く提案。CS の gate 3527 が polish 中に walltime 4h で kill、CS の gate を 8h で投げ直し（3546）、CH a33w の gate 3544 も 8h に延長** |
