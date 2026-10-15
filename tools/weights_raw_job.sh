@@ -43,8 +43,12 @@ if [ "$VAR" = "TABLE" ]; then
   TEX=docs/revision/EML_submission/figures/raw/supp/supp_S_lambda2c.tex
   "$PYTHON" tools/weight_sens_table.py "$O" --out "$TEX" 2>&1 | tee "$O/table.out"
   git add "$O"/*.json "$O"/*.log "$TEX" 2>/dev/null
+  case "$O" in
+    *raw_p2init*) MSG="14c: 重みの感度（raw・2 通路、生データの p2 の MAP から）の A・B・C と表 supp_S_lambda2c.tex" ;;
+    *)            MSG="14a: 重みの感度（raw・2 通路）の B・C 8 本と表 supp_S_lambda2c.tex" ;;
+  esac
   git -c user.name="Keisuke Nishioka" -c user.email="kei128608@gmail.com" \
-    commit -q -m "14a: 重みの感度（raw・2 通路）の B・C 8 本と表 supp_S_lambda2c.tex" || exit 0
+    commit -q -m "$MSG" || exit 0
   git_push_current
   exit 0
 fi
