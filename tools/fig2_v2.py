@@ -9,6 +9,7 @@ tools/make_paper_figures.py の write_fig2_cache が書くキャッシュ（fig2
   color_by="species" で旧版の種の色に戻せる。
 """
 import numpy as np
+from pathlib import Path
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -39,7 +40,10 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
     rep = pd.read_csv(rep_csv)
     W, H = st.DOUBLE_MM, height_mm
     fig, axes = plt.subplots(5, 4, figsize=(W * st.MM, H * st.MM), sharex=True, sharey=True)
-    _z0 = np.load(f"{cache_dir}/fig2_phi_{CONDS[0]}.npz")
+    avail = [c for c in CONDS if Path(f"{cache_dir}/fig2_phi_{c}.npz").exists()]  # 未確定の条件は空の列（2026-10-15）
+    if not avail:
+        raise FileNotFoundError(f"{cache_dir}/fig2_phi_*.npz が無い")
+    _z0 = np.load(f"{cache_dir}/fig2_phi_{avail[0]}.npz")
     _two0 = bool(_z0["two_channel"]) if "two_channel" in _z0.files else False  # 2 通路なら凡例が 2 行
     fig.subplots_adjust(left=0.085, right=0.995, top=0.875 if _two0 else 0.893, bottom=0.05, hspace=0.12, wspace=0.07)
     # commensal（CS, CH）と dysbiotic（DS, DH）の間を広げる: Veillonella 種と Pg 株が組で違うため
@@ -53,6 +57,12 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
                 q = axes[i, c].get_position()
                 axes[i, c].set_position([x0, q.y0, w, q.height])
     for c, tag in enumerate(CONDS):
+        if tag not in avail:
+            for i in range(5):
+                axes[i, c].text(0.5, 0.5, "pending" if i == 2 else "", transform=axes[i, c].transAxes,
+                                ha="center", va="center", fontsize=7, color=st.MUTE)
+            axes[0, c].set_title(rf"\textbf{{{tag}}}", fontsize=8, color=st.COND_COL[tag])
+            continue
         z = np.load(f"{cache_dir}/fig2_phi_{tag}.npz")
         trajs = z["trajs"]
         q10, q25, q75, q90 = np.percentile(trajs, [10, 25, 75, 90], axis=0)
