@@ -27,3 +27,15 @@
 ## 4. CH の ult 投入報告が push されていなかった
 - gate 3544 は vancouver03 で走り、`git: command not found`（gate_submit_ult.sh:197）で報告をコミットできなかった。
   報告 `gpu_2026-10-15_gate_CH_ult.md` をこのコミットで手で push した（ult 3547-3549 は正常に実行中）
+
+## 5. gate_submit_ult.sh を修正（29e21f3、ユーザー判断）
+- polish のときだけ `JAX_PLATFORMS` を外し、PBS_GPUFILE の GPU を `CUDA_VISIBLE_DEVICES` に渡す
+- `tools/git_sync.sh`: git の無いノード（vancouver03 のみ）では `ssh copaam` 経由で git を実行
+- 待機中の gate は起動時に最新を取り直すので、DS の gate 3529 には効く見込み（実地の GPU polish は未確認）
+
+## 6. DH の gate 3525 も seed ごとの polish に切り替え（ユーザー判断）
+- 3525 は古い版で CPU polish 中（2h28m、polish.json なし・ult 未投入）だったので qdel
+- polish（GPU、TOP_K=10、16h）: **3558**（seed 42、vancouver01）、**3559**（seed 7、stuttgart03）、**3560**（seed 123、stuttgart03）
+- DH の gate **3561**（stuttgart01、2h、POLISH=0、afterany:3558:3559:3560）。中身は 3525 と同じ
+  （OVERRIDE は p2 の run_record.json と一致、N_PART=20000、ult は vancouver01;vancouver01;vancouver02・30h）
+- 3553-3555・3558-3559 の生ログで `JAX devices: [CudaDevice(id=0)]` を確認（GPU で走っている）
