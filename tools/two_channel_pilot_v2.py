@@ -48,6 +48,8 @@ ap.add_argument("--viab-sigma-per-day", type=float, default=None, metavar="FLOOR
                 help="生きた割合の σ を日ごと（バイオフィルム間の SD、下限 FLOOR）にする（2026-10-13 の確認用）")
 ap.add_argument("--alpha", type=float, default=0.0, help="死ぬ項 α*·b_i·ψ_i の α*（0 = 今まで）。> 0 なら b_i（θ[3,4,8,9,15]）も最適化（2026-10-13）")
 ap.add_argument("--b-hi", type=float, default=10.0, help="b_i の上限（下限 0）")
+ap.add_argument("--init-glob", default=None,
+                help="初期値を run の群（glob、ROOT からの相対か絶対）で max logL の seed の theta_MAP.json にする（2026-10-15、14c）。既定は final_theta_MAP/<tag>.json")
 ap.add_argument("--rescore", default=None, help="保存した JSON の theta_opt で内訳だけ出し直す（最適化しない）。--out に書く")
 args = ap.parse_args()
 sys.argv = [sys.argv[0], "--device", "cpu"]
@@ -65,7 +67,15 @@ E.DATA_DIR = E.DATA_DIRS[args.data_source]
 COND = {"CS": ("Commensal", "Static"), "CH": ("Commensal", "HOBIC"),
         "DS": ("Dysbiotic", "Static"), "DH": ("Dysbiotic", "HOBIC")}[args.tag]
 MAPJ = ROOT / f"docs/revision/generated/final_theta_MAP/{args.tag}.json"
-if MAPJ.exists():
+if args.init_glob:
+    _g = args.init_glob if Path(args.init_glob).is_absolute() else str(ROOT / args.init_glob)
+    runs = sorted(glob.glob(_g))
+    if not runs:
+        raise SystemExit(f"--init-glob に合う run が無い: {_g}")
+    best = max(runs, key=lambda r: json.load(open(Path(r) / "run_record.json"))["max_logL"])
+    print("初期値:", best, flush=True)
+    d = json.load(open(Path(best) / "theta_MAP.json"))
+elif MAPJ.exists():
     d = json.load(open(MAPJ))
 else:  # DS・DH は段 (iii) の群で max logL の seed
     G = {"DS": "DS_p2_wide80_p18k_wide2_seed*", "DH": "DH_p2_nonarrow_w3_noph_p14k_seed*"}[args.tag]

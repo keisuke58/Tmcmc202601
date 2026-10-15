@@ -19,7 +19,9 @@ set -uo pipefail
 REPO="$HOME/Tmcmc202601"
 VAR="${VAR:?VAR を渡す（B|C|TABLE）}"
 PYTHON="${PYTHON:-/home/nishioka/miniforge3/envs/klempt_fem2/bin/python3}"
-O=docs/revision/generated/weight_sensitivity/raw
+O="${OUTDIR:-docs/revision/generated/weight_sensitivity/raw}"
+# 14c: INIT_GLOB を渡すとその run 群の MAP から始める（例 data_5species/main/_runs/paper_gateoff/CH_p2_2c_raw_a33w_seed*）
+INIT_GLOB="${INIT_GLOB:-}"
 
 cd "$REPO" || exit 1
 unset LD_LIBRARY_PATH
@@ -28,7 +30,7 @@ export XLA_FLAGS="--xla_cpu_multi_thread_eigen=false intra_op_parallelism_thread
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 
 declare -A OV=(
- [CH]="1:-5:2.5;11:-5:1;16:-5:1;0:-5:1.5;6:-5:1;7:-1:5;13:-5:1;14:-5:1.5;17:-5:1;18:-5:1"
+ [CH]="5:-15:20;1:-5:2.5;11:-5:1;16:-5:1;0:-5:1.5;6:-5:1;7:-1:5;13:-5:1;14:-5:1.5;17:-5:1;18:-5:1"
  [CS]="5:-15:20;10:-1:20;0:-10:2;6:-5:1;11:-5:1;12:-5:3;13:-5:1;16:-5:1;17:-5:1;18:-5:1"
  [DS]="5:-15:20;6:-15:20;19:-15:20;14:-5:4;12:-5:3;16:-5:2.5;7:-5:2.5;10:-5:1.5"
  [DH]="12:-15:20;5:-15:20;6:-15:20;18:-25:20;13:-15:20;11:-8:3;19:-5:20;2:-10:5;7:-10:5;10:-8:3;0:-10:5;1:-10:3;17:-5:2.5"
@@ -40,7 +42,7 @@ if [ "$VAR" = "TABLE" ]; then
   git_sync_latest
   TEX=docs/revision/EML_submission/figures/raw/supp/supp_S_lambda2c.tex
   "$PYTHON" tools/weight_sens_table.py "$O" --out "$TEX" 2>&1 | tee "$O/table.out"
-  git add "$O"/*_B.json "$O"/*_B.log "$O"/*_C.json "$O"/*_C.log "$TEX" 2>/dev/null
+  git add "$O"/*.json "$O"/*.log "$TEX" 2>/dev/null
   git -c user.name="Keisuke Nishioka" -c user.email="kei128608@gmail.com" \
     commit -q -m "14a: 重みの感度（raw・2 通路）の B・C 8 本と表 supp_S_lambda2c.tex" || exit 0
   git_push_current
@@ -49,14 +51,15 @@ fi
 
 TAG="${TAG:?TAG を渡す（CS|CH|DS|DH）}"
 case "$VAR" in
+  A) EXTRA=() ;;
   B) EXTRA=(--lambda-pg 1 --lambda-late 1 --lambda-rare 1) ;;
   C) EXTRA=(--lambda-ch3 2.0) ;;
-  *) echo "VAR は B|C|TABLE"; exit 2 ;;
+  *) echo "VAR は A|B|C|TABLE"; exit 2 ;;
 esac
 OUT="$O/${TAG}_${VAR}.json"
 [ -s "$OUT" ] && { echo "既にある: $OUT"; exit 0; }
 
 echo "weights_raw: TAG=$TAG VAR=$VAR host=$(hostname) HEAD=$(git rev-parse --short HEAD) start=$(date)"
 "$PYTHON" -u tools/two_channel_pilot_v2.py --tag "$TAG" --data-source raw --override "${OV[$TAG]}" \
-  --restarts 1 --maxiter 150 "${EXTRA[@]}" --out "$OUT" > "$O/${TAG}_${VAR}.log" 2>&1
+  --restarts 1 --maxiter 150 ${INIT_GLOB:+--init-glob "$INIT_GLOB"} "${EXTRA[@]}" --out "$OUT" > "$O/${TAG}_${VAR}.log" 2>&1
 echo "終了コード $? end=$(date)"

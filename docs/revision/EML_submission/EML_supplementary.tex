@@ -360,9 +360,12 @@ $a_{33}<-5$   & 1239 & $+0.8$ [$-0.3$, $+1.6$] & $-1.49$\\
 \label{sec:S_lambda}
 The weights of the likelihood (main text, Section~3) encode two choices: the composition terms up-weight Pg ($\lambda_{\mathrm{Pg}}=5$), whose late increase is the main dynamic feature of the dysbiotic data, and the last two time points ($\lambda_{\mathrm{late}}=3$), and down-weight species with a mean fraction below 5\% ($\lambda_{\mathrm{rare}}=0.1$); the live-fraction term is weighted by $\lambda_\psi$ (Table~\ref{tab:weights}).
 To see how much the fit depends on these choices, the two-channel log-likelihood was maximised for each condition with three sets of weights: the current ones (A), no weights ($\lambda_{\mathrm{Pg}}=\lambda_{\mathrm{late}}=\lambda_{\mathrm{rare}}=1$, B) and $\lambda_\psi=2$ in all conditions (C).
-Each maximisation starts from the stage-(iii) MAP and uses the stage-(iii) box (L-BFGS-B, measured data); it is a deterministic check of where the optimum moves, not a repeated sampling.
+Each maximisation starts from the same point, the MAP of an earlier calibration of the condition, and uses the stage-(iii) box (L-BFGS-B, at most 150 iterations, measured data); it is a deterministic check of where a local optimum moves, not a repeated sampling.\TBD{rerun from the stage-(iii) MAP of the measured-data runs, then update the table and the next paragraph}
 Table~\ref{tab:S_lambda} lists the fit of the three channels, $a_{45}$ and the Pg ratio of day~21 to day~15 at the optimum.
-\TBD{Result in one or two sentences once all 12 runs are done: e.g.\ whether the sign of $a_{45}$ in DS and DH and the ranking of the channel errors change between A, B and C, and what the weights buy (Pg late increase, live fraction).}
+The weights change the error of each channel by at most 0.04 within a condition.
+In CS the live-fraction error stays at 0.23 under all three sets, so the conflict between composition and live fraction (Section~\ref{sec:S_tradeoff}) is not caused by the weights.
+In DH $a_{45}$ stays positive ($+4.1$ to $+5.6$); in CH and DS its sign changes with the weights ($+1.65$ to $-0.17$ and $-0.09$ to $-1.75$), consistent with the main-text finding that the data constrain $a_{45}$ but do not determine its sign in these conditions.
+The Pg ratio of day~21 to day~15 at these optima (about 1.9 in DH) is far below the measured 14.9 and the posterior of the sampled runs, so these optima lie away from the posterior mode; the comparison shows the direction in which the weights pull, not calibrated values.\TBD{check after the rerun}
 
 \begin{table}[h]
 \centering
