@@ -12,6 +12,7 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
+| 2026-10-15 | [2026-10-15d_final_runs_CH.md](2026-10-15d_final_runs_CH.md) | **確定した CH の生データの run（pilot・p1・p2 a33w・ult a33w・cold）を final_runs に 5 ファイルずつコピーして push。クラウドで CH の図を先に作る** | **有効**: すぐ |
 | 2026-10-15 | [2026-10-14c_weights_rerun_p2init.md](2026-10-14c_weights_rerun_p2init.md) | **重みの感度 12 本を生データの p2 の MAP から回し直す（`--init-glob`、出力 `weight_sensitivity/raw_p2init/`、CPU ジョブ）。14a は古い MAP から始めていた（DH の Pg 比 1.9）。DS は p2 のあと** | **有効**: 本線の空きで |
 | 2026-10-14 | [2026-10-14b_ch_a33_widen.md](2026-10-14b_ch_a33_widen.md) | **CH の a33（θ[5]）の下限を広げて p2 から回し直す（ユーザー決定）。gate 3523・CH の ult を止める、cold p2 3522 は続ける。OVERRIDE に `5:-15:20`、RUNTAG `2c_raw_a33w`** | **有効**: すぐ |
 | 2026-10-14 | [2026-10-14a_weights_raw.md](2026-10-14a_weights_raw.md) | **重みの感度（raw・2 通路、決定論的な最適化）の残り 8 本（B 重みなし・C λψ=2、4 条件）を GPU で。A はクラウドで済み。本線と重ならない空きの GPU 1 枚で、終わったら表と json を push** | 済（12 本、CPU ジョブ。初期値が古い MAP だったので 14c で回し直し） |
