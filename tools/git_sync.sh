@@ -11,6 +11,14 @@
 # 失敗しても呼び出し側は続行してよい（戻り値 1）。ただし失敗は必ず標準出力に出す。
 # ============================================================
 
+# git が入っていないノード（vancouver03、2026-10-15 確認）では copaam 経由で実行する。
+# repo は NFS 共有なので同じ作業ツリーを操作できる（gate 3544 が `git: command not found` で報告を push できなかった）
+if ! command -v git >/dev/null 2>&1; then
+  git() {
+    ssh -o BatchMode=yes copaam "cd $(printf '%q' "$PWD") && git $(printf '%q ' "$@")"
+  }
+fi
+
 # 現在の枝名を返す。detached HEAD なら空を返す（その場合は同期しない）。
 git_current_branch() {
   local b

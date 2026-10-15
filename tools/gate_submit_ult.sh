@@ -95,8 +95,17 @@ echo "    前段の run: $FOUND / $WANT"
 # 2. 判定。その前に各 seed の上位粒子を磨いて polish.json を書く（判定 3 を磨いた値で見る、2026-10-13）。
 #    磨くのは GPU が要る（ODE を通す勾配）ので、gate は gpus=1 で投げる。POLISH=0 で飛ばせる。
 #    失敗しても判定は続ける（そのときは粒子の最良値で判定され、その旨が表示される）
+#    上の JAX_PLATFORMS=cpu は判定用。polish では外し、割り当てられた GPU を見せる
+#    （2026-10-15: 外していなかったので polish が CPU で走り、CS の gate 3527・3546 が walltime 切れ）
 if [ "${POLISH:-1}" = "1" ]; then
-  POLISH_DEVICE="${POLISH_DEVICE:-gpu}" "$PYTHON" tools/polish_max_logL.py "$RUNS_ROOT" --glob "$GLOB" \
+  if [ -n "${PBS_GPUFILE:-}" ] && [ -f "${PBS_GPUFILE}" ]; then
+    POLISH_GPU="$(grep -oE 'gpu[0-9]+' "$PBS_GPUFILE" | head -1 | grep -oE '[0-9]+')"
+  else
+    POLISH_GPU=""
+    echo "    警告: GPU が割り当てられていない（gpus=1 で投げていない）。polish は CPU で走り、終わらない恐れ"
+  fi
+  env -u JAX_PLATFORMS CUDA_VISIBLE_DEVICES="${POLISH_GPU:-0}" XLA_PYTHON_CLIENT_PREALLOCATE=false \
+    POLISH_DEVICE="${POLISH_DEVICE:-gpu}" "$PYTHON" -u tools/polish_max_logL.py "$RUNS_ROOT" --glob "$GLOB" \
       --top-k "${POLISH_TOP_K:-10}" --maxiter "${POLISH_MAXITER:-300}" --write-run \
     || echo "    polish に失敗（粒子の最良値で判定する）"
 fi
