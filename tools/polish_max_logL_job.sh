@@ -20,7 +20,7 @@ REPO="$HOME/Tmcmc202601"
 RUN_GLOB="${RUN_GLOB:?RUN_GLOB を渡す（例 'DH_ident*mut80*'）}"
 LABEL="${LABEL:-polish}"
 TOP_K="${TOP_K:-20}"
-MAXITER="${MAXITER:-300}"
+MAXITER="${MAXITER:-3000}"  # 16a: 300 では未収束が多い
 # WRITE_RUN=1: 各 run に polish.json を書く（check_paper_runs.py が判定 3 で読む、2026-10-13e）
 EXTRA=()
 [ "${WRITE_RUN:-0}" = "1" ] && EXTRA+=(--write-run)

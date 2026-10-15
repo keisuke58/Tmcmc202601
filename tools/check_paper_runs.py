@@ -289,7 +289,9 @@ def main(root, pattern="*", modes=None):
         # 判定 3: 全 seed の polish.json がそろって収束していれば磨いた値で（2026-10-13）
         use_pol = len(polished) >= 2 and all(p is not None and p.get("converged") for p in polished)
         maxll3 = [p["polished_max"] for p in polished] if use_pol else maxll
-        label3 = "3 maxlogL 幅<=1（磨いた値）" if use_pol else "3 maxlogL 幅<=1（粒子の最良値、polish.json なし）"
+        _npol = sum(p is not None for p in polished)
+        _why = "polish.json なし" if _npol == 0 else f"polish が未収束（{sum(1 for p in polished if p is not None and not p.get('converged'))}/{len(polished)} seed）"
+        label3 = "3 maxlogL 幅<=1（磨いた値）" if use_pol else f"3 maxlogL 幅<=1（粒子の最良値、{_why}）"
         checks = {
             "0 logL と粒子の対応": all(r.get("logL_consistent") is True for r in recs),
             "1 beta=1": all(

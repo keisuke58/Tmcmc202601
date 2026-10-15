@@ -12,6 +12,7 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
+| 2026-10-16 | [2026-10-16a_polish_converge.md](2026-10-16a_polish_converge.md) | **判定 3 は収束するまで磨いた値で（polish の maxiter 300 → 3000、このコミット）。DS の gate 3529 を hold、DS p1 を 3000 で磨き直して判定し直す。p2 は止めない** | **有効**: すぐ |
 | 2026-10-15 | [2026-10-15e_cs_ult_a33_allow.md](2026-10-15e_cs_ult_a33_allow.md) | **CS の ult を今の箱のまま投入（ユーザー決定）。a33 は尤度が平らで片側の上限として書く。gate に `EDGE_ALLOW=a33`（このコミットで追加）。全 PASS なら final_runs へ** | **有効**: すぐ |
 | 2026-10-15 | [2026-10-15d_final_runs_CH.md](2026-10-15d_final_runs_CH.md) | **確定した CH の生データの run（pilot・p1・p2 a33w・ult a33w・cold）を final_runs に 5 ファイルずつコピーして push。クラウドで CH の図を先に作る** | **有効**: すぐ |
 | 2026-10-15 | [2026-10-14c_weights_rerun_p2init.md](2026-10-14c_weights_rerun_p2init.md) | **重みの感度 12 本を生データの p2 の MAP から回し直す（`--init-glob`、出力 `weight_sensitivity/raw_p2init/`、CPU ジョブ）。14a は古い MAP から始めていた（DH の Pg 比 1.9）。DS は p2 のあと** | **有効**: 本線の空きで |

@@ -185,7 +185,7 @@ def main():
     ap.add_argument("root", nargs="?", default=str(MAIN / "_runs" / "paper_gateoff"))
     ap.add_argument("--glob", default="*ident*")
     ap.add_argument("--top-k", type=int, default=20, help="磨く上位粒子の数")
-    ap.add_argument("--maxiter", type=int, default=300, help="L-BFGS-B の反復の上限")
+    ap.add_argument("--maxiter", type=int, default=3000, help="L-BFGS-B の反復の上限")
     ap.add_argument("--json", default=None, help="結果（磨いた θ を含む）の書き出し先")
     ap.add_argument("--write-run", action="store_true",
                     help="各 run のディレクトリに polish.json を書く（check_paper_runs.py の判定 3 が磨いた値で判定する）")
