@@ -116,7 +116,16 @@ echo "    判定: ${VERDICT:-（結論行なし）}"
 
 # 片側の端の印（←）は判定 0〜4 に入っていない。p2 で新しく端に積む成分があれば、ult へは進まず
 # p2 の箱を広げて回し直す（08k / 08m の規則、2026-10-09c で gate にも追加）
-EDGE_N="$(echo "$CHECK_OUT" | grep -c '←')"
+# EDGE_ALLOW（例 "a33"、カンマ区切り）: 尤度が平らで箱を広げても意味がないと決めた成分（ユーザー決定）の印は数えない（2026-10-15、14e）
+EDGE_ALLOW="${EDGE_ALLOW:-}"
+EDGE_LINES="$(echo "$CHECK_OUT" | grep '←' || true)"
+if [ -n "$EDGE_ALLOW" ]; then
+  for _p in ${EDGE_ALLOW//,/ }; do
+    EDGE_LINES="$(echo "$EDGE_LINES" | grep -v -E "^[[:space:]]*${_p}[[:space:]]" || true)"
+  done
+  echo "    EDGE_ALLOW=$EDGE_ALLOW の印は数えない"
+fi
+EDGE_N="$(echo "$EDGE_LINES" | grep -c '←' || true)"
 echo "    片側の端の印（←）: $EDGE_N"
 
 OK=0
