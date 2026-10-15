@@ -2,7 +2,7 @@
 """補足 sec:S_lambda の表: 尤度の重みの感度（生データ・2 通路、決定論的な比較、2026-10-14）。
 
 tools/two_channel_pilot_v2.py の出力（条件 × A/B/C）を読み、−logL 最小の点での
-生きた菌の組成（φψ/Σφψ）・全菌の組成（φ/Σφ）・生きた割合の RMSE、a45、Pg の Day 21/15 比を表にする。
+生きた菌の組成（φψ/Σφψ）・全菌の組成（φ/Σφ）・生きた割合の RMSE、a45、Pg の Day 21/15 比（生きた菌の組成 φψ/Σφψ、本文と同じ）を表にする。
   A: 今の重み（λ_Pg 5、終盤 ×3、珍しい種 ×0.1、λψ 条件ごと）
   B: 重みなし（λ_Pg = λ_late = λ_rare = 1、λψ そのまま）
   C: λψ を全条件 2.0（ほかは A）
@@ -37,7 +37,7 @@ def main():
             o = r["two_channel_opt"]
             cond = rf"\multirow{{3}}{{*}}{{{t}}}" if k == 0 else ""
             rows.append(f"{cond} & {name} & {o['viable_vs_phipsi']:.3f} & {o['total_vs_phi']:.3f} & {o['live']:.3f}"
-                        f" & ${r['theta_opt'][A45]:+.2f}$ & {r['pg_ratio_21_15']:.2f}\\\\")
+                        f" & ${r['theta_opt'][A45]:+.2f}$ & {r.get('pg_ratio_21_15_viable', float('nan')):.2f}\\\\")
         if t != TAGS[-1]:
             rows.append(r"\addlinespace")
     lines = [r"\begin{tabular}{@{}llccccc@{}}", r"\toprule",

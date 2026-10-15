@@ -166,9 +166,23 @@ def report(name, th):
 
 print(f"{args.tag}: lambda_ch {lam}, override '{ovr}', free dims {free}", flush=True)
 out = {"tag": args.tag, "map": report(f"{args.tag} MAP (now, under 2c logL)", th0)}
+def pg_ratios(th):
+    """Pg の Day 21/15 比: 生きた菌の組成（φψ/Σφψ、本文・eval_paper_runs と同じ）と全菌の組成（φ/Σφ）の両方（2026-10-15）。"""
+    _g = np.array(E.simulate_0d_full(jnp.array(th), n_steps=2500, dt=1e-4, phi_init=jnp.array(phi0), K_hill=0.0, n_hill=4.0,
+                                     psi_init=PSI0, alpha_const=args.alpha))
+    _j15, _j21 = int(np.where(np.asarray(t_days) == 15)[0][0]), int(np.where(np.asarray(t_days) == 21)[0][0])
+    _phi = np.clip(_g[:, 0:5], 1e-10, 1 - 1e-10)
+    _tot = _phi / _phi.sum(1, keepdims=True)
+    _pv = _phi * np.clip(_g[:, 6:11], 1e-10, 1.0)
+    _via = _pv / _pv.sum(1, keepdims=True)
+    k15, k21 = idx[_j15], idx[_j21]
+    return float(_via[k21, 4] / max(_via[k15, 4], 1e-12)), float(_tot[k21, 4] / max(_tot[k15, 4], 1e-12))
+
+
 if args.rescore:
     _old = json.load(open(args.rescore))
     out = dict(_old, map=out["map"], two_channel_opt=report(f"{args.tag} rescored optimum", np.array(_old["theta_opt"])), rescored=True)
+    out["pg_ratio_21_15_viable"], out["pg_ratio_21_15"] = pg_ratios(np.array(_old["theta_opt"]))
     if args.out:
         json.dump(out, open(args.out, "w"), indent=1)
     sys.exit(0)
@@ -203,7 +217,8 @@ out["psi_data_median_days"] = np.median(np.array(PSI_D), axis=0).round(3).tolist
 out["theta_opt"] = bth.round(4).tolist()
 _j15, _j21 = int(np.where(np.asarray(t_days) == 15)[0][0]), int(np.where(np.asarray(t_days) == 21)[0][0])
 _fr = g[:, 0:5] / g[:, 0:5].sum(1, keepdims=True)
-out["pg_ratio_21_15"] = float(_fr[idx[_j21], 4] / max(_fr[idx[_j15], 4], 1e-12))
+out["pg_ratio_21_15"] = float(_fr[idx[_j21], 4] / max(_fr[idx[_j15], 4], 1e-12))  # 全菌の組成（φ/Σφ）
+out["pg_ratio_21_15_viable"] = pg_ratios(bth)[0]  # 生きた菌の組成（φψ/Σφψ）。表・本文はこちら（2026-10-15）
 # 箱の端（幅の 5% 以内）にある自由次元
 edge = [i for i in free if min(bth[i] - bounds[i, 0], bounds[i, 1] - bth[i]) < 0.05 * (bounds[i, 1] - bounds[i, 0])]
 out["at_edge"] = edge
