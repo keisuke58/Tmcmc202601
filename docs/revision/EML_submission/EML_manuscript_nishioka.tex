@@ -153,7 +153,7 @@ Inference proceeds in four stages on the same data (Fig.~\ref{fig:pipeline}):
 (ii)~as (i), on the box narrowed to the stage-(i) posterior mean $\pm4$\,SD;
 (iii)~full likelihood with $\psi_i$ evolved, back on the full box, half of the initial particles drawn around the stage-(ii) MAP and half from the prior;
 (iv)~as (iii), on the box narrowed to the stage-(iii) posterior mean $\pm4$\,SD.
-To check that the warm start does not bias stage (iii), one CH stage-(iii) run was started with all particles drawn from the prior, on the same box as the three warm-started seeds: its maximum log-likelihood ($-26.74$) lies within their range ($-26.71$ to $-27.25$), and the medians and 90\% bounds of $a_{33}$ and $a_{45}$ agree with theirs to within 0.1.
+To check that the warm start does not bias stage (iii), one CH stage-(iii) run was started with all particles drawn from the prior, on the same box as the three warm-started seeds: its maximum log-likelihood ($-26.74$) lies within their range ($-26.71$ to $-27.25$), and the medians and 90\% bounds of $a_{33}$ and $a_{45}$ lie within 0.03 of the range spanned by the three warm-started seeds.
 A $\pm4$\,SD box removes less than $10^{-4}$ of a Gaussian marginal, so narrowing shortens the tempering without truncating the posterior.
 If more than 20\% of the posterior mass of an entry lies in the outer 5\% of the box on one side, or this fraction grows by more than 0.10 from the previous stage, the bound is moved outwards and the stage is repeated; the boxes finally used are listed in Supplementary Table~\ref{S-tab:S_boxes}.
 
