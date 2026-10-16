@@ -50,12 +50,12 @@
 \begin{abstract}
 Biofilms are living materials whose composition, and with it their mechanical response, depends on species interactions that cannot be measured directly.
 We calibrate a thermodynamically consistent multiphase model of a five-species oral biofilm, derived from the extended Hamilton principle, against in-vitro time courses of a commensal and a dysbiotic community, each under static and flow-reactor cultivation.
-All 15 entries of the symmetric interaction matrix are inferred by transitional Markov chain Monte Carlo, with the stiff forward model compiled in JAX and evaluated for all particles in parallel on a GPU (about 150 times faster than on a CPU).
+All 15 entries of the symmetric interaction matrix are inferred by transitional Markov chain Monte Carlo, with the stiff forward model compiled in JAX and evaluated in parallel on a GPU (about 150 times faster than a CPU).
 Data enter in stages, from species composition to community viability, and each stage is checked for seed agreement, mixing and posterior mass at the prior bounds.
-Root-mean-square errors of the viable species fractions are 0.06--0.07 and 0.09 in the commensal flow-reactor and static conditions\TBD{DS, DH}; in the commensal static condition the compositions and the measured live fraction cannot both be matched.
+Root-mean-square errors of the viable species fractions are 0.06--0.09 in the commensal conditions\TBD{DS, DH}; under static cultivation, composition and measured live fraction cannot both be matched.
 The data constrain only part of the interaction matrix: five and six entries in the two commensal conditions, all among the early colonisers and with the same signs where both determine them, and eight and nine in the dysbiotic ones\TBD{prov.}.
 The coefficient between \textit{F.~nucleatum} and \textit{P.~gingivalis} is constrained in both dysbiotic conditions but not sign-determined\TBD{prov.}.
-The pH predicted from the calibrated composition follows the measured pH in the dysbiotic flow-reactor community (offset about 0.13 in the commensal one), and removing \textit{F.~nucleatum} in silico abolishes the late increase of \textit{P.~gingivalis}, a prediction that can be tested directly\TBD{prov.}.
+The pH predicted from the calibrated composition follows the measured pH in the dysbiotic flow-reactor community (offset about 0.13 in the commensal one), and removing \textit{F.~nucleatum} in silico abolishes the late increase of \textit{P.~gingivalis}, a directly testable prediction\TBD{prov.}.
 \end{abstract}
 
 \begin{keyword}
