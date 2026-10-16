@@ -25,7 +25,8 @@ glob_of() { python3 -c "import json,sys; print(json.load(open(sys.argv[1]))[sys.
 echo "=== R=$R  SPEC=$SPEC  F=$F  STAGE=$STAGE  PAT=$PAT  SKIP='$SKIP'"
 
 # 0. 判定 (a)–(e) と、run ごとの数値（2 通路の内訳つき）
-skip check   || python3 tools/check_paper_runs.py "$R" | tee "$F/check_paper_runs.txt"
+# check は不合格の群があると 1 を返す（報告用なので止めない。判定は check_paper_runs.txt を読む）
+skip check   || python3 tools/check_paper_runs.py "$R" | tee "$F/check_paper_runs.txt" || true
 skip eval    || python3 tools/eval_paper_runs.py "$R" --glob "${PAT//\{tag\}/*}" | tee "$F/eval_paper_runs.txt"
 skip metrics || python3 tools/fit_metrics_2c.py "$R" $(for t in CS CH DS DH; do glob_of $t "$STAGE"; done) --out "$F/fit_metrics_2c"
 skip psi     || python3 tools/psi_table_runs.py "$R" --pattern "$PAT" --out "$F/psi_table" --tex "$F/supp/supp_S_psi2c.tex"
