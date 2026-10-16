@@ -124,6 +124,7 @@
 
 | 日付 | ファイル | 要点 |
 |---|---|---|
+| 2026-10-16 | [gpu_2026-10-16_CS_ult.md](gpu_2026-10-16_CS_ult.md) | **自動通知**: run 終了。全群 PASS |
 | 2026-10-15 | [gpu_2026-10-15_CH_ult.md](gpu_2026-10-15_CH_ult.md) | **自動通知**: run 終了。全群 PASS |
 | 2026-10-15 | [gpu_2026-10-15_cs_gate_polish_gpu.md](gpu_2026-10-15_cs_gate_polish_gpu.md) | **CS の gate 3546 も 8h で kill。gate の polish は `JAX_PLATFORMS=cpu` で CPU で走っていた。polish を seed ごとに GPU（3553-3555）→ CS の gate 3557（POLISH=0）。gate_submit_ult.sh を修正（29e21f3）、DH も polish 3558-3560 → gate 3561 に切り替え** |
 | 2026-10-15 | [gpu_2026-10-15_gate_CH_ult.md](gpu_2026-10-15_gate_CH_ult.md) | **CH a33w の p2 が全群 PASS → ult 3547-3549 を投入（gate の git push が vancouver03 で失敗したので手で push）** |
