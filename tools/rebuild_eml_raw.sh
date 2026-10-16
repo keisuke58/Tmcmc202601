@@ -21,7 +21,8 @@ PAT="${PAT:-{tag\}_${STAGE}_2c_raw*_seed*}"  # CH は 2c_raw_a33w（14b）も拾
 P1PAT="${P1PAT:-{tag\}_p1_2c_raw_seed*}"
 mkdir -p "$F/supp"
 skip() { [[ " $SKIP " == *" $1 "* ]]; }
-glob_of() { python3 -c "import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]][sys.argv[3]])" "$SPEC" "$1" "$2"; }
+# spec に無い条件・段は空文字（その条件は各道具で pending になる）
+glob_of() { python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2], {}).get(sys.argv[3], ''))" "$SPEC" "$1" "$2"; }
 echo "=== R=$R  SPEC=$SPEC  F=$F  STAGE=$STAGE  PAT=$PAT  SKIP='$SKIP'"
 
 # 0. 判定 (a)–(e) と、run ごとの数値（2 通路の内訳つき）

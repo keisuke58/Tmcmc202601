@@ -76,6 +76,11 @@ fig, axes = plt.subplots(5, 4, figsize=(13, 13), sharex=True, sharey="row")
 summary = {}
 for c, (tag, cond, cult, prefix, stage) in enumerate(GROUPS):
     runs = {s: Path(args.root) / f"{prefix}{s}" for s in SEEDS}
+    if not all((r / "run_record.json").exists() for r in runs.values()):  # 最終段がまだ無い条件（2026-10-16）
+        print(f"{tag}: run なし（{prefix}*）→ pending")
+        axes[2, c].text(0.5, 0.5, "pending", transform=axes[2, c].transAxes, ha="center", va="center", color="0.5")
+        axes[0, c].set_title(tag)
+        continue
     recs = {s: json.load(open(r / "run_record.json")) for s, r in runs.items()}
     a = recs[SEEDS[0]]["args"]
     data, t_days, _, _, _ = E.load_experimental_data(E.data_dir_for(a), cond, cult, 1, normalize=True, use_exp_init=True)

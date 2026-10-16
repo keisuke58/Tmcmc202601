@@ -44,6 +44,9 @@ UNIDENT_RATIO = 0.8
 out = {}
 for tag, (cond, cult, pat) in GROUPS.items():
     runs = sorted(Path(args.root).glob(pat))
+    if not runs:  # 最終段がまだ無い条件（2026-10-16）
+        print(f"{tag}: run なし（{pat}）→ 飛ばす")
+        continue
     best = max(runs, key=lambda r: float(np.load(r / "logL.npy").max()))
     rec = json.load(open(best / "run_record.json"))
     a = rec["args"]

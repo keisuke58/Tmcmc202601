@@ -42,17 +42,24 @@ def main(root, spec, out):
     spec = json.load(open(spec))
     rows, sets = [], {}
     for t in CONDS:
-        r = ratios(root, spec[t]["ult"])
+        g = spec.get(t, {}).get("ult")
+        if not g or not glob.glob(str(Path(root) / g)):  # 最終段がまだ無い条件（2026-10-16）
+            rows.append((t, None))
+            continue
+        r = ratios(root, g)
         sets[t] = {c: sorted(k for k, v in r.items() if v < c) for c in THRESH}
         rows.append((t, [len(sets[t][c]) for c in THRESH]))
     lines = [r"\begin{tabular}{l" + "c" * len(THRESH) + "}", r"\toprule",
              "Threshold & " + " & ".join(f"{c:.1f}" + (r"$^\ast$" if c == 0.8 else "") for c in THRESH) + r" \\",
              r"\midrule"]
     for t, n in rows:
+        if n is None:
+            lines.append(f"{t} & " + r"\multicolumn{" + str(len(THRESH)) + r"}{l}{(pending)} \\")
+            continue
         lines.append(f"{t} & " + " & ".join(str(v) for v in n) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}"]
     Path(out).write_text("\n".join(lines) + "\n")
-    for t in CONDS:
+    for t in sets:
         for c in THRESH:
             print(t, c, [f"a{A_IDX[k][0]}{A_IDX[k][1]}" for k in sets[t][c]])
 

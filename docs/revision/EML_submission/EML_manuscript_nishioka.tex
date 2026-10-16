@@ -197,8 +197,8 @@ Without the acceptance criteria, several of these runs would have been read as c
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{figures/provisional_2026-10-11/paper_fig2_v2.pdf}
-\caption{Species fractions over 21 days in the four conditions (columns) for the five taxa (rows). Lines: MAP of stage (iv), species volume fraction $\phi_i$; bands: central 50\% and 80\% posterior predictive intervals pooled over three seeds; dots and boxes: median and interquartile range of the measured replicates of \citet{heine2025influence}. The RMSE of the MAP is given above each column. The \textit{Veillonella} species and the Pg strain differ between the commensal (CS, CH) and the dysbiotic (DS, DH) community (labels in the panels). \TBD{Figure provisional (read-off data, one channel): replace by the rebuilt figure (viable vs.\ $\phi_i\psi_i/\sum_j\phi_j\psi_j$, total count vs.\ $\phi_i/\sum_j\phi_j$) and check this caption.}}
+\includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{figures/raw/paper_fig2_v2.pdf}
+\caption{Species fractions over 21 days in the four conditions (columns) for the five taxa (rows). Solid lines: MAP of stage (iv), living fractions $\phi_i\psi_i/\sum_j\phi_j\psi_j$, with the viable-cell data (filled circles: medians; boxes and whiskers: interquartile range and range of the measured replicates); bands: central 50\% and 80\% intervals of the living fractions over the posterior samples, pooled over three seeds. Dashed lines: MAP volume fractions $\phi_i/\sum_j\phi_j$, with the total-count data (open circles: medians). The RMSE of the viable composition at the MAP is given above each column. The \textit{Veillonella} species and the Pg strain differ between the commensal (CS, CH) and the dysbiotic (DS, DH) community (labels in the panels). \TBD{DS, DH pending (stage (iv)).}}
 \label{fig:fit}
 \end{figure*}
 
@@ -214,8 +214,8 @@ A sign change between cultivation modes is a statement about the effective model
 Comparisons between the commensal and the dysbiotic community are confounded by design: the two communities differ not only in their ecological state but also in the \textit{Veillonella} species (\textit{V.~dispar} vs.\ \textit{V.~parvula}) and the Pg strain (DSM~20709 vs.\ W83)~\citep{heine2025influence}, so differences between their matrices combine state, strain physiology and cultivation; the DS--DH contrast above compares the same strains and is free of this confound, although the two conditions also differ in the viability weight ($\lambda_\psi=2.0$ vs.\ 3.0) and in their prior boxes.
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\textwidth]{figures/provisional_2026-10-11/fig3_ident_matrix.pdf}
-\caption{What the data determine, at the final stage with three seeds pooled. (a)~Upper triangle of $\mathbf{A}$ in the four conditions. Coloured with value: identified, i.e.\ constrained by the data beyond the prior box (posterior SD below 0.8 times that of a uniform distribution on the prior box of the final stage, Supplementary Table~\ref{S-tab:S_boxes}); colour and number give the posterior median; hatched: only the sign is determined (90\% interval excludes zero); grey: not identified. (b)~The same entries as a network: red, $a_{ij}>0$; blue, $a_{ij}<0$; line width proportional to $|$median $a_{ij}|$; dashed, sign only; rings, identified self-interactions $a_{ii}$. Entries that are not identified are not drawn. \TBD{DS, DH from stage (iii).}}
+\includegraphics[width=\textwidth]{figures/raw/fig3_ident_matrix.pdf}
+\caption{What the data determine, at the final stage with three seeds pooled. (a)~Upper triangle of $\mathbf{A}$ in the four conditions. Coloured with value: identified, i.e.\ constrained by the data beyond the prior box (posterior SD below 0.8 times that of a uniform distribution on the prior box of the final stage, Supplementary Table~\ref{S-tab:S_boxes}); colour and number give the posterior median; hatched: only the sign is determined (90\% interval excludes zero); grey: not identified. (b)~The same entries as a network: red, $a_{ij}>0$; blue, $a_{ij}<0$; line width proportional to $|$median $a_{ij}|$; dashed, sign only; rings, identified self-interactions $a_{ii}$. Entries that are not identified are not drawn. \TBD{DS, DH pending (stage (iv)).}}
 \label{fig:ident}
 \end{figure*}
 

@@ -65,6 +65,13 @@ def fig3_matrix(M, cls, order, conds, out_noext, vmax=None):
         ax.set_ylim(5.05, -0.75)
         ax.set_aspect("equal")
         ax.axis("off")
+        if (cls[:, c] == -1).all():  # 最終段の run がまだ無い条件（2026-10-16）
+            _cond_header(ax, tag, x0=0.0, x1=1.0, dy_mm=0.2)
+            ax.text(2.5, 2.5, "pending", ha="center", va="center", fontsize=8, color=st.MUTE)
+            an = ax_mm(x, 9.0, pw, 26.0)
+            net_axes.append(an)
+            an.axis("off")
+            continue
         for r, (i, j) in enumerate(ij):
             v, k = M[r, c], cls[r, c]
             if k == 2:
@@ -83,7 +90,7 @@ def fig3_matrix(M, cls, order, conds, out_noext, vmax=None):
             if txt:
                 ax.add_patch(Rectangle((j + 0.27, i + 0.27), 0.46, 0.46, facecolor=fc, lw=0)) if k == 1 else None
                 ax.text(j + 0.5, i + 0.53, txt, ha="center", va="center",
-                        fontsize=7 if k == 2 else 9, color=tc)
+                        fontsize=(6 if abs(v) >= 10 else 7) if k == 2 else 9, color=tc)
         for k_, s_ in enumerate(SPN):
             ax.text(k_ + 0.5, -0.12, s_, ha="center", va="bottom", fontsize=7)
             if c == 0:  # 行の名前は左端の行列だけ（4 つの行列は同じ高さに並ぶ）
@@ -167,6 +174,13 @@ def fig4_v2(Q, U0, cls, M, order, conds, sp, out_noext):
     for c, tag in enumerate(conds):
         ax = axes[c]
         col = st.COND_COL[tag]
+        if (cls[:, c] == -1).all():  # 最終段の run がまだ無い条件（2026-10-16）
+            ax.text(0.5, (n - 1) / 2, "pending", ha="center", va="center", fontsize=8, color=st.MUTE)
+            ax.set_xlim(-0.03, 1.1)
+            ax.set_xticks([])
+            ax.spines["left"].set_visible(c == 0)
+            _cond_header(ax, tag, x0=0.0, x1=0.92, dy_mm=1.2, sub="")
+            continue
         for r in range(n):
             q = Q[r, c]
             ax.plot([0, 1], [r, r], color="#EDEDED", lw=0.5, zorder=0, solid_capstyle="butt")

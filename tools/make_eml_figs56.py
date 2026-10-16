@@ -52,10 +52,22 @@ SP = {"1": "So", "2": "An", "3": "Vei", "4": "Fn", "5": "Pg"}
 
 # ---------------------------------------------------------------- 図 5
 spec = json.load(open(args.spec))
+
+
+def ult_dirs(tag):
+    """最終段の run（spec に無い・まだ無い条件は []。図では pending の列になる、2026-10-16）。"""
+    g = spec.get(tag, {}).get("ult")
+    return sorted(glob.glob(os.path.join(args.root, g))) if g else []
+
+
 M = np.full((len(ORDER), 4), np.nan)
-cls = np.zeros((len(ORDER), 4), dtype=int)  # 0 n.i., 1 s.o., 2 identified
+cls = np.zeros((len(ORDER), 4), dtype=int)  # -1 pending, 0 n.i., 1 s.o., 2 identified
 for c, tag in enumerate(CONDS):
-    dirs = sorted(glob.glob(os.path.join(args.root, spec[tag]["ult"])))
+    dirs = ult_dirs(tag)
+    if not dirs:
+        cls[:, c] = -1
+        print(f"{tag}: 最終段の run なし → pending")
+        continue
     S = np.concatenate([np.load(os.path.join(d, "samples.npy")) for d in dirs])
     pb = np.array(json.load(open(os.path.join(dirs[0], "run_record.json")))["prior_bounds_final"], dtype=float)
     for r, nm in enumerate(ORDER):
@@ -106,46 +118,50 @@ print("図 5: 同定 " + ", ".join(f"{t} {int((cls[:, c] == 2).sum())}" for c, t
       + " / 符号のみ " + ", ".join(f"{t} {int((cls[:, c] == 1).sum())}" for c, t in enumerate(CONDS)))
 
 # ---------------------------------------------------------------- 図 6
-ko = json.load(open(os.path.join(args.fig_dir, "knockout_DH.json")))
+_ko = os.path.join(args.fig_dir, "knockout_DH.json")
+ko = json.load(open(_ko)) if os.path.exists(_ko) else None  # DH の最終段のあと（knockout_fn.py）
 _phb = os.path.join(args.fig_dir, "ph_check_bands.npz")
 B = np.load(_phb) if os.path.exists(_phb) else None  # pH は推定に使わない検証。無ければ図 5 を飛ばす（生データの pH 待ち）
-OBS_RATIO = ko[0].get("obs_ratio", 2.74)  # 実測の Pg D21/D15（run が読んだデータ、knockout_fn.py）
-fig = plt.figure(figsize=(7.0, 2.4))
-gs = fig.add_gridspec(1, 3, width_ratios=[1.0, 1.1, 1.1], wspace=0.35)
-ax = fig.add_subplot(gs[0])
-labels = ["full", "no Fn", "$a_{45}=0$"]
-keys = ["ratio_base", "ratio_noFn", "ratio_a45_0"]
-for j, (lab, k) in enumerate(zip(labels, keys)):
-    for s, row in enumerate(ko):
-        lo, md, hi = row[k]
-        x = j + (s - 1) * 0.18
-        ax.plot([x, x], [lo, hi], color=f"C{j}", lw=1.2)
-        ax.plot(x, md, "o", color=f"C{j}", ms=3.5)
-ax.axhline(OBS_RATIO, color="k", lw=0.8, ls="--")
-ax.text(0.5, OBS_RATIO + 0.08, "measured", fontsize=7, ha="center", va="bottom")
-ax.axhline(1.0, color="0.6", lw=0.6, ls=":")
-ax.set_xticks(range(3))
-ax.set_xticklabels(labels, fontsize=8)
-ax.set_xlim(-0.6, 2.6)
-ax.set_ylabel("Pg ratio day 21 / day 15")
-ax.set_title("(a) DH: in-silico knockout", fontsize=9)
-for p, tag in enumerate(["CH", "DH"] if B is not None else []):
-    ax = fig.add_subplot(gs[p + 1])
-    d = B[f"{tag}_days"]
-    ax.fill_between(d, B[f"{tag}_lo"], B[f"{tag}_hi"], color="0.8", lw=0, label="model, 90\\%")
-    ax.plot(d, B[f"{tag}_med"], color="0.2", lw=1.0, label="model, median")
-    ax.plot(B[f"{tag}_t_meas"], B[f"{tag}_ph_meas"], "o", ms=2.2, color="C3", label="measured (not fitted)")
-    ax.set_xlabel("Day")
-    ax.set_title(f"({'bc'[p]}) pH, {tag}", fontsize=9)
-    ax.set_ylim(6.15, 7.4)
-    if p == 0:
-        ax.set_ylabel("pH")
-        ax.legend(fontsize=6.5, loc="upper left", frameon=False)
-if V1:
-    fig.savefig(os.path.join(args.fig_dir, "fig6_checks.pdf"), bbox_inches="tight")
-    fig.savefig(os.path.join(args.fig_dir, "fig6_checks.png"), dpi=150, bbox_inches="tight")
-plt.close(fig)
-print("図 6: 書き出し済み")
+if ko is None:
+    print("図 6: knockout_DH.json が無いので飛ばした（DH の最終段のあと）")
+else:
+    OBS_RATIO = ko[0].get("obs_ratio", 2.74)  # 実測の Pg D21/D15（run が読んだデータ、knockout_fn.py）
+    fig = plt.figure(figsize=(7.0, 2.4))
+    gs = fig.add_gridspec(1, 3, width_ratios=[1.0, 1.1, 1.1], wspace=0.35)
+    ax = fig.add_subplot(gs[0])
+    labels = ["full", "no Fn", "$a_{45}=0$"]
+    keys = ["ratio_base", "ratio_noFn", "ratio_a45_0"]
+    for j, (lab, k) in enumerate(zip(labels, keys)):
+        for s, row in enumerate(ko):
+            lo, md, hi = row[k]
+            x = j + (s - 1) * 0.18
+            ax.plot([x, x], [lo, hi], color=f"C{j}", lw=1.2)
+            ax.plot(x, md, "o", color=f"C{j}", ms=3.5)
+    ax.axhline(OBS_RATIO, color="k", lw=0.8, ls="--")
+    ax.text(0.5, OBS_RATIO + 0.08, "measured", fontsize=7, ha="center", va="bottom")
+    ax.axhline(1.0, color="0.6", lw=0.6, ls=":")
+    ax.set_xticks(range(3))
+    ax.set_xticklabels(labels, fontsize=8)
+    ax.set_xlim(-0.6, 2.6)
+    ax.set_ylabel("Pg ratio day 21 / day 15")
+    ax.set_title("(a) DH: in-silico knockout", fontsize=9)
+    for p, tag in enumerate(["CH", "DH"] if B is not None else []):
+        ax = fig.add_subplot(gs[p + 1])
+        d = B[f"{tag}_days"]
+        ax.fill_between(d, B[f"{tag}_lo"], B[f"{tag}_hi"], color="0.8", lw=0, label="model, 90\\%")
+        ax.plot(d, B[f"{tag}_med"], color="0.2", lw=1.0, label="model, median")
+        ax.plot(B[f"{tag}_t_meas"], B[f"{tag}_ph_meas"], "o", ms=2.2, color="C3", label="measured (not fitted)")
+        ax.set_xlabel("Day")
+        ax.set_title(f"({'bc'[p]}) pH, {tag}", fontsize=9)
+        ax.set_ylim(6.15, 7.4)
+        if p == 0:
+            ax.set_ylabel("pH")
+            ax.legend(fontsize=6.5, loc="upper left", frameon=False)
+    if V1:
+        fig.savefig(os.path.join(args.fig_dir, "fig6_checks.pdf"), bbox_inches="tight")
+        fig.savefig(os.path.join(args.fig_dir, "fig6_checks.png"), dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("図 6: 書き出し済み")
 
 # ---------------------------------------------------------------- 図 4（区間の図、バイオリン図の置き換え、2026-10-12）
 # 横軸は段 (iii) の箱（初期の箱に、端に積んだ成分だけ広げた箱）の中での位置 0..1。
@@ -168,7 +184,11 @@ Q4 = np.full((len(ORDER), 4, 5), np.nan)  # v2 用: 段 (iii) の箱の中での
 U0 = np.full((len(ORDER), 4), np.nan)  # a_ij = 0 の位置（箱の中にあるときだけ）
 for c, tag in enumerate(CONDS):
     ax = axes[c]
-    dirs = sorted(glob.glob(os.path.join(args.root, spec[tag]["ult"])))
+    dirs = ult_dirs(tag)
+    if not dirs:
+        ax.text(0.5, len(ORDER) / 2, "pending", ha="center", va="center", color="0.5")
+        ax.set_title(tag, color=COND_COL[tag])
+        continue
     S = np.concatenate([np.load(os.path.join(d, "samples.npy")) for d in dirs])
     rec_f = json.load(open(os.path.join(dirs[0], "run_record.json")))
     if "_ult_" in os.path.basename(dirs[0]):
@@ -224,7 +244,7 @@ if V2:
     vmax = V2F.fig3_matrix(M, cls, ORDER, CONDS, os.path.join(args.fig_dir, "fig3_ident_matrix"))
     print(f"図 3 (v2): fig3_ident_matrix、色の範囲 ±{vmax:g}")
     V2F.fig4_v2(Q4, U0, cls, M, ORDER, CONDS, SP, os.path.join(args.fig_dir, "fig4_posteriors_v2"))
-    if B is not None:
+    if B is not None and ko is not None:
         V2F.fig6_v2(ko, B, os.path.join(args.fig_dir, "fig6_checks_v2"))
     else:
-        print("図 5 (v2): pH の帯（ph_check_bands.npz）が無いので飛ばした")
+        print("図 5 (v2): pH の帯（ph_check_bands.npz）か knockout_DH.json が無いので飛ばした")

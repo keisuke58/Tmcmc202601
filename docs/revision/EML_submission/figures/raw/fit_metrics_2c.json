@@ -1,0 +1,96 @@
+{
+ "CS_ult_2c_raw_seed*": {
+  "CS_ult_2c_raw_seed123": {
+   "viable_vs_phipsi": 0.08960643319204638,
+   "viable_vs_phi": 0.1102521527821639,
+   "total_vs_phi": 0.03900711455936326,
+   "live": 0.23207789174269103,
+   "psi_vs_data": 0.3883292978499402,
+   "pg_ratio": 0.9892135435437983,
+   "obs_pg_ratio": 1.8237992751796515,
+   "max_logL": -32.856560067809966,
+   "weights": {
+    "lambda_pg": 5.0,
+    "lambda_late": 3.0,
+    "lambda_rare": 0.1
+   }
+  },
+  "CS_ult_2c_raw_seed42": {
+   "viable_vs_phipsi": 0.0923474478233913,
+   "viable_vs_phi": 0.11228380250304462,
+   "total_vs_phi": 0.040593816080028,
+   "live": 0.2311296497897424,
+   "psi_vs_data": 0.39739465246609584,
+   "pg_ratio": 0.9903418989585491,
+   "obs_pg_ratio": 1.8237992751796515,
+   "max_logL": -32.91242296678577,
+   "weights": {
+    "lambda_pg": 5.0,
+    "lambda_late": 3.0,
+    "lambda_rare": 0.1
+   }
+  },
+  "CS_ult_2c_raw_seed7": {
+   "viable_vs_phipsi": 0.09320376767735612,
+   "viable_vs_phi": 0.11058207931162416,
+   "total_vs_phi": 0.04057975319726587,
+   "live": 0.23095028830905465,
+   "psi_vs_data": 0.3607280242059773,
+   "pg_ratio": 0.9757235356888814,
+   "obs_pg_ratio": 1.8237992751796515,
+   "max_logL": -33.076700236234956,
+   "weights": {
+    "lambda_pg": 5.0,
+    "lambda_late": 3.0,
+    "lambda_rare": 0.1
+   }
+  }
+ },
+ "CH_ult_2c_raw_a33w_seed*": {
+  "CH_ult_2c_raw_a33w_seed123": {
+   "viable_vs_phipsi": 0.06020773237549971,
+   "viable_vs_phi": 0.10696630839191282,
+   "total_vs_phi": 0.08143966248257233,
+   "live": 0.11145812303760382,
+   "psi_vs_data": 0.43294730389353014,
+   "pg_ratio": 0.8198475297581262,
+   "obs_pg_ratio": 0.0,
+   "max_logL": -26.522788439981316,
+   "weights": {
+    "lambda_pg": 5.0,
+    "lambda_late": 3.0,
+    "lambda_rare": 0.1
+   }
+  },
+  "CH_ult_2c_raw_a33w_seed42": {
+   "viable_vs_phipsi": 0.06021482501295091,
+   "viable_vs_phi": 0.10670699679575953,
+   "total_vs_phi": 0.08244432532156994,
+   "live": 0.11173994574971811,
+   "psi_vs_data": 0.43439235214443056,
+   "pg_ratio": 0.8312669694589211,
+   "obs_pg_ratio": 0.0,
+   "max_logL": -26.839781348123157,
+   "weights": {
+    "lambda_pg": 5.0,
+    "lambda_late": 3.0,
+    "lambda_rare": 0.1
+   }
+  },
+  "CH_ult_2c_raw_a33w_seed7": {
+   "viable_vs_phipsi": 0.06564303639412207,
+   "viable_vs_phi": 0.104048224463601,
+   "total_vs_phi": 0.07639543031680635,
+   "live": 0.12109585768644525,
+   "psi_vs_data": 0.4169797689352998,
+   "pg_ratio": 0.7056830511976239,
+   "obs_pg_ratio": 0.0,
+   "max_logL": -27.108624651602824,
+   "weights": {
+    "lambda_pg": 5.0,
+    "lambda_late": 3.0,
+    "lambda_rare": 0.1
+   }
+  }
+ }
+}

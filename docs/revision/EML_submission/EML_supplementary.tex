@@ -29,7 +29,8 @@
 
 \input{../generated/numbers}
 % table location: provisional (DS, DH from stage (iii)); switch back to ../generated after the final runs
-\newcommand{\suppdir}{figures/provisional_2026-10-11/supp}
+\newcommand{\suppdir}{figures/raw/supp}% measured data, two compositions (tools/rebuild_eml_raw.sh)
+\newcommand{\provdir}{figures/provisional_2026-10-11/supp}% read-off data: Bayes factors and cost until recomputed
 \begin{document}
 \maketitle
 
@@ -306,8 +307,8 @@ The MAP is the best particle and not an exact optimum (four negative eigenvalues
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=\textwidth]{figures/provisional_2026-10-11/fig4_posteriors_v2.pdf}
-\caption{Marginal posteriors of the 15 entries of $\mathbf{A}$ at the final stage (three seeds pooled), drawn as position within the prior box of the final stage of each entry (Table~\ref{tab:S_boxes}): thick bar 50\%, thin bar 90\% interval, circle median; black tick: $a_{ij}=0$. Coloured: identified; grey: not identified; a sign at the right: only the sign is determined (classification as in Fig.~3 of the main text). \TBD{DS, DH from stage (iii).}}
+\includegraphics[width=\textwidth]{figures/raw/fig4_posteriors_v2.pdf}
+\caption{Marginal posteriors of the 15 entries of $\mathbf{A}$ at the final stage (three seeds pooled), drawn as position within the prior box of the final stage of each entry (Table~\ref{tab:S_boxes}): thick bar 50\%, thin bar 90\% interval, circle median; black tick: $a_{ij}=0$. Coloured: identified; grey: not identified; a sign at the right: only the sign is determined (classification as in Fig.~3 of the main text). \TBD{DS, DH pending (stage (iv)).}}
 \label{fig:post}
 \end{figure}
 
@@ -315,12 +316,12 @@ The MAP is the best particle and not an exact optimum (four negative eigenvalues
 \label{sec:S_seedmap}
 Figure~\ref{fig:S_seedmap} overlays the MAP of each seed on the posterior predictive band pooled over the three seeds.
 In all conditions the three MAPs nearly coincide.
-In CS the MAP lies apart from the bulk of the posterior for So and Vei: the pointwise posterior median has a composition error of 0.125, the MAP of 0.179; in the other conditions the two differ by less than 0.02\TBD{prov.}.
+The viable-composition error of the pointwise posterior median is 0.094 in CS and 0.086 in CH, against 0.090 and 0.060 at the MAP; in CH the pointwise median, which is not itself a model trajectory, lies further from the data than the MAP\TBD{DS, DH; old CS values (read-off data, one channel): 0.125 and 0.179}.
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=\textwidth]{figures/provisional_2026-10-11/seed_maps_4cond.pdf}
-\caption{Species fractions: MAP of each seed (coloured lines), pooled central 80\% posterior predictive band (10th--90th percentile, grey) and its pointwise median (dashed), and data (dots). \TBD{DS, DH from stage (iii).}}
+\includegraphics[width=\textwidth]{figures/raw/seed_maps_4cond.pdf}
+\caption{Species fractions: MAP of each seed (coloured lines), pooled central 80\% posterior predictive band (10th--90th percentile, grey) and its pointwise median (dashed), and data (dots). \TBD{DS, DH pending (stage (iv)).}}
 \label{fig:S_seedmap}
 \end{figure}
 
@@ -334,7 +335,7 @@ Table~\ref{tab:S_bayes} reports $\ln\hat Z$ of both models, $\ln B=\ln\hat Z_{\m
 \centering
 \caption{Log-evidence of the full and the reduced ($a_{45}=0$) model at stage (i), mean $\pm$ half-range over three seeds (CH, $a_{45}=0$: one seed), and $\ln B=\ln\hat Z_{\mathrm{full}}-\ln\hat Z_{a_{45}=0}$. The last two columns give the $a_{45}$ box and its log-width, which enters $\ln\hat Z_{\mathrm{full}}$ as an Occam penalty.}
 \label{tab:S_bayes}
-\small\input{\suppdir/supp_S3_bayes.tex}
+\small\input{\provdir/supp_S3_bayes.tex}
 \end{table}
 
 \paragraph{Dysbiotic static.}
@@ -478,22 +479,22 @@ This is a deterministic diagnostic, not a posterior; its solution lies partly ou
 To show how the calibration enters a mechanical model, the posterior dynamics of each condition drive the isotropic growth law of the continuum model of \citet{Klempt2024ContinuumGrowth}: $\mathbf{F}_g=(1+\alpha)\mathbf{I}$ with $\mathrm{d}\alpha/\mathrm{d}T^\ast=k_\alpha\varphi_g$, where $T^\ast$ is time normalised by the length of the experiment (21 days) and $k_\alpha=10^{-3}$ as in that work.
 At a material point that is constrained in all directions, $\mathbf{F}=\mathbf{I}$, the elastic part is $\mathbf{F}_e=\mathbf{I}/(1+\alpha)$ with $J_e=(1+\alpha)^{-3}$, the deviatoric stress vanishes and the Cauchy stress is $\boldsymbol{\sigma}=K(J_e-1)\mathbf{I}$, with $K=E/[3(1-2\nu)]$, $E=E_0(\varphi_{\mathrm{tot}}^2+f)$, $\nu=0.49$ and $f=10^{-3}$, so no finite-element solution is needed.
 We report the growth pressure $p=-\tfrac13\operatorname{tr}\boldsymbol{\sigma}$ relative to $E_0$ for two choices of the driver $\varphi_g$: the living volume $\sum_i\varphi_i\psi_i$, whose community fraction is constrained by the live/dead data, and the total volume $\varphi_{\mathrm{tot}}=\sum_i\varphi_i$, which the likelihood does not constrain (it uses fractions only).
-Driven by the total volume, the four conditions are indistinguishable: $\varphi_{\mathrm{tot}}$ stays at 0.95--0.97 and $p/E_0$ on day~21 is 0.042--0.046 in all of them (Fig.~\ref{fig:S_growth}b, dashed).
-Driven by the living volume, they separate: $p/E_0$ on day~21 is 0.020 (90\% interval $[0.017,0.023]$) in CH, 0.024 ($[0.021,0.027]$) in DS and DH, and 0.041 ($[0.032,0.044]$; MAP 0.030) in CS\TBD{prov.}.
-The high CS value follows the bulk of the CS posterior, whose live fraction (0.92 on day~21) lies above the measured 0.65--0.77 (Section~\ref{sec:S_ceiling}); the CS MAP, which matches the live fraction better, gives 0.030.
+Driven by the total volume, the conditions are hardly distinguishable: $\varphi_{\mathrm{tot}}$ stays at 0.94--0.98 and $p/E_0$ on day~21 is 0.042 in CH and 0.046 in CS (Fig.~\ref{fig:S_growth}b, dashed)\TBD{DS, DH; old: 0.042--0.046 in all four}.
+Driven by the living volume, they separate: $p/E_0$ on day~21 is 0.023 (90\% interval $[0.020,0.025]$) in CH and 0.041 ($[0.038,0.043]$) in CS\TBD{DS, DH; old: 0.024 in both}.
+The high CS value follows the CS live fraction of the model (0.93 on day~21), which lies above the measured 0.65--0.77 (Section~\ref{sec:S_tradeoff}).
 This is an illustration of the coupling, not a prediction of the stress in a biofilm: $k_\alpha$ and $E_0$ are taken from another system and $p$ scales linearly with both, and a spatial model adds nutrient transport, boundary conditions and the spatial distribution of the species.
 It shows that the dependence of the growth stress on the condition enters through the calibrated viability rather than through assumed species-specific growth parameters, and that the posterior spread can be propagated to the stress.
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=\textwidth]{figures/provisional_2026-10-11/growth_stress.pdf}
-\caption{Growth-induced stress at a constrained material point. (a)~Community live fraction $\sum_i\varphi_i\psi_i/\sum_i\varphi_i$ (line: posterior median, band: central 90\%, 200 posterior samples per condition; dots: live/dead data used in the inference). (b)~Growth pressure $p/E_0$ for growth driven by the living volume (solid, with band) and by the total volume (dashed, MAP). Generated by \texttt{tools/growth\_stress\_check.py}. \TBD{DS, DH from stage (iii).}}
+\includegraphics[width=\textwidth]{figures/raw/growth_stress.pdf}
+\caption{Growth-induced stress at a constrained material point. (a)~Community live fraction $\sum_i\varphi_i\psi_i/\sum_i\varphi_i$ (line: posterior median, band: central 90\%, 200 posterior samples per condition; dots: live/dead data used in the inference). (b)~Growth pressure $p/E_0$ for growth driven by the living volume (solid, with band) and by the total volume (dashed, MAP). Generated by \texttt{tools/growth\_stress\_check.py}. \TBD{DS, DH pending (stage (iv)).}}
 \label{fig:S_growth}
 \end{figure}
 
 \begin{table}[p]
 \centering\small
-\input{\suppdir/supp_S3_cost}
+\input{\provdir/supp_S3_cost}
 \caption{Cost of each inference stage (median over the three seeds): particle number $N_p$, mutation steps per tempering step $n_{\mathrm{mut}}$, number of tempering steps $K$, wall time per seed on one GPU, and number of likelihood evaluations $N_{\mathrm{lik}}=N_p(1+\sum n_{\mathrm{mut}})$. $^\ast$DS, DH: stage (iii), until stage (iv) is accepted \TBD{prov.}. Generated by \texttt{tools/make\_cost\_table.py}.}
 \label{tab:stagecost}
 \end{table}
