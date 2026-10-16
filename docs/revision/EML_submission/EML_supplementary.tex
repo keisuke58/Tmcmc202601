@@ -261,9 +261,9 @@ The last column gives $\ln V=\sum_k\ln(u_k-l_k)$, the log-volume of the box, whi
 \label{sec:S_runs}
 Table~\ref{tab:S_runs} lists, for every condition and stage, the number of particles and mutation steps, the number of tempering steps, the acceptance rate, the moves per parameter, and the spread over the three seeds of the maximum log-likelihood and of the posterior medians (criteria (c)--(e) of the main text).
 Criteria (a) and (b) are met by all runs.
-Stages (ii)--(iv) of CS and CH and stages (ii)--(iii) of DS meet all criteria; the DH stage-(iii) group does not yet meet (e) (median spread 0.64 posterior SD, for $a_{22}$; also $a_{35}$ and $a_{45}$ above 0.5)\TBD{prov.; DS stage (ii) fails (d): best-known seed max $\log L$ $-59.07$, $-60.74$, $-60.77$, spread 1.70 (seed 123 found a higher optimum that top-3 polishing does not reach); criterion (d) uses the best value found per seed}.
+Stages (ii)--(iv) of CS and CH meet all criteria (largest median spread 0.09 posterior SD)\TBD{DS, DH after their gates; old DH text: the DH stage-(iii) group does not yet meet (e) (median spread 0.64 posterior SD, for $a_{22}$; also $a_{35}$ and $a_{45}$ above 0.5). DS stage (ii) fails (d): best-known seed max $\log L$ $-59.07$, $-60.74$, $-60.77$, spread 1.70 (seed 123 found a higher optimum that top-3 polishing does not reach); criterion (d) uses the best value found per seed}.
 Stage (i) is exploratory: CS and CH do not meet (c), and DS does not meet (e) because of the two $a_{33}$ modes (Section~\ref{sec:S_bayes}).
-Criterion (e) is stricter than common practice. Treating the three seeds as chains, the potential scale reduction factor $\hat R$~\citep{GelmanRubin1992} of the identified entries is at most 1.001 for CS and CH (stages (ii)--(iv)) and 1.005 for DS (stage (iii)), and 1.036 for the DH stage-(iii) group that fails (e) (1.059 over all 15 entries)\TBD{prov.}. The DH group would therefore pass the conventional threshold $\hat R<1.1$, but not the recommended $\hat R<1.01$~\citep{Vehtari2021Rhat} nor criterion (e); we keep (e) as stated and report the group as not yet accepted. Values from \texttt{tools/rhat\_seeds.py}.
+Criterion (e) is stricter than common practice. Treating the three seeds as chains, the potential scale reduction factor $\hat R$~\citep{GelmanRubin1992} of the identified entries is at most 1.001 for CS and CH (stages (ii)--(iv), measured data and two compositions) and 1.005 for DS (stage (iii)), and 1.036 for the DH stage-(iii) group that fails (e) (1.059 over all 15 entries)\TBD{prov.}. The DH group would therefore pass the conventional threshold $\hat R<1.1$, but not the recommended $\hat R<1.01$~\citep{Vehtari2021Rhat} nor criterion (e); we keep (e) as stated and report the group as not yet accepted. Values from \texttt{tools/rhat\_seeds.py}.
 For CS and CH, stage (ii) was started from stage-(i) runs with 120 mutation steps that are not archived; the stage-(i) runs listed here (80 steps) give stage-(ii) bounds within 0.17 of those used.
 
 \begin{table}[h]
@@ -411,22 +411,22 @@ Biofilm volume (rel.) & 0.03 (0.02) & 0.14 (0.08) & 0.57 (0.25) & 0.03 (0.03)\\
 \section{Viable and total-count composition}
 \label{sec:S_total}
 The species fractions used in the inference are viable-cell fractions from quantitative real-time PCR with propidium monoazide (PMA) pre-treatment (Fig.~3 of \citealp{heine2025influence}; medians over the measured replicates, Section~\ref{sec:S_raw}).
-The corresponding total-count fractions without PMA (their Fig.~S1) differ from them by an RMSE between the two sets of medians of 0.101 (CS), 0.087 (CH), 0.119 (DS) and 0.087 (DH)\TBD{2c: rewrite this section for the two-channel likelihood}.
-We therefore assume in the composition channel that viability does not depend on the species and compare the data with the normalised volume fractions $\phi_i/\sum_j\phi_j$.
-The viability channel is the community live fraction from SYTO9/propidium iodide (LIVE/DEAD BacLight) staining, which is image based and not resolved by species.
-Table~\ref{tab:S_total} compares the final MAP with both data sets; the model is about as close to the total-count data as to the viable data used in the fit.
+The corresponding total-count fractions without PMA (their Fig.~S1) differ from them by an RMSE between the two sets of medians of 0.101 (CS), 0.087 (CH), 0.119 (DS) and 0.087 (DH).
+Because the species differ in viability, the two compositions enter the likelihood as separate channels (Eq.~(5) of the main text): the viable fractions against the living fractions $\phi_i\psi_i/\sum_j\phi_j\psi_j$ and the total-count fractions against the volume fractions $\phi_i/\sum_j\phi_j$; the community live fraction from SYTO9/propidium iodide (LIVE/DEAD BacLight) staining, which is image based and not resolved by species, is the third term.
+Table~\ref{tab:S_total} gives the errors of the final MAP in both channels and, for comparison, of the viable data against the volume fractions, i.e.\ the error a likelihood with a species-independent viability would see.
 
 \begin{table}[h]
 \centering
-\caption{RMSE of the normalised MAP volume fractions $\phi_i/\sum_j\phi_j$ of the final stage against the medians of the viable-cell data used in the fit (PMA-qRT-PCR) and of the total-count data (\citealp{heine2025influence}, Fig.~S1).}
+\caption{RMSE of the MAP of the final stage (seed with the highest maximum log-likelihood) against the medians of the viable-cell data (PMA-qRT-PCR) and of the total-count data (\citealp{heine2025influence}, Fig.~S1). The first two rows are the channels of the likelihood; the last row compares the viable data with the volume fractions and is not used in the fit.}
 \label{tab:S_total}
 \small
 \begin{tabular}{lcccc}
 \toprule
  & CS & CH & DS & DH\\
 \midrule
-Viable (used in the fit) & 0.179 & 0.076 & 0.027\TBD{prov.} & 0.083\TBD{prov.}\\
-Total count & 0.136 & 0.059 & 0.036\TBD{prov.} & 0.045\TBD{prov.}\\
+Viable vs.\ $\phi_i\psi_i/\sum_j\phi_j\psi_j$ & 0.090 & 0.060 & \TBD{DS} & \TBD{DH}\\
+Total count vs.\ $\phi_i/\sum_j\phi_j$ & 0.039 & 0.081 & \TBD{DS} & \TBD{DH}\\
+Viable vs.\ $\phi_i/\sum_j\phi_j$ (not fitted) & 0.110 & 0.107 & \TBD{DS} & \TBD{DH}\\
 \bottomrule
 \end{tabular}
 \end{table}
