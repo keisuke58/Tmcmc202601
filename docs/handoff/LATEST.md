@@ -124,6 +124,7 @@
 
 | 日付 | ファイル | 要点 |
 |---|---|---|
+| 2026-10-17 | [2026-10-17a_dh_tbd_fill.md](2026-10-17a_dh_tbd_fill.md) | **DH の \TBD を段 (iii) の数字で埋めた（本文・補足）。GPU 側へ: DH の pilot・p1（2c_raw）を final_runs にコピーして（表 S1・S2・コストの DH 行に要る）** |
 | 2026-10-17 | [gpu_2026-10-17_DH_ult_decision.md](gpu_2026-10-17_DH_ult_decision.md) | **DH は p2（全 PASS）を最終の run に（ユーザー決定、いったん）。ult は判定 4 FAIL（seed で山が分かれる、D21/15 が 11.5〜18.9）で限界として書く。回し直しなし** |
 | 2026-10-16 | [gpu_2026-10-16_DH_ult.md](gpu_2026-10-16_DH_ult.md) | **自動通知**: run 終了。FAIL を含む群は回し直すまで解釈しない |
 | 2026-10-16 | [gpu_2026-10-16_CS_ult.md](gpu_2026-10-16_CS_ult.md) | **自動通知**: run 終了。全群 PASS |
