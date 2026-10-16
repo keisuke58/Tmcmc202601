@@ -1,24 +1,44 @@
 {
   "CS": {
-    "run": "CS_ult_wide2_sd4_seed42",
+    "run": "CS_ult_2c_raw_seed123",
+    "data_source": "raw",
+    "two_channel": true,
     "phi_init": [
-      0.17930029154518953,
-      0.004859086491739553,
-      0.8066083576287658,
-      0.004859086491739553,
-      0.004373177842565599
+      0.12232537521335081,
+      0.003853369363517963,
+      0.8463269525724842,
+      0.022203111290194956,
+      0.005291191560452096
     ],
-    "note": "phi_init: as recorded by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99]). phi_init_state: the state the forward model starts from (hamilton_ode_jax_paper.make_initial_state: scaled to a sum of 0.999999); pass this one to write_eco_cfg.py --phi-init.",
     "phi_init_state": [
-      0.17930029154518953,
-      0.004859086491739553,
-      0.8066083576287658,
-      0.004859086491739553,
-      0.004373177842565599
-    ]
+      0.12232537521335081,
+      0.003853369363517963,
+      0.8463269525724842,
+      0.022203111290194956,
+      0.005291191560452096
+    ],
+    "psi_init": null,
+    "note": "phi_init: as recorded by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99]). phi_init_state: the state the forward model starts from (hamilton_ode_jax_paper.make_initial_state: scaled to a sum of 0.999999); pass this one to write_eco_cfg.py --phi-init. psi_init null = the estimator default (0.999 for every species). Measured-data, two-channel run (2026-10-15).",
+    "superseded": {
+      "run": "CS_ult_wide2_sd4_seed42",
+      "phi_init": [
+        0.17930029154518953,
+        0.004859086491739553,
+        0.8066083576287658,
+        0.004859086491739553,
+        0.004373177842565599
+      ],
+      "phi_init_state": [
+        0.17930029154518953,
+        0.004859086491739553,
+        0.8066083576287658,
+        0.004859086491739553,
+        0.004373177842565599
+      ]
+    }
   },
   "CH": {
-    "run": "CH_ult_2c_raw_a33w_seed123",
+    "run": "CH_ult_2c_raw_a33w_seed7 (polished MAP)",
     "data_source": "raw",
     "two_channel": true,
     "phi_init": [

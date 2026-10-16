@@ -12,6 +12,7 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
+| 2026-10-16 | [2026-10-16j_cs_ult_polish.md](2026-10-16j_cs_ult_polish.md) | final_theta_MAP は「磨いたあとの最大の点」（CH.json = seed7 の磨いた θ −25.87、CS.json = seed123 の粒子の最良値 −32.86）。**CS ult の 3 seed を top-k 3 で磨く**（急がない） | **有効**: 空いたら |
 | 2026-10-16 | [2026-10-16i_recovery_guard.md](2026-10-16i_recovery_guard.md) | 16h への対応: `recovery_run.py` が合成データの source_glob を SRC_GLOB（空なら GROUPS の既定、CS・CH は 2c_raw に更新）と比べ、違えば止まる。`recovery_job.sh` は走っているジョブのため変えていない | **有効**: 次の回収テストから |
 | 2026-10-16 | [2026-10-16g_ds_p1_criterion3.md](2026-10-16g_ds_p1_criterion3.md) | **基準 3 は seed ごとの「見つかったいちばん高い max logL」で判定（ユーザー一任 → 案 1）。DS p1 は幅 1.70 で FAIL と正直に書く。DS p2 以降は止めない。今後の磨きは旧値・新値・大きい方を並べて報告** | **有効** |
 | 2026-10-16 | [2026-10-16f_ds_p2_rerun_a.md](2026-10-16f_ds_p2_rerun_a.md) | **DS p2 の出し直しは (a)（ユーザー決定）: 同じ設定のまま 4090 に 3 seed、walltime 72h。磨き → gate → ult を依存でつなぎ直す** | **有効**: すぐ |
