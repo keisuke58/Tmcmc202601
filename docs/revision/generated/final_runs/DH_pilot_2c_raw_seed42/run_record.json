@@ -1,0 +1,354 @@
+{
+  "pipeline": "estimate_paper_jax.py (ba1c285 系・論文パイプライン)",
+  "git_head": "89fb11cbcd75098f53c7f61b81a4f3eed65fc8db",
+  "git_dirty_main_dir": false,
+  "modules": {
+    "forward": "/home/nishioka/Tmcmc202601/data_5species/main/hamilton_ode_jax_paper.py",
+    "engine": "/home/nishioka/Tmcmc202601/data_5species/main/tmcmc_engine_paper.py"
+  },
+  "argv": [
+    "estimate_paper_jax.py",
+    "--condition",
+    "Dysbiotic",
+    "--cultivation",
+    "HOBIC",
+    "--K-hill",
+    "0.0",
+    "--n-hill",
+    "4.0",
+    "--use-exp-init",
+    "--use-de-mc",
+    "--mutation",
+    "rw",
+    "--seed",
+    "42",
+    "--device",
+    "gpu",
+    "--mutation-throttle-floor",
+    "1.0",
+    "--ic-day",
+    "1",
+    "--fix-psi",
+    "--n-particles",
+    "1000",
+    "--n-mutation-steps",
+    "40",
+    "--two-channel",
+    "--lambda-ch2",
+    "1.0",
+    "--data-source",
+    "raw",
+    "--output-dir",
+    "_runs/paper_gateoff/DH_pilot_2c_raw_seed42"
+  ],
+  "args": {
+    "condition": "Dysbiotic",
+    "cultivation": "HOBIC",
+    "n_particles": 1000,
+    "max_stages": 30,
+    "seed": 42,
+    "use_exp_init": true,
+    "start_from_day": 1,
+    "ic_day": 1,
+    "lambda_pg": 5.0,
+    "lambda_late": 3.0,
+    "lambda_rare": 0.1,
+    "sigma_scale": 1.0,
+    "replicate_sigma": false,
+    "K_hill": 0.0,
+    "n_hill": 4.0,
+    "dt": 0.0001,
+    "n_steps": 2500,
+    "output_dir": "_runs/paper_gateoff/DH_pilot_2c_raw_seed42",
+    "mutation": "rw",
+    "quick": false,
+    "benchmark": false,
+    "device": "gpu",
+    "multichannel": false,
+    "lambda_ch1": 1.0,
+    "lambda_ch2": 1.0,
+    "lambda_ch3": 2.0,
+    "lambda_ch5": 0.3,
+    "n_mutation_steps": 40,
+    "mutation_throttle_floor": 1.0,
+    "use_de_mc": true,
+    "de_mc_gamma": 2.38,
+    "use_student_t": false,
+    "student_t_nu": 5.0,
+    "resample_method": "systematic",
+    "max_info_ratio": 10.0,
+    "use_flow": false,
+    "flow_n_layers": 6,
+    "flow_hidden_dim": 64,
+    "flow_n_epochs": 200,
+    "flow_lr": 0.001,
+    "flow_start_beta": 0.1,
+    "flow_mix_ratio": 0.8,
+    "waste_free": false,
+    "init_from_dir": null,
+    "posterior_prior_nsigma": null,
+    "override_bounds": null,
+    "fix_psi": true,
+    "data_source": "raw",
+    "holdout_day": null,
+    "two_channel": true,
+    "estimate_b": false,
+    "prior_scale": 0.0,
+    "box": null,
+    "skip_sensitivity_check": false
+  },
+  "theta_names": [
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45"
+  ],
+  "free_dims": [
+    0,
+    1,
+    2,
+    5,
+    6,
+    7,
+    10,
+    11,
+    12,
+    13,
+    14,
+    16,
+    17,
+    18,
+    19
+  ],
+  "prior_bounds_final": [
+    [
+      0.0,
+      5.0
+    ],
+    [
+      0.5,
+      3.0
+    ],
+    [
+      0.0,
+      5.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -1.0,
+      3.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      0.0,
+      5.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -3.0,
+      3.0
+    ],
+    [
+      -1.5,
+      3.0
+    ],
+    [
+      0.0,
+      3.0
+    ],
+    [
+      -0.5,
+      3.0
+    ],
+    [
+      -1.5,
+      5.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -0.5,
+      2.5
+    ],
+    [
+      -0.5,
+      2.5
+    ],
+    [
+      -0.5,
+      5.0
+    ],
+    [
+      -0.5,
+      6.0
+    ]
+  ],
+  "phi_init": [
+    0.041159856406684917,
+    0.001,
+    0.9380617160125004,
+    0.0012883120374409167,
+    0.018913755488605535
+  ],
+  "sigma_obs": [
+    0.05450424807407408,
+    0.16338458066666664,
+    0.08746348246913581,
+    0.11222668571604938,
+    0.05120692049382716
+  ],
+  "lambda_ch_effective": {
+    "1": 1.0,
+    "2": 1.0,
+    "3": 0.0,
+    "5": 0.0
+  },
+  "psi_fixed": [
+    [
+      0.3437184874576809,
+      0.14572584564058838,
+      0.7854335821096556,
+      0.7279596836626696,
+      0.7279596836626696
+    ],
+    [
+      0.2929717476158118,
+      0.1989855229858027,
+      0.43566140854638746,
+      0.3926562064023886,
+      0.3926562064023886
+    ],
+    [
+      0.35856888364354644,
+      0.6831979778105033,
+      0.4384378805147809,
+      0.44971309741710536,
+      0.44971309741710536
+    ],
+    [
+      0.6435437581499395,
+      0.26124601973811423,
+      0.99,
+      0.8252610314667377,
+      0.48205070494477775
+    ],
+    [
+      0.4738362396329467,
+      0.36205153041500104,
+      0.5761863138779504,
+      0.4427322464855849,
+      0.99
+    ]
+  ],
+  "n_stages": 11,
+  "beta_final": 1.0,
+  "total_time_s": 10445.413910865784,
+  "mean_accept": 0.12035454545454546,
+  "stage_history": {
+    "beta": [
+      0.006411389039210569,
+      0.019042588849384236,
+      0.045698445738235456,
+      0.0798964140505109,
+      0.125340277914361,
+      0.20607621550131208,
+      0.3626825050897453,
+      0.593572128771622,
+      0.891544933438154,
+      0.9999999999999999,
+      1.0
+    ],
+    "accept_rate": [
+      0.143175,
+      0.13275,
+      0.124925,
+      0.11935,
+      0.117725,
+      0.1177,
+      0.1287,
+      0.115325,
+      0.114025,
+      0.106,
+      0.104225
+    ],
+    "n_mut": [
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40
+    ],
+    "moves_per_particle": [
+      5.727,
+      5.31,
+      4.997,
+      4.774,
+      4.709,
+      4.708,
+      5.148,
+      4.613,
+      4.561,
+      4.24,
+      4.169
+    ],
+    "ess": [
+      500.00000000001813,
+      500.0000000000117,
+      500.00000000001404,
+      500.00000000001125,
+      500.0000000000001,
+      500.00000000000375,
+      500.0000000000006,
+      500.0000000000009,
+      500.0000000000006,
+      920.590432042363,
+      1000.0000000000005
+    ]
+  },
+  "moves_per_particle_mean": 4.814181818181818,
+  "max_logL": -14.450241031834128,
+  "log_evidence": -36.307224574229735,
+  "logL_recheck_maxabs": 0.0,
+  "logL_consistent": true
+}
