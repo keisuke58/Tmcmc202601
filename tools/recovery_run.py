@@ -38,12 +38,22 @@ ap.add_argument("--device", default="gpu", choices=["cpu", "gpu", "auto"])
 ap.add_argument("--n-particles", type=int, default=None, help="既定は元 run と同じ")
 ap.add_argument("--n-mutation-steps", type=int, default=None, help="既定は元 run と同じ")
 ap.add_argument("--max-stages", type=int, default=None, help="既定は元 run と同じ（30）")
+ap.add_argument("--expect-glob", default=None,
+                help="合成データの元の run 群（source_glob）がこれと違えば止める。既定は環境変数 SRC_GLOB、"
+                     "それも空なら recovery_common.GROUPS の既定（10/16: 旧い合成データの再利用を防ぐ）")
+ap.add_argument("--allow-other-source", action="store_true", help="上の確認をしない")
 ap.add_argument("--dry-run", action="store_true")
 ap.add_argument("--tiny", action="store_true", help="20 粒子・mutation 1・1 段（通し確認用。事後ではない）")
 args = ap.parse_args()
 
 syn_path = Path(args.synthetic).resolve()
 syn = json.load(open(syn_path))
+if not args.allow_other_source:
+    import os
+    want = args.expect_glob or os.environ.get("SRC_GLOB") or RC.GROUPS[syn["tag"]][2]
+    if syn.get("source_glob") != want:
+        sys.exit(f"合成データの元が違う: {syn_path} は source_glob={syn.get('source_glob')!r}、今回は {want!r}。"
+                 "旧いディレクトリを別名に退避してから作り直す（消さない）。")
 syn_sha = hashlib.sha256(syn_path.read_bytes()).hexdigest()
 st = syn["settings"]
 pb = np.array(syn["prior_bounds_final"], dtype=float)
