@@ -20,7 +20,7 @@
 cd ~/Tmcmc202601/data_5species/main && git pull
 declare -A OVF=([CS]="" [CH]="" [DS]="5:-15:20;6:-15:20;19:-15:20" [DH]="")
 declare -A OVZ=([CS]="19:0:0" [CH]="19:0:0" [DS]="5:-15:20;6:-15:20;19:0:0" [DH]="19:0:0")
-for T in CS CH DS DH; do for S in 42 7 123; do
+for T in CS CH; do for S in 42 7 123; do   # 1 回目: CS・CH（12 本）。DS・DH は 2 回目に同じループで T を DS DH に
   qsub -l walltime=10:00:00 -v STAGE=pilot,TAG=$T,SEED=$S,N_MUT=120,DATA_SOURCE=raw,TWO_CHANNEL=1,RUNTAG=2c_raw_m120${OVF[$T]:+,OVERRIDE=${OVF[$T]}} paper_gateoff_job.sh
   qsub -l walltime=10:00:00 -v STAGE=pilot,TAG=$T,SEED=$S,N_MUT=120,DATA_SOURCE=raw,TWO_CHANNEL=1,RUNTAG=2c_raw_a45zero_m120,OVERRIDE=${OVZ[$T]} paper_gateoff_job.sh
 done; done
@@ -28,8 +28,11 @@ done; done
 （`OVERRIDE` の区切りは `;` のままでよい。job が `,` に直す）
 
 ## 優先度
+- **CS・CH を先に（12 本）、DS・DH はそのあと（12 本）**（追記 10/16、ユーザー）。CS・CH は最終段まで確定しているので、
+  ln B が出ればすぐ本文・表 S8 の CS・CH の行を確定できる。DS・DH は ult がそろうときにまとめて入れる。
+  段 (i) の箱は後の段に依存しないので、DS・DH の分は DS の ult を待たずに、GPU が空いたら入れてよい。
 - **本線（DS p2 → 磨き → gate → ult、DH ult、CH の磨き・回収）を先に**。空いた GPU に順に入れる（同時 15 本の枠の中で）。
-  10/26 の週に共著者へ送る版に入れたいので、**10/23 までに終わる**のが目安。間に合わなければ CS・CH を先に。
+  10/26 の週に共著者へ送る版に入れたいので、**10/23 までに終わる**のが目安。
 - 1 本目が終わったら、run_record の `log_evidence` が数値（None でない）、`args.override_bounds` に `19:0:0`、`moves_per_particle` が 5 回/次元を超えることを確認。
 
 ## 終わったら
