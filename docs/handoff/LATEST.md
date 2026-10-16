@@ -12,6 +12,7 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
+| 2026-10-16 | [2026-10-16f_ds_p2_rerun_a.md](2026-10-16f_ds_p2_rerun_a.md) | **DS p2 の出し直しは (a)（ユーザー決定）: 同じ設定のまま 4090 に 3 seed、walltime 72h。磨き → gate → ult を依存でつなぎ直す** | **有効**: すぐ |
 | 2026-10-16 | [2026-10-16e_ds_p2_lost.md](2026-10-16e_ds_p2_lost.md) | **最優先: DS p2（3519〜3521）が出力なしで終わった（walltime 40h 切れの可能性）。ログで原因と到達段を確認 → walltime を見積もり直して出し直し → 磨き → gate → ult。CH の磨き直しは続行、CS ult は全 PASS → final_runs へ** | **有効**: 最優先 |
 | 2026-10-16 | [2026-10-16c_ch_repolish_recovery.md](2026-10-16c_ch_repolish_recovery.md) | **空いている GPU で (1) CH の p1・p2・ult を 16b の設定で磨き直し → 判定し直して final_runs に polish.json、(2) そのあと CH の合成データ回収テスト（2 通路・生データ、3 seed、クラウドで dry-run 済み）。本線優先** | **有効**: 枠が空いたら |
 | 2026-10-16 | [2026-10-16b_polish_faster.md](2026-10-16b_polish_faster.md) | **磨きを速く: top-k 3・`--ftol 1e-7`（このコミット）。DS p1 の磨き直し 3582〜3584 を qdel してこの設定で出し直す。DS p2 も seed ごとに磨いて gate は POLISH=0** | **有効**: すぐ |
