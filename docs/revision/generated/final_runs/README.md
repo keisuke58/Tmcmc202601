@@ -5,7 +5,8 @@
 
 - 群の名前: `figures/raw/spec_raw.json`（`tools/rebuild_eml_raw.sh` が読む）。
 - 判定と最終 MAP の選び方: `docs/revision/generated/final_theta_MAP/README.md`、handoff `2026-10-16g`・`16j`。
-- DS・DH は GPU で走行中。終わったらここに足す。
+- DH は `DH_p2_2c_raw_seed*` が最終（2026-10-16l）。`DH_ult_2c_raw_seed*` は判定 4 FAIL で、限界の節の数字の元として参考に置く（DH p2 には polish.json も入れた。λψ は run_record の `lambda_ch_effective` で 3.0）。
+- DS は GPU で走行中。終わったらここに足す。
 
 **論文の図から読み取ったデータ（digitised）で回した以前の run は `../final_runs_digitised/` に分けた**（2026-10-16、
 混ざらないように）。そちらは `superseded` の MAP・旧版の図（`figures/provisional_2026-10-11/`・`figures/generated/`）の元で、
