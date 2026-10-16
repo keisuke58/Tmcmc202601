@@ -38,7 +38,8 @@ GROUPS = {"CS": ("Commensal", "Static", "CS_ult_2c_raw_seed*"),
           "DH": ("Dysbiotic", "HOBIC", "DH_ult_2c_raw_seed*")}
 if args.spec:  # raw の run など（2026-10-13）
     _sp = json.load(open(args.spec))
-    GROUPS = {t: (c, u, _sp[t]["ult"]) for t, (c, u, _p) in GROUPS.items() if t in _sp and "ult" in _sp[t]}
+    GROUPS = {t: (c, u, _sp[t].get("final") or _sp[t]["ult"]) for t, (c, u, _p) in GROUPS.items()
+              if t in _sp and ("final" in _sp[t] or "ult" in _sp[t])}  # "final": 最終群が ult でない条件（DH は p2）
 NAMES = E.THETA_NAMES
 UNIDENT_RATIO = 0.8
 out = {}

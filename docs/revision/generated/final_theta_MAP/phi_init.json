@@ -74,5 +74,26 @@
         0.005252100840336134
       ]
     }
+  },
+  "DH": {
+    "run": "DH_p2_2c_raw_seed42",
+    "data_source": "raw",
+    "two_channel": true,
+    "phi_init": [
+      0.041159856406684917,
+      0.001,
+      0.9380617160125004,
+      0.0012883120374409167,
+      0.018913755488605535
+    ],
+    "phi_init_state": [
+      0.041159856406684917,
+      0.001,
+      0.9380617160125004,
+      0.0012883120374409167,
+      0.018913755488605535
+    ],
+    "psi_init": null,
+    "note": "phi_init: as recorded by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99]). phi_init_state: the state the forward model starts from (hamilton_ode_jax_paper.make_initial_state: scaled to a sum of 0.999999); pass this one to write_eco_cfg.py --phi-init. psi_init null = the estimator default (0.999 for every species). Measured-data, two-channel run; final stage of DH is stage (iii) (p2), 2026-10-16 user decision."
   }
 }

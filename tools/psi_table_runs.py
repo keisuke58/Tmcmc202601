@@ -122,12 +122,14 @@ def main():
     ap.add_argument("root")
     ap.add_argument("--pattern", default="{tag}_p2_2c_seed*")
     ap.add_argument("--tags", default="CS,CH,DS,DH")
+    for _t in ("CS", "CH", "DS", "DH"):  # 条件ごとに別の群（DH は最終群が p2、10-16）
+        ap.add_argument(f"--pattern-{_t}", default=None)
     ap.add_argument("--out", default=None, help="拡張子なし。.md と .json を書く")
     ap.add_argument("--tex", default=None, help="補足の表（tab:S_psi）を書く .tex")
     a = ap.parse_args()
     res = {}
     for tag in a.tags.split(","):
-        r = summarize(a.root, a.pattern, tag)
+        r = summarize(a.root, getattr(a, f"pattern_{tag}", None) or a.pattern, tag)
         if r is None:
             print(f"{tag}: run なし（{a.pattern.format(tag=tag)}）")
             continue

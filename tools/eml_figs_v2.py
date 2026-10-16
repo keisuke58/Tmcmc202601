@@ -250,7 +250,7 @@ def fig6_v2(ko, B, out_noext, measured_ratio=2.74):
     ax.set_xticklabels(labels)
     ax.tick_params(axis="x", length=0)
     ax.set_xlim(-0.5, 2.6)
-    ax.set_ylim(0, max(8.0, max(r[k][2] for r in ko for k in keys) * 1.05))
+    ax.set_ylim(0, max(8.0, max(r[k][2] for r in ko for k in keys) * 1.05, measured_ratio * 1.15))
     ax.set_ylabel(r"Pg ratio, day 21 / day 15")
     _cond_header(ax, "DH", sub="in-silico knockout", dy_mm=1.2)
     st.panel_label(ax, "a", dx_mm=-8.0, dy_mm=1.2)

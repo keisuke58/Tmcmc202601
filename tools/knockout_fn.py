@@ -80,7 +80,8 @@ def simulate_masked(theta, active_mask, n_steps, dt, phi_init, K_hill, n_hill, p
         return g_next, g_next
 
     _, g_traj = jax.lax.scan(body, g0, jnp.arange(n_steps))
-    return jnp.concatenate([g0[0:5][jnp.newaxis, :], g_traj[:, 0:5]], axis=0)
+    # 状態をまるごと返す（φ 0:5、ψ 6:11）。2 通路の run では生きた菌の組成 φψ/Σφψ で比を取るため（2026-10-16）
+    return jnp.concatenate([g0[jnp.newaxis, :], g_traj], axis=0)
 
 
 def run_dir(d, n_samples, seed):
@@ -120,16 +121,20 @@ def run_dir(d, n_samples, seed):
         n_hill=a["n_hill"],
     )
     mine = simulate_masked(th[0], mask_all, a["n_steps"], a["dt"], phi0, a["K_hill"], a["n_hill"], rec.get("psi_init"))
-    dmax = float(jnp.max(jnp.abs(ref - mine)))
+    dmax = float(jnp.max(jnp.abs(ref - mine[:, 0:5])))
     if dmax > 1e-12:
         raise RuntimeError(f"{d.name}: simulate_masked が simulate_0d と一致しない（{dmax:.2e}）")
 
     def sim(theta, mask):
         traj = simulate_masked(theta, mask, a["n_steps"], a["dt"], phi0, a["K_hill"], a["n_hill"], rec.get("psi_init"))
-        p = jnp.clip(traj[jnp.array([k15, k21])], 1e-10, 1.0)
+        g2 = traj[jnp.array([k15, k21])]
+        p = jnp.clip(g2[:, 0:5], 1e-10, 1.0)
+        if two:  # 2 通路: 生きた菌の組成 φψ/Σφψ（尤度・本文の D21/15 と同じ、tools/comp_pred.py）
+            p = p * jnp.clip(g2[:, 6:11], 1e-10, 1.0)
         p = p / p.sum(axis=1, keepdims=True)  # 尤度・RMSE と同じ正規化
         return p[1, PG] / p[0, PG], p[1, PG], traj[k21, FN]
 
+    two = bool(a.get("two_channel", False))
     f = jax.jit(jax.vmap(sim, in_axes=(0, None)))
     base = [np.asarray(x) for x in f(th, mask_all)]
     nofn = [np.asarray(x) for x in f(th, mask_noFn)]

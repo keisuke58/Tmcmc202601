@@ -34,5 +34,17 @@
   "rhat_max_identified": 1.000013627349371,
   "rhat_max_all": 1.0009234202133537,
   "median_spread_max_identified": 0.05370482130081781
+ },
+ "DH_p2": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.00304674808344,
+  "rhat_max_all": 1.00304674808344,
+  "median_spread_max_identified": 0.13068419031722758
+ },
+ "DH_ult": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.1108317357340536,
+  "rhat_max_all": 1.1108317357340536,
+  "median_spread_max_identified": 0.7931076969731491
  }
 }

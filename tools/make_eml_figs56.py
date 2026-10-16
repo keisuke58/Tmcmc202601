@@ -56,7 +56,7 @@ spec = json.load(open(args.spec))
 
 def ult_dirs(tag):
     """最終段の run（spec に無い・まだ無い条件は []。図では pending の列になる、2026-10-16）。"""
-    g = spec.get(tag, {}).get("ult")
+    g = spec.get(tag, {}).get("final") or spec.get(tag, {}).get("ult")  # "final": 最終群が ult でない条件（DH は p2、10-16）
     return sorted(glob.glob(os.path.join(args.root, g))) if g else []
 
 
@@ -245,6 +245,6 @@ if V2:
     print(f"図 3 (v2): fig3_ident_matrix、色の範囲 ±{vmax:g}")
     V2F.fig4_v2(Q4, U0, cls, M, ORDER, CONDS, SP, os.path.join(args.fig_dir, "fig4_posteriors_v2"))
     if B is not None and ko is not None:
-        V2F.fig6_v2(ko, B, os.path.join(args.fig_dir, "fig6_checks_v2"))
+        V2F.fig6_v2(ko, B, os.path.join(args.fig_dir, "fig6_checks_v2"), measured_ratio=OBS_RATIO)
     else:
         print("図 5 (v2): pH の帯（ph_check_bands.npz）か knockout_DH.json が無いので飛ばした")

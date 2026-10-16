@@ -1,0 +1,34 @@
+{
+  "beta": [
+    6.667935938504002,
+    -0.4848487510860164,
+    -0.5353491916870762,
+    2.1285822377086534,
+    -1.6204952180236543
+  ],
+  "regression_r2_on_data": 0.879426702553093,
+  "CH": {
+    "runs": [
+      "CH_ult_2c_raw_a33w_seed123",
+      "CH_ult_2c_raw_a33w_seed42",
+      "CH_ult_2c_raw_a33w_seed7"
+    ],
+    "n_points": 14262,
+    "rmse_posterior_median": 0.08241146479268865,
+    "r2_posterior_median": -0.2111668781954139,
+    "coverage_90": 0.4354228018510728,
+    "rmse_regression_on_measured_composition": 0.07086128491249202
+  },
+  "DH": {
+    "runs": [
+      "DH_p2_2c_raw_seed123",
+      "DH_p2_2c_raw_seed42",
+      "DH_p2_2c_raw_seed7"
+    ],
+    "n_points": 14262,
+    "rmse_posterior_median": 0.09735796157646073,
+    "r2_posterior_median": 0.7072207838308172,
+    "coverage_90": 0.8487589398401346,
+    "rmse_regression_on_measured_composition": 0.11586668867643275
+  }
+}

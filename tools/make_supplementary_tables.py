@@ -277,7 +277,7 @@ def ident_table(root, spec):
     """S4: 最終段の 15 成分 × 4 条件。3 seed 合算の中央値 [5%, 95%]、同定されていない成分は n.i."""
     cols = {}
     for tag in CONDS:
-        pat = spec.get(tag, {}).get("ult")
+        pat = spec.get(tag, {}).get("final") or spec.get(tag, {}).get("ult")  # "final": 最終群が ult でない条件（DH は p2、10-16）
         dirs = sorted(glob.glob(os.path.join(root, pat))) if pat else []
         S, pb = [], None
         for d in dirs:

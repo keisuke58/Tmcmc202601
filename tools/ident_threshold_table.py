@@ -42,7 +42,7 @@ def main(root, spec, out):
     spec = json.load(open(spec))
     rows, sets = [], {}
     for t in CONDS:
-        g = spec.get(t, {}).get("ult")
+        g = spec.get(t, {}).get("final") or spec.get(t, {}).get("ult")
         if not g or not glob.glob(str(Path(root) / g)):  # 最終段がまだ無い条件（2026-10-16）
             rows.append((t, None))
             continue
