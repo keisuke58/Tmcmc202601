@@ -1,0 +1,333 @@
+{
+  "pipeline": "estimate_paper_jax.py (ba1c285 系・論文パイプライン)",
+  "git_head": "e90ac3f1d76f2ff8db20ff188a3ef2c0362b8f18",
+  "git_dirty_main_dir": false,
+  "modules": {
+    "forward": "/home/nishioka/Tmcmc202601/data_5species/main/hamilton_ode_jax_paper.py",
+    "engine": "/home/nishioka/Tmcmc202601/data_5species/main/tmcmc_engine_paper.py"
+  },
+  "argv": [
+    "estimate_paper_jax.py",
+    "--condition",
+    "Commensal",
+    "--cultivation",
+    "Static",
+    "--K-hill",
+    "0.0",
+    "--n-hill",
+    "4.0",
+    "--use-exp-init",
+    "--use-de-mc",
+    "--mutation",
+    "rw",
+    "--seed",
+    "42",
+    "--device",
+    "gpu",
+    "--mutation-throttle-floor",
+    "1.0",
+    "--ic-day",
+    "1",
+    "--fix-psi",
+    "--n-particles",
+    "2000",
+    "--n-mutation-steps",
+    "120",
+    "--init-from-dir",
+    "_runs/paper_gateoff/CS_pilot_2c_raw_seed42",
+    "--posterior-prior-nsigma",
+    "4",
+    "--two-channel",
+    "--lambda-ch2",
+    "1.0",
+    "--data-source",
+    "raw",
+    "--output-dir",
+    "_runs/paper_gateoff/CS_p1_2c_raw_seed42"
+  ],
+  "args": {
+    "condition": "Commensal",
+    "cultivation": "Static",
+    "n_particles": 2000,
+    "max_stages": 30,
+    "seed": 42,
+    "use_exp_init": true,
+    "start_from_day": 1,
+    "ic_day": 1,
+    "lambda_pg": 5.0,
+    "lambda_late": 3.0,
+    "lambda_rare": 0.1,
+    "sigma_scale": 1.0,
+    "replicate_sigma": false,
+    "K_hill": 0.0,
+    "n_hill": 4.0,
+    "dt": 0.0001,
+    "n_steps": 2500,
+    "output_dir": "_runs/paper_gateoff/CS_p1_2c_raw_seed42",
+    "mutation": "rw",
+    "quick": false,
+    "benchmark": false,
+    "device": "gpu",
+    "multichannel": false,
+    "lambda_ch1": 1.0,
+    "lambda_ch2": 1.0,
+    "lambda_ch3": 2.0,
+    "lambda_ch5": 0.3,
+    "n_mutation_steps": 120,
+    "mutation_throttle_floor": 1.0,
+    "use_de_mc": true,
+    "de_mc_gamma": 2.38,
+    "use_student_t": false,
+    "student_t_nu": 5.0,
+    "resample_method": "systematic",
+    "max_info_ratio": 10.0,
+    "use_flow": false,
+    "flow_n_layers": 6,
+    "flow_hidden_dim": 64,
+    "flow_n_epochs": 200,
+    "flow_lr": 0.001,
+    "flow_start_beta": 0.1,
+    "flow_mix_ratio": 0.8,
+    "waste_free": false,
+    "init_from_dir": "_runs/paper_gateoff/CS_pilot_2c_raw_seed42",
+    "posterior_prior_nsigma": 4.0,
+    "override_bounds": null,
+    "fix_psi": true,
+    "data_source": "raw",
+    "holdout_day": null,
+    "two_channel": true,
+    "estimate_b": false,
+    "prior_scale": 0.0,
+    "box": null,
+    "skip_sensitivity_check": false
+  },
+  "theta_names": [
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45"
+  ],
+  "free_dims": [
+    0,
+    1,
+    2,
+    5,
+    6,
+    7,
+    10,
+    11,
+    12,
+    13,
+    14,
+    16,
+    17,
+    18,
+    19
+  ],
+  "prior_bounds_final": [
+    [
+      0.0,
+      1.9010989102635079
+    ],
+    [
+      0.9096513200078178,
+      2.0
+    ],
+    [
+      -1.0,
+      3.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -1.0,
+      -0.004196038827556259
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      1.6599589112086606,
+      3.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -0.05594314201935324,
+      2.715391589833034
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      1.0
+    ]
+  ],
+  "phi_init": [
+    0.12232537521335081,
+    0.003853369363517963,
+    0.8463269525724842,
+    0.022203111290194956,
+    0.005291191560452096
+  ],
+  "sigma_obs": [
+    0.10609153511111112,
+    0.07109585083333335,
+    0.12619523344444442,
+    0.05,
+    0.05
+  ],
+  "lambda_ch_effective": {
+    "1": 1.0,
+    "2": 1.0,
+    "3": 0.0,
+    "5": 0.0
+  },
+  "psi_fixed": [
+    [
+      0.99,
+      0.31814764831170655,
+      0.4100541211326708,
+      0.09051190838753193,
+      0.7751139949716749
+    ],
+    [
+      0.802560760495099,
+      0.3069561172723042,
+      0.4957565421994561,
+      0.65624203684921,
+      0.65624203684921
+    ],
+    [
+      0.8002083379612093,
+      0.5949242596654811,
+      0.45782777969252886,
+      0.6588461413385331,
+      0.6588461413385331
+    ],
+    [
+      0.56121503290515,
+      0.7416412328394264,
+      0.8801416950512606,
+      0.6895983172260725,
+      0.6895983172260725
+    ],
+    [
+      0.4062505733552075,
+      0.99,
+      0.8628800591699554,
+      0.6647305930191604,
+      0.6647305930191604
+    ]
+  ],
+  "n_stages": 6,
+  "beta_final": 1.0,
+  "total_time_s": 14281.992423772812,
+  "mean_accept": 0.14857708333333333,
+  "stage_history": {
+    "beta": [
+      0.05973887204553385,
+      0.19329380742249752,
+      0.43875456516632266,
+      0.8435454876310704,
+      0.9999999999999999,
+      1.0
+    ],
+    "accept_rate": [
+      0.1770875,
+      0.14519166666666666,
+      0.14250833333333332,
+      0.142175,
+      0.14336666666666667,
+      0.14113333333333333
+    ],
+    "n_mut": [
+      120,
+      120,
+      120,
+      120,
+      120,
+      120
+    ],
+    "moves_per_particle": [
+      21.2505,
+      17.423,
+      17.101,
+      17.061,
+      17.204,
+      16.936
+    ],
+    "ess": [
+      1000.0000000000006,
+      1000.0000000000035,
+      1000.0000000000024,
+      1000.0000000000001,
+      1866.9523028639017,
+      2000.0
+    ]
+  },
+  "moves_per_particle_mean": 17.829250000000002,
+  "max_logL": -4.144235405735026,
+  "log_evidence": -10.953964633110047,
+  "logL_recheck_maxabs": 0.0,
+  "logL_consistent": true
+}
