@@ -155,11 +155,12 @@ docs/revision/generated/final_runs/CH_p2_2c_raw_cold_seed*
 ?docs/revision/generated/final_runs/DS_p2_2c_raw_seed*
 ?docs/revision/generated/final_runs/DS_ult_2c_raw_seed*
 
-# DH -- dysbiotic, HOBIC flow reactor   (measured data, two-channel likelihood; PENDING: runs still on the GPU)
+# DH -- dysbiotic, HOBIC flow reactor (measured data, two-channel likelihood; final stage = stage (iii), 2026-10-16)
 ?docs/revision/generated/final_runs/DH_pilot_2c_raw_seed*
 ?docs/revision/generated/final_runs/DH_p1_2c_raw_seed*
-?docs/revision/generated/final_runs/DH_p2_2c_raw_seed*
-?docs/revision/generated/final_runs/DH_ult_2c_raw_seed*
+docs/revision/generated/final_runs/DH_p2_2c_raw_seed*
+# stage (iv): fails the seed-agreement criterion (seeds settle in different modes); archived for the limitation reported in the paper
+docs/revision/generated/final_runs/DH_ult_2c_raw_seed*
 
 # ---------------------------------------------------------------------------
 # 5. Final MAP estimates (stage (iv), best seed) and initial conditions
@@ -170,7 +171,7 @@ docs/revision/generated/final_theta_MAP/CH.json
 docs/revision/generated/final_theta_MAP/phi_init.json
 docs/revision/generated/final_theta_MAP/superseded/*.json
 ?docs/revision/generated/final_theta_MAP/DS.json
-?docs/revision/generated/final_theta_MAP/DH.json
+docs/revision/generated/final_theta_MAP/DH.json
 
 # ---------------------------------------------------------------------------
 # 6. Derived outputs as used in the submitted manuscript (for comparison with a re-run)
