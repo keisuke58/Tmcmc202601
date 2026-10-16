@@ -26,7 +26,19 @@ def read_any(path, sheet=None, skip=0):
     p = Path(path)
     if p.suffix.lower() in (".xlsx", ".xlsm", ".xls"):
         return pd.read_excel(p, sheet_name=sheet if sheet is not None else 0, header=None, skiprows=skip)
-    return pd.read_csv(p, header=None, skiprows=skip)
+    # ドイツ式の CSV（区切り ;・小数点 ,・BOM 付き）にも対応（2026-10-16 着の pH.csv がこの形）
+    with open(p, encoding="utf-8-sig") as f:
+        first = f.readline()
+    if ";" in first:
+        return pd.read_csv(p, header=None, skiprows=skip, sep=";", decimal=",", encoding="utf-8-sig")
+    return pd.read_csv(p, header=None, skiprows=skip, encoding="utf-8-sig")
+
+
+def num(x):
+    """数値に（"7,697" のような小数点 , の文字列も）。読めなければ NaN。"""
+    if isinstance(x, str):
+        x = x.strip().replace(",", ".")
+    return pd.to_numeric(x, errors="coerce")
 
 
 def col(df, spec, header_row):
@@ -69,13 +81,13 @@ def main():
               "Dysbiotic": [col(df, c, a.header_row) for c in a.dysbiotic_cols.split(",")]}
     rows = []
     for _, r in df.iloc[a.header_row + 1:].iterrows():
-        t = pd.to_numeric(r[tc], errors="coerce")
+        t = num(r[tc])
         if pd.isna(t):
             continue
         t = float(t) / (24.0 if a.time_unit == "h" else 1.0)
         for cond, cols in groups.items():
             for k, c in enumerate(cols, 1):
-                v = pd.to_numeric(r[c], errors="coerce")
+                v = num(r[c])
                 if not pd.isna(v):
                     rows.append([cond, t, k, float(v)])
     RAW.mkdir(parents=True, exist_ok=True)

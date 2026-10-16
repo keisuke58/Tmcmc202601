@@ -50,7 +50,7 @@ lam = {1: 1.0, 2: 1.0, 3: 1.5, 5: 0.0}
 
 # 1. 既定の経路（λ2=0 の論文の設定で、run の max logL と同じ値になるはず）
 ll_old = float(E.make_log_likelihood_jax_ode(**base, lambda_ch={1: 1.0, 2: 0.0, 3: 1.5, 5: 0.0})(th))
-rec = json.load(open(ROOT / "docs/revision/generated/final_runs/CH_ult_mut150_wide2_noph_sd4_seed7/run_record.json"))
+rec = json.load(open(ROOT / "docs/revision/generated/final_runs_digitised/CH_ult_mut150_wide2_noph_sd4_seed7/run_record.json"))
 check(abs(ll_old - rec["max_logL"]) < 1e-3, f"既定の経路: logL(MAP) {ll_old:.4f} = run の max logL {rec['max_logL']:.4f}")
 
 # 2. 2 通路（Phase 2）を手で組んだ値と比べる

@@ -32,10 +32,10 @@ import jax.numpy as jnp  # noqa: E402
 
 import estimate_paper_jax as E  # noqa: E402
 
-GROUPS = {"CS": ("Commensal", "Static", "CS_ult_wide2_sd4_seed*"),
-          "CH": ("Commensal", "HOBIC", "CH_ult_mut150_wide2_noph_sd4_seed*"),
-          "DS": ("Dysbiotic", "Static", "DS_p2_wide80_p18k_wide2_seed*"),
-          "DH": ("Dysbiotic", "HOBIC", "DH_p2_nonarrow_w3_noph_p14k_seed*")}
+GROUPS = {"CS": ("Commensal", "Static", "CS_ult_2c_raw_seed*"),
+          "CH": ("Commensal", "HOBIC", "CH_ult_2c_raw_a33w_seed*"),
+          "DS": ("Dysbiotic", "Static", "DS_ult_2c_raw_seed*"),
+          "DH": ("Dysbiotic", "HOBIC", "DH_ult_2c_raw_seed*")}
 if args.spec:  # raw の run など（2026-10-13）
     _sp = json.load(open(args.spec))
     GROUPS = {t: (c, u, _sp[t]["ult"]) for t, (c, u, _p) in GROUPS.items() if t in _sp and "ult" in _sp[t]}

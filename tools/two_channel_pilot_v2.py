@@ -79,7 +79,7 @@ elif MAPJ.exists():
     d = json.load(open(MAPJ))
 else:  # DS・DH は段 (iii) の群で max logL の seed
     G = {"DS": "DS_p2_wide80_p18k_wide2_seed*", "DH": "DH_p2_nonarrow_w3_noph_p14k_seed*"}[args.tag]
-    runs = sorted(glob.glob(str(ROOT / "docs/revision/generated/final_runs" / G)))
+    runs = sorted(glob.glob(str(ROOT / "docs/revision/generated/final_runs_digitised" / G)))  # 読み取りデータの run（初期値だけに使う）
     best = max(runs, key=lambda r: json.load(open(Path(r) / "run_record.json"))["max_logL"])
     d = json.load(open(Path(best) / "theta_MAP.json"))
 th0 = np.array([d[str(i)] for i in range(20)])

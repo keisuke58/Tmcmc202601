@@ -23,8 +23,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 ap = argparse.ArgumentParser()
 ap.add_argument("--root", default=str(ROOT / "docs/revision/generated/final_runs"))
-ap.add_argument("--glob-CH", default="CH_ult_mut150_wide2_noph_sd4_seed*")
-ap.add_argument("--glob-DH", default="DH_p2_nonarrow_w3_noph_p14k_seed*")
+ap.add_argument("--glob-CH", default="CH_ult_2c_raw_a33w_seed*")
+ap.add_argument("--glob-DH", default="DH_ult_2c_raw_seed*")
 ap.add_argument("--n-post", type=int, default=200)
 ap.add_argument("--start-day", type=float, default=0.0, help="モデル時刻 0 を何日目に置くか（0 = 接種、本文の対応。1 = Day 1 から始める）")
 ap.add_argument("--data-dir", default=None, help="組成・pH を読む場所（既定は CH の run の data_source: EP.data_dir_for）")

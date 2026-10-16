@@ -128,7 +128,7 @@ The estimator is normally driven by `data_5species/main/paper_gateoff_job.sh` (P
 
 ```bash
 cd data_5species/main
-python3 -c "import json;print(' '.join(json.load(open('../../docs/revision/generated/final_runs/CH_ult_mut150_wide2_noph_sd4_seed7/run_record.json'))['argv']))"
+python3 -c "import json;print(' '.join(json.load(open('../../docs/revision/generated/final_runs/CH_ult_2c_raw_a33w_seed7/run_record.json'))['argv']))"
 # python3 estimate_paper_jax.py --condition Commensal --cultivation HOBIC --K-hill 0.0 --n-hill 4.0 --use-exp-init \
 #   --use-de-mc --mutation rw --seed 7 --device gpu ... --init-from-dir <stage (iii) run> --posterior-prior-nsigma 4 \
 #   --override-bounds ... --output-dir _runs/paper_gateoff/<name>
@@ -149,7 +149,7 @@ TMCMC is stochastic and GPU reductions are not bit-reproducible across hardware/
 
 ```python
 import json, numpy as np
-d = "docs/revision/generated/final_runs/CH_ult_mut150_wide2_noph_sd4_seed7"
+d = "docs/revision/generated/final_runs/CH_ult_2c_raw_a33w_seed7"
 S = np.load(f"{d}/samples.npy")        # (N_p, 20) final particles (equally weighted after resampling)
 L = np.load(f"{d}/logL.npy")           # (N_p,) log-likelihood
 rec = json.load(open(f"{d}/run_record.json"))

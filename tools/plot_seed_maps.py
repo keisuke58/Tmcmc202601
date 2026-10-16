@@ -51,10 +51,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import comp_pred as CP  # noqa: E402
 
 GROUPS = [
-    ("CS", "Commensal", "Static", "CS_ult_wide2_sd4_seed", "ult"),
-    ("CH", "Commensal", "HOBIC", "CH_ult_mut150_wide2_noph_sd4_seed", "ult"),
-    ("DS", "Dysbiotic", "Static", "DS_p2_wide80_p18k_wide2_seed", "p2, provisional"),
-    ("DH", "Dysbiotic", "HOBIC", "DH_p2_nonarrow_w3_noph_p14k_seed", "p2, provisional"),
+    ("CS", "Commensal", "Static", "CS_ult_2c_raw_seed", "ult"),
+    ("CH", "Commensal", "HOBIC", "CH_ult_2c_raw_a33w_seed", "ult"),
+    ("DS", "Dysbiotic", "Static", "DS_ult_2c_raw_seed", "ult"),
+    ("DH", "Dysbiotic", "HOBIC", "DH_ult_2c_raw_seed", "ult"),
 ]
 if args.spec:  # raw の run など（2026-10-13）
     _sp = json.load(open(args.spec))

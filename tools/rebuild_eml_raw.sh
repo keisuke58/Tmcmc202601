@@ -39,8 +39,15 @@ skip fig2 || python3 tools/make_paper_figures.py "$R" \
 
 # 2. ノックアウト（Fn・a45=0、DS・DH）
 if ! skip knockout; then
-  python3 tools/knockout_fn.py "$R" --glob "$(glob_of DH "$STAGE")" --n-samples 200 --json "$F/knockout_DH.json"
-  python3 tools/knockout_fn.py "$R" --glob "$(glob_of DS "$STAGE")" --n-samples 200 --json "$F/knockout_DS.json"
+  # その条件の run が無ければ飛ばす（pending）。glob が空だと knockout_fn の既定 glob（読み取りデータの群）を拾っていた
+  for t in DH DS; do
+    g="$(glob_of $t "$STAGE")"
+    if [ -n "$g" ] && compgen -G "$R/$g" > /dev/null; then
+      python3 tools/knockout_fn.py "$R" --glob "$g" --n-samples 200 --json "$F/knockout_$t.json"
+    else
+      echo "knockout $t: run が無い（pending）: $R/$g"; rm -f "$F/knockout_$t.json"
+    fi
+  done
 fi
 
 # 3. pH（推定には使わない。生データの pH が届いてから: SKIP から ph を外す）

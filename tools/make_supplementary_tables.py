@@ -54,36 +54,14 @@ CONDS = ["CS", "CH", "DS", "DH"]
 STAGES = ["pilot", "p1", "p2", "ult"]
 STAGE_LABEL = {"pilot": "(i)", "p1": "(ii)", "p2": "(iii)", "ult": "(iv)"}
 
-# 2026-10-10 時点の計画（10a / 10b）。変わったら --spec で上書き
+# 2026-10-16: 生データ・2 通路の群（figures/raw/spec_raw.json と同じ）。読み取りデータの run は
+# docs/revision/generated/final_runs_digitised/ に分けた（その群は 10-10 の spec を --spec で渡す）。
+# a45zero（ベイズ因子）は生データでの再計算が済んだら足す。変わったら --spec で上書き
 DEFAULT_SPEC = {
-    "CS": {
-        "pilot": "CS_pilot_mut80_seed*",
-        "p1": "CS_p1_mut120_seed*",
-        "p2": "CS_p2_mut160_wide2_seed*",
-        "ult": "CS_ult_wide2_sd4_seed*",
-        "a45zero": "CS_pilot_a45zero_m120_seed*",
-    },
-    "CH": {
-        "pilot": "CH_pilot_mut80_seed*",
-        "p1": "CH_p1_mut150_seed*",
-        "p2": "CH_p2_mut150_wide2_noph_seed*",
-        "ult": "CH_ult_mut150_wide2_noph_sd4_seed*",
-        "a45zero": "CH_pilot_a45zero_m120_seed*",
-    },
-    "DS": {
-        "pilot": "DS_pilot_wide80_seed*",
-        "p1": "DS_p1_wide80_p3k_seed*",
-        "p2": "DS_p2_wide80_p18k_wide2_seed*",
-        "ult": "DS_ult_wide80_p18k_wide2_sd4_seed*",
-        "a45zero": "DS_pilot_a45zero_seed*",
-    },
-    "DH": {
-        "pilot": "DH_pilot_mut80_seed*",
-        "p1": "DH_p1_mut80_seed*",
-        "p2": "DH_p2_nonarrow_w3_noph_p14k_seed*",
-        "ult": "DH_ult_nonarrow_w3_noph_p14k_sd4_seed*",
-        "a45zero": "DH_pilot_a45zero_seed*",
-    },
+    "CS": {"pilot": "CS_pilot_2c_raw_seed*", "p1": "CS_p1_2c_raw_seed*", "p2": "CS_p2_2c_raw_seed*", "ult": "CS_ult_2c_raw_seed*"},
+    "CH": {"pilot": "CH_pilot_2c_raw_seed*", "p1": "CH_p1_2c_raw_seed*", "p2": "CH_p2_2c_raw_a33w_seed*", "ult": "CH_ult_2c_raw_a33w_seed*"},
+    "DS": {"pilot": "DS_pilot_2c_raw_seed*", "p1": "DS_p1_2c_raw_seed*", "p2": "DS_p2_2c_raw_seed*", "ult": "DS_ult_2c_raw_seed*"},
+    "DH": {"pilot": "DH_pilot_2c_raw_seed*", "p1": "DH_p1_2c_raw_seed*", "p2": "DH_p2_2c_raw_seed*", "ult": "DH_ult_2c_raw_seed*"},
 }
 
 

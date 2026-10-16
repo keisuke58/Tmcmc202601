@@ -30,12 +30,12 @@ ORDER = ["a11", "a12", "a22", "a33", "a34", "a44", "a13", "a14", "a23", "a24", "
 B_DIMS = [3, 4, 8, 9, 15]
 UNIDENT_RATIO = 0.8  # tools/check_paper_runs.py・make_supplementary_tables.py と同じ
 
-# 最終群（2026-10-16 時点、CS・CH は生データ・2 通路）。DS・DH は ult が判定を通ったら --glob で差し替える
+# 最終群（2026-10-16 時点、CS・CH は生データ・2 通路）。DS・DH も生データの ult（読み取りデータの run は final_runs_digitised/ に分けた、10-16）
 GROUPS = {
     "CS": ("Commensal", "Static", "CS_ult_2c_raw_seed*"),
     "CH": ("Commensal", "HOBIC", "CH_ult_2c_raw_a33w_seed*"),
-    "DS": ("Dysbiotic", "Static", "DS_p2_wide80_p18k_wide2_seed*"),
-    "DH": ("Dysbiotic", "HOBIC", "DH_p2_nonarrow_w3_noph_p14k_seed*"),
+    "DS": ("Dysbiotic", "Static", "DS_ult_2c_raw_seed*"),
+    "DH": ("Dysbiotic", "HOBIC", "DH_p2_2c_raw_seed*"),  # DH は p2 が最終（10-16 ユーザー決定、ult は判定 4 FAIL）
 }
 COND = {"CS": ("Commensal", "Static"), "CH": ("Commensal", "HOBIC"),
         "DS": ("Dysbiotic", "Static"), "DH": ("Dysbiotic", "HOBIC")}

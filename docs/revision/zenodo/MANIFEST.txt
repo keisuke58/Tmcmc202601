@@ -149,19 +149,17 @@ docs/revision/generated/final_runs/CH_ult_2c_raw_a33w_seed*
 # warm-start check: stage (iii) started entirely from the prior (Section 3 of the paper)
 docs/revision/generated/final_runs/CH_p2_2c_raw_cold_seed*
 
-# DS -- dysbiotic, static   (PROVISIONAL: final stage (iv) pending)
-docs/revision/generated/final_runs/DS_pilot_wide80_seed*
-docs/revision/generated/final_runs/DS_pilot_a45zero_seed*
-docs/revision/generated/final_runs/DS_p1_wide80_p3k_seed*
-docs/revision/generated/final_runs/DS_p2_wide80_p18k_wide2_seed*
-?docs/revision/generated/final_runs/DS_ult_*_seed*
+# DS -- dysbiotic, static   (measured data, two-channel likelihood; PENDING: runs still on the GPU)
+?docs/revision/generated/final_runs/DS_pilot_2c_raw_seed*
+?docs/revision/generated/final_runs/DS_p1_2c_raw_seed*
+?docs/revision/generated/final_runs/DS_p2_2c_raw_seed*
+?docs/revision/generated/final_runs/DS_ult_2c_raw_seed*
 
-# DH -- dysbiotic, HOBIC flow reactor   (PROVISIONAL: final stage (iv) pending)
-docs/revision/generated/final_runs/DH_pilot_mut80_seed*
-docs/revision/generated/final_runs/DH_pilot_a45zero_seed*
-docs/revision/generated/final_runs/DH_p1_mut80_seed*
-docs/revision/generated/final_runs/DH_p2_nonarrow_w3_noph_p14k_seed*
-?docs/revision/generated/final_runs/DH_ult_*_seed*
+# DH -- dysbiotic, HOBIC flow reactor   (measured data, two-channel likelihood; PENDING: runs still on the GPU)
+?docs/revision/generated/final_runs/DH_pilot_2c_raw_seed*
+?docs/revision/generated/final_runs/DH_p1_2c_raw_seed*
+?docs/revision/generated/final_runs/DH_p2_2c_raw_seed*
+?docs/revision/generated/final_runs/DH_ult_2c_raw_seed*
 
 # ---------------------------------------------------------------------------
 # 5. Final MAP estimates (stage (iv), best seed) and initial conditions
