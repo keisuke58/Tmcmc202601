@@ -28,7 +28,7 @@ echo "=== R=$R  SPEC=$SPEC  F=$F  STAGE=$STAGE  PAT=$PAT  SKIP='$SKIP'"
 skip check   || python3 tools/check_paper_runs.py "$R" | tee "$F/check_paper_runs.txt"
 skip eval    || python3 tools/eval_paper_runs.py "$R" --glob "${PAT//\{tag\}/*}" | tee "$F/eval_paper_runs.txt"
 skip metrics || python3 tools/fit_metrics_2c.py "$R" $(for t in CS CH DS DH; do glob_of $t "$STAGE"; done) --out "$F/fit_metrics_2c"
-skip psi     || python3 tools/psi_table_runs.py "$R" --pattern "$PAT" --out "$F/psi_table"
+skip psi     || python3 tools/psi_table_runs.py "$R" --pattern "$PAT" --out "$F/psi_table" --tex "$F/supp/supp_S_psi2c.tex"
 
 # 1. Fig. 2（生きた菌 ↔ φψ/Σφψ、全菌 ↔ φ/Σφ）と事後のまとめ（paper_numbers.json・tables.tex）
 skip fig2 || python3 tools/make_paper_figures.py "$R" \

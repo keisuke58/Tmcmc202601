@@ -300,9 +300,9 @@ The pattern does not change: at every threshold the dysbiotic conditions have at
 
 \paragraph{Curvature of the likelihood.}
 As a check that does not use the posterior samples, we computed the Hessian $\mathbf{H}$ of $-\ln p(\yobs\mid\btheta)$ at the MAP over the 15 free entries, scaled each entry by the standard deviation of a uniform distribution on its box, and counted the eigen-directions with scaled curvature of at least $1/0.8^2$, i.e.\ directions in which the likelihood is narrower than the identification threshold.
-Their number is 4, 4, 8 and 5 in CS, CH, DS and DH, against 4, 6, 8 and 9 entries identified from the posterior\TBD{prov.}.
-The counts agree in CS and DS; in CH and DH the posterior identifies more entries than the local curvature, because several entries are constrained jointly along correlated directions and by the non-quadratic shape of the likelihood, which a single Hessian at the MAP does not capture.
-The MAP is the best particle and not an exact optimum (4--5 small negative eigenvalues), so entry-wise Laplace intervals are not reported.
+Their number is 4 in CS and 6 in CH, against 5 and 6 entries identified from the posterior\TBD{DS, DH after stage (iv); old values 8 and 5 against 8 and 9}.
+The counts agree in CH; in CS the posterior identifies one entry more than the local curvature, because entries can be constrained jointly along correlated directions and by the non-quadratic shape of the likelihood, which a single Hessian at the MAP does not capture.
+The MAP is the best particle and not an exact optimum (four negative eigenvalues in both conditions, one of them large in CS), so entry-wise Laplace intervals are not reported\TBD{CS: recompute at the polished MAP (polishing of CS stage (iv) running)}.
 
 \begin{figure}[h]
 \centering
@@ -436,17 +436,17 @@ Viable vs.\ $\phi_i/\sum_j\phi_j$ (not fitted) & 0.110 & 0.107 & \TBD{DS} & \TBD
 The viable and the total-count fractions together imply a viability for each species, $\psi_i^{\mathrm{data}}=(y_i^{\mathrm{viable}}/y_i^{\mathrm{total}})\,\ell$, where $y_i$ are the normalised fractions and $\ell$ is the community live fraction (medians over the measured replicates and mean over the images; days with a total-count fraction below 2\% are left out).
 Resampling the biological replicates of both compositions and the biofilms of the live fraction (five images per biofilm; bootstrap) gives wide intervals: the 90\% interval of $\psi_i^{\mathrm{data}}$ on a single day has a median width of 0.57 and its upper end exceeds 1 for 45\% of the species and days, so $\psi_i^{\mathrm{data}}$ enters only stages (i)--(ii) as fixed viabilities and serves as a check, not as data in the likelihood.
 Table~\ref{tab:S_psi} compares it with the viability $\psi_i$ of the final MAP.
-In the data, the viabilities of most species lie close to the community live fraction; the exception is Fn in the commensal community, which is mostly dead ($\psi^{\mathrm{data}}\approx0.09$ in CS\TBD{raw: recheck CH, Pg below 2\%}) but make up only a few percent of the total count.
-The assumption of a species-independent viability in the composition channel is therefore violated mainly for these two rare species, which is why the viable and the total-count compositions differ little (Section~\ref{sec:S_total}).
-The model viabilities do not reproduce $\psi^{\mathrm{data}}$: they are close to it in CS but lie near 0 or 1 for several species in the other conditions, because the likelihood constrains only the community live fraction.
-The likelihood of the main text therefore uses the two compositions as separate channels---the viable fractions against $\phi_i\psi_i/\sum_j\phi_j\psi_j$ and the total-count fractions against $\phi_i/\sum_j\phi_j$---which constrains $\psi_i$ species by species\TBD{2c raw: rewrite this section with the new results}.
+With the viable and the total-count compositions as separate channels of the likelihood, $\psi_i$ is constrained species by species, but only through the products $\phi_i\psi_i$ of the viable composition and through the community live fraction; for a species that makes up a small part of the community both constrain $\psi_i$ weakly.
+In CH the model reproduces the viability of the dominant species So (0.37 against 0.35 in the data), while An and Vei stay near 0.9 (data 0.24 and 0.53, whose single-day intervals are wide; see above).
+In CS the model viabilities of So, An and Vei are 0.96--0.97 against 0.50--0.80 in the data; this is the tension of CS described in Section~4.5 of the main text and in Section~\ref{sec:S_tradeoff}: the model has no term that keeps part of a growing population dead, so the community it needs for the compositions is almost fully viable.
+In both commensal conditions Fn and Pg are mostly dead in the model (0.05--0.11), in line with the one value available for Fn in CS (0.09); on the other days and for Pg their total-count fraction is below 2\% and $\psi_i^{\mathrm{data}}$ is not defined.
 
 \begin{table}[h]
 \centering
-\caption{Viability of each species: implied by the data, $\psi_i^{\mathrm{data}}$ (median over days 3--21), and of the final MAP, $\psi_i$ (median over the same days). Generated by \texttt{tools/psi\_from\_data.py}. \TBD{DS, DH: stage (iii).}}
+\caption{Viability of each species: implied by the data, $\psi_i^{\mathrm{data}}$ (median over days 3--21), and of the final MAP, $\psi_i$ (median over the same days). Data: \texttt{tools/psi\_from\_data.py}; model: MAP of the seed with the highest maximum log-likelihood, \texttt{tools/psi\_table\_runs.py}; --: total-count fraction below 2\% on every day.}
 \label{tab:S_psi}
 \footnotesize\setlength{\tabcolsep}{3.5pt}
-\input{\suppdir/supp_S_psi}
+\input{figures/raw/supp/supp_S_psi2c}
 \end{table}
 
 \section{Composition against live fraction in CS}
