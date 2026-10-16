@@ -21,9 +21,21 @@
 Below, each point is listed with how it was handled in the new manuscript.
 Because the paper is now prepared for \textit{Extreme Mechanics Letters} (fewer than 4000 words, at most six figures), it is a shorter version that focuses on the modelling and inference framework; several items of the previous version (UMAP, cross-condition transfer, phase-correlation table) are therefore no longer part of the paper.
 Section numbers refer to the new manuscript; ``S'' refers to the Supplementary Material.
+Two changes go beyond your comments and are summarised first, because several answers below depend on them.
+
+\paragraph{New since 25 September: measured data and a two-channel likelihood.}
+The calibration now uses the measured replicate values that Nils provided (three to five biological replicates per time point) instead of values read off the published box plots, which deviate from them by up to 0.42 in a species fraction in the dysbiotic conditions (Section~3, Section~S10).
+The viable (PMA) and the total-count compositions are compared separately with their model counterparts, the living fractions $\phi_i\psi_i/\sum_j\phi_j\psi_j$ and the volume fractions $\phi_i/\sum_j\phi_j$, and the community live fraction from LIVE/DEAD staining with $\sum_i\phi_i\psi_i/\sum_i\phi_i$ (Eq.~5).
+This constrains the species viabilities $\psi_i$ species by species and is why all runs were repeated once more.
+As agreed with Nils, the data are cited and stated as available from the authors on request; they are not redistributed with the paper or the code archive.
+
+\paragraph{New since 25 September: strict acceptance criteria.}
+Every stage is accepted only after five criteria (a)--(e) with three seeds (Section~3).
+For criterion (d), the agreement of the maximum log-likelihood across seeds, each seed's value is the highest found by a local optimisation from its best particles.
+Where a group fails a criterion, this is reported as it is in Table~S5 rather than by relaxing the criterion afterwards: the DS stage-(ii) group fails (d) because one seed found a higher optimum than the other two.
 
 \paragraph{General point: effective parameters vs.\ biological interactions.}
-We follow this throughout: the coefficients $a_{ij}$ are introduced as \emph{effective, undirected interactions of the model} that lump unresolved mechanisms (Section 2), all biological readings are phrased as consistency with the literature, never as demonstration of a mechanism, and a new analysis states explicitly which coefficients the data determine at all (Fig.~3, Table S6).
+We follow this throughout: the coefficients $a_{ij}$ are introduced as \emph{effective, undirected interactions of the model} that lump unresolved mechanisms (Section 2), all biological readings are phrased as consistency with the literature, never as demonstration of a mechanism, and a new analysis states explicitly which coefficients the data determine at all (Fig.~3, Table~S7).
 
 \section*{Errors in the previous version}
 \begin{tabularx}{\textwidth}{@{}l Y l@{}}
@@ -41,11 +53,11 @@ A5 & \emph{Boundary handling of the sampler.} Proposals outside the prior box ar
 \section*{Points that required computation}
 \begin{tabularx}{\textwidth}{@{}l Y l@{}}
 \toprule
-B1 & \emph{Same data used three times (narrowing the prior).} Narrowed boxes are the stage posterior mean $\pm4$ standard deviations, which removes less than $10^{-4}$ of a Gaussian marginal; when the viability channel is added the inference returns to the full box, and any bound at which posterior mass accumulates is widened and the stage repeated (Section 3, Table S4). A comparison with a single inference on the wide box only is not shown. & \partly\\
-B2 & \emph{Sparsity / identifiability not demonstrated.} New: every entry is classified as identified, sign-only or not identified from the posterior spread relative to its box (Fig.~3, Table S6); every stage is repeated with three seeds and must agree; the number of narrow directions of the likelihood at the MAP (Fisher information) is reported as an independent check (Section S6). A recovery test on synthetic data is planned. & \partly\\
-B3 & \emph{No convergence diagnostics for Phase 2.} Every stage, including the final one, is run with three independent seeds and accepted only after explicit criteria (log-likelihood recomputation, tempering to $\beta=1$, moves per particle and per dimension, agreement of $\max\ln L$ and of the medians across seeds; Section 3, Table S5). The provisional DH stage-(iii) group does not yet meet the median criterion; the exploratory stage (i) is used only to set the stage-(ii) box and for the Bayes factors, which are reported with this caveat. & \partly\\
-B4 & \emph{Independent Gaussian errors for compositional data.} Stated as a limitation (Section 4: intervals may be somewhat too narrow); $\sigma_i$ is the replicate standard deviation of each species. & \done\\
-B5 & \emph{Model-to-data mapping implicit.} Section 3 now states the renormalisation of the volume fractions over the five species, the void fraction, the time mapping (time since inoculation, Day 1 as initial state, with the sensitivity to starting at Day 1) and the likelihood weights. & \done\\
+B1 & \emph{Same data used three times (narrowing the prior).} Narrowed boxes are the stage posterior mean $\pm4$ standard deviations, which removes less than $10^{-4}$ of a Gaussian marginal; when the viability channel is added the inference returns to the full box, and any bound at which posterior mass accumulates is widened and the stage repeated (Section 3, Table S4). To check that starting stage (iii) partly from the stage-(ii) result does not bias it, one CH stage-(iii) run was started entirely from the prior: its maximum log-likelihood lies within the range of the three warm-started seeds and its medians and 90\% bounds within 0.03 of theirs (Section~3). A full comparison with a single inference on the wide box only is not shown. & \partly\\
+B2 & \emph{Sparsity / identifiability not demonstrated.} New: every entry is classified as identified, sign-only or not identified from its posterior spread relative to the prior box (Fig.~3, Section~S6, Tables~S6 and S7), and every stage is repeated with three seeds that must agree. A recovery test (synthetic data generated from the final MAP with the measured noise, then inferred again with the same pipeline) is running for CH and will follow for the other conditions; its result will be added to the Supplementary Material. & \partly\\
+B3 & \emph{No convergence diagnostics for Phase 2.} Every stage, including the final one, is run with three independent seeds and accepted only after explicit criteria (log-likelihood recomputation, tempering to $\beta=1$, moves per particle and per dimension, agreement of $\max\ln L$ after local optimisation and of the medians across seeds; Section~3, Table~S5). CS and CH meet all criteria in every stage. In DS, stage (ii) fails criterion (d) and is reported as such; the DS and DH final stages are still running. The exploratory stage (i) is used only to set the stage-(ii) box and for the Bayes factors, which are reported with this caveat. & \partly\\
+B4 & \emph{Independent Gaussian errors for compositional data.} Stated as a limitation (Section~4.5: intervals may be somewhat too narrow). The standard deviations are now estimated from the spread of the measured replicates per species and time point (interquartile range/1.35, at least 0.05), for each composition separately. & \done\\
+B5 & \emph{Model-to-data mapping implicit.} Section~3 now states which model quantity is compared with which measurement (living fractions with the viable composition, volume fractions with the total-count composition, the community live fraction with LIVE/DEAD staining), the renormalisation over the five species, the time mapping (time since inoculation, Day 1 as initial state, with the sensitivity to starting at Day 1) and the likelihood weights, with their effect in Section~S9. & \done\\
 \bottomrule
 \end{tabularx}
 
@@ -54,7 +66,7 @@ B5 & \emph{Model-to-data mapping implicit.} Section 3 now states the renormalisa
 \toprule
 C1--C2 & \emph{``discovers the network'', ``activating cross-feeding''.} Removed; the abstract speaks of which interactions the data determine. & \done\\
 C3 & \emph{Static vs.\ dynamic cultivation} (Rumjhum). The conditions are described as static or dynamic (HOBIC flow reactor) cultivation. & \done\\
-C4 & \emph{``high fidelity''.} Removed; the fit is reported per condition, and the poor fit in the commensal static condition (S.~oralis and Veillonella) is discussed as a limitation with its cause. & \done\\
+C4 & \emph{``high fidelity''.} Removed; the fit is reported per condition. In the commensal static condition the compositions and the measured live fraction cannot be matched at the same time; this is stated as a limitation with its cause (the viability equation has no term that keeps part of a growing population dead) rather than removed by tuning the weights for this condition (Section~4.5, Section~S13). & \done\\
 C5 & \emph{UMAP as validation.} UMAP is no longer in the paper. & \na\\
 C6 & \emph{pH as independent validation.} Called a check: the pH is not used in the inference; a regression fitted once on the measured composition and pH is applied to the predicted composition. Results are given for both HOBIC conditions, including the offset in CH. & \done\\
 C7 & \emph{Gingipain / metabolic signs as validation.} No longer in the paper. & \na\\
@@ -63,7 +75,7 @@ C9--C10 & \emph{Phase-correlation table, cross-condition transfer.} No longer in
 C11 & \emph{NUTS/HMC ``fail on GPU''.} No longer claimed; the paper only reports the speed-up of our implementation. & \done\\
 C12 & \emph{Figure 7 caption vs.\ values.} Figure no longer in the paper. & \na\\
 C13 & \emph{Internal consistency.} Four stages defined once and used throughout; one measured speed-up, about 150$\times$ (170$\times$ per tempering step, 147$\times$ end to end); notation $a_{ij}$ / $\mathbf{A}$ unified. & \done\\
-C14 & \emph{Biological interaction network.} Moved to Section S2 (Table S1, Fig.~S1) as ``previously reported or biologically supported interactions considered in the interpretation of the model'', with the reported mechanism stated per pair, a note that arrows show reported flows from the literature, and a note that the model matrix is symmetric. & \done\\
+C14 & \emph{Biological interaction network.} Moved to Section~S2 (Table~S1, Fig.~S1) as ``previously reported or biologically supported interactions considered in the interpretation of the model'', with the reported mechanism stated per pair, a note that arrows show reported flows from the literature, and a note that the model matrix is symmetric. & \done\\
 C15 & \emph{Confounding of state with strains.} New sentence in Section 4: commensal and dysbiotic communities also differ in the Veillonella species and the P.~gingivalis strain, so differences between them combine state, strain physiology and cultivation; static vs.\ dynamic comparisons within one community are free of this confound, although DS and DH also differ in the viability weight and the prior boxes, which is now stated. & \done\\
 \bottomrule
 \end{tabularx}
@@ -75,10 +87,10 @@ D1 & \emph{Title should not suggest experimentally resolved interactions.} New t
 D2 & \emph{Author order.} As agreed. & \done\\
 D3 & \emph{Affiliations.} MHH and NIFE added for K.~Nishioka. & \done\\
 D4 & \emph{Rewritten clinical/microbiological introduction.} The EML introduction had to be shortened to about 520 words; its clinical framing follows your rewrite in condensed form. Please check whether the key points are kept. & \partly\\
-D5 & \emph{Zenodo archive.} Code, run configurations, convergence records and posterior samples are archived at Zenodo; the DOI 10.5281/zenodo.23320423 is reserved and given in the data availability statement. The experimental data are not redistributed; the statement refers to Heine et al.\ (2025) and says that the data are available from those authors. & \done\\
+D5 & \emph{Zenodo archive.} Code, run configurations, convergence records and posterior samples are archived at Zenodo; the DOI 10.5281/zenodo.23320423 is reserved and given in the data availability statement. The experimental data are not redistributed: the statement cites Heine et al.\ (2025) and says that the measured values are available from the authors on request, as agreed with Nils. & \done\\
 \bottomrule
 \end{tabularx}
 
 \bigskip
-\noindent Remaining before submission: the final numbers of the two dysbiotic conditions (computations running).
+\noindent Remaining before submission: the final numbers of the two dysbiotic conditions (computations running) and the result of the recovery test. Please check in particular your name and affiliation, the author contributions (CRediT) statement and the funding statement.
 \end{document}
