@@ -226,6 +226,9 @@ def theta_to_A(theta):
 def write_fig2_cache(g2, cache_dir):
     """古い Fig. 2 のキャッシュと同じ形（phi_map, phibar_map, trajs, data_norm, d1n, t_days）で書く。"""
     cache_dir.mkdir(parents=True, exist_ok=True)
+    for tag in CONDS:  # 今回 run の無い条件の古いキャッシュは消す（残ると fig2_v2 が古い列を描く、2026-10-16）
+        if tag not in g2:
+            (cache_dir / f"fig2_phi_{tag}.npz").unlink(missing_ok=True)
     for tag, g in g2.items():
         best = g["best"]
         rec = best["rec"]
