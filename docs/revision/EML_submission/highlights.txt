@@ -1,5 +1,5 @@
 Bayesian calibration of the interaction matrix of a variational biofilm model
 Viable and total species fractions and live fraction fitted as separate channels
 GPU-parallel TMCMC; each stage passes seed, mixing and prior-bound checks
-Data constrain only [TBD] of 15 species interactions in an oral biofilm
+Data constrain only 5 to 8 of 15 species interactions in an oral biofilm
 In silico removal of F. nucleatum cuts the late rise of P. gingivalis fourfold
