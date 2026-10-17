@@ -77,17 +77,16 @@ Which interactions between the species drive such a shift is difficult to measur
 Continuum mechanics offers a route from composition to interaction.
 Based on the extended Hamilton principle~\citep{JunkerBalzani2021ExtendedHamilton}, \citet{Klempt2025ContinuumBiofilm} derived a multiphase model in which species volume fractions and viabilities evolve under a free energy that contains an interaction matrix~$\mathbf{A}$, taken symmetric so that the interactions derive from this potential; thermodynamic consistency follows from the variational structure.
 Calibrating $\mathbf{A}$ against data is an inverse characterisation problem: the physics fixes the structure of the model, and the data determine its coefficients.
-Data-driven methods for such problems are most reliable when they are guided by physics and by explicit checks of what the data can determine.
-Once calibrated, the model can be used as an in-silico test bed, for example to ask how the community would develop if one species were removed.
+Once calibrated, the model can serve as an in-silico test bed, for example for removing one species.
 Bayesian updating has been used to calibrate constitutive parameters of biofilm models with surrogates~\citep{Fritsch2025BayesianMicrofilms}, but the interaction matrix poses two specific difficulties.
-First, five time points of five species fractions that sum to one give 20 independent composition values, plus five values of the community viability, against 15 unknowns, so identifiability cannot be assumed.
+First, the data give 20 independent composition values and five community viabilities for 15 unknowns, so identifiability cannot be assumed.
 Second, the coupled volume-fraction and viability dynamics produce posteriors that are multimodal and bounded by the prior box, for which the convergence of standard samplers is hard to verify.
 
-Here we infer all 15 entries of $\mathbf{A}$ from the time courses of \citet{heine2025influence} for five oral taxa---\textit{Streptococcus oralis} (So), \textit{Actinomyces naeslundii} (An), \textit{Veillonella} spp.\ (Vei), \textit{Fusobacterium nucleatum} (Fn) and \textit{Porphyromonas gingivalis} (Pg), numbered 1 to 5 in this order---in four conditions: a commensal or a dysbiotic community, each under static cultivation in well plates or dynamic cultivation in a flow reactor (HOBIC, Hannoverian Oral multispecies Biofilm Implant flow Chamber), abbreviated CS, CH, DS and DH (commensal/dysbiotic, static/HOBIC).
+Here we infer all 15 entries of $\mathbf{A}$ from the time courses of \citet{heine2025influence} for five oral taxa---\textit{Streptococcus oralis} (So), \textit{Actinomyces naeslundii} (An), \textit{Veillonella} spp.\ (Vei), \textit{Fusobacterium nucleatum} (Fn) and \textit{Porphyromonas gingivalis} (Pg), numbered 1 to 5 in this order---in four conditions: a commensal or a dysbiotic community, each under static cultivation in well plates or dynamic cultivation in a flow reactor (HOBIC, Hannoverian Oral multispecies Biofilm Implant flow Chamber), abbreviated CS, CH, DS and DH.
 We combine three elements:
 first, transitional Markov chain Monte Carlo (TMCMC)~\citep{ChingChen2007TMCMC, Betz2016TMCMC} with the forward model compiled in JAX~\citep{jax2018github} and evaluated for all particles in parallel on a GPU;
 second, a staged introduction of the data, from species composition to community viability; and
-third, explicit acceptance criteria for every stage, including a rule for widening prior bounds at which posterior mass accumulates, and an analysis of which interactions the data determine.
+third, explicit acceptance criteria for every stage, including a rule for widening prior bounds, and an analysis of which interactions the data determine.
 The data determine only a subset of $\mathbf{A}$, which we identify entry by entry; where the commensal conditions overlap, the identified entries agree in sign across cultivation modes, whereas the Vei--Pg coefficient of the dysbiotic community changes sign between static and dynamic cultivation\TBD{prov.}.
 
 %==============================================================================
