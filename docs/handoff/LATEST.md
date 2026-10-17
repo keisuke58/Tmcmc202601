@@ -5,8 +5,8 @@
 ## いまの状態（2026-10-17、ここだけ読めば足りる）
 - **データ・尤度**: Heine の生データ（`DATA_SOURCE=raw`）・2 通路（`TWO_CHANNEL=1`）、RUNTAG `2c_raw`。読み取りデータの run は `docs/revision/generated/final_runs_digitised/`（新しい数字には使わない）。
 - **最終の run**（`docs/revision/generated/final_runs/`）: CH = ult a33w、CS = ult、**DH = p2**（ult は判定 4 FAIL、参考として置く、16l）。
-- **走行中**: DS p2（3601〜3603、10/16 14:23 開始、72h 枠）→ 磨き 3604〜3606 → gate 3607 → 重み 3608〜3611 が依存で自動。CH の磨き（3592・3596・3612）・CH の回収テスト（3614〜3616）・CS ult の磨き（3617・3619）。
-- **新しい投入はしない**。DS が ult に入ったら、16k（ベイズ因子）・回収テストの残りを空いた枠に。
+- **走行中**（10/17 19:20 時点）: DS p2 は 3 seed とも終了・全 PASS（端の印 a44・a13・a25 は片側の限界として扱う、ユーザー決定）→ seed123 の磨き 3606 → gate **3632**（`EDGE_ALLOW=a44;a13;a25`、3607 は起動前に qdel）→ DS ult 3 本（vancouver03×2・vancouver02）が依存で自動。16k の DS・DH 9 本（3633〜3641、stuttgart01〜03・celtic01〜02）。DS p2 の磨き 3604・3605、重み 3608〜3611、CH の磨き・回収テスト、CS ult の磨き、16k の CS・CH 12 本は終了。
+- **新しい投入は 16k の残り 3 本（DH seed7 a45=0、DH seed123 ×2）だけ**、DS ult が入ってから。回収テストの残りもそのあと。
 
 ## 有効な指示（上から優先）
 
