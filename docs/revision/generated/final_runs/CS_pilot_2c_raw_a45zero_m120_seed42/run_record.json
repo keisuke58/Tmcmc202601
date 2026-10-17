@@ -1,0 +1,342 @@
+{
+  "pipeline": "estimate_paper_jax.py (ba1c285 系・論文パイプライン)",
+  "git_head": "f732ce6db2418d568310a0b5947d68958aec6295",
+  "git_dirty_main_dir": false,
+  "modules": {
+    "forward": "/home/nishioka/Tmcmc202601/data_5species/main/hamilton_ode_jax_paper.py",
+    "engine": "/home/nishioka/Tmcmc202601/data_5species/main/tmcmc_engine_paper.py"
+  },
+  "argv": [
+    "estimate_paper_jax.py",
+    "--condition",
+    "Commensal",
+    "--cultivation",
+    "Static",
+    "--K-hill",
+    "0.0",
+    "--n-hill",
+    "4.0",
+    "--use-exp-init",
+    "--use-de-mc",
+    "--mutation",
+    "rw",
+    "--seed",
+    "42",
+    "--device",
+    "gpu",
+    "--mutation-throttle-floor",
+    "1.0",
+    "--ic-day",
+    "1",
+    "--fix-psi",
+    "--n-particles",
+    "1000",
+    "--n-mutation-steps",
+    "120",
+    "--two-channel",
+    "--lambda-ch2",
+    "1.0",
+    "--data-source",
+    "raw",
+    "--override-bounds",
+    "19:0:0",
+    "--output-dir",
+    "_runs/paper_gateoff/CS_pilot_2c_raw_a45zero_m120_seed42"
+  ],
+  "args": {
+    "condition": "Commensal",
+    "cultivation": "Static",
+    "n_particles": 1000,
+    "max_stages": 30,
+    "seed": 42,
+    "use_exp_init": true,
+    "start_from_day": 1,
+    "ic_from_data": false,
+    "ic_day": 1,
+    "lambda_pg": 5.0,
+    "lambda_late": 3.0,
+    "lambda_rare": 0.1,
+    "sigma_scale": 1.0,
+    "replicate_sigma": false,
+    "K_hill": 0.0,
+    "n_hill": 4.0,
+    "dt": 0.0001,
+    "n_steps": 2500,
+    "output_dir": "_runs/paper_gateoff/CS_pilot_2c_raw_a45zero_m120_seed42",
+    "mutation": "rw",
+    "quick": false,
+    "benchmark": false,
+    "device": "gpu",
+    "multichannel": false,
+    "lambda_ch1": 1.0,
+    "lambda_ch2": 1.0,
+    "lambda_ch3": 2.0,
+    "lambda_ch5": 0.3,
+    "n_mutation_steps": 120,
+    "mutation_throttle_floor": 1.0,
+    "use_de_mc": true,
+    "de_mc_gamma": 2.38,
+    "use_student_t": false,
+    "student_t_nu": 5.0,
+    "resample_method": "systematic",
+    "max_info_ratio": 10.0,
+    "use_flow": false,
+    "flow_n_layers": 6,
+    "flow_hidden_dim": 64,
+    "flow_n_epochs": 200,
+    "flow_lr": 0.001,
+    "flow_start_beta": 0.1,
+    "flow_mix_ratio": 0.8,
+    "waste_free": false,
+    "init_from_dir": null,
+    "posterior_prior_nsigma": null,
+    "override_bounds": "19:0:0",
+    "fix_psi": true,
+    "data_source": "raw",
+    "holdout_day": null,
+    "two_channel": true,
+    "estimate_b": false,
+    "prior_scale": 0.0,
+    "box": null,
+    "skip_sensitivity_check": false
+  },
+  "theta_names": [
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45"
+  ],
+  "free_dims": [
+    0,
+    1,
+    2,
+    5,
+    6,
+    7,
+    10,
+    11,
+    12,
+    13,
+    14,
+    16,
+    17,
+    18
+  ],
+  "prior_bounds_final": [
+    [
+      0.0,
+      2.0
+    ],
+    [
+      -0.5,
+      2.0
+    ],
+    [
+      -1.0,
+      3.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -1.0,
+      1.5
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -1.0,
+      3.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      3.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      0.0,
+      0.0
+    ]
+  ],
+  "phi_init": [
+    0.12232537521335081,
+    0.003853369363517963,
+    0.8463269525724842,
+    0.022203111290194956,
+    0.005291191560452096
+  ],
+  "psi_init": null,
+  "sigma_obs": [
+    0.10609153511111112,
+    0.07109585083333335,
+    0.12619523344444442,
+    0.05,
+    0.05
+  ],
+  "lambda_ch_effective": {
+    "1": 1.0,
+    "2": 1.0,
+    "3": 0.0,
+    "5": 0.0
+  },
+  "psi_fixed": [
+    [
+      0.99,
+      0.31814764831170655,
+      0.4100541211326708,
+      0.09051190838753193,
+      0.7751139949716749
+    ],
+    [
+      0.802560760495099,
+      0.3069561172723042,
+      0.4957565421994561,
+      0.65624203684921,
+      0.65624203684921
+    ],
+    [
+      0.8002083379612093,
+      0.5949242596654811,
+      0.45782777969252886,
+      0.6588461413385331,
+      0.6588461413385331
+    ],
+    [
+      0.56121503290515,
+      0.7416412328394264,
+      0.8801416950512606,
+      0.6895983172260725,
+      0.6895983172260725
+    ],
+    [
+      0.40625057335520753,
+      0.99,
+      0.8628800591699555,
+      0.6647305930191605,
+      0.6647305930191605
+    ]
+  ],
+  "n_stages": 8,
+  "beta_final": 1.0,
+  "total_time_s": 20171.809640169144,
+  "mean_accept": 0.14788645833333333,
+  "stage_history": {
+    "beta": [
+      0.0072009753644097785,
+      0.024846864221617644,
+      0.0504351950576105,
+      0.10942073340434644,
+      0.2599008002395454,
+      0.5269049787034801,
+      0.9999999999999996,
+      1.0
+    ],
+    "accept_rate": [
+      0.159375,
+      0.14528333333333332,
+      0.141675,
+      0.15429166666666666,
+      0.141875,
+      0.14455,
+      0.149625,
+      0.14641666666666667
+    ],
+    "n_mut": [
+      120,
+      120,
+      120,
+      120,
+      120,
+      120,
+      120,
+      120
+    ],
+    "moves_per_particle": [
+      19.125,
+      17.434,
+      17.001,
+      18.515,
+      17.025,
+      17.346,
+      17.955,
+      17.57
+    ],
+    "ess": [
+      500.0000000000323,
+      500.00000000002495,
+      500.00000000000915,
+      500.0000000000022,
+      500.00000000000017,
+      500.00000000000085,
+      520.3149463862096,
+      999.9999999999999
+    ]
+  },
+  "moves_per_particle_mean": 17.746375,
+  "max_logL": -4.1493500442604345,
+  "log_evidence": -16.553059245219263,
+  "logL_recheck_maxabs": 0.0,
+  "logL_consistent": true
+}
