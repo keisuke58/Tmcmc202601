@@ -226,14 +226,15 @@ def bayes_table(groups):
         r"\midrule",
     ]
     for tag in CONDS:
-        full = [r.get("log_evidence") for _, r in groups[tag].get("pilot", [])]
+        fk = "bayes_full" if groups[tag].get("bayes_full") else "pilot"  # 生データ: ベイズ因子用の n_mut 120 の pilot（16k）
+        full = [r.get("log_evidence") for _, r in groups[tag].get(fk, [])]
         zero = [r.get("log_evidence") for _, r in groups[tag].get("a45zero", [])]
         full = [x for x in full if x is not None]
         zero = [x for x in zero if x is not None]
         if not full or not zero:
             lines.append("%s & \\multicolumn{5}{l}{(pending)}\\\\" % tag)
             continue
-        pb = np.array(groups[tag]["pilot"][0][1]["prior_bounds_final"], dtype=float)
+        pb = np.array(groups[tag][fk][0][1]["prior_bounds_final"], dtype=float)
         lo, hi = pb[A45]
         pm = lambda v: ("$%.2f$ (one seed)" % v[0]) if len(v) == 1 else "$%.2f \\pm %.2f$" % (np.mean(v), (max(v) - min(v)) / 2)
         lines.append(
