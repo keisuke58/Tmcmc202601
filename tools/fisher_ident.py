@@ -52,7 +52,9 @@ for tag, (cond, cult, pat) in GROUPS.items():
     rec = json.load(open(best / "run_record.json"))
     a = rec["args"]
     E.DATA_DIR = E.data_dir_for(a)  # run が読んだデータ
-    th = json.load(open(best / "theta_MAP.json"))
+    # 最終 MAP（final_theta_MAP/<tag>.json、磨いた点があればそれ）を優先。無ければ最良 seed の粒子の最良値（2026-10-17）
+    _fm = ROOT / "docs/revision/generated/final_theta_MAP" / f"{tag}.json"
+    th = json.load(open(_fm if _fm.exists() else best / "theta_MAP.json"))
     th = np.array([th[str(i)] for i in range(20)])
     pb = np.array(rec["prior_bounds_final"], dtype=float)
     data, t_days, sig, _, _ = E.load_experimental_data(E.DATA_DIR, cond, cult, 1, normalize=True, use_exp_init=True)

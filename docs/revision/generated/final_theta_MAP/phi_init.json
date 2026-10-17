@@ -1,6 +1,6 @@
 {
   "CS": {
-    "run": "CS_ult_2c_raw_seed123",
+    "run": "CS_ult_2c_raw_seed42",
     "data_source": "raw",
     "two_channel": true,
     "phi_init": [
