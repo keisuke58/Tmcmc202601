@@ -169,3 +169,5 @@ data_5species/raw_dataset/
 
 # 生データから計算した表・図（共著者の了承まで公開しない）
 docs/revision/generated/raw_analysis/
+# 回収テストの粒子（final_runs と同じ扱い、2026-10-19）
+!docs/revision/generated/recovery/**/*.npy
