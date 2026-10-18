@@ -253,7 +253,7 @@ The last column gives $\ln V=\sum_k\ln(u_k-l_k)$, the log-volume of the box, whi
 
 \begin{table}[h]
 \centering
-\caption{Prior boxes per condition and stage for the 15 free entries. (i)~initial box; (ii)~stage-(i) posterior mean $\pm4$\,SD; (iii)~back on the box of stage~(i), with the bounds widened (bold) where more than 20\% of the posterior mass lay in the outer 5\% on one side; (iv)~stage-(iii) posterior mean $\pm4$\,SD, clipped to the stage-(iii) box (seed with the highest log-likelihood). $\ln V=\sum_k\ln(u_k-l_k)$ over the free entries. \TBD{DS: stage (iv) pending.}}
+\caption{Prior boxes per condition and stage for the 15 free entries. (i)~initial box; (ii)~stage-(i) posterior mean $\pm4$\,SD; (iii)~back on the box of stage~(i), with the bounds widened (bold) where more than 20\% of the posterior mass lay in the outer 5\% on one side; (iv)~stage-(iii) posterior mean $\pm4$\,SD, clipped to the stage-(iii) box (seed with the highest log-likelihood). $\ln V=\sum_k\ln(u_k-l_k)$ over the free entries. }
 \label{tab:S_boxes}
 \input{\suppdir/supp_S1_boxes.tex}
 \end{table}
@@ -264,21 +264,21 @@ Table~\ref{tab:S_runs} lists, for every condition and stage, the number of parti
 Criteria (a) and (b) are met by all runs.
 Criterion (c) counts accepted moves rather than the acceptance rate: with optimally scaled random-walk proposals~\citep{RobertsRosenthal2001Optimal}, $5d$ accepted moves displace each coordinate by about five posterior standard deviations, independently of the dimension~$d$.
 To check that the warm start does not bias stage (iii), one CH stage-(iii) run was started with all particles drawn from the prior, on the same box as the three warm-started seeds: its maximum log-likelihood ($-26.74$) lies within their range ($-26.71$ to $-27.25$), and the medians and 90\% bounds of $a_{33}$ and $a_{45}$ lie within 0.03 of the range spanned by the three warm-started seeds.
-Stages (ii)--(iv) of CS and CH and stages (ii)--(iii) of DH meet all criteria (largest median spread 0.09 posterior SD in CS and CH, 0.13 in DH). Stage (iv) of DH meets (a)--(d) but not (e): the seed medians differ by 0.79 posterior SD for $a_{22}$ and 0.69 for $a_{24}$ and $a_{13}$, with 12.6--13.0 moves per free parameter, so the seeds settle in different modes rather than mixing too little; the final stage of DH is therefore stage (iii) (main text, Section~4.5)\TBD{DS after its gates. DS stage (ii) fails (d): best-known seed max $\log L$ $-59.07$, $-60.74$, $-60.77$, spread 1.70 (seed 123 found a higher optimum that top-3 polishing does not reach); criterion (d) uses the best value found per seed}.
-Stage (i) is exploratory: CS and CH do not meet (c), and DS does not meet (e) because of the two $a_{33}$ modes (Section~\ref{sec:S_bayes}).
-Criterion (e) is stricter than common practice. Treating the three seeds as chains, the potential scale reduction factor $\hat R$~\citep{GelmanRubin1992} of the identified entries is at most 1.001 for CS and CH (stages (ii)--(iv)) and 1.003 for DH (stage (iii)), and 1.11 for the DH stage-(iv) group that fails (e)\TBD{DS: old value 1.005 (read-off data)}. Here criterion (e) and the conventional threshold $\hat R<1.1$ agree; the recommended $\hat R<1.01$~\citep{Vehtari2021Rhat} is met by every accepted group. Values from \texttt{tools/rhat\_seeds.py}.
+Stages (ii)--(iv) of CS and CH, stages (iii)--(iv) of DS and stages (ii)--(iii) of DH meet all criteria (largest median spread 0.09 posterior SD in CS and CH, 0.16 in DS, 0.13 in DH). Stage (ii) of DS fails (d): the best-known maximum log-likelihoods of the seeds ($-59.07$, $-60.74$, $-60.77$; the first from top-10 polishing of one seed) spread by 1.70; stage (iii), half of whose particles start from the prior, does not inherit this (spread 0.11). Stage (iv) of DH meets (a)--(d) but not (e): the seed medians differ by 0.79 posterior SD for $a_{22}$ and 0.69 for $a_{24}$ and $a_{13}$, with 12.6--13.0 moves per free parameter, so the seeds settle in different modes rather than mixing too little; the final stage of DH is therefore stage (iii) (main text, Section~4.5).
+Stage (i) is exploratory: no condition meets (c) (2.7--4.2 moves per free parameter).
+Criterion (e) is stricter than common practice. Treating the three seeds as chains, the potential scale reduction factor $\hat R$~\citep{GelmanRubin1992} of the identified entries is at most 1.001 for CS and CH (stages (ii)--(iv)) 1.003 for DS (stage (iv)) and 1.003 for DH (stage (iii)), and 1.11 for the DH stage-(iv) group that fails (e). Here criterion (e) and the conventional threshold $\hat R<1.1$ agree; the recommended $\hat R<1.01$~\citep{Vehtari2021Rhat} is met by every accepted group. Values from \texttt{tools/rhat\_seeds.py}.
 For CS and CH, stage (ii) was started from stage-(i) runs with 120 mutation steps that are not archived; the stage-(i) runs listed here (80 steps) give stage-(ii) bounds within 0.17 of those used.
 
 \begin{table}[h]
 \centering
-\caption{Runs of the final pipeline (three seeds per row): particles $N_p$, mutation steps per tempering step $n_{\mathrm{mut}}$, tempering steps $K$, acceptance rate, moves per free parameter (criterion (c)), maximum log-likelihood (best seed; spread over the three seeds in parentheses, criterion (d)), largest spread of the seed medians over the identified entries in units of the pooled posterior SD (criterion (e), no mode splitting) and wall-clock hours per seed. DH: the final stage is (iii); stage (iv) fails (e) and is listed for completeness.\TBD{DS pending}}
+\caption{Runs of the final pipeline (three seeds per row): particles $N_p$, mutation steps per tempering step $n_{\mathrm{mut}}$, tempering steps $K$, acceptance rate, moves per free parameter (criterion (c)), maximum log-likelihood (best seed, after local optimisation from the best particles where this was done; spread over the three seeds in parentheses, criterion (d)), largest spread of the seed medians over the identified entries in units of the pooled posterior SD (criterion (e), no mode splitting) and wall-clock hours per seed. DH: the final stage is (iii); stage (iv) fails (e) and is listed for completeness.}
 \label{tab:S_runs}
 \footnotesize\setlength{\tabcolsep}{4pt}\input{\suppdir/supp_S2_runs.tex}
 \end{table}
 
 \section{Identifiability of the interaction entries}
 \label{sec:S_ident}
-Table~\ref{tab:S_ident} lists, for the final stage (iv) of every condition (stage (iii) for DH\TBD{DS: stage to be fixed}), the median and the 90\% interval of each entry, pooled over the three seeds.
+Table~\ref{tab:S_ident} lists, for the final stage (iv) of every condition (stage (iii) for DH), the median and the 90\% interval of each entry, pooled over the three seeds.
 The reference box is the prior box of that stage (Table~\ref{tab:S_boxes}, column (iv); for DS and DH column (iii)).
 An entry whose pooled posterior SD is at least 0.8 times that of a uniform distribution on this box is shown in grey and excluded from the seed-agreement criterion: the data do not constrain its magnitude beyond the prior box. Among these, entries whose 90\% interval excludes zero are marked s.o.\ (sign only), the others n.i.\ (not identified). All other entries are called identified (constrained by the data); an identified entry need not be sign-determined (e.g.\ $a_{45}$ in DS and DH).
 Where the stage-(iv) box was narrowed to the stage-(iii) mean $\pm4$\,SD, the uniform SD on that box is about 2.3 stage-(iii) SDs; for these entries the classification is in effect made against the stage-(iii) box.
@@ -289,28 +289,28 @@ The pattern does not change: at every threshold the dysbiotic conditions have at
 
 \begin{table}[h]
 \centering
-\caption{Number of identified entries of $\mathbf{A}$ (of 15) for different thresholds on the ratio of the pooled posterior SD to the SD of a uniform distribution on the prior box; $^\ast$value used throughout. DH: stage (iii).\TBD{DS} Generated by \texttt{tools/ident\_threshold\_table.py}.}
+\caption{Number of identified entries of $\mathbf{A}$ (of 15) for different thresholds on the ratio of the pooled posterior SD to the SD of a uniform distribution on the prior box; $^\ast$value used throughout. DH: stage (iii). Generated by \texttt{tools/ident\_threshold\_table.py}.}
 \label{tab:S_thresh}
 \small\input{\suppdir/supp_S4_thresh}
 \end{table}
 
 \begin{table}[h]
 \centering
-\caption{Posterior median [5\%, 95\%] of the 15 entries at stage (iv) (stage (iii) for DH\TBD{DS}), three seeds pooled. Grey: the posterior spreads over most of the prior box of the stage (SD $\ge0.8$ times that of a uniform distribution on the box); n.i.: not identified, s.o.: sign only (the 90\% interval excludes zero).}
+\caption{Posterior median [5\%, 95\%] of the 15 entries at stage (iv) (stage (iii) for DH), three seeds pooled. Grey: the posterior spreads over most of the prior box of the stage (SD $\ge0.8$ times that of a uniform distribution on the box); n.i.: not identified, s.o.: sign only (the 90\% interval excludes zero).}
 \label{tab:S_ident}
 \footnotesize\setlength{\tabcolsep}{3pt}\resizebox{\textwidth}{!}{\input{\suppdir/supp_S4_ident}}
 \end{table}
 
 \paragraph{Curvature of the likelihood.}
 As a check that does not use the posterior samples, we computed the Hessian $\mathbf{H}$ of $-\ln p(\yobs\mid\btheta)$ at the MAP over the 15 free entries, scaled each entry by the standard deviation of a uniform distribution on its box, and counted the eigen-directions with scaled curvature of at least $1/0.8^2$, i.e.\ directions in which the likelihood is narrower than the identification threshold.
-Their number is 5 in CS, 6 in CH and 7 in DH, against 5, 6 and 8 entries identified from the posterior\TBD{DS after its final stage; old values 8 against 8}.
-The counts agree in CS and CH; in DH the posterior identifies one entry more than the local curvature, because entries can be constrained jointly along correlated directions and by the non-quadratic shape of the likelihood, which a single Hessian at the MAP does not capture.
-The Hessian is evaluated at the final MAP (locally optimised in CS and CH, the best particle in DH); it is not positive definite at any of them (two, one and four negative eigenvalues in CS, CH and DH), so entry-wise Laplace intervals are not reported.
+Their number is 5 in CS, 6 in CH, 4 in DS and 7 in DH, against 5, 6, 9 and 8 entries identified from the posterior.
+The counts agree in CS and CH; in DS and DH the posterior identifies more entries (five and one) than the local curvature, because entries can be constrained jointly along correlated directions and by the non-quadratic shape of the likelihood, which a single Hessian at the MAP does not capture.
+The Hessian is evaluated at the final MAP (locally optimised in CS and CH, the best particle in DH); it is not positive definite at any of them (two, one, four and four negative eigenvalues in CS, CH, DS and DH), so entry-wise Laplace intervals are not reported.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=\textwidth]{figures/raw/fig4_posteriors_v2.pdf}
-\caption{Marginal posteriors of the 15 entries of $\mathbf{A}$ at the final stage (three seeds pooled), drawn as position within the prior box of the final stage of each entry (Table~\ref{tab:S_boxes}): thick bar 50\%, thin bar 90\% interval, circle median; black tick: $a_{ij}=0$. Coloured: identified; grey: not identified; a sign at the right: only the sign is determined (classification as in Fig.~3 of the main text). DH: stage (iii).\TBD{DS pending}}
+\caption{Marginal posteriors of the 15 entries of $\mathbf{A}$ at the final stage (three seeds pooled), drawn as position within the prior box of the final stage of each entry (Table~\ref{tab:S_boxes}): thick bar 50\%, thin bar 90\% interval, circle median; black tick: $a_{ij}=0$. Coloured: identified; grey: not identified; a sign at the right: only the sign is determined (classification as in Fig.~3 of the main text). DH: stage (iii).}
 \label{fig:post}
 \end{figure}
 
@@ -318,12 +318,12 @@ The Hessian is evaluated at the final MAP (locally optimised in CS and CH, the b
 \label{sec:S_seedmap}
 Figure~\ref{fig:S_seedmap} overlays the MAP of each seed on the posterior predictive band pooled over the three seeds.
 In all conditions the three MAPs nearly coincide.
-The viable-composition error of the pointwise posterior median is 0.094 in CS, 0.086 in CH and 0.083 in DH, against 0.090, 0.060 and 0.073 at the MAP; in CH and DH the pointwise median, which is not itself a model trajectory, lies further from the data than the MAP\TBD{DS}.
+The viable-composition error of the pointwise posterior median is 0.094 in CS, 0.086 in CH, 0.057 in DS and 0.083 in DH, against 0.090, 0.060, 0.057 and 0.073 at the MAP; in CH and DH the pointwise median, which is not itself a model trajectory, lies further from the data than the MAP.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=\textwidth]{figures/raw/seed_maps_4cond.pdf}
-\caption{Species fractions: MAP of each seed (coloured lines), pooled central 80\% posterior predictive band (10th--90th percentile, grey) and its pointwise median (dashed), and data (dots). DH: stage (iii).\TBD{DS pending}}
+\caption{Species fractions: MAP of each seed (coloured lines), pooled central 80\% posterior predictive band (10th--90th percentile, grey) and its pointwise median (dashed), and data (dots). DH: stage (iii).}
 \label{fig:S_seedmap}
 \end{figure}
 
@@ -339,24 +339,11 @@ Table~\ref{tab:S_bayes} reports $\ln\hat Z$ of both models, $\ln B=\ln\hat Z_{\m
 \small\input{\suppdir/supp_S3_bayes.tex}
 \end{table}
 
-\paragraph{Dysbiotic static.}\TBD{DS: this paragraph is from the read-off data; revise with the measured-data runs}
-In DS, $a_{45}$ and $a_{33}$ trade off at stage (i). With $a_{45}=0$ the posterior moves almost entirely to the mode $a_{33}\approx-10$ (weight 0.83--0.87 across seeds), whereas the full model splits its mass between $a_{33}\approx+1$ and $a_{33}<-5$, with a weight of the latter that differs strongly between seeds (0.14--0.66); this stage-(i) group does not pass criterion (e) and is used here only for the Bayes factor.
-In the mode $a_{33}\ge-5$ the coefficient $a_{45}$ is larger than in the mode $a_{33}<-5$ (Table~\ref{tab:S_modes}).
-At the final stage the mode $a_{33}<-5$ is empty in all three seeds, and $a_{45}$ has median $+2.8$ with a 90\% interval reaching zero ($[-1.3,+15.1]$)\TBD{prov.}.
-
-\begin{table}[h]
-\centering
-\caption{DS, stage (i), full model: $a_{45}$ by $a_{33}$ mode (three seeds pooled, 3000 particles).}
-\label{tab:S_modes}
-\begin{tabular}{lccc}
-\toprule
-Mode & Particles & $a_{45}$ median [5\%, 95\%] & max log-likelihood\\
-\midrule
-$a_{33}\ge-5$ & 1761 & $+2.4$ [$+0.6$, $+4.7$] & $-0.91$\\
-$a_{33}<-5$   & 1239 & $+0.8$ [$-0.3$, $+1.6$] & $-1.49$\\
-\bottomrule
-\end{tabular}
-\end{table}
+\paragraph{Dysbiotic conditions.}
+In DS and DH the data favour the full model ($\ln B=+7.5$\TBD{DS: provisional until the $a_{45}=0$ group passes criterion (d) after polishing} and $+2.1$), by more than the seed spread of $\ln\hat Z$ (up to 2.3 and 0.8).
+With the composition alone (stage (i)) $a_{45}$ is positive in both: $+3.1$ to $+3.2$ (90\% interval about $[+1.8,+5.1]$) in DS on the box $[-15,20]$, and $+5.2$ in DH on the box $[-0.5,6]$, where 22--26\% of the posterior mass lies in the upper 5\% of the box, so $\ln\hat Z_{\mathrm{full}}$ of DH would change with a wider box (the Occam penalty grows with the box, the sign of $\ln B$ is unlikely to).
+At the final stage, with the live fraction in the likelihood, the 90\% intervals of $a_{45}$ include zero in both conditions (main text, Section~4.3).
+In the measured-data runs the stage-(i) posterior of DS has a single mode in $a_{33}$ (no particle below $-5$ in any seed), unlike the read-off data used in an earlier version.
 
 \section{Effect of the likelihood weights}
 \label{sec:S_lambda}
@@ -426,9 +413,9 @@ Table~\ref{tab:S_total} gives the errors of the final MAP in both channels and, 
 \toprule
  & CS & CH & DS & DH\\
 \midrule
-Viable vs.\ $\phi_i\psi_i/\sum_j\phi_j\psi_j$ & 0.090 & 0.060 & \TBD{DS} & \TBD{DH}\\
-Total count vs.\ $\phi_i/\sum_j\phi_j$ & 0.039 & 0.081 & \TBD{DS} & \TBD{DH}\\
-Viable vs.\ $\phi_i/\sum_j\phi_j$ (not fitted) & 0.110 & 0.107 & \TBD{DS} & \TBD{DH}\\
+Viable vs.\ $\phi_i\psi_i/\sum_j\phi_j\psi_j$ & 0.090 & 0.060 & 0.057 & 0.073\\
+Total count vs.\ $\phi_i/\sum_j\phi_j$ & 0.039 & 0.081 & 0.081 & 0.159\\
+Viable vs.\ $\phi_i/\sum_j\phi_j$ (not fitted) & 0.110 & 0.107 & 0.082 & 0.105\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -479,8 +466,8 @@ This is a deterministic diagnostic, not a posterior; its solution lies near the 
 To show how the calibration enters a mechanical model, the posterior dynamics of each condition drive the isotropic growth law of the continuum model of \citet{Klempt2024ContinuumGrowth}: $\mathbf{F}_g=(1+\alpha)\mathbf{I}$ with $\mathrm{d}\alpha/\mathrm{d}T^\ast=k_\alpha\varphi_g$, where $T^\ast$ is time normalised by the length of the experiment (21 days) and $k_\alpha=10^{-3}$ as in that work.
 At a material point that is constrained in all directions, $\mathbf{F}=\mathbf{I}$, the elastic part is $\mathbf{F}_e=\mathbf{I}/(1+\alpha)$ with $J_e=(1+\alpha)^{-3}$, the deviatoric stress vanishes and the Cauchy stress is $\boldsymbol{\sigma}=K(J_e-1)\mathbf{I}$, with $K=E/[3(1-2\nu)]$, $E=E_0(\varphi_{\mathrm{tot}}^2+f)$, $\nu=0.49$ and $f=10^{-3}$, so no finite-element solution is needed.
 We report the growth pressure $p=-\tfrac13\operatorname{tr}\boldsymbol{\sigma}$ relative to $E_0$ for two choices of the driver $\varphi_g$: the living volume $\sum_i\varphi_i\psi_i$, whose community fraction is constrained by the live/dead data, and the total volume $\varphi_{\mathrm{tot}}=\sum_i\varphi_i$, which the likelihood does not constrain (it uses fractions only).
-Driven by the total volume, the conditions are hardly distinguishable: $\varphi_{\mathrm{tot}}$ stays at 0.94--0.98 and $p/E_0$ on day~21 is 0.042 in CH, 0.044 in DH and 0.046 in CS (Fig.~\ref{fig:S_growth}b, dashed)\TBD{DS; old: 0.042--0.046 in all four}.
-Driven by the living volume, they separate: $p/E_0$ on day~21 is 0.023 (90\% interval $[0.020,0.025]$) in CH, 0.024 ($[0.023,0.025]$) in DH and 0.041 ($[0.038,0.043]$) in CS\TBD{DS}.
+Driven by the total volume, the conditions are hardly distinguishable: $\varphi_{\mathrm{tot}}$ stays at 0.91--0.98 and $p/E_0$ on day~21 is 0.038--0.046 (DS, CH, DH, CS; Fig.~\ref{fig:S_growth}b, dashed).
+Driven by the living volume, they separate: $p/E_0$ on day~21 is 0.023 (90\% interval $[0.020,0.025]$) in CH, 0.024 ($[0.023,0.025]$) in DH, 0.021 ($[0.020,0.022]$) in DS and 0.041 ($[0.038,0.043]$) in CS.
 The high CS value follows the CS live fraction of the model (0.93 on day~21), which lies above the measured 0.65--0.77 (Section~\ref{sec:S_tradeoff}).
 This is an illustration of the coupling, not a prediction of the stress in a biofilm: $k_\alpha$ and $E_0$ are taken from another system and $p$ scales linearly with both, and a spatial model adds nutrient transport, boundary conditions and the spatial distribution of the species.
 It shows that the dependence of the growth stress on the condition enters through the calibrated viability rather than through assumed species-specific growth parameters, and that the posterior spread can be propagated to the stress.
@@ -488,14 +475,14 @@ It shows that the dependence of the growth stress on the condition enters throug
 \begin{figure}[h]
 \centering
 \includegraphics[width=\textwidth]{figures/raw/growth_stress.pdf}
-\caption{Growth-induced stress at a constrained material point. (a)~Community live fraction $\sum_i\varphi_i\psi_i/\sum_i\varphi_i$ (line: posterior median, band: central 90\%, 200 posterior samples per condition; dots: live/dead data used in the inference). (b)~Growth pressure $p/E_0$ for growth driven by the living volume (solid, with band) and by the total volume (dashed, MAP). Generated by \texttt{tools/growth\_stress\_check.py}. DH: stage (iii).\TBD{DS pending}}
+\caption{Growth-induced stress at a constrained material point. (a)~Community live fraction $\sum_i\varphi_i\psi_i/\sum_i\varphi_i$ (line: posterior median, band: central 90\%, 200 posterior samples per condition; dots: live/dead data used in the inference). (b)~Growth pressure $p/E_0$ for growth driven by the living volume (solid, with band) and by the total volume (dashed, MAP). Generated by \texttt{tools/growth\_stress\_check.py}. DH: stage (iii).}
 \label{fig:S_growth}
 \end{figure}
 
 \begin{table}[p]
 \centering\small
 \input{\suppdir/supp_S3_cost}
-\caption{Cost of each inference stage (median over the three seeds): particle number $N_p$, mutation steps per tempering step $n_{\mathrm{mut}}$, number of tempering steps $K$, wall time per seed on one GPU, and number of likelihood evaluations $N_{\mathrm{lik}}=N_p(1+\sum n_{\mathrm{mut}})$. DH: stage (iii) is the final stage; stage (iv) is listed for completeness.\TBD{DS} Generated by \texttt{tools/make\_cost\_table.py}.}
+\caption{Cost of each inference stage (median over the three seeds): particle number $N_p$, mutation steps per tempering step $n_{\mathrm{mut}}$, number of tempering steps $K$, wall time per seed on one GPU, and number of likelihood evaluations $N_{\mathrm{lik}}=N_p(1+\sum n_{\mathrm{mut}})$. DH: stage (iii) is the final stage; stage (iv) is listed for completeness. Generated by \texttt{tools/make\_cost\_table.py}.}
 \label{tab:stagecost}
 \end{table}
 

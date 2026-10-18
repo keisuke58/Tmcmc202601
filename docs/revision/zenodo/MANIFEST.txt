@@ -3,7 +3,7 @@
 # This covers the measured replicates (data_5species/raw_dataset/, experiment_data/raw_heine/) and the digitised
 # copies (data_5species/digitised_dataset/). build_archive.sh aborts if any of them is staged.
 # 2026-10-16: CS and CH point to the measured-data, two-channel runs (*_2c_raw*) and final_theta_MAP holds their
-#      2c_raw MAPs. TODO before the final DOI: the same for DS and DH once their stage (iv) passes
+#      2c_raw MAPs (CS, CH, DS, DH; DH = stage (iii), see README).
 #      (their globs below are still the read-off, one-channel runs and are marked PROVISIONAL).
 # ---------------------------------------------------------------------------
 # MANIFEST.txt -- explicit file list of the Zenodo archive (read by build_archive.sh)
@@ -139,7 +139,15 @@ docs/revision/generated/final_runs/CS_pilot_2c_raw_seed*
 docs/revision/generated/final_runs/CS_p1_2c_raw_seed*
 docs/revision/generated/final_runs/CS_p2_2c_raw_seed*
 docs/revision/generated/final_runs/CS_ult_2c_raw_seed*
-# TODO: stage-(i) a45 = 0 runs for the Bayes factor on the measured data (not run yet)
+# Bayes factor (Section 4.3, Table S8): stage (i) rerun for both models with 120 mutation steps, 3 seeds each
+docs/revision/generated/final_runs/CS_pilot_2c_raw_m120_seed*
+docs/revision/generated/final_runs/CS_pilot_2c_raw_a45zero_m120_seed*
+docs/revision/generated/final_runs/CH_pilot_2c_raw_m120_seed*
+docs/revision/generated/final_runs/CH_pilot_2c_raw_a45zero_m120_seed*
+docs/revision/generated/final_runs/DH_pilot_2c_raw_m120_seed*
+docs/revision/generated/final_runs/DH_pilot_2c_raw_a45zero_m120_seed*
+docs/revision/generated/final_runs/DS_pilot_2c_raw_m120_seed*
+?docs/revision/generated/final_runs/DS_pilot_2c_raw_a45zero_m120_seed*   # polishing; added once criterion (d) passes
 
 # CH -- commensal, HOBIC flow reactor (measured data, two-channel likelihood; a33 box widened, "a33w")
 docs/revision/generated/final_runs/CH_pilot_2c_raw_seed*
@@ -149,11 +157,11 @@ docs/revision/generated/final_runs/CH_ult_2c_raw_a33w_seed*
 # warm-start check: stage (iii) started entirely from the prior (Section 3 of the paper)
 docs/revision/generated/final_runs/CH_p2_2c_raw_cold_seed*
 
-# DS -- dysbiotic, static   (measured data, two-channel likelihood; PENDING: runs still on the GPU)
+# DS -- dysbiotic, static (measured data, two-channel likelihood; final stage (iv) accepted 2026-10-18)
 ?docs/revision/generated/final_runs/DS_pilot_2c_raw_seed*
 ?docs/revision/generated/final_runs/DS_p1_2c_raw_seed*
 ?docs/revision/generated/final_runs/DS_p2_2c_raw_seed*
-?docs/revision/generated/final_runs/DS_ult_2c_raw_seed*
+docs/revision/generated/final_runs/DS_ult_2c_raw_seed*
 
 # DH -- dysbiotic, HOBIC flow reactor (measured data, two-channel likelihood; final stage = stage (iii), 2026-10-16)
 ?docs/revision/generated/final_runs/DH_pilot_2c_raw_seed*
@@ -170,25 +178,36 @@ docs/revision/generated/final_theta_MAP/CS.json
 docs/revision/generated/final_theta_MAP/CH.json
 docs/revision/generated/final_theta_MAP/phi_init.json
 docs/revision/generated/final_theta_MAP/superseded/*.json
-?docs/revision/generated/final_theta_MAP/DS.json
+docs/revision/generated/final_theta_MAP/DS.json
 docs/revision/generated/final_theta_MAP/DH.json
 
 # ---------------------------------------------------------------------------
 # 6. Derived outputs as used in the submitted manuscript (for comparison with a re-run)
-#    TODO: switch to figures/raw/ (rebuild_eml_raw.sh) once all four final stages pass
 #    Directory name is the one \includegraphics/\input currently point to.
 # ---------------------------------------------------------------------------
-docs/revision/EML_submission/figures/provisional_2026-10-11/supp/spec_provisional.json
-docs/revision/EML_submission/figures/provisional_2026-10-11/supp/supp_S*.tex
-docs/revision/EML_submission/figures/provisional_2026-10-11/knockout_DH.json
-docs/revision/EML_submission/figures/provisional_2026-10-11/knockout_DS.json
-docs/revision/EML_submission/figures/provisional_2026-10-11/ph_check.json
-# NOT INCLUDED (no redistribution of Heine et al. 2025 data): docs/revision/EML_submission/figures/provisional_2026-10-11/ph_check_bands.npz
-docs/revision/EML_submission/figures/provisional_2026-10-11/fisher_ident.json
-docs/revision/EML_submission/figures/provisional_2026-10-11/growth_stress.json
-docs/revision/EML_submission/figures/provisional_2026-10-11/seed_maps_4cond.json
-docs/revision/EML_submission/figures/provisional_2026-10-11/paper_fig2_phi_transposed.pdf
-docs/revision/EML_submission/figures/provisional_2026-10-11/fig5_identifiability.pdf
-docs/revision/EML_submission/figures/provisional_2026-10-11/fig4_posteriors.pdf
-docs/revision/EML_submission/figures/provisional_2026-10-11/fig6_checks.pdf
-docs/revision/EML_submission/figures/provisional_2026-10-11/seed_maps_4cond.pdf
+
+# Figures and tables of the paper, rebuilt from final_runs/ by tools/rebuild_eml_raw.sh (measured data, two-channel likelihood)
+docs/revision/EML_submission/figures/raw/spec_raw.json
+docs/revision/EML_submission/figures/raw/supp/supp_S*.tex
+docs/revision/EML_submission/figures/raw/supp/supp_S_psi2c.tex
+docs/revision/EML_submission/figures/raw/supp/supp_S_lambda2c.tex
+docs/revision/EML_submission/figures/raw/check_paper_runs.txt
+docs/revision/EML_submission/figures/raw/eval_paper_runs.txt
+docs/revision/EML_submission/figures/raw/fit_metrics_2c.json
+docs/revision/EML_submission/figures/raw/psi_table.json
+docs/revision/EML_submission/figures/raw/knockout_DH.json
+docs/revision/EML_submission/figures/raw/knockout_DS.json
+docs/revision/EML_submission/figures/raw/ph_check.json
+# NOT INCLUDED (no redistribution of Heine et al. 2025 data): docs/revision/EML_submission/figures/raw/ph_check_bands.npz
+docs/revision/EML_submission/figures/raw/fisher_ident.json
+docs/revision/EML_submission/figures/raw/rhat_seeds.json
+docs/revision/EML_submission/figures/raw/growth_stress.json
+docs/revision/EML_submission/figures/raw/seed_maps_4cond.json
+docs/revision/EML_submission/figures/raw/paper_fig2_v2.pdf
+docs/revision/EML_submission/figures/raw/fig3_ident_matrix.pdf
+docs/revision/EML_submission/figures/raw/fig4_posteriors_v2.pdf
+docs/revision/EML_submission/figures/raw/fig6_checks_v2.pdf
+docs/revision/EML_submission/figures/raw/seed_maps_4cond.pdf
+docs/revision/EML_submission/figures/raw/growth_stress.pdf
+docs/revision/EML_submission/figures/raw/cs_tradeoff.pdf
+docs/revision/EML_submission/figures/raw/ph_check.pdf

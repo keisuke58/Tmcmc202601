@@ -80,6 +80,7 @@ def runs(root, pattern):
         rec = load(d)
         if rec is not None and rec.get("prior_bounds_final"):
             rec["_root"] = root
+            rec["_dir"] = os.path.basename(d)
             out.append((os.path.basename(d), rec))
     return out
 
@@ -178,6 +179,24 @@ def median_spread(g):
     return out
 
 
+def _polished(rec):
+    """判定 (d) と同じ「その seed で見つかったいちばん高い max logL」（16g）: final_runs の polish.json と、
+    docs/handoff の磨きの報告（gpu_*_polish_<run>*.json、古い top-10 の値を含む）の polished_max の最大。無ければ -inf。"""
+    run = rec.get("_dir", "")
+    vals = []
+    cands = [os.path.join(rec.get("_root", ""), run, "polish.json")]
+    cands += glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "handoff", f"gpu_*_polish_{run}*.json"))
+    for f in cands:
+        try:
+            pj = json.load(open(f))
+        except Exception:
+            continue
+        for r in (pj if isinstance(pj, list) else [pj]):
+            if isinstance(r, dict) and r.get("run", run) == run and r.get("polished_max") is not None:
+                vals.append(float(r["polished_max"]))
+    return max(vals) if vals else -np.inf
+
+
 def run_table(groups):
     """S2: 条件 × 段ごとに 1 行（3 seed をまとめる）。"""
     lines = [
@@ -195,7 +214,8 @@ def run_table(groups):
             nst = [r["n_stages"] for r in recs]
             acc = [r.get("mean_accept") for r in recs if r.get("mean_accept") is not None]
             mpd = [moves_per_dim(r) for r in recs if moves_per_dim(r) is not None]
-            ml = [r["max_logL"] for r in recs]
+            # 判定 (d) と同じ「見つかったいちばん高い max logL」: polish.json（収束した磨き）があればその値、無ければ粒子の最良値（2026-10-18）
+            ml = [max(r["max_logL"], _polished(r)) for r in recs]
             hrs = [r["total_time_s"] / 3600 for r in recs if r.get("total_time_s")]
             msp = median_spread(g)
             lines.append(

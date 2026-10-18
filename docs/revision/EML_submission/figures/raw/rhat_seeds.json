@@ -35,6 +35,24 @@
   "rhat_max_all": 1.0009234202133537,
   "median_spread_max_identified": 0.05370482130081781
  },
+ "DS_p1": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.0034295605922776,
+  "rhat_max_all": 1.0034295605922776,
+  "median_spread_max_identified": 0.1497570060462527
+ },
+ "DS_p2": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.000529488756606,
+  "rhat_max_all": 1.0015104343365058,
+  "median_spread_max_identified": 0.05996855377486022
+ },
+ "DS_ult": {
+  "n_seeds": 3,
+  "rhat_max_identified": 1.0028755430018959,
+  "rhat_max_all": 1.0061603443841927,
+  "median_spread_max_identified": 0.15820039000112793
+ },
  "DH_p1": {
   "n_seeds": 3,
   "rhat_max_identified": 1.0194950017318254,
