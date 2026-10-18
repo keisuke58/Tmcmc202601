@@ -11,6 +11,7 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
+| 2026-10-19 | [2026-10-19b_holdout_only.md](2026-10-19b_holdout_only.md) | **13f-5 だけやる（ユーザー決定）: CH、Day 10・15 を外した pilot→p1→p2、seed 42、本線と同じ箱、回収テストのあと（10/20 ごろ）。13g・13f-4 は見送り（査読対応の候補）** | 有効 |
 | 2026-10-19 | [2026-10-19a_recovery_npy.md](2026-10-19a_recovery_npy.md) | **回収テストの samples.npy・logL.npy が .gitignore で落ちていた → 例外を足した。GPU 側は pull 後に CH の npy を git add して push（CS・DS・DH も同様）** | CH 済（10/19）。CS・DS・DH はコピー時に git status で確認 |
 | 2026-10-18 | [2026-10-18b_recovery_copy.md](2026-10-18b_recovery_copy.md) | **回収テストの出力（CH 今すぐ、CS・DS・DH は終わり次第）を `docs/revision/generated/recovery/` に 5 ファイル＋synthetic.json でコピー。CH p1 seed42・p2 seed7 の polish.json、DS ult の polish.json も final_runs に** | 一部済（CH と polish.json 4 つ、10/19）。CS・DS・DH 回収と DS ult seed42 の polish.json は終わり次第 |
 | 2026-10-18 | [2026-10-18a_ds_final.md](2026-10-18a_ds_final.md) | **DS は ult で確定（DS.json は seed42 の粒子の最良値）。GPU 側へ: (1) DS の pilot・p1・p2 を final_runs に、(2) DS ult を top-k 3 で磨く、(3) DS a45=0 の磨きのあと final_runs と ln B を確定** | 有効 |
@@ -26,8 +27,8 @@
 | 2026-10-16 | [2026-10-16b_polish_faster.md](2026-10-16b_polish_faster.md) | **磨きを速く: top-k 3・`--ftol 1e-7`（このコミット）。DS p1 の磨き直し 3582〜3584 を qdel してこの設定で出し直す。DS p2 も seed ごとに磨いて gate は POLISH=0** | **有効**: すぐ |
 | 2026-10-16 | [2026-10-16a_polish_converge.md](2026-10-16a_polish_converge.md) | **判定 3 は収束するまで磨いた値で（polish の maxiter 300 → 3000、このコミット）。DS の gate 3529 を hold、DS p1 を 3000 で磨き直して判定し直す。p2 は止めない** | **有効**: すぐ |
 | 2026-10-15 | [2026-10-14c_weights_rerun_p2init.md](2026-10-14c_weights_rerun_p2init.md) | **重みの感度 12 本を生データの p2 の MAP から回し直す（`--init-glob`、出力 `weight_sensitivity/raw_p2init/`、CPU ジョブ）。14a は古い MAP から始めていた（DH の Pg 比 1.9）。DS は p2 のあと** | 済（12 / 12、DS は出し直した p2 から、d99cfd9。S_lambda は 230a0ff で反映）|
-| 2026-10-13 | [2026-10-13g_weights.md](2026-10-13g_weights.md) | **重みの感度: CH・DH の 2 通路 p2 を重みなし（LAMBDA_PG=LAMBDA_LATE=LAMBDA_RARE=1、job に LAMBDA_RARE 追加）で 3 seed。13b → 13f のあと** | **保留**（raw の本線が通ってから） |
-| 2026-10-13 | [2026-10-13f_box_holdout.md](2026-10-13f_box_holdout.md) | **質の確認 2 つ（2 通路の本線のあと）: 4. 箱を 1.5 倍に広げた p2（CH・CS、3 seed、`tools/widen_box.py`）、5. 1 日を外した予測の確認（CH、Day 10・15、`HOLDOUT_DAY`、`tools/holdout_eval.py`）** | **保留**（raw の本線が通ってから） |
+| 2026-10-13 | [2026-10-13g_weights.md](2026-10-13g_weights.md) | **重みの感度: CH・DH の 2 通路 p2 を重みなし（LAMBDA_PG=LAMBDA_LATE=LAMBDA_RARE=1、job に LAMBDA_RARE 追加）で 3 seed。13b → 13f のあと** | 見送り（19b、ユーザー決定。S9 で足りる） |
+| 2026-10-13 | [2026-10-13f_box_holdout.md](2026-10-13f_box_holdout.md) | **質の確認 2 つ（2 通路の本線のあと）: 4. 箱を 1.5 倍に広げた p2（CH・CS、3 seed、`tools/widen_box.py`）、5. 1 日を外した予測の確認（CH、Day 10・15、`HOLDOUT_DAY`、`tools/holdout_eval.py`）** | 4 は見送り、5 は 19b で投入待ち |
 | 2026-10-13 | [2026-10-13e_criterion_d.md](2026-10-13e_criterion_d.md) | **判定 3（(d)）を磨いた max logL で判定（ユーザー決定、2 通路の結果を見る前）。判定 4 は 0.5 SD のまま、R̂ を並べる。polish に 2 通路と `--write-run`、check が polish.json を読む、gate は判定前に磨く（gpus=1 で投げる）** | **有効（規則）**: 判定 3 は polish 後の max logL、gate は gpus=1 |
 
 ## 記録（終わった・置き換わった・取り消した指示）
