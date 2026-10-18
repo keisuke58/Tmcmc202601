@@ -30,3 +30,10 @@ walltime の根拠: 元 run の実測（CS ult 7〜8h、DS ult 17〜19h、DH p2 
 
 ## 4. 本数
 GPU 11 本（磨き 3651・3652、回収 9 本）。15 本の内。
+
+## 5. 18a への対応（20:58）
+- §1: `DS_pilot_2c_raw`・`DS_p1_2c_raw`・`DS_p2_2c_raw` の 3 seed を final_runs にコピー（5 ファイル＋p1・p2 は polish.json、67a0adf）。
+- §2: DS ult の磨きを投入（`TOP_K=3 MAXITER=3000 WRITE_RUN=1`）: 3662（seed42、stuttgart01）・3663（seed7、stuttgart02）・3664（seed123、stuttgart03）、16h。
+  DS p2 の磨きは 4090 で 1〜5h だったので 3090 で 16h。終わったら DS.json の差し替え（磨いたあとの最大の点）を判断する。
+- §3: DS a45=0 の磨き: seed42 −64.65 → −57.89、seed7 −63.33 → −57.78（3652、収束）。seed123（3651）走行中、21:52 に 8h 枠切れの可能性。
+- GPU 13 本（回収 9、磨き 4）。

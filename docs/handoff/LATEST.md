@@ -5,7 +5,7 @@
 ## いまの状態（2026-10-17、ここだけ読めば足りる）
 - **データ・尤度**: Heine の生データ（`DATA_SOURCE=raw`）・2 通路（`TWO_CHANNEL=1`）、RUNTAG `2c_raw`。読み取りデータの run は `docs/revision/generated/final_runs_digitised/`（新しい数字には使わない）。
 - **最終の run**（`docs/revision/generated/final_runs/`）: CH = ult a33w、CS = ult、**DS = ult**（10/18 追加）、**DH = p2**（ult は判定 4 FAIL、参考として置く、16l）。
-- **走行中**（10/18 20:50 時点）: **DS ult は全 PASS で終了 → final_runs に入れた**（[gpu_2026-10-18_ds_ult_final_recovery_submit.md](gpu_2026-10-18_ds_ult_final_recovery_submit.md)）。DS a45=0 の磨き 3651・3652（seed 123・7、8h 枠）走行中、seed 42 は済（−64.65 → −57.89）。**回収テスト CS・DS・DH 9 本（3653〜3661）投入**。16k は 24 本すべて終了。
+- **走行中**（10/18 20:50 時点）: **DS ult は全 PASS で終了 → final_runs に入れた**（[gpu_2026-10-18_ds_ult_final_recovery_submit.md](gpu_2026-10-18_ds_ult_final_recovery_submit.md)）。DS a45=0 の磨きは seed 42・7 済（−57.89 / −57.78）、seed 123 は 3651 走行中。18a §1 済（DS の pilot・p1・p2 を final_runs に）、§2 DS ult の磨き 3662〜3664 走行中。**回収テスト CS・DS・DH 9 本（3653〜3661）投入**。16k は 24 本すべて終了。
 
 ## 有効な指示（上から優先）
 
