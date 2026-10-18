@@ -58,7 +58,12 @@ GROUPS = [
 ]
 if args.spec:  # raw の run など（2026-10-13）
     _sp = json.load(open(args.spec))
-    GROUPS = [(t, c, u, _sp[t], args.stage_label or "ult") for (t, c, u, _p, _s) in GROUPS if t in _sp]
+    def _lab(prefix):  # run 名から段の表記（DH は p2 が最終、2026-10-18）
+        for k, v in (("_ult_", "stage (iv)"), ("_p2_", "stage (iii)"), ("_p1_", "stage (ii)"), ("_pilot_", "stage (i)")):
+            if k in prefix:
+                return v
+        return args.stage_label or "ult"
+    GROUPS = [(t, c, u, _sp[t], _lab(_sp[t])) for (t, c, u, _p, _s) in GROUPS if t in _sp]
 SEEDS = [42, 123, 7]
 SEED_COL = {42: "#d62728", 123: "#1f77b4", 7: "#2ca02c"}
 SP = ["S. oralis", "A. naeslundii", "Veillonella", "F. nucleatum", "P. gingivalis"]
