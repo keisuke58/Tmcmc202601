@@ -11,7 +11,7 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
-| 2026-10-19 | [2026-10-19b_holdout_only.md](2026-10-19b_holdout_only.md) | **13f-5 だけやる（ユーザー決定）: CH、Day 10・15 を外した pilot→p1→p2、seed 42、本線と同じ箱、回収テストのあと（10/20 ごろ）。13g・13f-4 は見送り（査読対応の候補）** | 有効 |
+| 2026-10-19 | [2026-10-19b_holdout_only.md](2026-10-19b_holdout_only.md) | **13f-5 だけやる（ユーザー決定）: CH、Day 10・15 を外した pilot→p1→p2、seed 42、本線と同じ箱、回収テストのあと（10/20 ごろ）。13g・13f-4 は見送り（査読対応の候補）** | 投入済み（3667〜3674、[gpu_2026-10-19_holdout_submit.md](gpu_2026-10-19_holdout_submit.md)） |
 | 2026-10-19 | [2026-10-19a_recovery_npy.md](2026-10-19a_recovery_npy.md) | **回収テストの samples.npy・logL.npy が .gitignore で落ちていた → 例外を足した。GPU 側は pull 後に CH の npy を git add して push（CS・DS・DH も同様）** | CH 済（10/19）。CS・DS・DH はコピー時に git status で確認 |
 | 2026-10-18 | [2026-10-18b_recovery_copy.md](2026-10-18b_recovery_copy.md) | **回収テストの出力（CH 今すぐ、CS・DS・DH は終わり次第）を `docs/revision/generated/recovery/` に 5 ファイル＋synthetic.json でコピー。CH p1 seed42・p2 seed7 の polish.json、DS ult の polish.json も final_runs に** | 一部済（CH と polish.json 4 つ、10/19）。CS・DS・DH 回収と DS ult seed42 の polish.json は終わり次第 |
 | 2026-10-18 | [2026-10-18a_ds_final.md](2026-10-18a_ds_final.md) | **DS は ult で確定（DS.json は seed42 の粒子の最良値）。GPU 側へ: (1) DS の pilot・p1・p2 を final_runs に、(2) DS ult を top-k 3 で磨く、(3) DS a45=0 の磨きのあと final_runs と ln B を確定** | 有効 |
