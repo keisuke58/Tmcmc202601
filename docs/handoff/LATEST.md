@@ -5,13 +5,13 @@
 ## いまの状態（2026-10-17、ここだけ読めば足りる）
 - **データ・尤度**: Heine の生データ（`DATA_SOURCE=raw`）・2 通路（`TWO_CHANNEL=1`）、RUNTAG `2c_raw`。読み取りデータの run は `docs/revision/generated/final_runs_digitised/`（新しい数字には使わない）。
 - **最終の run**（`docs/revision/generated/final_runs/`）: CH = ult a33w、CS = ult、**DS = ult**（10/18 追加）、**DH = p2**（ult は判定 4 FAIL、参考として置く、16l）。
-- **走行中**（10/18 20:50 時点）: **DS ult は全 PASS で終了 → final_runs に入れた**（[gpu_2026-10-18_ds_ult_final_recovery_submit.md](gpu_2026-10-18_ds_ult_final_recovery_submit.md)）。DS a45=0 の磨きは seed 42・7 済（−57.89 / −57.78）、seed 123 は 3651 走行中。18a §1 済（DS の pilot・p1・p2 を final_runs に）、§2 DS ult の磨き 3662〜3664 走行中。**回収テスト CS・DS・DH 9 本（3653〜3661）投入**。16k は 24 本すべて終了。
+- **走行中**（10/19 時点）: 回収テスト CS・DS・DH 9 本（3653〜3661）。DS ult の磨き seed7・123 は済、seed42 は 3662 走行中。DS a45=0 seed123 の磨きは 3651 が 8h 枠切れ → **3666（stuttgart02・30h）で出し直し**。18b の CH 回収テストと polish.json 4 つはコピー済み（[gpu_2026-10-19_recovery_copy_CH.md](gpu_2026-10-19_recovery_copy_CH.md)）。DS ult は全 PASS で final_runs に入っている。
 
 ## 有効な指示（上から優先）
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
-| 2026-10-18 | [2026-10-18b_recovery_copy.md](2026-10-18b_recovery_copy.md) | **回収テストの出力（CH 今すぐ、CS・DS・DH は終わり次第）を `docs/revision/generated/recovery/` に 5 ファイル＋synthetic.json でコピー。CH p1 seed42・p2 seed7 の polish.json、DS ult の polish.json も final_runs に** | 有効 |
+| 2026-10-18 | [2026-10-18b_recovery_copy.md](2026-10-18b_recovery_copy.md) | **回収テストの出力（CH 今すぐ、CS・DS・DH は終わり次第）を `docs/revision/generated/recovery/` に 5 ファイル＋synthetic.json でコピー。CH p1 seed42・p2 seed7 の polish.json、DS ult の polish.json も final_runs に** | 一部済（CH と polish.json 4 つ、10/19）。CS・DS・DH 回収と DS ult seed42 の polish.json は終わり次第 |
 | 2026-10-18 | [2026-10-18a_ds_final.md](2026-10-18a_ds_final.md) | **DS は ult で確定（DS.json は seed42 の粒子の最良値）。GPU 側へ: (1) DS の pilot・p1・p2 を final_runs に、(2) DS ult を top-k 3 で磨く、(3) DS a45=0 の磨きのあと final_runs と ln B を確定** | 有効 |
 | 2026-10-17 | [gpu_2026-10-17_ds_edge_allow.md](gpu_2026-10-17_ds_edge_allow.md) | **GPU 側: DS p2 は全 PASS だが端の印 a44・a13・a25（3 seed とも）→ ユーザー決定で片側の限界として書き、gate を `EDGE_ALLOW=a44;a13;a25` で 3632 に仕掛け直し（3607 は起動前に qdel）** | 3632 が 3606 待ち |
 | 2026-10-16 | [2026-10-16l_dh_p2_final.md](2026-10-16l_dh_p2_final.md) | **DH は p2 を最終に（選択肢 1）。確認: p2 は ult と同じ 2 通路の尤度で、狭めたのは ult の方。ただし p2 の D21/15 も seed で 9.6/13.5/18.0（実測 14.9）→ データで決まらない量と書く。GPU は DH p2・ult を final_runs にコピー。読み取りデータの run を final_runs_digitised/ に分離。pH 着** | 済（GPU 側: DH p2・ult を final_runs に、147f603）。選択肢 2 は DS の ult のあと検討 |
