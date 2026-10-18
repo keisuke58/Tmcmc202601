@@ -108,7 +108,7 @@ the local form of the extended Hamilton principle~\citep{JunkerBalzani2021Extend
 C=\gamma\Bigl(\sum_{l=0}^{5}\phi_l-1\Bigr).
 \label{eq:potentials}
 \end{equation}
-Here $c^*$ is the nutrient concentration, $\boldsymbol\eta=\mathrm{diag}(\eta_i)$ with $\eta_i=1$, and $\gamma$ is a Lagrange multiplier; the antibiotic term of the original model vanishes because the experiments contain no antibiotic.
+Here $c^*$ is the nutrient concentration, $\boldsymbol\eta=\mathrm{diag}(\eta_i)$ with $\eta_i=1$, and $\gamma$ is a Lagrange multiplier (no antibiotic term, as the experiments contain none).
 For $n=5$ species, stationarity gives $2n+2=12$ coupled non-linear equations, for $i=1,\dots,5$,
 \begin{align}
 0&=-c^*\psi_i(\mathbf{A}\bar{\bphi})_i+\eta_i\bigl(\dot\phi_i\psi_i^2+\bar\phi_i\dot\psi_i+\dot\phi_i\bigr)+\gamma,\label{eq:phi}\\
@@ -116,7 +116,7 @@ For $n=5$ species, stationarity gives $2n+2=12$ coupled non-linear equations, fo
 \end{align}
 together with $0=\gamma+\dot\phi_0$ and the volume constraint.
 They are integrated by an implicit Euler scheme with Newton iterations (2500 steps covering the 21-day experiment), with a barrier term that diverges at 0 and 1 keeping $\phi_i,\psi_i$ inside $(0,1)$.
-Only the symmetric part of $\mathbf{A}$ enters the quadratic free energy, so $\mathbf{A}$ is taken symmetric, with 15 independent entries, which form the parameter vector $\btheta\in\mathbb{R}^{15}$.
+Only the symmetric part of $\mathbf{A}$ enters the quadratic free energy, so $\mathbf{A}$ is taken symmetric; its 15 independent entries form the parameter vector $\btheta\in\mathbb{R}^{15}$.
 The coefficient $a_{ij}$ is an effective, undirected interaction of the model; it lumps mechanisms that the model does not resolve, such as metabolite exchange or co-aggregation.
 Only the product $c^*a_{ij}$ enters, so we fix $c^*=25$ to keep $a_{ij}=\mathcal{O}(1)$.
 Removing a species is represented by holding its volume fraction at zero.
@@ -158,7 +158,7 @@ If more than 20\% of the posterior mass of an entry lies in the outer 5\% of the
 TMCMC~\citep{ChingChen2007TMCMC, DelMoral2006SMC} passes a particle population through the tempered posteriors $p_m(\btheta)\propto p(\yobs\mid\btheta)^{\beta_m}p(\btheta)$, $0=\beta_0<\dots<\beta_K=1$ ($K$ tempering steps), choosing each increment so that the coefficient of variation of the importance weights stays at a target value~\citep{Betz2016TMCMC}.
 After resampling, every particle performs $n_{\mathrm{mut}}$ Metropolis--Hastings steps with random-walk proposals scaled by the weighted particle covariance, alternating with differential-evolution proposals~\citep{terBraak2006DEMC} that follow strongly correlated directions; proposals outside the box are rejected without solving the model.
 Each likelihood evaluation requires one solution of Eqs.~\eqref{eq:phi}--\eqref{eq:psi}, and a run requires $10^5$ to $3\times10^7$ of them.
-We implement the implicit solver, including Jacobian assembly and linear solve, in JAX, compile it with the XLA (Accelerated Linear Algebra) compiler into a single kernel and evaluate all particles at once with \texttt{vmap}.
+We implement the implicit solver, including Jacobian assembly and linear solve, in JAX, compile it with XLA into a single kernel and evaluate all particles at once.
 On one GPU (NVIDIA RTX\,4090) this is 170 times faster per tempering step than a 12-core CPU at matched settings (147 times end to end; Supplementary Table~\ref{S-tab:timing}), which makes it affordable to repeat every stage with three seeds.
 
 \paragraph{Acceptance criteria.}
@@ -198,7 +198,7 @@ Accepting a stage often required more than one attempt (widened bounds in every 
 \end{figure*}
 
 \subsection{What the data determine}
-Figure~\ref{fig:ident} and Supplementary Table~\ref{S-tab:S_ident} classify every entry of $\mathbf{A}$ at the final stage, and Supplementary Fig.~\ref{S-fig:post} shows the marginal posteriors; the number of directions in which the likelihood itself is narrow at the MAP is 5 in CS, 6 in CH, 4 in DS and 7 in DH, against 5, 6, 9 and 8 identified entries (Supplementary Section~\ref{S-sec:S_ident}); the counts depend on the threshold 0.8, the pattern described below does not (Supplementary Table~\ref{S-tab:S_thresh}). On synthetic data generated from a point of the CH posterior, the same pipeline reproduces this classification entry by entry (the six identified entries are identified again, the nine others are not), while only two of the six 90\% intervals of the identified entries contain the true value (Supplementary Section~\ref{S-sec:S_recovery}).
+Figure~\ref{fig:ident} and Supplementary Table~\ref{S-tab:S_ident} classify every entry of $\mathbf{A}$ at the final stage, and Supplementary Fig.~\ref{S-fig:post} shows the marginal posteriors; the number of directions in which the likelihood itself is narrow at the MAP is 5 in CS, 6 in CH, 4 in DS and 7 in DH, against 5, 6, 9 and 8 identified entries (Supplementary Section~\ref{S-sec:S_ident}); the counts depend on the threshold 0.8, the pattern described below does not (Supplementary Table~\ref{S-tab:S_thresh}). On synthetic data generated from a point of the CH posterior, the same pipeline reproduces this classification entry by entry (Supplementary Section~\ref{S-sec:S_recovery}).
 In the commensal conditions only a few entries are identified: five in CS ($a_{11}$, $a_{22}$, $a_{33}$, $a_{13}$, $a_{23}$) and six in CH ($a_{11}$, $a_{12}$, $a_{22}$, $a_{33}$, $a_{13}$, $a_{23}$), all among the early colonisers So, An and Vei.
 Where both conditions determine the sign of an entry, it agrees: the self-interactions of So and Vei are negative ($a_{11}$, 90\% intervals $[-7.0,-1.6]$ in CS and $[-1.4,-0.4]$ in CH; $a_{33}$, Section~\ref{sec:limits} and $[-5.8,-0.6]$) and the So--Vei coefficient is positive ($a_{13}$, $[+4.7,+11.3]$ and $[+0.3,+2.4]$), in line with the lactate cross-feeding between streptococci and \textit{Veillonella}~\citep{Kolenbrander2010OralMultispecies}, although $a_{13}$ is an effective coefficient and not a measurement of that mechanism.
 No entry involving Fn or Pg is identified in CH: their posteriors spread over nearly the whole box (posterior SD 0.94--1.00 times that of the uniform distribution), and none is determined even in sign.
@@ -243,7 +243,7 @@ Under static cultivation the measured increase is smaller (ratio 2.5) and the mo
 The likelihood treats the five species fractions as independent although they sum to one, so the posterior intervals are too narrow: in the recovery test on synthetic CH data, four of the six identified entries have the true value outside their 90\% interval (Supplementary Section~\ref{S-sec:S_recovery}); the intervals of the identified entries are lower bounds on their uncertainty, whereas the classification into identified and not identified is reproduced.
 With both compositions and the live fraction in the likelihood, the three data sets are matched together in CH, but not in CS.
 In CS the compositions and the community live fraction cannot be matched at the same time: raising the weight of the live fraction from $\lambda_\psi=1.5$ to 24 lowers its error from 0.23 to 0.05 but raises the error of the viable composition from 0.09 to 0.16 (deterministic optimisation on the measured data; Supplementary Section~\ref{S-sec:S_tradeoff}).
-In CS the data also leave the lower end of the self-interaction $a_{33}$ open: the likelihood is flat for $a_{33}\lesssim-5$, the posterior fills the prior box down to its lower bound however far the box is widened, and $a_{33}$ is therefore reported only as an upper bound ($a_{33}<-5.3$ with 95\% posterior probability).
+Some entries are bounded by the data on one side only: in CS the likelihood is flat for $a_{33}\lesssim-5$ and the posterior fills the box to its lower bound however far it is widened, so $a_{33}$ is reported as an upper bound ($<-5.3$ at 95\%); in DS, $a_{44}$ and $a_{13}$ ($<-2.8$ and $<-2.4$) and $a_{25}$ ($>+1.1$) are reported likewise, with 15--18\% of their posterior mass in the outer 5\% of the box.
 Neither an initial state from the day-1 data nor a day-specific $\sigma_\ell$ changes this (Supplementary Section~\ref{S-sec:S_tradeoff}).
 In the model the viabilities relax within the first time steps to values set by the interaction terms, and the So-dominated community that the compositions require has a live fraction above 0.9, against the measured 0.65--0.77; without antimicrobial agents ($\alpha^*=0$) the viability equation has no term that would keep part of a growing population dead.
 We report this tension rather than tune $\lambda_\psi$ for CS.
