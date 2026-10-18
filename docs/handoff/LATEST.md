@@ -11,6 +11,7 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
+| 2026-10-18 | [2026-10-18a_ds_final.md](2026-10-18a_ds_final.md) | **DS は ult で確定（DS.json は seed42 の粒子の最良値）。GPU 側へ: (1) DS の pilot・p1・p2 を final_runs に、(2) DS ult を top-k 3 で磨く、(3) DS a45=0 の磨きのあと final_runs と ln B を確定** | 有効 |
 | 2026-10-17 | [gpu_2026-10-17_ds_edge_allow.md](gpu_2026-10-17_ds_edge_allow.md) | **GPU 側: DS p2 は全 PASS だが端の印 a44・a13・a25（3 seed とも）→ ユーザー決定で片側の限界として書き、gate を `EDGE_ALLOW=a44;a13;a25` で 3632 に仕掛け直し（3607 は起動前に qdel）** | 3632 が 3606 待ち |
 | 2026-10-16 | [2026-10-16l_dh_p2_final.md](2026-10-16l_dh_p2_final.md) | **DH は p2 を最終に（選択肢 1）。確認: p2 は ult と同じ 2 通路の尤度で、狭めたのは ult の方。ただし p2 の D21/15 も seed で 9.6/13.5/18.0（実測 14.9）→ データで決まらない量と書く。GPU は DH p2・ult を final_runs にコピー。読み取りデータの run を final_runs_digitised/ に分離。pH 着** | 済（GPU 側: DH p2・ult を final_runs に、147f603）。選択肢 2 は DS の ult のあと検討 |
 | 2026-10-16 | [2026-10-16k_bayes_raw.md](2026-10-16k_bayes_raw.md) | **ベイズ因子を生データ・2 通路で出し直す（ユーザー決定、案 A）**: 4 条件 × {全モデル, a45=0} × 3 seed、pilot・1000 粒子・n_mut 120（今の n_mut 40 は判定 (c) に落ちる）。**CS・CH の 12 本を先に、DS・DH はそのあと**。本線のあと、10/23 までが目安 | CS・CH 済み（ln B −0.06 / +0.03、[gpu_2026-10-17_bayes_raw.md](gpu_2026-10-17_bayes_raw.md)、final_runs に 12 本）。DS・DH は 9 本走行中（3633〜3641）、残り 3 本は DS ult のあと |

@@ -95,5 +95,26 @@
     ],
     "psi_init": null,
     "note": "phi_init: as recorded by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99]). phi_init_state: the state the forward model starts from (hamilton_ode_jax_paper.make_initial_state: scaled to a sum of 0.999999); pass this one to write_eco_cfg.py --phi-init. psi_init null = the estimator default (0.999 for every species). Measured-data, two-channel run; final stage of DH is stage (iii) (p2), 2026-10-16 user decision."
+  },
+  "DS": {
+    "run": "DS_ult_2c_raw_seed42",
+    "data_source": "raw",
+    "two_channel": true,
+    "phi_init": [
+      0.15028128607965194,
+      0.07657115699322604,
+      0.6077941616551986,
+      0.053825091468732815,
+      0.11152830380319069
+    ],
+    "phi_init_state": [
+      0.15028128607965194,
+      0.07657115699322604,
+      0.6077941616551986,
+      0.053825091468732815,
+      0.11152830380319069
+    ],
+    "psi_init": null,
+    "note": "phi_init: as recorded by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99]). phi_init_state: the state the forward model starts from (hamilton_ode_jax_paper.make_initial_state: scaled to a sum of 0.999999); pass this one to write_eco_cfg.py --phi-init. psi_init null = the estimator default (0.999 for every species). Measured-data, two-channel run; DS final stage (iv), best particle (not polished yet), 2026-10-18."
   }
 }
