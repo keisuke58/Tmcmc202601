@@ -1,0 +1,389 @@
+{
+  "pipeline": "estimate_paper_jax.py (ba1c285 \u7cfb\u30fb\u8ad6\u6587\u30d1\u30a4\u30d7\u30e9\u30a4\u30f3)",
+  "git_head": "unknown",
+  "git_dirty_main_dir": null,
+  "modules": {
+    "forward": "/home/nishioka/Tmcmc202601/data_5species/main/hamilton_ode_jax_paper.py",
+    "engine": "/home/nishioka/Tmcmc202601/data_5species/main/tmcmc_engine_paper.py"
+  },
+  "argv": [
+    "estimate_paper_jax.py",
+    "--condition",
+    "Dysbiotic",
+    "--cultivation",
+    "Static",
+    "--K-hill",
+    "0.0",
+    "--n-hill",
+    "4.0",
+    "--use-exp-init",
+    "--use-de-mc",
+    "--mutation",
+    "rw",
+    "--seed",
+    "42",
+    "--device",
+    "gpu",
+    "--mutation-throttle-floor",
+    "1.0",
+    "--ic-day",
+    "1",
+    "--multichannel",
+    "--lambda-ch1",
+    "1.0",
+    "--lambda-ch2",
+    "0.0",
+    "--lambda-ch3",
+    "2.0",
+    "--lambda-ch5",
+    "0.0",
+    "--n-particles",
+    "18000",
+    "--n-mutation-steps",
+    "150",
+    "--init-from-dir",
+    "_runs/paper_gateoff/DS_p1_2c_raw_seed42",
+    "--two-channel",
+    "--lambda-ch2",
+    "1.0",
+    "--data-source",
+    "raw",
+    "--override-bounds",
+    "5:-15:20,6:-15:20,19:-15:20,14:-5:4,12:-5:3,16:-5:2.5,7:-5:2.5,10:-5:1.5",
+    "--output-dir",
+    "_runs/paper_gateoff/DS_p2_2c_raw_seed42"
+  ],
+  "args": {
+    "condition": "Dysbiotic",
+    "cultivation": "Static",
+    "n_particles": 18000,
+    "max_stages": 30,
+    "seed": 42,
+    "use_exp_init": true,
+    "start_from_day": 1,
+    "ic_from_data": false,
+    "ic_day": 1,
+    "lambda_pg": 5.0,
+    "lambda_late": 3.0,
+    "lambda_rare": 0.1,
+    "sigma_scale": 1.0,
+    "replicate_sigma": false,
+    "K_hill": 0.0,
+    "n_hill": 4.0,
+    "dt": 0.0001,
+    "n_steps": 2500,
+    "output_dir": "_runs/paper_gateoff/DS_p2_2c_raw_seed42",
+    "mutation": "rw",
+    "quick": false,
+    "benchmark": false,
+    "device": "gpu",
+    "multichannel": true,
+    "lambda_ch1": 1.0,
+    "lambda_ch2": 1.0,
+    "lambda_ch3": 2.0,
+    "lambda_ch5": 0.0,
+    "n_mutation_steps": 150,
+    "mutation_throttle_floor": 1.0,
+    "use_de_mc": true,
+    "de_mc_gamma": 2.38,
+    "use_student_t": false,
+    "student_t_nu": 5.0,
+    "resample_method": "systematic",
+    "max_info_ratio": 10.0,
+    "use_flow": false,
+    "flow_n_layers": 6,
+    "flow_hidden_dim": 64,
+    "flow_n_epochs": 200,
+    "flow_lr": 0.001,
+    "flow_start_beta": 0.1,
+    "flow_mix_ratio": 0.8,
+    "waste_free": false,
+    "init_from_dir": "_runs/paper_gateoff/DS_p1_2c_raw_seed42",
+    "posterior_prior_nsigma": null,
+    "override_bounds": "5:-15:20,6:-15:20,19:-15:20,14:-5:4,12:-5:3,16:-5:2.5,7:-5:2.5,10:-5:1.5",
+    "fix_psi": false,
+    "data_source": "raw",
+    "holdout_day": null,
+    "two_channel": true,
+    "estimate_b": false,
+    "prior_scale": 0.0,
+    "box": null,
+    "skip_sensitivity_check": false
+  },
+  "theta_names": [
+    "a11",
+    "a12",
+    "a22",
+    "b1",
+    "b2",
+    "a33",
+    "a34",
+    "a44",
+    "b3",
+    "b4",
+    "a13",
+    "a14",
+    "a23",
+    "a24",
+    "a55",
+    "b5",
+    "a15",
+    "a25",
+    "a35",
+    "a45"
+  ],
+  "free_dims": [
+    0,
+    1,
+    2,
+    5,
+    6,
+    7,
+    10,
+    11,
+    12,
+    13,
+    14,
+    16,
+    17,
+    18,
+    19
+  ],
+  "prior_bounds_final": [
+    [
+      -1.0,
+      2.0
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -1.0,
+      1.5
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -15.0,
+      20.0
+    ],
+    [
+      -15.0,
+      20.0
+    ],
+    [
+      -5.0,
+      2.5
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -5.0,
+      1.5
+    ],
+    [
+      -1.0,
+      1.0
+    ],
+    [
+      -5.0,
+      3.0
+    ],
+    [
+      -0.5,
+      3.0
+    ],
+    [
+      -5.0,
+      4.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      -5.0,
+      2.5
+    ],
+    [
+      -0.5,
+      2.5
+    ],
+    [
+      -3.0,
+      3.0
+    ],
+    [
+      -15.0,
+      20.0
+    ]
+  ],
+  "phi_init": [
+    0.15028128607965194,
+    0.07657115699322604,
+    0.6077941616551986,
+    0.053825091468732815,
+    0.11152830380319069
+  ],
+  "psi_init": null,
+  "sigma_obs": 0.08121746066419752,
+  "lambda_ch_effective": {
+    "1": 1.0,
+    "2": 1.0,
+    "3": 2.0,
+    "5": 0.0
+  },
+  "psi_fixed": null,
+  "n_stages": 13,
+  "beta_final": 1.0,
+  "total_time_s": 78033.72181940079,
+  "mean_accept": 0.12135011396011396,
+  "stage_history": {
+    "beta": [
+      0.013222290860764652,
+      0.022835796960273477,
+      0.03035948317622932,
+      0.040602101351547765,
+      0.06957110168221173,
+      0.10870076564623336,
+      0.1723599306528265,
+      0.263873298615805,
+      0.36695644668404437,
+      0.5279194421331731,
+      0.8185329490821205,
+      0.9999999999999998,
+      1.0
+    ],
+    "accept_rate": [
+      0.1898711111111111,
+      0.13694666666666666,
+      0.12405555555555556,
+      0.11908481481481481,
+      0.11997888888888888,
+      0.11635222222222222,
+      0.1205537037037037,
+      0.11633777777777778,
+      0.10769222222222222,
+      0.10213074074074074,
+      0.10405555555555555,
+      0.11079185185185185,
+      0.10970037037037036
+    ],
+    "n_mut": [
+      150,
+      150,
+      150,
+      150,
+      150,
+      150,
+      150,
+      150,
+      150,
+      150,
+      150,
+      150,
+      150
+    ],
+    "moves_per_particle": [
+      28.480666666666668,
+      20.542,
+      18.608333333333334,
+      17.86272222222222,
+      17.996833333333335,
+      17.452833333333334,
+      18.083055555555557,
+      17.450666666666667,
+      16.153833333333335,
+      15.319611111111112,
+      15.608333333333333,
+      16.618777777777776,
+      16.455055555555557
+    ],
+    "ess": [
+      9000.000000000038,
+      9000.000000000737,
+      9000.00000000048,
+      9000.00000000017,
+      9000.000000000071,
+      9000.000000000051,
+      9000.000000000045,
+      9000.000000000035,
+      9000.00000000005,
+      9000.00000000003,
+      9000.000000000004,
+      15153.594386583723,
+      17999.999999999996
+    ]
+  },
+  "moves_per_particle_mean": 18.202517094017093,
+  "max_logL": -97.10662283086302,
+  "log_evidence": -126.33783078686105,
+  "logL_recheck_maxabs": 0.0,
+  "logL_consistent": true,
+  "condition": "Dysbiotic",
+  "cultivation": "Static",
+  "n_particles": 18000,
+  "n_mutation_steps": 150,
+  "mutation": "rw",
+  "device": "cuda:0",
+  "multichannel": true,
+  "use_de_mc": true,
+  "use_student_t": false,
+  "student_t_nu": 5.0,
+  "resample_method": "systematic",
+  "n_hill": 4.0,
+  "K_hill": 0.0,
+  "replicate_sigma": false,
+  "max_info_ratio": 10.0,
+  "lambda_rare": 0.1,
+  "lambda_ch": {
+    "1": 1.0,
+    "2": 1.0,
+    "3": 2.0,
+    "5": 0.0
+  },
+  "cv_weights_final": 5.065835035803584e-16,
+  "rmse": 0.0823982912216494,
+  "mae": 0.06392720034641614,
+  "r2_mean": -26.528774372434917,
+  "r2_per_species": [
+    -131.46555416650267,
+    0.08431213506125468,
+    0.03412495386278225,
+    -0.3164864878112359,
+    -0.9802682967847061
+  ],
+  "multichannel_rmse": {
+    "ch1_species": {
+      "rmse": 0.0823982912216494,
+      "mae": 0.06392720034641614,
+      "r2": [
+        -131.46555416650267,
+        0.08431213506125468,
+        0.03412495386278225,
+        -0.3164864878112359,
+        -0.9802682967847061
+      ]
+    },
+    "ch2_total": {
+      "rmse": 0.08159382208079007
+    },
+    "ch3_viability": {
+      "rmse": 0.09283141734599325,
+      "r2": 0.5616701358962986
+    }
+  }
+}
