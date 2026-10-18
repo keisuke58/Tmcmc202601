@@ -5,7 +5,7 @@
 #   4. 箱を 1.5 倍に広げた p2（CH・CS、3 seed）。2c の p2 が終わってから（箱は seed 42 の p2 から作る）
 #        PART=box TAG=CH NODES='vancouver03;vancouver03;vancouver02' tools/submit_13f.sh
 #   5. 1 日を外した pilot → p1 → p2（CH、seed 42、afterok で連鎖）。2c の p2 の結果を待たずに投げられる
-#        PART=holdout DAY=10 NODE=stuttgart01 tools/submit_13f.sh
+#        PART=holdout DAY=10 NODE=stuttgart01 tools/submit_13f.sh   （19b: 生データ・a33w の箱、RUNTAG 2c_raw_a33w_ho<日>）
 #
 # 粒子数・mutation・箱は 13b の 2c と同じ（下の表）。終わったら notify_cloud_runs.sh が報告を push する。
 # 評価: holdout は tools/holdout_eval.py、box は 2c の p2 との対照（ident_threshold_table.py の規則）。
@@ -23,6 +23,8 @@ FACTOR="${FACTOR:-1.5}"
 declare -A P1_MUT=([CH]=150 [CS]=120)
 declare -A P2_MUT=([CH]=150 [CS]=160)
 declare -A P2_OVR=([CH]='1:-5:2.5;11:-5:1;16:-5:1;0:-5:1.5' [CS]='5:-15:20;0:-5:2;10:-1:20')
+# 19b（2026-10-19）: holdout は生データ・2 通路の本線（CH p2 a33w）と同じ箱
+declare -A P2_OVR_RAW=([CH]='5:-15:20;1:-5:2.5;11:-5:1;16:-5:1;0:-5:1.5;6:-5:1;7:-1:5;13:-5:1;14:-5:1.5;17:-5:1;18:-5:1')
 
 q() {  # qsub か、DRY_RUN なら表示だけ（jobid の代わりに DRY<n> を返す）
   if [ "$DRY_RUN" = "1" ]; then
@@ -62,15 +64,15 @@ case "$PART" in
     TAG="${TAG:-CH}"
     S="${SEED:-42}"
     NODE="${NODE:?NODE=<host>}"
-    RT="2c_ho${DAY}"
-    COMMON="TAG=$TAG,SEED=$S,TWO_CHANNEL=1,RUNTAG=$RT,HOLDOUT_DAY=$DAY"
+    RT="${RUNTAG:-2c_raw_a33w_ho${DAY}}"   # 19b: 生データ・a33w の本線と並べる名前
+    COMMON="TAG=$TAG,SEED=$S,TWO_CHANNEL=1,DATA_SOURCE=raw,RUNTAG=$RT,HOLDOUT_DAY=$DAY"
     G="nodes=1:ppn=1:gpus=1:$NODE"
     cd "$MAIN"
     J1="$(q -l "$G" -l walltime=10:00:00 -v "STAGE=pilot,$COMMON" paper_gateoff_job.sh)"
     J2="$(q -l "$G" -l walltime=14:00:00 -W "depend=afterok:$J1" \
       -v "STAGE=p1,$COMMON,N_MUT=${P1_MUT[$TAG]},PREV=$R/${TAG}_pilot_${RT}_seed$S" paper_gateoff_job.sh)"
     J3="$(q -l "$G" -l walltime=16:00:00 -W "depend=afterok:$J2" \
-      -v "STAGE=p2,$COMMON,N_PART=2000,N_MUT=${P2_MUT[$TAG]},OVERRIDE=${P2_OVR[$TAG]},PREV=$R/${TAG}_p1_${RT}_seed$S" paper_gateoff_job.sh)"
+      -v "STAGE=p2,$COMMON,N_PART=2000,N_MUT=${P2_MUT[$TAG]},OVERRIDE=${P2_OVR_RAW[$TAG]},PREV=$R/${TAG}_p1_${RT}_seed$S" paper_gateoff_job.sh)"
     echo "$TAG ho$DAY seed$S $NODE pilot $J1 / p1 $J2 / p2 $J3"
     cd "$REPO"
     echo "notify $(q -W "depend=afterany:$J3" -v "RUN_GLOB=${TAG}_p2_${RT}_seed*,LABEL=${TAG}_p2_ho${DAY}" tools/notify_cloud_runs.sh)"
