@@ -70,7 +70,7 @@ Stage-(i) runs used only for Bayes factors need not pass (c) and (e) (see `final
 - Package versions verified for this archive (CPU, Python 3.11.15, 2026-10-12): see `docs/revision/zenodo/requirements.txt`
   (jax/jaxlib 0.10.2, numpy 2.4.6, scipy 1.17.1, pandas 3.0.6, matplotlib 3.11.2; optional numba, umap-learn).
   `pip install -r docs/revision/zenodo/requirements.txt`
-- GPU environment that produced the runs (conda env `klempt_fem2` on the IKM cluster, checked 2026-10-20): Python 3.10.19, **jax / jaxlib 0.6.2** (`jax-cuda12-plugin`, `jax-cuda12-pjrt` 0.6.2), numpy 2.2.6, scipy 1.15.3;
+- GPU environment that produced the runs (conda env `klempt_fem2` on the GPU cluster of the Multiphysics Materials Computation Research Group, Keio University, checked 2026-10-20): Python 3.10.19, **jax / jaxlib 0.6.2** (`jax-cuda12-plugin`, `jax-cuda12-pjrt` 0.6.2), numpy 2.2.6, scipy 1.15.3;
   CUDA from pip wheels (`nvidia-cuda-runtime-cu12` 12.9.79, `nvidia-cudnn-cu12` 9.19.0.56). GPUs: NVIDIA GeForce RTX 3090 (driver 550.100) and RTX 4090 (driver 550.90.07).
 - Hardware: every inference run used one NVIDIA GPU (RTX 3090 or RTX 4090; paper timing: RTX 4090; cluster nodes with CUDA 12, `jax[cuda12]`). Wall-clock time per seed is in `run_record.json: total_time_s` and Supplementary Table S2/S3 (minutes for stage (i) to ~9 h for stage (iv)). The figure and table scripts run on a CPU (`--device cpu` is the default for all tools); the posterior-predictive figures take minutes to tens of minutes on a CPU.
 - Figures use LaTeX text rendering when a LaTeX installation is available and fall back to matplotlib's renderer otherwise.
