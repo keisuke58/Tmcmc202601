@@ -16,4 +16,18 @@ nvcc --version 2>/dev/null | tail -1   # 無ければ空でよい
 
 ## 出力（GPU 側が貼る）
 
-（ここに貼る）
+2026-10-20、GPU 側（copaam から qsub で各 1 本、3684・3685、`unset LD_LIBRARY_PATH` 後に `klempt_fem2` の python で実行）。
+
+両ノード共通:
+- python 3.10.19 / jax 0.6.2・jaxlib 0.6.2（`jax-cuda12-plugin`・`jax-cuda12-pjrt` 0.6.2）
+- numpy 2.2.6 / scipy 1.15.3
+- `jax.devices()` = `[CudaDevice(id=0)]`（GPU が見えている）
+- pip の CUDA: `nvidia-cuda-runtime-cu12` 12.9.79、`nvidia-cudnn-cu12` 9.19.0.56（JAX はこちらを使う）
+- システムの nvcc: `cuda_12.1.r12.1/compiler.32688072_0`（JAX は使っていない、参考）
+
+ノードごとに違うもの:
+
+| ノード | GPU | ドライバ |
+|---|---|---|
+| stuttgart01 | NVIDIA GeForce RTX 3090 | 550.100 |
+| vancouver01 | NVIDIA GeForce RTX 4090 | 550.90.07 |
