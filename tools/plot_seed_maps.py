@@ -74,6 +74,8 @@ if args.spec:  # raw の run など（2026-10-13）
     GROUPS = [(t, c, u, _sp[t], _lab(_sp[t])) for (t, c, u, _p, _s) in GROUPS if t in _sp]
 SEEDS = [42, 123, 7]
 SEED_COL = {42: "#d62728", 123: "#1f77b4", 7: "#2ca02c"}
+REP_SP_MAP = {"S. oralis": 0, "A. naeslundii": 1, "V. dispar": 2, "V. parvula": 2,
+              "F. nucleatum": 3, "P. gingivalis_20709": 4, "P. gingivalis_W83": 4}
 SP = ["S. oralis", "A. naeslundii", "Veillonella", "F. nucleatum", "P. gingivalis"]
 
 
@@ -126,22 +128,45 @@ for c, (tag, cond, cult, prefix, stage) in enumerate(GROUPS):
         mlog = float(np.load(runs[s] / "logL.npy").max())
         summary[tag]["seeds"][s] = {"max_logL": mlog, "rmse": rmse}
         for k in range(5):
-            axes[k, c].plot(days_axis, tr[:, k], color=SEED_COL[s], lw=LW_SEED,
+            _m = days_axis >= (1.0 if TH else -1)
+            axes[k, c].plot(days_axis[_m], tr[_m, k], color=SEED_COL[s], lw=LW_SEED,
                             label=f"seed {s}: logL {mlog:.2f}, RMSE {rmse:.3f}" if k == 0 else None)
     for k in range(5):
         ax = axes[k, c]
-        ax.fill_between(days_axis, lo[:, k], hi[:, k], color="0.85" if TH else "0.6", alpha=1.0 if TH else 0.3, lw=0,
+        _m = days_axis >= (1.0 if TH else -1)
+        ax.fill_between(days_axis[_m], lo[_m, k], hi[_m, k], color="0.85" if TH else "0.6", alpha=1.0 if TH else 0.3, lw=0,
                         label=r"posterior 10--90\% (3 seeds)" if k == 0 else None)
-        ax.plot(days_axis, med[:, k], color="0.3", lw=1.0, ls="--",
+        ax.plot(days_axis[_m], med[_m, k], color="0.3", lw=1.0, ls="--",
                 label=f"posterior median, RMSE {rmse_med:.3f}" if k == 0 else None)
-        ax.plot(t_days, data[:, k], "ko", ms=4)
+        if TH:  # 反復の箱ひげ（図 2 と同じ、2026-10-19）
+            import pandas as pd
+            _rep = pd.read_csv(CP.replicate_csv(E, rec0))
+            _cr = _rep[(_rep.condition == cond) & (_rep.cultivation == cult)]
+            _names = [n for n, v in REP_SP_MAP.items() if v == k]
+            bd, bp = [], []
+            for d in [1.0] + list(t_days):
+                v = _cr[(_cr.day == d) & (_cr.species.isin(_names))]["distribution_pct"].values / 100.0
+                if len(v):
+                    bd.append(v); bp.append(d)
+            if bd:
+                bx = ax.boxplot(bd, positions=bp, widths=1.5, patch_artist=True, showfliers=False, manage_ticks=False,
+                                zorder=1, medianprops=dict(color="0.2", lw=0.6),
+                                whiskerprops=dict(color="0.55", lw=0.5), capprops=dict(color="0.55", lw=0.5),
+                                boxprops=dict(lw=0.5))
+                for q in bx["boxes"]:
+                    q.set_facecolor((1, 1, 1, 0)); q.set_edgecolor("0.45")
+        ax.plot(t_days, data[:, k], "ko", ms=4, zorder=6)
+        if TH:  # Day 1 = 初期値（図 2 と同じく phi_init を正規化した値、x = 1 に）
+            _d1 = np.asarray(rec0["phi_init"], dtype=float)
+            ax.plot([1.0], [_d1[k] / _d1.sum()], "ko", ms=4, zorder=6)
         if c == 0:
             ax.set_ylabel(r"\textit{%s}" % SP[k] if plt.rcParams["text.usetex"] else SP[k])
         if TH:
             ax.set_ylim(-0.03, 1.03)
             ax.set_yticks([0, 0.5, 1])
             ax.set_yticklabels(["0", "0.5", "1"])
-            ax.set_xticks([1, 6, 10, 15, 21])
+            ax.set_xticks([1, 3, 6, 10, 15, 21])
+            ax.set_xlim(-0.2, 22.2)
             ax.tick_params(length=2.5)
         else:
             ax.set_ylim(-0.02, 1.0)
@@ -158,11 +183,12 @@ if TH:
     from matplotlib.patches import Patch
     H_ = [Line2D([], [], color=SEED_COL[s], lw=LW_SEED) for s in SEEDS] + [
         Patch(facecolor="0.85", lw=0), Line2D([], [], color="0.3", lw=1.0, ls="--"),
-        Line2D([], [], marker="o", color="none", mfc="k", mec="k", ms=4)]
+        Line2D([], [], marker="o", color="none", mfc="k", mec="k", ms=4),
+        Patch(facecolor="white", edgecolor="0.45", lw=0.5)]
     L_ = [f"MAP, seed {s}" for s in SEEDS] + [r"posterior 10--90\%" if plt.rcParams["text.usetex"] else "posterior 10–90%",
-                                              "posterior median", "data"]
+                                              "posterior median", "data (median)", "replicates (IQR)"]
     fig.tight_layout(rect=(0, 0.07, 1, 1), h_pad=0.4, w_pad=0.6)
-    fig.legend(H_, L_, loc="lower center", ncol=3, bbox_to_anchor=(0.53, 0.0), fontsize=8, frameon=False,
+    fig.legend(H_, L_, loc="lower center", ncol=4, bbox_to_anchor=(0.53, 0.0), fontsize=8, frameon=False,
                handlelength=2.0, columnspacing=1.6)
 else:
     fig.suptitle("MAP of each seed (lines), pooled posterior band (grey), data (dots)", fontsize=11)
