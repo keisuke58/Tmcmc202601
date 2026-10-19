@@ -367,7 +367,8 @@ def main():
     a = ap.parse_args()
     z = np.load(a.inputs, allow_pickle=False)
     st.apply_thesis()
-    plt.rcParams.update({"axes.spines.top": False, "axes.spines.right": False})
+    plt.rcParams.update({"axes.spines.top": False, "axes.spines.right": False,
+                         "savefig.dpi": 600})  # 図の中のビットマップ（色の目盛り）を 600 dpi に
     out = Path(a.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     fig_ident(z["M"], z["cls"], str(out / "eml_ident"))
