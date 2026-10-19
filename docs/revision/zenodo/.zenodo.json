@@ -62,12 +62,6 @@
   ],
   "related_identifiers": [
     {
-      "identifier": "TODO_PAPER_DOI",
-      "relation": "isSupplementTo",
-      "resource_type": "publication-article",
-      "scheme": "doi"
-    },
-    {
       "identifier": "10.3389/froh.2025.1649419",
       "relation": "references",
       "resource_type": "publication-article",

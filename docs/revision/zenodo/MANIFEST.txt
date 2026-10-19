@@ -127,6 +127,7 @@ docs/generate_fig2_phi_version.py
 docs/generate_fig_phase_scatter.py
 # Fig. 1 (schematic, TikZ source)
 docs/revision/EML_submission/figures/fig1_pipeline.tex
+docs/revision/EML_submission/figures/fig1_pipeline_v2.tex
 
 # ---------------------------------------------------------------------------
 # 4. Posterior samples and run records (final pipeline, 3 seeds each)
@@ -224,3 +225,14 @@ docs/revision/generated/recovery/DH_syn_n1_r0_seed*
 docs/revision/EML_submission/figures/raw/recovery.json
 docs/revision/EML_submission/figures/raw/recovery.tex
 docs/revision/EML_submission/figures/raw/recovery.pdf
+
+# Prediction of a held-out day in CH (Supplementary Section S17, Table S15): runs with day 10 or day 15 removed from the likelihood,
+# stages (i)-(iii), seed 42. The evaluation (tools/holdout_eval.py) compares with the measured composition of the removed day,
+# which is not redistributed (data available from Heine et al. on request); its output (docs/revision/generated/holdout/*.json)
+# contains those measured values and is therefore NOT included.
+docs/revision/generated/final_runs/CH_pilot_2c_raw_a33w_ho10_seed42
+docs/revision/generated/final_runs/CH_p1_2c_raw_a33w_ho10_seed42
+docs/revision/generated/final_runs/CH_p2_2c_raw_a33w_ho10_seed42
+docs/revision/generated/final_runs/CH_pilot_2c_raw_a33w_ho15_seed42
+docs/revision/generated/final_runs/CH_p1_2c_raw_a33w_ho15_seed42
+docs/revision/generated/final_runs/CH_p2_2c_raw_a33w_ho15_seed42

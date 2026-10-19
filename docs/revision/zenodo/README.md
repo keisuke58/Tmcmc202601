@@ -4,11 +4,9 @@ Archive accompanying the article
 
 > K. Nishioka, F. Klempt, H. Geisler, R. Mukherjee, N. Heine, K. Doll-Nikutta, M. Stiesch, S. P. Szafrański, M. Soleimani, P. Junker:
 > *Identifiability of species interactions in a living material: Bayesian calibration of an extended Hamilton principle multiphase model.*
-> Extreme Mechanics Letters (submitted). DOI: **TODO_PAPER_DOI**
+> Extreme Mechanics Letters (submitted 2026; the article DOI will be added in a later version of this record).
 
 Archive DOI: **10.5281/zenodo.23320423** (reserved; registered when the record is published) · Version 1.0.0 · License: MIT (see `LICENSE`)
-
-> **PROVISIONAL — DS and DH final stage pending.** See [the section below](#5-provisional-ds-and-dh-final-stage-pending) before publishing.
 
 ---
 
@@ -23,11 +21,13 @@ Archive DOI: **10.5281/zenodo.23320423** (reserved; registered when the record i
 | | `data_5species/model_config/prior_bounds_paper_20d.json` | Prior box of the paper (before the per-condition overrides recorded in each run) |
 | Job script | `data_5species/main/paper_gateoff_job.sh` | PBS job that defines the four stages (exact CLI arguments per stage) |
 | | `tools/gate_submit_ult.sh` | Checks a finished stage (iii) group with `check_paper_runs.py` and submits stage (iv) only if it passes |
-| Experimental data | — | **Not included** (Heine et al. 2025); see §6 for how to obtain them |
+| Experimental data | — | **Not included** (Heine et al. 2025); see §5 for how to obtain them |
 | Runs | `docs/revision/generated/final_runs/<COND>_<stage>_<tag>_seed{7,42,123}/` | Every run shown in the paper: `samples.npy` (final particles, N_p × 20), `logL.npy` (log-likelihood per particle), `theta_MAP.json`, `run_record.json` (effective arguments, prior box, initial state, tempering history, acceptance, moves per particle, ln Z, log-likelihood recheck), `config.json` (superset of run_record) |
-| Final MAPs | `docs/revision/generated/final_theta_MAP/` | `CS.json`, `CH.json` (stage (iv), best seed), `phi_init.json` (initial state actually used), README with provenance |
+| Final MAPs | `docs/revision/generated/final_theta_MAP/` | `CS.json`, `CH.json`, `DS.json` (stage (iv)), `DH.json` (stage (iii), see below), best seed after polishing where available; `phi_init.json` (initial state actually used); README with provenance |
 | Figure/table scripts | `tools/*.py`, `docs/generate_fig2_phi_version.py`, `docs/generate_fig_phase_scatter.py` | See §3 |
-| Manuscript outputs | `docs/revision/EML_submission/figures/provisional_2026-10-11/` | Figures (PDF), intermediate JSON/NPZ and `supp/*.tex` tables exactly as used in the submitted manuscript, plus `supp/spec_provisional.json` (which run group is which stage) |
+| Manuscript outputs | `docs/revision/EML_submission/figures/raw/` | Figures (PDF), intermediate JSON and `supp/*.tex` tables exactly as used in the submitted manuscript, plus `spec_raw.json` (which run group is which stage; key `final` where the final stage is not stage (iv)) |
+| Recovery test | `docs/revision/generated/recovery/<COND>_syn_n1_r0/synthetic.json`, `<COND>_syn_n1_r0_seed*` | Synthetic data generated from a posterior point of each condition (true θ included) and the three recovery runs (Supplementary Section S7) |
+| Held-out day | `final_runs/CH_{pilot,p1,p2}_2c_raw_a33w_ho{10,15}_seed42/` | CH with day 10 or 15 removed from the likelihood (Supplementary Section S17); the evaluation needs the measured data of the removed day (§5) |
 | Metadata | `README.md`, `CITATION.cff`, `.zenodo.json`, `MANIFEST.txt`, `SHA256SUMS` | `SHA256SUMS` covers every file; check with `sha256sum -c SHA256SUMS` |
 
 The archive is built from an explicit list (`MANIFEST.txt`) by `docs/revision/zenodo/build_archive.sh`; nothing else from the development repository is included.
@@ -43,6 +43,9 @@ Conditions (Heine et al. 2025): **CS** commensal/static, **CH** commensal/HOBIC 
 | stage (ii) | `p1` | as (i) | stage-(i) posterior mean ± 4 SD | 2000–3000 |
 | stage (iii) | `p2` | composition + viability (multichannel; pH weight λ_ch5 = 0) | back to the full box, warm start from (ii) | 2000–18000 |
 | stage (iv) | `ult` | as (iii) | stage-(iii) posterior mean ± 4 SD | 5000 |
+
+**Final stage**: stage (iv) for CS, CH and DS; **stage (iii) for DH** (stage (iv) of DH fails criterion (e), see the article; its runs are archived as `DH_ult_*`).
+All reported runs use the measured replicate values (`*_2c_raw*`, two-channel likelihood: viable composition, total-count composition and live fraction).
 
 `*_a45zero_*` runs are stage (i) with a₄₅ = 0, used only for the Bayes factor (Supplementary S3).
 The exact arguments of every run are in its `run_record.json` (`argv`, `args`, `prior_bounds_final`, `phi_init`); the per-condition box overrides are in `args.override_bounds`.
@@ -74,52 +77,37 @@ Stage-(i) runs used only for Bayes factors need not pass (c) and (e) (see `final
 
 ## 3. Reproducing the figures and tables
 
-Run from the archive root. `R=docs/revision/generated/final_runs`, `F=docs/revision/EML_submission/figures/provisional_2026-10-11`.
-The run groups per condition/stage are those of `$F/supp/spec_provisional.json`.
+Run from the archive root. Almost all scripts read the archived runs only; those that compare with the data
+(fit metrics, Fig. 2 data points, pH check, held-out day) need the experimental data in place (§5).
+One script regenerates every figure, table and number of the article and the supplement:
 
 ```bash
-R=docs/revision/generated/final_runs
-F=docs/revision/EML_submission/figures/provisional_2026-10-11
-
-# 0. Acceptance criteria (a)-(e) for all archived groups
-python3 tools/check_paper_runs.py $R
-python3 tools/eval_paper_runs.py  $R --glob '*_ult_*'          # RMSE / Pg ratio per run, recomputed with the estimator's own forward model
-
-# Fig. 2 (species fractions, MAP + posterior predictive bands) and posterior summaries (paper_numbers.json, tables.tex)
-python3 tools/make_paper_figures.py $R \
-    --p2-glob '{tag}_ult*' \
-    --p2-glob-DS 'DS_p2_wide80_p18k_wide2_seed*' --p2-glob-DH 'DH_p2_nonarrow_w3_noph_p14k_seed*' \
-    --p1-glob '{tag}_p1*' \
-    --out-dir $F --skip ident knockout umap
-#   -> $F/paper_fig2_phi_transposed.pdf (+ heatmap, violin, phase1_vs_phase2_map), ../generated/paper_numbers.json
-
-# Fig. 5a input: knock-out of F. nucleatum / a45 = 0 in DH (200 posterior samples per seed)
-python3 tools/knockout_fn.py $R --glob 'DH_p2_nonarrow_w3_noph_p14k_seed*' --n-samples 200 --json $F/knockout_DH.json
-python3 tools/knockout_fn.py $R --glob 'DS_p2_wide80_p18k_wide2_seed*'   --n-samples 200 --json $F/knockout_DS.json
-# Fig. 5b,c input: pH check (pH not used in the inference)
-python3 tools/ph_check.py --root $R --n-post 200 --out $F/ph_check
-#   -> $F/ph_check.{pdf,png,json}, $F/ph_check_bands.npz
-
-# Fig. 3 (identifiability map), Fig. 4 (marginal posteriors), Fig. 5 (checks)
-python3 tools/make_eml_figs56.py --root $R --spec $F/supp/spec_provisional.json --fig-dir $F
-#   -> $F/fig5_identifiability.pdf, $F/fig4_posteriors.pdf, $F/fig6_checks.pdf
-#      (file names are historical: fig5_* is Fig. 3, fig4_* is Fig. 4, fig6_* is Fig. 5 of the manuscript)
-
-# Supplementary Tables S1 (boxes), S2 (runs), S3 (Bayes factors), S4 (identifiability)
-python3 tools/make_supplementary_tables.py $R --spec $F/supp/spec_provisional.json --out-dir $F/supp
-# Supplementary cost table (stage costs)
-python3 tools/make_cost_table.py $R --spec $F/supp/spec_provisional.json --gpu-model 'RTX\,4090' --out $F/supp/supp_S3_cost.tex
-# Supplementary Fig. (MAP and posterior bulk by seed)
-python3 tools/plot_seed_maps.py --root $R --n-post 200 --out $F/seed_maps_4cond
-# Supplementary S4: curvature (observed Fisher information) at the MAP
-python3 tools/fisher_ident.py --root $R --out $F/fisher_ident.json
-
-# Further checks quoted in the text
-python3 tools/fit_ceiling.py --tag CS --lo -15 --hi 20 --restarts 3 --maxiter 200 --device cpu   # fit ceiling (reads final_theta_MAP/CS.json)
-python3 tools/check_day_offset.py                                                                # day-1 offset sensitivity (run from archive root)
+R=docs/revision/generated/final_runs  F=docs/revision/EML_submission/figures/raw  bash tools/rebuild_eml_raw.sh
+#   SPEC defaults to $F/spec_raw.json; SKIP="ph knockout" skips steps (space separated)
 ```
 
-Fig. 1 is a schematic (TikZ source: `docs/revision/EML_submission/figures/fig1_pipeline.tex`).
+It runs, in order: the acceptance criteria (a)-(e) (`check_paper_runs.py`), per-run metrics (`eval_paper_runs.py`, `fit_metrics_2c.py`),
+Fig. 2 (`make_paper_figures.py` -> `paper_fig2_v2.pdf`), the knock-out (`knockout_fn.py`), the pH check (`ph_check.py`),
+Figs. 3-5 (`make_eml_figs56.py` -> `fig3_ident_matrix.pdf`, `fig4_posteriors_v2.pdf`, `fig6_checks_v2.pdf`), the supplementary tables
+(`make_supplementary_tables.py`, `make_cost_table.py`, `ident_threshold_table.py`, `rhat_seeds.py`, `fisher_ident.py`) and the supplementary
+figures (`plot_seed_maps.py`, `growth_stress_check.py`).
+
+Supplementary checks:
+
+```bash
+# Recovery test (Supplementary Section S7, Table S8)
+python3 tools/recovery_evaluate.py \
+  --case CS=docs/revision/generated/recovery/CS_syn_n1_r0/synthetic.json='docs/revision/generated/recovery/CS_syn_n1_r0_seed*' \
+  --case CH=docs/revision/generated/recovery/CH_syn_n1_r0/synthetic.json='docs/revision/generated/recovery/CH_syn_n1_r0_seed*' \
+  --case DS=docs/revision/generated/recovery/DS_syn_n1_r0/synthetic.json='docs/revision/generated/recovery/DS_syn_n1_r0_seed*' \
+  --case DH=docs/revision/generated/recovery/DH_syn_n1_r0/synthetic.json='docs/revision/generated/recovery/DH_syn_n1_r0_seed*' \
+  --out $F/recovery
+# Held-out day in CH (Supplementary Section S17, Table S15; needs the measured data, §5)
+python3 tools/holdout_eval.py $R --holdout 'CH_p2_2c_raw_a33w_ho10_seed*' --full 'CH_p2_2c_raw_a33w_seed*' --day 10
+python3 tools/holdout_eval.py $R --holdout 'CH_p2_2c_raw_a33w_ho15_seed*' --full 'CH_p2_2c_raw_a33w_seed*' --day 15
+```
+
+Fig. 1 is a schematic (TikZ source: `docs/revision/EML_submission/figures/fig1_pipeline_v2.tex`).
 Outputs written by the commands above can be compared with the archived versions in `$F` (the commands overwrite them; copy `$F` first if you want a diff).
 
 ### Re-running an inference stage
@@ -157,21 +145,7 @@ names = rec["theta_names"]             # a11 a12 a22 b1 b2 a33 a34 a44 b3 b4 a13
 free = rec["free_dims"]                # the 15 interaction entries (b* fixed at 0)
 ```
 
-## 5. PROVISIONAL: DS and DH final stage pending
-
-At the time of building v1.0.0 (2026-10-12) the stage-(iv) runs of **DS** and **DH** were still computing on the GPU cluster.
-In this provisional state the DS and DH results in the paper (and in `$F`) are from stage (iii) (`DS_p2_wide80_p18k_wide2_seed*`, `DH_p2_nonarrow_w3_noph_p14k_seed*`; the DH group does not yet pass criterion (e)).
-
-To be replaced/added before publishing the record:
-
-1. Copy the accepted runs to `docs/revision/generated/final_runs/DS_ult_*_seed{7,42,123}/` and `DH_ult_*_seed{7,42,123}/` (5 files each), add rows to `final_runs/README.md`.
-2. Add `final_theta_MAP/DS.json`, `DH.json` and the DS/DH entries of `phi_init.json`.
-3. Change the `"ult"` globs of DS and DH in `supp/spec_provisional.json` (and the `--p2-glob-DS/-DH` arguments above, the `--glob-DH` default of `tools/ph_check.py`, `GROUPS` in `tools/fisher_ident.py`, the run list in `tools/plot_seed_maps.py` and `tools/check_day_offset.py`) to the `*_ult_*` groups; regenerate all outputs (§3); if the figure directory is renamed, update section 6 of `MANIFEST.txt`.
-4. Remove this section and the "PROVISIONAL" notice at the top; rebuild with `bash docs/revision/zenodo/build_archive.sh` — the build then reports no missing optional entries.
-
-The manifest already contains the DS/DH `ult` globs and `DS.json`/`DH.json` as optional entries; the stage-(iii) runs stay in the archive because the paper shows all stages.
-
-## 6. Experimental data
+## 5. Experimental data
 
 The calibration data (species fractions at days 1, 3, 6, 10, 15, 21, total biofilm volume, membrane integrity / viability, and pH) are from
 
@@ -183,32 +157,32 @@ The calibration data (species fractions at days 1, 3, 6, 10, 15, 21, total biofi
 To re-run the inference with the measured data (`--data-source raw`, the runs `*_2c_raw*` reported in the paper), convert the files provided by the authors with `tools/convert_raw_heine.py` and `tools/build_raw_dataset.py`; they write the tables that the estimator reads into `data_5species/raw_dataset/experiment_data/` (`estimate_paper_jax.DATA_DIRS`). The older runs on values read off the published box plots (`--data-source digitised`) read `data_5species/experiment_data/` instead (file names as expected by the code: `boxplot_{Commensal,Dysbiotic}_{Static,HOBIC}.csv`, `fig2_membrane_distribution.csv`, `fig3_species_distribution_{replicates,summary}.csv`, `fig4A_pH_timeseries.csv`, `figS1_total_species_distribution_{replicates,summary}.csv`).
 The posterior samples, run records and figures in this archive can be inspected without the data; the run records contain only derived quantities used by the likelihood (initial composition `phi_init`, per-species noise levels, and in stages (i)--(ii) the fixed viabilities `psi_fixed` implied by the data), not the replicate values.
 
-## 7. License and citation
+## 6. License and citation
 
 Code and run outputs: MIT License (`LICENSE`, © 2026 Keisuke Nishioka). Please cite the article and this archive (`CITATION.cff`); for the experimental data cite Heine et al. (2025).
 Funded by the European Union (ERC, Gen-TSM, project number 101124463). Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.
 
-## 8. Publishing checklist (for the authors)
+## 7. Publishing checklist (for the authors)
 
 1. On Zenodo: *New upload* → *Reserve DOI*; put the DOI into `README.md`, `CITATION.cff` (`doi:`), the manuscript (Data and code availability), and `.zenodo.json` if uploading via API.
-2. Resolve the TODOs above (DS/DH, GPU software versions); replace `TODO_PAPER_DOI` in `.zenodo.json` (or delete that related identifier until the paper DOI exists — Zenodo rejects an invalid DOI).
+2. Fill in the GPU software versions (§2). The article DOI is not in `.zenodo.json` yet (Zenodo rejects an invalid DOI); add it as `isSupplementTo` in a new version after acceptance.
 3. `bash docs/revision/zenodo/build_archive.sh` → upload `docs/revision/zenodo/dist/tmcmc_eml_archive_v1.0.0.zip`; copy title, authors, description, keywords, license and funding from `.zenodo.json`.
 
 ---
 
 <!-- maintainer notes (remove before building the final archive) -->
-## Maintainer checklist: Zenodo draft (status 2026-10-12)
+## Maintainer checklist: Zenodo draft (status 2026-10-19)
 
 Draft record saved; DOI reserved **10.5281/zenodo.23320423** (in manuscript, cover letter, CITATION.cff, .zenodo.json).
 To fix in the web form before publishing (user, later):
 
 1. **Delete `EML_manuscript_nishioka.pdf`** from Files (uploaded by mistake; the record holds only the archive zip).
-2. Upload `dist/tmcmc_eml_archive_v1.0.0.zip` after DS/DH stage (iv) are in (`bash build_archive.sh`).
+2. Upload `dist/tmcmc_eml_archive_v1.0.0.zip` (`bash build_archive.sh`; all four conditions are final since 2026-10-19).
 3. Title: "Code, run records and posterior samples for: Identifiability of species interactions in a living material: Bayesian calibration of an extended Hamilton principle multiphase model".
 4. Resource type: Software (Dataset also acceptable).
 5. License: **MIT** (form default is CC BY 4.0).
 6. Creators: all 10 authors in manuscript order (Family name / Given names; Nishioka = family name). ORCID for K. Nishioka as `0009-0001-9360-1336` only (current entry gives "No valid scheme recognized").
 7. Description, keywords, version 1.0.0, funding (ERC 101124463; DFG TRR 298 / 426335750): copy from `.zenodo.json`.
 8. Publication date: the day of publishing. Leave the Thesis/Conference/Journal sections empty.
-9. Experimental data: include only if MHH agrees (EML_PLAN §15.1).
+9. Experimental data: **not included** (decided 2026-10-19, EML_PLAN §24.11; available from Heine et al. on request).
 10. Then Publish (irreversible).
