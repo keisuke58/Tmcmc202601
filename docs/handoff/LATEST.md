@@ -52,6 +52,7 @@
 
 | 日付 | ファイル | 要点 |
 |---|---|---|
+| 2026-10-19 | [gpu_2026-10-19_CH_p2_ho10.md](gpu_2026-10-19_CH_p2_ho10.md) | **自動通知**: run 終了。FAIL を含む群は回し直すまで解釈しない |
 | 2026-10-19 | [gpu_2026-10-19_holdout_submit.md](gpu_2026-10-19_holdout_submit.md) | CH の 1 日外し予測 Day 10・15 を投入（3667〜3674）。submit_13f.sh を生データ・a33w の箱に合わせた |
 | 2026-10-19 | [gpu_2026-10-19_recovery_copy_CH.md](gpu_2026-10-19_recovery_copy_CH.md) | 回収テスト CH と polish.json 4 つをコピー（18b）。3651 は 8h 枠切れ → 3666 で出し直し |
 | 2026-10-18 | [gpu_2026-10-18_ds_ult_final_recovery_submit.md](gpu_2026-10-18_ds_ult_final_recovery_submit.md) | DS ult を final_runs に、回収テスト CS・DS・DH 9 本を投入、18a への対応 |
