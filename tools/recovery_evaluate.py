@@ -146,39 +146,41 @@ json.dump(results, open(args.out + ".json", "w"), indent=2, ensure_ascii=False)
 
 # ---------------------------------------------------------------- LaTeX（補足の表の本体）
 CLS_TEX = {"identified": "id.", "sign-only": "s.o.", "n.i.": "n.i."}
-tex = ["% tools/recovery_evaluate.py が生成（手で直さない）。列: 真値、合成データでの事後中央値 [5%, 95%]、"
-       "真値を含むか、sd 比（事後 sd / 箱の一様 sd）、分類（合成 / 実データ）",
-       r"\begin{tabular}{@{}l" + "rlcc" * len(results) + "@{}}", r"\toprule"]
-tex.append(" & ".join(["Entry"] + [r"\multicolumn{4}{c}{%s (%s)}" % (t, "noise-free" if results[t]["noise"] == 0
-                                                                        else r"$\sigma\times%g$" % results[t]["noise"])
-                                    for t in results]) + r"\\")
-tex.append(" & ".join([""] + [r"truth & median [5\%, 95\%] & sd ratio & synth./real" for _ in results]) + r"\\")
-tex.append(r"\midrule")
-for k, nm in enumerate(RC.ORDER):
-    cells = [RC.tex_name(nm)]
-    for t in results:
-        r = results[t]["entries"][k]
-        iv = "$%+.2f$ [$%+.2f$, $%+.2f$]" % (r["median"], r["q05"], r["q95"])
-        if not r["covered90"]:
-            iv = r"\textbf{%s}$^{\dagger}$" % iv
-        cl = "%s/%s" % (CLS_TEX[r["class_synthetic"]], CLS_TEX[r["class_real"]])
-        if r["class_synthetic"] != r["class_real"]:
-            cl = r"\textit{%s}" % cl
-        cells += ["$%+.2f$" % r["truth"], iv, "%.2f" % r["sd_ratio_synthetic"], cl]
+# 2026-10-19: 4 条件を横に並べると紙幅の約 3 倍になったので、2 条件ずつの段に分け、sd 比の列は外す（分類で足りる）
+tex = ["% tools/recovery_evaluate.py が生成（手で直さない）。列: 真値、合成データでの事後中央値 [5%, 95%]（真値を含まなければ太字＋†）、"
+       "分類（合成 / 実データ、違えば斜体）。2 条件ずつの段"]
+tags_all = list(results)
+for b0 in range(0, len(tags_all), 2):
+    blk = tags_all[b0:b0 + 2]
+    if b0:
+        tex.append(r"\par\medskip")
+    tex += [r"\begin{tabular}{@{}l" + "rlc" * len(blk) + "@{}}", r"\toprule"]
+    tex.append(" & ".join(["Entry"] + [r"\multicolumn{3}{c}{%s}" % t for t in blk]) + r"\\")
+    tex.append(" & ".join([""] + [r"truth & median [5\%, 95\%] & synth./real" for _ in blk]) + r"\\")
+    tex.append(r"\midrule")
+    for k, nm in enumerate(RC.ORDER):
+        cells = [RC.tex_name(nm)]
+        for t in blk:
+            r = results[t]["entries"][k]
+            iv = "$%+.2f$ [$%+.2f$, $%+.2f$]" % (r["median"], r["q05"], r["q95"])
+            if not r["covered90"]:
+                iv = r"\textbf{%s}$^{\dagger}$" % iv
+            cl = "%s/%s" % (CLS_TEX[r["class_synthetic"]], CLS_TEX[r["class_real"]])
+            if r["class_synthetic"] != r["class_real"]:
+                cl = r"\textit{%s}" % cl
+            cells += ["$%+.2f$" % r["truth"], iv, cl]
+        tex.append(" & ".join(cells) + r"\\")
+    tex.append(r"\midrule")
+    cells = [r"\multicolumn{1}{@{}l}{}"]
+    for t in blk:
+        sm = results[t]["summary"]
+        cells.append(r"\multicolumn{3}{l}{covered %d/%d (identified %d/%d); re-identified %d/%d}" % (
+            round(sm["coverage90_all"] * sm["n_entries"]), sm["n_entries"],
+            sm["a_identified_real_covered"], sm["n_identified_real"],
+            sm["a_identified_real_also_identified_synthetic"], sm["n_identified_real"]))
     tex.append(" & ".join(cells) + r"\\")
-tex.append(r"\midrule")
-cells = [r"\multicolumn{1}{@{}l}{summary}"]
-for t in results:
-    s = results[t]["summary"]
-    cells.append(r"\multicolumn{4}{l}{\footnotesize coverage %d/%d; id.\ real: %d/%d covered, %d/%d id.\ synth.; "
-                 r"n.i.\ real: %d/%d n.i.\ synth.}" % (
-                     round(s["coverage90_all"] * s["n_entries"]), s["n_entries"],
-                     s["a_identified_real_covered"], s["n_identified_real"],
-                     s["a_identified_real_also_identified_synthetic"], s["n_identified_real"],
-                     s["b_ni_real_ni_synthetic"], s["n_ni_real"]))
-tex.append(" & ".join(cells) + r"\\")
-tex += [r"\bottomrule", r"\end{tabular}",
-        r"% $^{\dagger}$: 90% interval does not contain the true value. Italic: class differs between synthetic and real data."]
+    tex += [r"\bottomrule", r"\end{tabular}"]
+tex.append(r"% $^{\dagger}$: 90% interval does not contain the true value. Italic: class differs between synthetic and real data.")
 open(args.out + ".tex", "w").write("\n".join(tex) + "\n")
 
 # ---------------------------------------------------------------- 図（make_eml_figs56.py の図 4 と同じ書式＋真値）
