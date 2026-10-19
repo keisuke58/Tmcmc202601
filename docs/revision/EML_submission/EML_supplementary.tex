@@ -303,9 +303,9 @@ The pattern does not change: at every threshold the dysbiotic conditions have at
 
 \paragraph{Curvature of the likelihood.}
 As a check that does not use the posterior samples, we computed the Hessian $\mathbf{H}$ of $-\ln p(\yobs\mid\btheta)$ at the MAP over the 15 free entries, scaled each entry by the standard deviation of a uniform distribution on its box, and counted the eigen-directions with scaled curvature of at least $1/0.8^2$, i.e.\ directions in which the likelihood is narrower than the identification threshold.
-Their number is 5 in CS, 6 in CH, 4 in DS and 7 in DH, against 5, 6, 9 and 8 entries identified from the posterior.
-The counts agree in CS and CH; in DS and DH the posterior identifies more entries (five and one) than the local curvature, because entries can be constrained jointly along correlated directions and by the non-quadratic shape of the likelihood, which a single Hessian at the MAP does not capture.
-The Hessian is evaluated at the final MAP (locally optimised in CS and CH, the best particle in DH); it is not positive definite at any of them (two, one, four and four negative eigenvalues in CS, CH, DS and DH), so entry-wise Laplace intervals are not reported.
+Their number is 5 in CS, 6 in CH, 6 in DS and 7 in DH, against 5, 6, 9 and 8 entries identified from the posterior.
+The counts agree in CS and CH; in DS and DH the posterior identifies more entries (three and one) than the local curvature, because entries can be constrained jointly along correlated directions and by the non-quadratic shape of the likelihood, which a single Hessian at the MAP does not capture.
+The Hessian is evaluated at the final MAP (locally optimised in CS and CH, the best particle in DH); it is not positive definite at any of them (two, one, one and four negative eigenvalues in CS, CH, DS and DH), so entry-wise Laplace intervals are not reported.
 
 \begin{figure}[h]
 \centering
