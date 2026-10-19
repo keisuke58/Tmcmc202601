@@ -115,6 +115,6 @@
       0.11152830380319069
     ],
     "psi_init": null,
-    "note": "phi_init: as recorded by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99]). phi_init_state: the state the forward model starts from (hamilton_ode_jax_paper.make_initial_state: scaled to a sum of 0.999999); pass this one to write_eco_cfg.py --phi-init. psi_init null = the estimator default (0.999 for every species). Measured-data, two-channel run; DS final stage (iv), best particle (not polished yet), 2026-10-18."
+    "note": "phi_init: as recorded by the estimator (Day-1 composition, normalised, clipped to [0.001, 0.99]). phi_init_state: the state the forward model starts from (hamilton_ode_jax_paper.make_initial_state: scaled to a sum of 0.999999); pass this one to write_eco_cfg.py --phi-init. psi_init null = the estimator default (0.999 for every species). Measured-data, two-channel run; DS final stage (iv), polished MAP (top-3 L-BFGS-B), 2026-10-19."
   }
 }
