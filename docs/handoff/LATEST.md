@@ -5,23 +5,21 @@
 ## いまの状態（2026-10-19、ここだけ読めば足りる）
 - **データ・尤度**: Heine の生データ（`DATA_SOURCE=raw`）・2 通路（`TWO_CHANNEL=1`）、RUNTAG `2c_raw`。読み取りデータの run は `docs/revision/generated/final_runs_digitised/`（新しい数字には使わない）。
 - **最終の run**（`docs/revision/generated/final_runs/`）: CH = ult a33w、CS = ult、**DS = ult**（10/18 追加）、**DH = p2**（ult は判定 4 FAIL、参考として置く、16l）。
-- **走行中**（10/19 01:40 時点、GPU 13 本）:
-  - 回収テスト CS・DS・DH 9 本（3653〜3661）。CS が 10/19 朝に最初に終わる見込み
-  - DS ult の磨き seed42（3662）
-  - DS a45=0 seed123 の磨き（3666。3651 は 8h 枠切れで出し直し）
-  - CH の 1 日外し予測 Day 10・15（3667〜3674、19b）
-- **最近済んだこと**: CH の回収テストと npy・polish.json 4 つ（18b・19a）、14c
+- **走行中**（10/19 夜、GPU 3 本）:
+  - 回収テスト DH seed7（3657）。DH の 42・123 は終了
+  - CH の 1 日外し p2 の磨き Day 10・15（3680・3681）。pilot〜p2 は判定 0〜2b PASS
+- **最近済んだこと**: DS a45=0 確定（ln B +7.46）、回収テスト CS・DS のコピー（10/19 夜、[報告](gpu_2026-10-19_ds_a45zero_recovery_CS_DS.md)）、DS ult の polish.json 3 つ、CH の回収テスト（18b・19a）
 
 ## 今やること（上から優先）
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
 | 2026-10-19 | [2026-10-19b_holdout_only.md](2026-10-19b_holdout_only.md) | **13f-5 だけやる（ユーザー決定）: CH、Day 10・15 を外した pilot→p1→p2、seed 42、本線と同じ箱、回収テストのあと（10/20 ごろ）。13g・13f-4 は見送り（査読対応の候補）** | 投入済み（3667〜3674、[gpu_2026-10-19_holdout_submit.md](gpu_2026-10-19_holdout_submit.md)） |
-| 2026-10-19 | [2026-10-19a_recovery_npy.md](2026-10-19a_recovery_npy.md) | **回収テストの samples.npy・logL.npy が .gitignore で落ちていた → 例外を足した。GPU 側は pull 後に CH の npy を git add して push（CS・DS・DH も同様）** | CH 済（10/19）。CS・DS・DH はコピー時に git status で確認 |
-| 2026-10-18 | [2026-10-18b_recovery_copy.md](2026-10-18b_recovery_copy.md) | **回収テストの出力（CH 今すぐ、CS・DS・DH は終わり次第）を `docs/revision/generated/recovery/` に 5 ファイル＋synthetic.json でコピー。CH p1 seed42・p2 seed7 の polish.json、DS ult の polish.json も final_runs に** | 一部済（CH と polish.json 4 つ、10/19）。CS・DS・DH 回収と DS ult seed42 の polish.json は終わり次第 |
-| 2026-10-18 | [2026-10-18a_ds_final.md](2026-10-18a_ds_final.md) | **DS は ult で確定（DS.json は seed42 の粒子の最良値）。GPU 側へ: (1) DS の pilot・p1・p2 を final_runs に、(2) DS ult を top-k 3 で磨く、(3) DS a45=0 の磨きのあと final_runs と ln B を確定** | §1 済（67a0adf）。§2 は seed7・123 済、seed42 は 3662 走行中。§3 は seed42・7 済（−57.89 / −57.78）、seed123 は 3666 で出し直し中（3651 は 8h 枠切れ） |
+| 2026-10-19 | [2026-10-19a_recovery_npy.md](2026-10-19a_recovery_npy.md) | **回収テストの samples.npy・logL.npy が .gitignore で落ちていた → 例外を足した。GPU 側は pull 後に CH の npy を git add して push（CS・DS・DH も同様）** | CH・CS・DS 済（10/19）。DH は 3657 のあと |
+| 2026-10-18 | [2026-10-18b_recovery_copy.md](2026-10-18b_recovery_copy.md) | **回収テストの出力（CH 今すぐ、CS・DS・DH は終わり次第）を `docs/revision/generated/recovery/` に 5 ファイル＋synthetic.json でコピー。CH p1 seed42・p2 seed7 の polish.json、DS ult の polish.json も final_runs に** | CH・CS・DS と polish.json（DS ult 3 つを含む）済（10/19）。残りは DH 回収（3657 のあと） |
+| 2026-10-18 | [2026-10-18a_ds_final.md](2026-10-18a_ds_final.md) | **DS は ult で確定（DS.json は seed42 の粒子の最良値）。GPU 側へ: (1) DS の pilot・p1・p2 を final_runs に、(2) DS ult を top-k 3 で磨く、(3) DS a45=0 の磨きのあと final_runs と ln B を確定** | §1 済（67a0adf）。§2 済。§3 済（磨いた値 −57.89 / −57.78 / −57.78、全 PASS、final_runs に、ln B +7.46 確定、10/19） |
 | 2026-10-16 | [2026-10-16l_dh_p2_final.md](2026-10-16l_dh_p2_final.md) | **DH は p2 を最終に（選択肢 1）。確認: p2 は ult と同じ 2 通路の尤度で、狭めたのは ult の方。ただし p2 の D21/15 も seed で 9.6/13.5/18.0（実測 14.9）→ データで決まらない量と書く。GPU は DH p2・ult を final_runs にコピー。読み取りデータの run を final_runs_digitised/ に分離。pH 着** | 済（GPU 側: DH p2・ult を final_runs に、147f603）。選択肢 2 は DS の ult のあと検討 |
-| 2026-10-16 | [2026-10-16k_bayes_raw.md](2026-10-16k_bayes_raw.md) | **ベイズ因子を生データ・2 通路で出し直す（ユーザー決定、案 A）**: 4 条件 × {全モデル, a45=0} × 3 seed、pilot・1000 粒子・n_mut 120（今の n_mut 40 は判定 (c) に落ちる）。**CS・CH の 12 本を先に、DS・DH はそのあと**。本線のあと、10/23 までが目安 | CS・CH 済（ln B −0.06 / +0.03）。DS・DH 済（+7.46 暫定 / +2.07、d412704）。残りは DS a45=0 seed123 の磨き（3666）→ DS の確定（18a §3） |
+| 2026-10-16 | [2026-10-16k_bayes_raw.md](2026-10-16k_bayes_raw.md) | **ベイズ因子を生データ・2 通路で出し直す（ユーザー決定、案 A）**: 4 条件 × {全モデル, a45=0} × 3 seed、pilot・1000 粒子・n_mut 120（今の n_mut 40 は判定 (c) に落ちる）。**CS・CH の 12 本を先に、DS・DH はそのあと**。本線のあと、10/23 までが目安 | CS・CH 済（ln B −0.06 / +0.03）。DS・DH 済（+7.46 確定 / +2.07） |
 
 ## 守る決まり（いつも有効）
 
@@ -52,6 +50,7 @@
 
 | 日付 | ファイル | 要点 |
 |---|---|---|
+| 2026-10-19 | [gpu_2026-10-19_ds_a45zero_recovery_CS_DS.md](gpu_2026-10-19_ds_a45zero_recovery_CS_DS.md) | **DS a45=0 は磨き後に全 PASS → final_runs、ln B +7.46 確定。回収テスト CS・DS をコピー。残りは DH 回収（3657）と 1 日外し p2 の磨き（3680・3681）** |
 | 2026-10-19 | [gpu_2026-10-19_CH_p2_ho15.md](gpu_2026-10-19_CH_p2_ho15.md) | **自動通知**: run 終了。FAIL を含む群は回し直すまで解釈しない |
 | 2026-10-19 | [gpu_2026-10-19_CH_p2_ho10.md](gpu_2026-10-19_CH_p2_ho10.md) | **自動通知**: run 終了。FAIL を含む群は回し直すまで解釈しない |
 | 2026-10-19 | [gpu_2026-10-19_holdout_submit.md](gpu_2026-10-19_holdout_submit.md) | CH の 1 日外し予測 Day 10・15 を投入（3667〜3674）。submit_13f.sh を生データ・a33w の箱に合わせた |
