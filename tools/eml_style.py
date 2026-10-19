@@ -51,11 +51,11 @@ def apply():
 
 
 THESIS_MM = 160.0  # 修論の本文幅（2026-10-19）
-_PREAMBLE_THESIS = r"\usepackage[T1]{fontenc}\usepackage{mathptmx}\usepackage{amsmath}"
+_PREAMBLE_THESIS = r"\usepackage[T1]{fontenc}\usepackage{lmodern}\usepackage{amsmath}"  # 修論の本文と同じ Latin Modern（10-19 夜に Times から変更）
 
 
 def apply_thesis():
-    """修論用（2026-10-19）: Times、印刷サイズで目盛り 8 pt・軸ラベル 9 pt・見出し 10 pt。"""
+    """修論用（2026-10-19）: Latin Modern（修論の本文・ほかの図と同じ）、印刷サイズで目盛り 8 pt・軸ラベル 9 pt・見出し 10 pt。"""
     apply()
     mpl.rcParams.update({"font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
                          "xtick.labelsize": 8, "ytick.labelsize": 8, "legend.fontsize": 8,
@@ -63,7 +63,7 @@ def apply_thesis():
     if mpl.rcParams["text.usetex"]:
         mpl.rcParams["text.latex.preamble"] = _PREAMBLE_THESIS
     else:
-        mpl.rcParams["font.serif"] = ["TeX Gyre Termes", "Nimbus Roman", "Times New Roman"]
+        mpl.rcParams["font.serif"] = ["Latin Modern Roman", "CMU Serif", "DejaVu Serif"]
     return mpl.rcParams["text.usetex"]
 
 
