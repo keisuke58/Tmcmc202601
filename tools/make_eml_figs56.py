@@ -241,6 +241,10 @@ if V2:
     import eml_figs_v2 as V2F  # noqa: E402
 
     eml_style.apply()
+    # 修論用の図（tools/thesis_figs_ch3.py）が読む入力（2026-10-19）
+    np.savez(os.path.join(args.fig_dir, "_thesis_inputs.npz"), M=M, cls=cls, Q4=Q4, U0=U0,
+             ko=json.dumps(ko) if ko is not None else "", OBS_RATIO=OBS_RATIO if ko is not None else np.nan,
+             **({f"B_{k}": B[k] for k in B.files} if B is not None else {}))
     vmax = V2F.fig3_matrix(M, cls, ORDER, CONDS, os.path.join(args.fig_dir, "fig3_ident_matrix"))
     print(f"図 3 (v2): fig3_ident_matrix、色の範囲 ±{vmax:g}")
     V2F.fig4_v2(Q4, U0, cls, M, ORDER, CONDS, SP, os.path.join(args.fig_dir, "fig4_posteriors_v2"))
