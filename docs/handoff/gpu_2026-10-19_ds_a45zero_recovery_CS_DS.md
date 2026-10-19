@@ -19,4 +19,3 @@
   - **pilot・p1 の 4 run は final_runs にコピー済み**（bfb6b29、追記 10/19 20:15）。
   - **p2 の磨き 3680・3681 が走行中**（WRITE_RUN=1、8h）。終わったら p2 の 2 run を polish.json 付きで final_runs に。
 - 自動通知の「照合 NG」（RMSE が estimator と不一致）は、Day 10/15 を外した run を全日のデータで照合しているためと思われる（未確認）。
-- `docs/revision/generated/holdout/CH_day10.json` が手元に未コミットで残っている（磨きの前に `_runs` から試しに出したもの）。正式にはクラウド側で final_runs から作る想定なのでコミットしていない。
