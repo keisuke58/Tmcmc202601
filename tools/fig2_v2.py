@@ -35,7 +35,7 @@ DAY_GRID = np.linspace(1, 21, 2501)
 
 
 def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=188.0,
-         group_gap=0.035, show_phibar=False, thesis=False, stages=None):
+         group_gap=0.035, show_phibar=False, thesis=False, stages=None, keep_layout=False):
     """thesis=True: 修論用（2026-10-19）。幅 160 mm・Times・目盛り 8 pt・軸ラベル 9 pt・見出し 10 pt、
     列見出しは「CS (stage iv)」だけ（RMSE はキャプションへ）、凡例は図の下に 1 つ。stages = {tag: "iv"}。"""
     (st.apply_thesis if thesis else st.apply)()
@@ -49,7 +49,9 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
         raise FileNotFoundError(f"{cache_dir}/fig2_phi_*.npz が無い")
     _z0 = np.load(f"{cache_dir}/fig2_phi_{avail[0]}.npz")
     _two0 = bool(_z0["two_channel"]) if "two_channel" in _z0.files else False  # 2 通路なら凡例が 2 行
-    if thesis:
+    if thesis and keep_layout:  # 前の版の配置（見出しに条件名と RMSE、凡例は上）のまま、幅 160 mm・Times・8 pt 以上（2026-10-19）
+        fig.subplots_adjust(left=0.105, right=0.99, top=0.87, bottom=0.055, hspace=0.14, wspace=0.08)
+    elif thesis:
         fig.subplots_adjust(left=0.105, right=0.99, top=0.945, bottom=0.12, hspace=0.14, wspace=0.08)
     else:
         fig.subplots_adjust(left=0.085, right=0.995, top=0.875 if _two0 else 0.893, bottom=0.05, hspace=0.12, wspace=0.07)
@@ -129,6 +131,15 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
         # 列見出し: 色の帯 + 条件名 + RMSE
         top = axes[0, c]
         tr = lambda dy: top.transAxes + ScaledTranslation(0, dy * st.MM, fig.dpi_scale_trans)  # noqa: E731
+        if thesis and keep_layout:
+            top.plot([0, 1], [1, 1], transform=tr(11.5), color=st.COND_COL[tag], lw=2.2,
+                     solid_capstyle="butt", clip_on=False)
+            top.text(0.5, 1, rf"\textbf{{{tag}}}\ \ {st.COND_NAME[tag]}", transform=tr(5.6),
+                     ha="center", va="bottom", fontsize=fs_lab)
+            if tag in rmse and rmse[tag] is not None:
+                top.text(0.5, 1, rf"RMSE ${rmse[tag]:.3f}$", transform=tr(1.0), ha="center",
+                         va="bottom", fontsize=fs_small, color=st.MUTE)
+            continue
         if thesis:
             top.plot([0, 1], [1, 1], transform=tr(6.0), color=st.COND_COL[tag], lw=2.2,
                      solid_capstyle="butt", clip_on=False)
@@ -162,7 +173,10 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
               r"50\% band", r"80\% band", "viable data (median)", "total data (median)", "viable replicates"]
     elif not show_phibar:
         del H_[1], L_[1]
-    if thesis:
+    if thesis and keep_layout:
+        fig.legend(H_, L_, loc="upper center", ncol=4 if two else len(L_), bbox_to_anchor=(0.55, 1.0), fontsize=8,
+                   handlelength=2.0, handletextpad=0.5, columnspacing=1.4, borderaxespad=0.2)
+    elif thesis:
         if two:
             L_[0], L_[1] = "MAP, viable", "MAP, total"
         fig.legend(H_, L_, loc="lower center", ncol=4, bbox_to_anchor=(0.55, 0.0), fontsize=8,
