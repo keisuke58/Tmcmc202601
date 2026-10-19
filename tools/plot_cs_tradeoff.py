@@ -21,7 +21,14 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--out", required=True, help="拡張子なし（.pdf と .png を書く）")
 a = ap.parse_args()
 
-plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", "font.size": 8})
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import eml_style  # noqa: E402
+
+eml_style.apply()  # 本文と同じ Latin Modern（usetex、2026-10-19）
+plt.rcParams.update({"font.size": 8})
 lam = [r[0] for r in ROWS]
 via = [r[1] for r in ROWS]
 tot = [r[2] for r in ROWS]
