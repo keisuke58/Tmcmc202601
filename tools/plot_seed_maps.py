@@ -23,6 +23,8 @@ ap.add_argument("--n-post", type=int, default=200, help="帯に使う事後標�
 ap.add_argument("--out", default=str(ROOT / "docs/revision/EML_submission/figures/provisional_2026-10-11/seed_maps_4cond"))
 ap.add_argument("--spec", default=None, help='JSON {"CS": "<seed の前までの run 名>", ...}（例 "CS_ult_2c_raw_seed"）。既定は下の GROUPS')
 ap.add_argument("--stage-label", default=None, help="列見出しの段の表記（--spec のとき、既定 ult）")
+ap.add_argument("--thesis", action="store_true",
+                help="修論用（2026-10-19）: 16×18 cm、Times、目盛り 8・軸 9・見出し 10 pt、凡例は下に 1 つ、logL・RMSE はキャプション用の表へ")
 args = ap.parse_args()
 sys.argv = [sys.argv[0]]
 
@@ -38,11 +40,17 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 # 体裁: 本文・ほかの図と同じ Latin Modern（usetex）。LaTeX が無ければ通常の描画
-try:
+if args.thesis:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import eml_style as ST  # noqa: E402
+    ST.apply_thesis()
+    plt.rcParams.update({"axes.spines.top": True, "axes.spines.right": True})
+else:
+  try:
     plt.rcParams.update({"text.usetex": True, "font.family": "serif",
                          "text.latex.preamble": r"\usepackage{lmodern}", "font.size": 9})
     plt.figure(); plt.text(0, 0, r"$x$"); plt.savefig("/dev/null", format="pdf"); plt.close()
-except Exception:  # noqa: BLE001
+  except Exception:  # noqa: BLE001
     plt.rcParams.update({"text.usetex": False, "font.family": "serif", "font.size": 9})
 
 import estimate_paper_jax as E  # noqa: E402
@@ -77,7 +85,10 @@ def comp_traj(theta, rec):
     return CP.fractions(np.asarray(g), CP.is_two_channel(rec))["viable"]
 
 
-fig, axes = plt.subplots(5, 4, figsize=(13, 13), sharex=True, sharey="row")
+TH = args.thesis
+LW_SEED = 1.2 if TH else 1.4
+fig, axes = plt.subplots(5, 4, figsize=((160 / 25.4, 180 / 25.4) if TH else (13, 13)), sharex=True,
+                         sharey=True if TH else "row")
 summary = {}
 for c, (tag, cond, cult, prefix, stage) in enumerate(GROUPS):
     runs = {s: Path(args.root) / f"{prefix}{s}" for s in SEEDS}
@@ -115,25 +126,47 @@ for c, (tag, cond, cult, prefix, stage) in enumerate(GROUPS):
         mlog = float(np.load(runs[s] / "logL.npy").max())
         summary[tag]["seeds"][s] = {"max_logL": mlog, "rmse": rmse}
         for k in range(5):
-            axes[k, c].plot(days_axis, tr[:, k], color=SEED_COL[s], lw=1.4,
+            axes[k, c].plot(days_axis, tr[:, k], color=SEED_COL[s], lw=LW_SEED,
                             label=f"seed {s}: logL {mlog:.2f}, RMSE {rmse:.3f}" if k == 0 else None)
     for k in range(5):
         ax = axes[k, c]
-        ax.fill_between(days_axis, lo[:, k], hi[:, k], color="0.6", alpha=0.3, lw=0,
+        ax.fill_between(days_axis, lo[:, k], hi[:, k], color="0.85" if TH else "0.6", alpha=1.0 if TH else 0.3, lw=0,
                         label=r"posterior 10--90\% (3 seeds)" if k == 0 else None)
         ax.plot(days_axis, med[:, k], color="0.3", lw=1.0, ls="--",
                 label=f"posterior median, RMSE {rmse_med:.3f}" if k == 0 else None)
         ax.plot(t_days, data[:, k], "ko", ms=4)
         if c == 0:
             ax.set_ylabel(r"\textit{%s}" % SP[k] if plt.rcParams["text.usetex"] else SP[k])
-        ax.set_ylim(-0.02, 1.0)
+        if TH:
+            ax.set_ylim(-0.03, 1.03)
+            ax.set_yticks([0, 0.5, 1])
+            ax.set_yticklabels(["0", "0.5", "1"])
+            ax.set_xticks([1, 6, 10, 15, 21])
+            ax.tick_params(length=2.5)
+        else:
+            ax.set_ylim(-0.02, 1.0)
         ax.grid(alpha=0.2)
-    axes[0, c].set_title(f"{tag} ({stage})")
-    axes[0, c].legend(fontsize=6.5, loc="upper right")
+    if TH:
+        axes[0, c].set_title(f"{tag} ({stage})".replace("(stage (", "(stage ").replace("))", ")"), fontsize=10, pad=4)
+    else:
+        axes[0, c].set_title(f"{tag} ({stage})")
+        axes[0, c].legend(fontsize=6.5, loc="upper right")
     axes[-1, c].set_xlabel("Day")
 
-fig.suptitle("MAP of each seed (lines), pooled posterior band (grey), data (dots)", fontsize=11)
-fig.tight_layout()
+if TH:
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    H_ = [Line2D([], [], color=SEED_COL[s], lw=LW_SEED) for s in SEEDS] + [
+        Patch(facecolor="0.85", lw=0), Line2D([], [], color="0.3", lw=1.0, ls="--"),
+        Line2D([], [], marker="o", color="none", mfc="k", mec="k", ms=4)]
+    L_ = [f"MAP, seed {s}" for s in SEEDS] + [r"posterior 10--90\%" if plt.rcParams["text.usetex"] else "posterior 10–90%",
+                                              "posterior median", "data"]
+    fig.tight_layout(rect=(0, 0.07, 1, 1), h_pad=0.4, w_pad=0.6)
+    fig.legend(H_, L_, loc="lower center", ncol=3, bbox_to_anchor=(0.53, 0.0), fontsize=8, frameon=False,
+               handlelength=2.0, columnspacing=1.6)
+else:
+    fig.suptitle("MAP of each seed (lines), pooled posterior band (grey), data (dots)", fontsize=11)
+    fig.tight_layout()
 fig.savefig(args.out + ".pdf")
 fig.savefig(args.out + ".png", dpi=130)
 json.dump(summary, open(args.out + ".json", "w"), indent=2)

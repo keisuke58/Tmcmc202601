@@ -50,6 +50,23 @@ def apply():
     return mpl.rcParams["text.usetex"]
 
 
+THESIS_MM = 160.0  # 修論の本文幅（2026-10-19）
+_PREAMBLE_THESIS = r"\usepackage[T1]{fontenc}\usepackage{mathptmx}\usepackage{amsmath}"
+
+
+def apply_thesis():
+    """修論用（2026-10-19）: Times、印刷サイズで目盛り 8 pt・軸ラベル 9 pt・見出し 10 pt。"""
+    apply()
+    mpl.rcParams.update({"font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+                         "xtick.labelsize": 8, "ytick.labelsize": 8, "legend.fontsize": 8,
+                         "axes.linewidth": 0.6, "xtick.major.width": 0.6, "ytick.major.width": 0.6})
+    if mpl.rcParams["text.usetex"]:
+        mpl.rcParams["text.latex.preamble"] = _PREAMBLE_THESIS
+    else:
+        mpl.rcParams["font.serif"] = ["TeX Gyre Termes", "Nimbus Roman", "Times New Roman"]
+    return mpl.rcParams["text.usetex"]
+
+
 def panel_label(ax, s, dx_mm=-1.0, dy_mm=1.2, fig=None):
     """太字の "(a)" を軸の左上の外（軸の左端から dx_mm、上端から dy_mm）に置く。"""
     fig = fig or ax.figure

@@ -35,17 +35,24 @@ DAY_GRID = np.linspace(1, 21, 2501)
 
 
 def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=188.0,
-         group_gap=0.035, show_phibar=False):
-    st.apply()
+         group_gap=0.035, show_phibar=False, thesis=False, stages=None):
+    """thesis=True: 修論用（2026-10-19）。幅 160 mm・Times・目盛り 8 pt・軸ラベル 9 pt・見出し 10 pt、
+    列見出しは「CS (stage iv)」だけ（RMSE はキャプションへ）、凡例は図の下に 1 つ。stages = {tag: "iv"}。"""
+    (st.apply_thesis if thesis else st.apply)()
+    fs_lab, fs_head, fs_small = (9, 10, 8) if thesis else (8, 8, 7)
+    ms_s = 16 if thesis else 9  # 点の面積（pt^2）: 16 ≈ 直径 4 pt
     rep = pd.read_csv(rep_csv)
-    W, H = st.DOUBLE_MM, height_mm
+    W, H = (st.THESIS_MM, height_mm) if thesis else (st.DOUBLE_MM, height_mm)
     fig, axes = plt.subplots(5, 4, figsize=(W * st.MM, H * st.MM), sharex=True, sharey=True)
     avail = [c for c in CONDS if Path(f"{cache_dir}/fig2_phi_{c}.npz").exists()]  # 未確定の条件は空の列（2026-10-15）
     if not avail:
         raise FileNotFoundError(f"{cache_dir}/fig2_phi_*.npz が無い")
     _z0 = np.load(f"{cache_dir}/fig2_phi_{avail[0]}.npz")
     _two0 = bool(_z0["two_channel"]) if "two_channel" in _z0.files else False  # 2 通路なら凡例が 2 行
-    fig.subplots_adjust(left=0.085, right=0.995, top=0.875 if _two0 else 0.893, bottom=0.05, hspace=0.12, wspace=0.07)
+    if thesis:
+        fig.subplots_adjust(left=0.105, right=0.99, top=0.945, bottom=0.12, hspace=0.14, wspace=0.08)
+    else:
+        fig.subplots_adjust(left=0.085, right=0.995, top=0.875 if _two0 else 0.893, bottom=0.05, hspace=0.12, wspace=0.07)
     # commensal（CS, CH）と dysbiotic（DS, DH）の間を広げる: Veillonella 種と Pg 株が組で違うため
     if group_gap > 0:
         p0, p3 = axes[0, 0].get_position(), axes[0, 3].get_position()
@@ -97,12 +104,12 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
             ax.plot(DAY_GRID, main_map[:, i], color=col, lw=1.2, zorder=4)
             if two:  # 全菌の組成（PMA なし）と φ/Σφ
                 ax.plot(DAY_GRID, z["total_map"][:, i], color=col, lw=0.7, ls=(0, (2, 1.4)), alpha=0.9, zorder=3)
-                ax.scatter(z["t_days"], z["data_total"][:, i], s=9, facecolors="white", edgecolors=col,
+                ax.scatter(z["t_days"], z["data_total"][:, i], s=ms_s, facecolors="white", edgecolors=col,
                            linewidths=0.6, zorder=5)
             if show_phibar:  # 種ごとの φψ はデータで決まらない（2026-10-13、既定で出さない）
                 ax.plot(DAY_GRID, z["phibar_map"][:, i], color=col, lw=0.8, ls=(0, (3, 1.6)),
                         alpha=0.8, zorder=3)
-            ax.scatter(days, dat[:, i], s=9, color=col, edgecolors=st.INK, linewidths=0.35,
+            ax.scatter(days, dat[:, i], s=ms_s, color=col, edgecolors=st.INK, linewidths=0.35,
                        zorder=5)
             ax.set_xlim(-0.2, 22.2)
             ax.set_ylim(-0.03, 1.03)
@@ -114,14 +121,21 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
             ax.tick_params(length=2)
             if i in STRAIN:
                 ax.text(0.97, 0.95, STRAIN[i][tag[0]], transform=ax.transAxes, ha="right",
-                        va="top", fontsize=7, color=st.MUTE)
+                        va="top", fontsize=fs_small, color=st.MUTE)
             if c == 0:
-                ax.set_ylabel(ROW_LABEL[i], fontsize=8, labelpad=3)
+                ax.set_ylabel(ROW_LABEL[i], fontsize=fs_lab, labelpad=3)
             if i == 4:
                 ax.set_xlabel("Day", labelpad=1.5)
         # 列見出し: 色の帯 + 条件名 + RMSE
         top = axes[0, c]
         tr = lambda dy: top.transAxes + ScaledTranslation(0, dy * st.MM, fig.dpi_scale_trans)  # noqa: E731
+        if thesis:
+            top.plot([0, 1], [1, 1], transform=tr(6.0), color=st.COND_COL[tag], lw=2.2,
+                     solid_capstyle="butt", clip_on=False)
+            _st = (stages or {}).get(tag)
+            top.text(0.5, 1, tag + (f" (stage {_st})" if _st else ""), transform=tr(1.2),
+                     ha="center", va="bottom", fontsize=fs_head)
+            continue
         top.plot([0, 1], [1, 1], transform=tr(9.6), color=st.COND_COL[tag], lw=2.2,
                  solid_capstyle="butt", clip_on=False)
         top.text(0.5, 1, rf"\textbf{{{tag}}}\ \ {st.COND_NAME[tag]}", transform=tr(4.6),
@@ -130,7 +144,7 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
             top.text(0.5, 1, rf"RMSE ${rmse[tag]:.3f}$", transform=tr(1.0), ha="center",
                      va="bottom", fontsize=7, color=st.MUTE)
     fig.text(0.008, 0.46, r"species fraction" if two else r"volume fraction $\varphi_i$", rotation=90,
-             ha="left", va="center", fontsize=8)
+             ha="left", va="center", fontsize=fs_lab)
     g = st.MUTE
     H_ = [Line2D([], [], color=g, lw=1.2), Line2D([], [], color=g, lw=0.8, ls=(0, (3, 1.6))),
           Patch(facecolor=g, alpha=0.40, lw=0), Patch(facecolor=g, alpha=0.16, lw=0),
@@ -148,7 +162,13 @@ def make(cache_dir, out_noext, rmse, rep_csv, color_by="condition", height_mm=18
               r"50\% band", r"80\% band", "viable data (median)", "total data (median)", "viable replicates"]
     elif not show_phibar:
         del H_[1], L_[1]
-    fig.legend(H_, L_, loc="upper center", ncol=4 if two else len(L_), bbox_to_anchor=(0.54, 1.0), fontsize=7,
-               handlelength=2.0, handletextpad=0.5, columnspacing=1.8, borderaxespad=0.2)
+    if thesis:
+        if two:
+            L_[0], L_[1] = "MAP, viable", "MAP, total"
+        fig.legend(H_, L_, loc="lower center", ncol=4, bbox_to_anchor=(0.55, 0.0), fontsize=8,
+                   handlelength=2.0, handletextpad=0.5, columnspacing=1.5, borderaxespad=0.2)
+    else:
+        fig.legend(H_, L_, loc="upper center", ncol=4 if two else len(L_), bbox_to_anchor=(0.54, 1.0), fontsize=7,
+                   handlelength=2.0, handletextpad=0.5, columnspacing=1.8, borderaxespad=0.2)
     st.save(fig, out_noext)
     plt.close(fig)
