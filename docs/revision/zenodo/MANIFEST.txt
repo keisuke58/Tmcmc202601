@@ -215,9 +215,12 @@ docs/revision/EML_submission/figures/raw/ph_check.pdf
 # Recovery test on synthetic data (Supplementary Section S8-recovery): synthetic data with the true parameters, and the three recovery runs per condition
 docs/revision/generated/recovery/CH_syn_n1_r0/synthetic.json
 docs/revision/generated/recovery/CH_syn_n1_r0_seed*
-?docs/revision/generated/recovery/CS_syn_n1_r0*   # running
-?docs/revision/generated/recovery/DS_syn_n1_r0*   # running
-?docs/revision/generated/recovery/DH_syn_n1_r0*   # running
+docs/revision/generated/recovery/CS_syn_n1_r0/synthetic.json
+docs/revision/generated/recovery/CS_syn_n1_r0_seed*
+docs/revision/generated/recovery/DS_syn_n1_r0/synthetic.json
+docs/revision/generated/recovery/DS_syn_n1_r0_seed*
+docs/revision/generated/recovery/DH_syn_n1_r0/synthetic.json
+docs/revision/generated/recovery/DH_syn_n1_r0_seed*
 docs/revision/EML_submission/figures/raw/recovery.json
 docs/revision/EML_submission/figures/raw/recovery.tex
 docs/revision/EML_submission/figures/raw/recovery.pdf
