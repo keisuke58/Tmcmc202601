@@ -13,7 +13,10 @@
 
 ## 3. 走行中・残り
 - 回収テスト DH: seed 42・123 は終了、**seed 7（3657、vancouver02）が走行中**。終わったら 3 seed まとめてコピー。
-- 1 日外し CH p2 ho10・ho15: 判定 0〜2b は PASS（3・4 は 1 seed なので出ない、19b の想定どおり）。
-  **p2 の磨き 3680・3681 が走行中**（WRITE_RUN=1、8h）。終わったら 6 run を final_runs に（p2 は polish.json 付き）。
+- 1 日外し CH（seed42）: 判定 3・4 は 1 seed なので出ない（19b の想定どおり）。
+  - p1・p2: 判定 0〜2b PASS（p1 は 8.3 回/次元、p2 は 10.9 回/次元）。
+  - pilot: 判定 2b 未達（2.5〜2.7 回/次元）。本線の CH pilot も 2.7〜2.8 回/次元で同じ（1000×40 の設定どおり）。
+  - **pilot・p1 の 4 run は final_runs にコピー済み**（bfb6b29、追記 10/19 20:15）。
+  - **p2 の磨き 3680・3681 が走行中**（WRITE_RUN=1、8h）。終わったら p2 の 2 run を polish.json 付きで final_runs に。
 - 自動通知の「照合 NG」（RMSE が estimator と不一致）は、Day 10/15 を外した run を全日のデータで照合しているためと思われる（未確認）。
 - `docs/revision/generated/holdout/CH_day10.json` が手元に未コミットで残っている（磨きの前に `_runs` から試しに出したもの）。正式にはクラウド側で final_runs から作る想定なのでコミットしていない。

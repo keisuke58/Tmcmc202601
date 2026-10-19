@@ -7,19 +7,17 @@
 - **最終の run**（`docs/revision/generated/final_runs/`）: CH = ult a33w、CS = ult、**DS = ult**（10/18 追加）、**DH = p2**（ult は判定 4 FAIL、参考として置く、16l）。
 - **走行中**（10/19 夜、GPU 3 本）:
   - 回収テスト DH seed7（3657）。DH の 42・123 は終了
-  - CH の 1 日外し p2 の磨き Day 10・15（3680・3681）。pilot〜p2 は判定 0〜2b PASS
-- **最近済んだこと**: DS a45=0 確定（ln B +7.46）、回収テスト CS・DS のコピー（10/19 夜、[報告](gpu_2026-10-19_ds_a45zero_recovery_CS_DS.md)）、DS ult の polish.json 3 つ、CH の回収テスト（18b・19a）
+  - CH の 1 日外し p2 の磨き Day 10・15（3680・3681、10/20 4 時までに終わる）。p1・p2 は判定 0〜2b PASS、pilot は 2b 未達（本線の CH pilot と同じ）
+- **最近済んだこと**: 1 日外しの pilot・p1 を final_runs に（bfb6b29）、DS a45=0 確定（ln B +7.46）、回収テスト CS・DS のコピー（10/19 夜、[報告](gpu_2026-10-19_ds_a45zero_recovery_CS_DS.md)）、DS ult の polish.json 3 つ、CH の回収テスト（18b・19a）
 
 ## 今やること（上から優先）
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
-| 2026-10-19 | [2026-10-19b_holdout_only.md](2026-10-19b_holdout_only.md) | **13f-5 だけやる（ユーザー決定）: CH、Day 10・15 を外した pilot→p1→p2、seed 42、本線と同じ箱、回収テストのあと（10/20 ごろ）。13g・13f-4 は見送り（査読対応の候補）** | 投入済み（3667〜3674、[gpu_2026-10-19_holdout_submit.md](gpu_2026-10-19_holdout_submit.md)） |
+| 2026-10-19 | [2026-10-19b_holdout_only.md](2026-10-19b_holdout_only.md) | **13f-5 だけやる（ユーザー決定）: CH、Day 10・15 を外した pilot→p1→p2、seed 42、本線と同じ箱、回収テストのあと（10/20 ごろ）。13g・13f-4 は見送り（査読対応の候補）** | pilot・p1 は final_runs に（bfb6b29）。p2 は磨き（3680・3681）のあと polish.json 付きで（[投入](gpu_2026-10-19_holdout_submit.md)） |
 | 2026-10-19 | [2026-10-19a_recovery_npy.md](2026-10-19a_recovery_npy.md) | **回収テストの samples.npy・logL.npy が .gitignore で落ちていた → 例外を足した。GPU 側は pull 後に CH の npy を git add して push（CS・DS・DH も同様）** | CH・CS・DS 済（10/19）。DH は 3657 のあと |
 | 2026-10-18 | [2026-10-18b_recovery_copy.md](2026-10-18b_recovery_copy.md) | **回収テストの出力（CH 今すぐ、CS・DS・DH は終わり次第）を `docs/revision/generated/recovery/` に 5 ファイル＋synthetic.json でコピー。CH p1 seed42・p2 seed7 の polish.json、DS ult の polish.json も final_runs に** | CH・CS・DS と polish.json（DS ult 3 つを含む）済（10/19）。残りは DH 回収（3657 のあと） |
-| 2026-10-18 | [2026-10-18a_ds_final.md](2026-10-18a_ds_final.md) | **DS は ult で確定（DS.json は seed42 の粒子の最良値）。GPU 側へ: (1) DS の pilot・p1・p2 を final_runs に、(2) DS ult を top-k 3 で磨く、(3) DS a45=0 の磨きのあと final_runs と ln B を確定** | §1 済（67a0adf）。§2 済。§3 済（磨いた値 −57.89 / −57.78 / −57.78、全 PASS、final_runs に、ln B +7.46 確定、10/19） |
 | 2026-10-16 | [2026-10-16l_dh_p2_final.md](2026-10-16l_dh_p2_final.md) | **DH は p2 を最終に（選択肢 1）。確認: p2 は ult と同じ 2 通路の尤度で、狭めたのは ult の方。ただし p2 の D21/15 も seed で 9.6/13.5/18.0（実測 14.9）→ データで決まらない量と書く。GPU は DH p2・ult を final_runs にコピー。読み取りデータの run を final_runs_digitised/ に分離。pH 着** | 済（GPU 側: DH p2・ult を final_runs に、147f603）。選択肢 2 は DS の ult のあと検討 |
-| 2026-10-16 | [2026-10-16k_bayes_raw.md](2026-10-16k_bayes_raw.md) | **ベイズ因子を生データ・2 通路で出し直す（ユーザー決定、案 A）**: 4 条件 × {全モデル, a45=0} × 3 seed、pilot・1000 粒子・n_mut 120（今の n_mut 40 は判定 (c) に落ちる）。**CS・CH の 12 本を先に、DS・DH はそのあと**。本線のあと、10/23 までが目安 | CS・CH 済（ln B −0.06 / +0.03）。DS・DH 済（+7.46 確定 / +2.07） |
 
 ## 守る決まり（いつも有効）
 
@@ -37,6 +35,8 @@
 
 | 日付 | ファイル | 要点 | 状態 |
 |---|---|---|---|
+| 2026-10-18 | [2026-10-18a_ds_final.md](2026-10-18a_ds_final.md) | **DS は ult で確定（DS.json は seed42 の粒子の最良値）。GPU 側へ: (1) DS の pilot・p1・p2 を final_runs に、(2) DS ult を top-k 3 で磨く、(3) DS a45=0 の磨きのあと final_runs と ln B を確定** | §1 済（67a0adf）。§2 済。§3 済（磨いた値 −57.89 / −57.78 / −57.78、全 PASS、final_runs に、ln B +7.46 確定、10/19） |
+| 2026-10-16 | [2026-10-16k_bayes_raw.md](2026-10-16k_bayes_raw.md) | **ベイズ因子を生データ・2 通路で出し直す（ユーザー決定、案 A）**: 4 条件 × {全モデル, a45=0} × 3 seed、pilot・1000 粒子・n_mut 120（今の n_mut 40 は判定 (c) に落ちる）。**CS・CH の 12 本を先に、DS・DH はそのあと**。本線のあと、10/23 までが目安 | CS・CH 済（ln B −0.06 / +0.03）。DS・DH 済（+7.46 確定 / +2.07） |
 | 2026-10-15 | [2026-10-14c_weights_rerun_p2init.md](2026-10-14c_weights_rerun_p2init.md) | **重みの感度 12 本を生データの p2 の MAP から回し直す（`--init-glob`、出力 `weight_sensitivity/raw_p2init/`、CPU ジョブ）。14a は古い MAP から始めていた（DH の Pg 比 1.9）。DS は p2 のあと** | 済（12 / 12、DS は出し直した p2 から、d99cfd9。S_lambda は 230a0ff で反映）|
 | 2026-10-13 | [2026-10-13g_weights.md](2026-10-13g_weights.md) | **重みの感度: CH・DH の 2 通路 p2 を重みなし（LAMBDA_PG=LAMBDA_LATE=LAMBDA_RARE=1、job に LAMBDA_RARE 追加）で 3 seed。13b → 13f のあと** | 見送り（19b、ユーザー決定。S9 で足りる） |
 | 2026-10-13 | [2026-10-13f_box_holdout.md](2026-10-13f_box_holdout.md) | **質の確認 2 つ（2 通路の本線のあと）: 4. 箱を 1.5 倍に広げた p2（CH・CS、3 seed、`tools/widen_box.py`）、5. 1 日を外した予測の確認（CH、Day 10・15、`HOLDOUT_DAY`、`tools/holdout_eval.py`）** | 4 は見送り。5 は 19b で投入済み（3667〜3674） |
