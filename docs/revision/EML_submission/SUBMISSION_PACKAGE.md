@@ -34,7 +34,7 @@
 - [ ] **利益相反の .docx**: https://declarations.elsevier.com/ で作る（全員「なし」でよいかは共著者メールで確認済みになる）。
 - [ ] **Zenodo を公開**して DOI 10.5281/zenodo.23320423 を有効にする（今は予約だけ）。
       その前に `docs/revision/zenodo/MANIFEST.txt` で実験データが入っていないことを確認（`build_archive.sh` は入っていると止まる）。
-- [ ] 投稿システム（Editorial Manager）のアカウント。連絡先は **keio.jp か Gmail**（LUH の学生アドレスは退学後に止まる）。
+- [x] Elsevier のアカウント（10-19、keisuke58@keio.jp・慶應の大学ログイン、あと約 1 年半有効）。投稿は https://submit.elsevier.com/EML（Editorial Manager ではない新しいシステム）。プロフィールに Gmail を 2 つ目のアドレスで。
 - [ ] 特集号を選ぶ: "VSI: AI & CM"（Artificial Intelligence and Computational Mechanics for Materials Design）。
 - [ ] SSRN のプレプリントの選択: **しない**（共著者全員の同意が要るため、聞いていない）。
 
