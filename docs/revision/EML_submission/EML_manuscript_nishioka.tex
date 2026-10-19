@@ -133,7 +133,10 @@ Model time is $t=s\,d$ ($s=0.2375/21$) with the day-1 composition as the initial
 The two compositions differ (root-mean-square error, RMSE, between their medians 0.101, 0.087, 0.119 and 0.087 in CS, CH, DS and DH; Supplementary Section~\ref{S-sec:S_total}) because the species differ in viability, so each is compared with its own model counterpart.
 The viable fractions $y^{\mathrm{v}}_{ik}$ at time $t_k$ are compared with the living volume fractions $\hat y^{\mathrm{v}}_{ik}=\phi_i\psi_i/\sum_j\phi_j\psi_j$, the total-count fractions $y^{\mathrm{t}}_{ik}$ with $\hat y^{\mathrm{t}}_{ik}=\phi_i/\sum_j\phi_j$, and the community live fraction $\ell_k$, the fraction of membrane-intact cells from SYTO9/propidium iodide (LIVE/DEAD BacLight) staining (image based, not resolved by species; Supplementary Section~\ref{S-sec:S_raw}), with $\hat\ell_k=\sum_i\phi_i\psi_i/\sum_i\phi_i$, through the weighted Gaussian log-likelihood
 \begin{equation}
-\ln p(\yobs\mid\btheta)=-\frac12\sum_{k}\sum_{i=1}^{5}w_{ik}\left[\frac{\bigl(y^{\mathrm{v}}_{ik}-\hat y^{\mathrm{v}}_{ik}\bigr)^2}{(\sigma^{\mathrm{v}}_{ik})^2}+\frac{\bigl(y^{\mathrm{t}}_{ik}-\hat y^{\mathrm{t}}_{ik}\bigr)^2}{(\sigma^{\mathrm{t}}_{ik})^2}\right]-\frac{\lambda_\psi}{2}\sum_k\frac{(\ell_k-\hat\ell_k)^2}{\sigma_\ell^2}+\mathrm{const},
+\begin{split}
+\ln p(\yobs\mid\btheta)={}&-\frac12\sum_{k}\sum_{i=1}^{5}w_{ik}\left[\frac{\bigl(y^{\mathrm{v}}_{ik}-\hat y^{\mathrm{v}}_{ik}\bigr)^2}{(\sigma^{\mathrm{v}}_{ik})^2}+\frac{\bigl(y^{\mathrm{t}}_{ik}-\hat y^{\mathrm{t}}_{ik}\bigr)^2}{(\sigma^{\mathrm{t}}_{ik})^2}\right]\\
+&-\frac{\lambda_\psi}{2}\sum_k\frac{(\ell_k-\hat\ell_k)^2}{\sigma_\ell^2}+\mathrm{const},
+\end{split}
 \label{eq:lik}
 \end{equation}
 all evaluated at $t_k$ for parameters $\btheta$, with $\sigma^{\mathrm{v}}_{ik}$ and $\sigma^{\mathrm{t}}_{ik}$ the standard deviations (SD) of species $i$ at time $t_k$ estimated from the spread of the measured replicates (interquartile range/1.35 over all measurements, at least 0.05) and $\sigma_\ell$ the SD of the live fraction between biofilms (five images per biofilm, three to nine biofilms per time point), averaged over the time points.
