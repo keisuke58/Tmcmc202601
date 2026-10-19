@@ -393,3 +393,18 @@ RMSE（Day 3〜21、重みなし）。`docs/revision/generated/two_channel_pilot
 ### 24.11 Zenodo に実験データは入れない（2026-10-19、ユーザー確認）
 - 共著者メールで MHH に「Zenodo にデータを入れてよいか」を聞く案（§24.9）は**取り消し**。データは引用して「請求に応じて提供」のまま、
   論文にも Zenodo にも再配布しない（N. Heine と合意済み）。送付メールにもその旨を 1 文入れた。MANIFEST の「NOT INCLUDED」はそのまま。
+
+### 24.12 投稿の準備と見通し（2026-10-19）
+- **共著者メール**: 10/20（火）08:00 ドイツ時間に予約送信（Gmail の予約、To MHH 5 人・CC IKM 4 人、PDF 4 本添付）。返事の締切 10/30（金）。
+  本文に「1 日外しの確認は計算中、補足にだけ入れる」と書いてあるので、予約メールは差し替えない。
+- **Funding**: DFG は Nils 指定（9/28）の文言そのまま、ERC Gen-TSM は EU の定型文つき → 確認済み。
+- **責任著者**: Nishioka（原稿に stud.uni-hannover.de と keio.jp）。投稿システムは keio.jp。
+- **Elsevier のアカウント**: 10-19 作成。keisuke58@keio.jp、慶應の大学ログイン（慶應のアカウントはあと約 1 年半）。
+  投稿先は **https://submit.elsevier.com/EML**（新しいシステム、Editorial Manager ではない）。「Start a new submission」は返事がそろってから。
+- **投稿前の点検**（`SUBMISSION_PACKAGE.md`）: 語数 3915・要旨 238・図 4 枚・highlights 5 本（各 85 字以内）すべて OK。
+  graphical abstract の「4–9 of 15」→「5–9 of 15」に直した。残り: 利益相反の .docx、Zenodo の公開、CRediT・カバーレターの TBD。
+- **雑誌**: IF 4.5・CiteScore 8.3。審査に回すかの判断まで約 4 日、査読後の判断まで約 48 日、採択まで約 92 日、採択からオンラインまで約 4 日。
+- **見通し**: 11 月初め投稿 → 12 月下旬に査読結果 → 1〜2 月に修正 → **2027 年 2〜3 月ごろオンライン出版**（大きな修正なら 4〜6 月）。
+  特集号は採択しだい個別に出版（特集の締切 2027-04-01 を待たない）。修論（11/13 提出）・コロキウム（12/16）では "submitted / under review"。
+- **1 日外し（13f-5）**: p2 の 2 本は GPU で終了（max logL −21.5・−21.3）、final_runs へのコピー待ち。10-19 21:45（ドイツ）に自動で確認 → 補足に 1 段落＋表。
+- **修論の図**: 図 3.6（eml_seed_maps）を修論用に描き直し（16 cm 幅・Times・箱ひげ・Day 1 の初期値）、pde-fem-biofilm 736a0b5。図 3.2 は前の版のまま（ユーザー判断）。
