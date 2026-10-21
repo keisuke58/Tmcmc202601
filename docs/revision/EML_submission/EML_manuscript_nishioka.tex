@@ -49,13 +49,13 @@
 
 \begin{abstract}
 Biofilms are living materials whose composition, and with it their mechanical response, depends on species interactions that cannot be measured directly.
-We calibrate a thermodynamically consistent multiphase model of a five-species oral biofilm, derived from the extended Hamilton principle, against in-vitro time courses of a commensal and a dysbiotic community, each under static and flow-reactor cultivation.
+We calibrate a thermodynamically consistent multiphase model of a five-species oral biofilm, derived from the extended Hamilton principle, against \textit{in vitro} time courses of a commensal and a dysbiotic community, each under static and flow-reactor cultivation.
 All 15 entries of the symmetric interaction matrix are inferred by transitional Markov chain Monte Carlo, with the stiff forward model compiled in JAX and evaluated in parallel on a GPU (about 150 times faster than a CPU).
 Data enter in stages, from species composition to community viability, and each stage is checked for seed agreement, mixing and posterior mass at the prior bounds.
 Root-mean-square errors of the viable species fractions are 0.06--0.09 in the four conditions; under commensal static cultivation, composition and measured live fraction cannot both be matched.
 The data constrain only part of the interaction matrix: five and six entries in the two commensal conditions, all among the early colonisers and with the same signs where both determine them, and nine and eight in the dysbiotic conditions.
 The coefficient between \textit{F.~nucleatum} and \textit{P.~gingivalis} is constrained in both dysbiotic conditions but not sign-determined.
-The pH predicted from the calibrated composition follows the measured rise in the dysbiotic flow reactor, and removing \textit{F.~nucleatum} in silico reduces the late increase of \textit{P.~gingivalis} about fourfold, a directly testable prediction.
+The pH predicted from the calibrated composition follows the measured rise in the dysbiotic flow reactor, and removing \textit{F.~nucleatum} \textit{in silico} reduces the late increase of \textit{P.~gingivalis} about fourfold, a directly testable prediction.
 \end{abstract}
 
 \begin{keyword}
@@ -70,14 +70,14 @@ Inverse characterisation \sep Bayesian calibration \sep Uncertainty quantificati
 %==============================================================================
 
 Biofilms are soft, living materials: microbial cells embedded in a self-produced matrix whose composition evolves in time and determines their mechanical response~\citep{Klempt2024ContinuumGrowth}.
-On dental implants, a shift in the species composition of the biofilm from a commensal towards a dysbiotic community is associated with peri-implantitis, and in-vitro models of peri-implant biofilms reproduce such shifts~\citep{heine2025influence}; in the ecological view of oral disease, the shift of the community, rather than a single pathogen, drives disease~\citep{Marsh2003Dental}.
-Early biofilms on implant abutments in vivo already contain disease-associated species~\citep{dieckow2024structure}.
+On dental implants, a shift in the species composition of the biofilm from a commensal towards a dysbiotic community is associated with peri-implantitis, and \textit{in vitro} models of peri-implant biofilms reproduce such shifts~\citep{heine2025influence}; in the ecological view of oral disease, the shift of the community, rather than a single pathogen, drives disease~\citep{Marsh2003Dental}.
+Early biofilms on implant abutments \textit{in vivo} already contain disease-associated species~\citep{dieckow2024structure}.
 Which interactions between the species drive such a shift is difficult to measure: co-culture experiments report how the composition changes over time, not the interactions themselves.
 
 Continuum mechanics offers a route from composition to interaction.
 Based on the extended Hamilton principle~\citep{JunkerBalzani2021ExtendedHamilton}, \citet{Klempt2025ContinuumBiofilm} derived a multiphase model in which species volume fractions and viabilities evolve under a free energy that contains an interaction matrix~$\mathbf{A}$, taken symmetric so that the interactions derive from this potential; thermodynamic consistency follows from the variational structure.
 Calibrating $\mathbf{A}$ against data is an inverse characterisation problem: the physics fixes the structure of the model, and the data determine its coefficients.
-Once calibrated, the model can serve as an in-silico test bed, for example for removing one species.
+Once calibrated, the model can serve as an \textit{in silico} test bed, for example for removing one species.
 Bayesian updating has been used to calibrate constitutive parameters of biofilm models with surrogates~\citep{Fritsch2025BayesianMicrofilms}, but the interaction matrix poses two specific difficulties.
 First, the data give 20 independent composition values and five community viabilities for 15 unknowns, so identifiability cannot be assumed.
 Second, the coupled volume-fraction and viability dynamics produce posteriors that are multimodal and bounded by the prior box, for which the convergence of standard samplers is hard to verify.
@@ -228,7 +228,7 @@ The composition data thus favour a positive Fn--Pg coefficient in the dysbiotic 
 The pH measured under dynamic cultivation was not used in the inference (Fig.~\ref{fig:checks}b,c).
 A linear regression of the measured pH on the measured species fractions ($R^2=0.88$ over the continuous records of CH and DH) was fitted once and applied, unchanged, to the posterior predictive composition, so the check tests the predicted composition, not a model of pH.
 In DH the pH predicted in this way follows the measured rise from about 6.4 to 7.0 ($R^2=0.71$, RMSE 0.10, 85\% of the measured points inside the 90\% band; the regression applied to the measured composition itself gives RMSE 0.12). In CH the measured pH stays near 6.3; the prediction matches this level (RMSE 0.08) but not its small variations ($R^2<0$, 44\% inside the band).
-The calibrated model can also be used in silico (Fig.~\ref{fig:checks}a). With all five taxa, the day-21/day-15 ratio of Pg in DH has a posterior median of 11--13 (one value per seed; 90\% intervals up to $[0.6,32]$; measured 14.9): the model reproduces the late increase, but the data do not determine its size (Section~\ref{sec:limits}). Removing Fn lowers the ratio to 3.0 (90\% interval $[1.0,4.8]$, the same in all seeds), so the increase is reduced about fourfold but not abolished. Setting only $a_{45}=0$ removes it in most samples (median 0.8--0.9 in all seeds), so the increase rests mainly on the Fn--Pg coefficient, partly offset by the other interactions of Fn; the predicted reduction can be tested directly by a co-culture without Fn.
+The calibrated model can also be used \textit{in silico} (Fig.~\ref{fig:checks}a). With all five taxa, the day-21/day-15 ratio of Pg in DH has a posterior median of 11--13 (one value per seed; 90\% intervals up to $[0.6,32]$; measured 14.9): the model reproduces the late increase, but the data do not determine its size (Section~\ref{sec:limits}). Removing Fn lowers the ratio to 3.0 (90\% interval $[1.0,4.8]$, the same in all seeds), so the increase is reduced about fourfold but not abolished. Setting only $a_{45}=0$ removes it in most samples (median 0.8--0.9 in all seeds), so the increase rests mainly on the Fn--Pg coefficient, partly offset by the other interactions of Fn; the predicted reduction can be tested directly by a co-culture without Fn.
 Under static cultivation the measured increase is smaller (ratio 2.5) and the model reproduces part of it (1.4--1.5); there, removing Fn brings the ratio to 1.0--1.1, whereas $a_{45}=0$ leaves it unchanged (1.5), so the increase in DS is carried by the other interactions of Fn rather than by $a_{45}$.
 \begin{figure}[t]
 \centering
