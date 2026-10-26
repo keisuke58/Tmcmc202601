@@ -70,7 +70,7 @@ Inverse characterisation \sep Bayesian calibration \sep Uncertainty quantificati
 %==============================================================================
 
 Biofilms are soft, living materials: microbial cells embedded in a self-produced matrix whose composition evolves in time and determines their mechanical response~\citep{Klempt2024ContinuumGrowth}.
-On dental implants, a shift in the species composition of the biofilm from a commensal towards a dysbiotic community is associated with peri-implantitis, and \textit{in vitro} models of peri-implant biofilms reproduce such shifts~\citep{heine2025influence}; in the ecological view of oral disease, the shift of the community, rather than a single pathogen, drives disease~\citep{Marsh2003Dental}.
+On dental implants, a shift in the species composition of the biofilm from a commensal towards a dysbiotic community is associated with peri-implantitis~\citep{Szafranski2026Periimplant,Ghensi2020Implant}, and \textit{in vitro} models of peri-implant biofilms reproduce such shifts~\citep{heine2025influence}; in the ecological view of oral disease, the shift of the community, rather than a single pathogen, drives disease~\citep{Marsh2003Dental}.
 Early biofilms on implant abutments \textit{in vivo} already contain disease-associated species~\citep{dieckow2024structure}.
 Which interactions between the species drive such a shift is difficult to measure: co-culture experiments report how the composition changes over time, not the interactions themselves.
 
@@ -223,7 +223,7 @@ Comparing the full model with a model in which $a_{45}=0$, both inferred at stag
 The uniform prior penalises the full model by the log-width of the $a_{45}$ box ($\ln35\approx3.6$ in DS), so $\ln B$ is read only within a condition.
 With the composition alone (stage (i)), $a_{45}$ in DH is positive in all seeds (medians $+4.7$ to $+5.1$, 90\% intervals from $[+0.2,+5.9]$ to $[+2.0,+5.9]$) within the stage-(i) box, which allows only small negative values ($[-0.5,6]$).
 Once the viability enters, on a box widened to $[-5,20]$ in DH, the median of $a_{45}$ stays positive in both dysbiotic conditions ($+0.6$ in DS, $+3.1$ in DH) but the 90\% intervals include zero ($[-0.25,+2.1]$ and $[-2.4,+9.2]$; Supplementary Fig.~\ref{S-fig:post}): $a_{45}$ is constrained but not sign-determined.
-The composition data thus favour a positive Fn--Pg coefficient in the dysbiotic conditions, and the viability data neither confirm nor contradict it.
+The composition data thus favour a positive Fn--Pg coefficient in the dysbiotic conditions, and the viability data neither confirm nor contradict it. Biologically, a positive coefficient need not be a direct pairwise effect: on saliva, \textit{S.~oralis} modulates the Fn--Pg interaction~\citep{Kolenbrander2011Saliva}, and in multispecies communities Fn can integrate commensals and pathogens into a wider nutritional network~\citep{Sakanaka2022Fn}.
 \subsection{Checks against data not used in the inference}
 The pH measured under dynamic cultivation was not used in the inference (Fig.~\ref{fig:checks}b,c).
 A linear regression of the measured pH on the measured species fractions ($R^2=0.88$ over the continuous records of CH and DH) was fitted once and applied, unchanged, to the posterior predictive composition, so the check tests the predicted composition, not a model of pH.
