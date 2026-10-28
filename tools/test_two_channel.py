@@ -34,7 +34,9 @@ def check(c, msg):
 
 cond = ("Commensal", "HOBIC")
 E.DATA_DIR = E.DATA_DIRS["digitised"]  # 比べる相手（final_runs の CH）が読み取りデータの run なので
-d = json.load(open(ROOT / "docs/revision/generated/final_theta_MAP/CH.json"))
+# θ は比べる run 自身の MAP（final_theta_MAP/CH.json は生データ・2 通路に差し替わったので使わない）
+RUN = ROOT / "docs/revision/generated/final_runs_digitised/CH_ult_mut150_wide2_noph_sd4_seed7"
+d = json.load(open(RUN / "theta_MAP.json"))
 th = jnp.array([d[str(i)] for i in range(20)])
 data, t_days, sig, phi0, _ = E.load_experimental_data(E.DATA_DIR, *cond, 1, normalize=True, use_exp_init=True)
 _, idx = E.convert_days_to_model_time(t_days, 1e-4, 2500, day_scale=None)
@@ -50,7 +52,7 @@ lam = {1: 1.0, 2: 1.0, 3: 1.5, 5: 0.0}
 
 # 1. 既定の経路（λ2=0 の論文の設定で、run の max logL と同じ値になるはず）
 ll_old = float(E.make_log_likelihood_jax_ode(**base, lambda_ch={1: 1.0, 2: 0.0, 3: 1.5, 5: 0.0})(th))
-rec = json.load(open(ROOT / "docs/revision/generated/final_runs_digitised/CH_ult_mut150_wide2_noph_sd4_seed7/run_record.json"))
+rec = json.load(open(RUN / "run_record.json"))
 check(abs(ll_old - rec["max_logL"]) < 1e-3, f"既定の経路: logL(MAP) {ll_old:.4f} = run の max logL {rec['max_logL']:.4f}")
 
 # 2. 2 通路（Phase 2）を手で組んだ値と比べる
