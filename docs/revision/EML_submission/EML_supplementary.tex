@@ -285,7 +285,7 @@ Where the stage-(iv) box was narrowed to the stage-(iii) mean $\pm4$\,SD, the un
 
 The threshold 0.8 is a convention. Table~\ref{tab:S_thresh} counts the identified entries for thresholds between 0.5 and 0.9.
 The counts change, most in the commensal conditions, where some entries lie close to 0.8 (CS: 0.77 and 0.81; CH: 0.73 and 0.83), whereas DS has no entry between 0.71 and 0.93.
-The pattern does not change: at every threshold the dysbiotic conditions have at least as many identified entries as the commensal ones, and the entries identified in the commensal conditions are interactions of So, An and Vei; at 0.9 they also include So--Fn and So--Pg, the two entries that are sign-determined in CH.
+The pattern does not change: at every threshold the dysbiotic conditions have at least as many identified entries as the commensal ones, and the entries identified in the commensal conditions are interactions of So, An and Vei; at 0.9 CS also includes So--An ($a_{12}$), the entry that is sign-only at 0.8.
 
 \begin{table}[h]
 \centering
@@ -450,7 +450,7 @@ In both commensal conditions Fn and Pg are mostly dead in the model (0.05--0.11)
 To test whether the CS tension depends on the weights, we minimised the negative log-likelihood of the main text (measured data, two compositions and the live fraction, biofilm-level $\sigma_\ell$) with L-BFGS-B, started from the previous MAP, for $\lambda_\psi=1.5$, 3, 6, 12 and 24 (Fig.~\ref{fig:S_tradeoff}).
 The errors move along a single curve: no weight brings both the composition and the live-fraction errors below 0.1.
 The same holds with the initial state taken from the day-1 data (total-count composition, species viabilities from the data; live-fraction error 0.237 against 0.231) and with a day-specific $\sigma_\ell$ (the between-biofilm SD of each day, at least 0.03), which moves CS along the same curve (live fraction 0.18, viable composition 0.12, total-count composition 0.09).
-In CH the same procedure gives errors of 0.07 (viable), 0.07 (total) and 0.12 (live fraction) at the default weight.
+In CH the same procedure gives errors of 0.06 (viable), 0.08 (total) and 0.12 (live fraction) at the default weight.
 A death term does not remove the tension either. Without antimicrobial agents the term $\alpha^*b_i\psi_i$ of Eq.~\eqref{eq:psi_evol} is inactive; switching it on ($\alpha^*=1$, $b_i\in[0,10]$ added to the parameters) lowers the CS live-fraction error only from 0.23 to 0.22, although it brings the model viabilities closer to those implied by the data (error 0.36 to 0.27; in CH 0.45 to 0.25, where the live-fraction error falls from 0.12 to 0.08). The death rates do not vanish in the flow-reactor condition CH, so the data do not single out the static cultures as the ones that need such a term. Whether the extra parameters are supported by the data would require a model comparison (Bayes factor), which we leave to future work; all results in the main text use $\alpha^*=0$.
 
 \begin{figure}[h]
