@@ -151,7 +151,7 @@ Inference proceeds in four stages on the same data (Fig.~\ref{fig:pipeline}):
 (ii)~as (i), on the box narrowed to the stage-(i) posterior mean $\pm4$\,SD;
 (iii)~full likelihood with $\psi_i$ evolved, back on the full box, half of the initial particles drawn around the stage-(ii) MAP and half from the prior;
 (iv)~as (iii), on the box narrowed to the stage-(iii) posterior mean $\pm4$\,SD.
-A CH stage-(iii) run started entirely from the prior reaches the same maximum log-likelihood and the same posterior of $a_{33}$ and $a_{45}$ as the warm-started seeds (Supplementary Section~S5), so the warm start does not bias stage (iii).
+A CH stage-(iii) run started entirely from the prior gives the same posterior of $a_{45}$ as the warm-started seeds and a maximum log-likelihood of the same order (Supplementary Section~S5), so the warm start does not bias stage (iii).
 A $\pm4$\,SD box removes less than $10^{-4}$ of a Gaussian marginal, so narrowing shortens the tempering without truncating the posterior.
 If more than 20\% of the posterior mass of an entry lies in the outer 5\% of the box on one side, or this fraction grows by more than 0.10 from the previous stage, the bound is moved outwards and the stage is repeated; the boxes finally used are listed in Supplementary Table~S4.
 
@@ -218,7 +218,7 @@ Commensal--dysbiotic comparisons are confounded by design, since the communities
 The coefficient $a_{45}$ links the bridging organism Fn to the pathogen Pg.
 Comparing the full model with a model in which $a_{45}=0$, both inferred at stage (i) with 120 mutation steps so that both groups meet the acceptance criteria, gives $\ln B=-0.06$ (CS) and $+0.03$ (CH) (Supplementary Table~S9): in the commensal conditions the data do not distinguish the two models, as expected for a coefficient between two taxa below 5\%. In the dysbiotic conditions the data favour the full model, $\ln B=+7.5$ (DS) and $+2.1$ (DH), by more than the seed spread of $\ln\hat Z$.
 The uniform prior penalises the full model by the log-width of the $a_{45}$ box ($\ln35\approx3.6$ in DS), so $\ln B$ is read only within a condition.
-With the composition alone (stage (i)), $a_{45}$ in DH is positive in all seeds (medians $+4.7$ to $+5.1$, 90\% intervals from $[+0.2,+5.9]$ to $[+2.0,+5.9]$) within the stage-(i) box, which allows only small negative values ($[-0.5,6]$).
+With the composition alone (stage (i)), $a_{45}$ in DH is positive in all seeds (medians $+4.7$ to $+5.1$, 90\% intervals from $[+0.2,+5.9]$ to $[+2.0,+5.9]$; $+5.2$ in the longer runs used for the Bayes factor) within the stage-(i) box, which allows only small negative values ($[-0.5,6]$).
 Once the viability enters, on a box widened to $[-5,20]$ in DH, the median of $a_{45}$ stays positive in both dysbiotic conditions ($+0.6$ in DS, $+3.1$ in DH) but the 90\% intervals include zero ($[-0.2,+2.1]$ and $[-2.4,+9.2]$; Supplementary Fig.~S2): $a_{45}$ is constrained but not sign-determined.
 The composition data thus favour a positive Fn--Pg coefficient in the dysbiotic conditions, and the viability data neither confirm nor contradict it. This may reflect that \textit{S.~oralis} suppresses the Fn--Pg interaction on saliva~\citep{Kolenbrander2011Saliva}, and that in multispecies communities pairwise interactions are embedded in a wider nutritional network~\citep{Sakanaka2022Fn}.
 \subsection{Checks against data not used in the inference}
