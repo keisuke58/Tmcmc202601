@@ -26,13 +26,13 @@
 \foreach \i/\t/\c in {0/composition/blue!8,1/{+ viability}/orange!12}{
   \node[draw,rounded corners=2pt,fill=\c,minimum width=3.3cm,minimum height=0.7cm,font=\normalsize] at (7.0,3.25-\i*0.9) {\t};}
 \draw[->,thick] (7.0,2.9)--(7.0,2.7);
-\node[align=center,font=\small] at (7.0,1.15) {TMCMC on a GPU (JAX)\\ 3 seeds per stage, explicit\\ convergence and\\ identifiability checks};
+\node[align=center,font=\footnotesize] at (7.0,1.15) {TMCMC on a GPU (JAX)\\ 3 seeds per stage,\\ explicit convergence and\\ identifiability checks};
 % right: results
 \draw[->,line width=1.6pt] (9.1,2.5)--(9.6,2.5);
 \draw[panel] (9.7,0.1) rectangle (12.9,4.9);
 \node[font=\large\bfseries,align=center] at (11.3,4.45) {What the data\\[-2pt] determine};
 \node[align=center,font=\normalsize] at (11.3,3.05) {5--9 of 15\\ interactions\\ constrained};
 \draw[gray!50] (10.0,2.15)--(12.6,2.15);
-\node[align=center,font=\normalsize] at (11.3,1.15) {\textit{in silico}:\\ without \textit{F.~nucleatum},\\ late rise of \textit{P.~gingivalis}\\ reduced fourfold};
+\node[align=center,font=\small] at (11.3,1.15) {\textit{in silico}, without\\ \textit{F.~nucleatum}:\\ late rise of\\ \textit{P.~gingivalis}\\ reduced fourfold};
 \end{tikzpicture}
 \end{document}
