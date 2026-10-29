@@ -6,10 +6,18 @@
 
 ### 1.1 TMCMC (Parameter Estimation)
 
+論文の推定・再計算（`estimate_paper_jax.py`、`tools/two_channel_pilot_v2.py` など）は GPU 版の JAX で回した
+（環境 `klempt_fem2`、RTX 3090 / 4090。`docs/handoff/2026-10-19d_gpu_versions.md`）。
+
 ```bash
-# Python 3.11+ with scientific stack
-pip install numpy scipy matplotlib
+# Python 3.10, JAX 0.6.2 (CUDA 12)
+uv venv --python 3.10 .venv
+uv pip install --python .venv/bin/python "jax[cuda12]==0.6.2" numpy==2.2.6 scipy==1.15.3 pandas matplotlib requests
 ```
+
+- PBS のジョブでは python の前に `unset LD_LIBRARY_PATH`（システムの CUDA と pip の `nvidia-*-cu12` がぶつかる）
+- 確認: `python -c "import jax; jax.config.update('jax_enable_x64', True); print(jax.devices())"` → `[CudaDevice(id=0)]`
+- 確認: `python tools/two_channel_pilot_v2.py --tag CH --rescore <theta_opt を持つ JSON>` → −logL 25.866
 
 ### 1.2 JAX-FEM (Multiscale Coupling)
 
