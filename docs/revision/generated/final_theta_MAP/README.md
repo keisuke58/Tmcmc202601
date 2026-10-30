@@ -6,6 +6,15 @@ TMCMC 論文パイプライン（`data_5species/main/paper_gateoff_job.sh`、ゲ
 磨いていない条件は、粒子の最良値（`theta_MAP.json`）が最大の seed（磨いたら差し替え）。値は `tools/two_channel_pilot_v2.py --rescore` で計算し直して確かめる。
 FEM の要素へは `write_eco_cfg.py --theta-json <ここの json>` で渡す。
 
+`--rescore` は `theta_opt`（長さ 20 のリスト）を持つ JSON を読むので、ここの `<C>.json`（キー "0"〜"19"）から作って渡す:
+
+```bash
+python -c "import json; d = json.load(open('docs/revision/generated/final_theta_MAP/CH.json')); \
+json.dump({'theta_opt': [d[str(i)] for i in range(20)]}, open('/tmp/CH_in.json', 'w'))"
+python tools/two_channel_pilot_v2.py --tag CH --rescore /tmp/CH_in.json --out /tmp/CH_out.json
+# → "CH rescored optimum: -logL 25.866 ..."（同じ実行の "MAP (now ...)" の行は θ を 13b の箱に切るので別の値になる）
+```
+
 | 条件 | ファイル | 元の run | seed | max logL | RMSE（組成） | 状態 |
 |---|---|---|---|---|---|---|
 | CH | `CH.json` | `CH_ult_2c_raw_a33w_seed7`（**磨いた MAP**） | 7 | **−25.87**（磨く前 −27.11） | **0.059**（生きた菌の組成 φψ/Σφψ）・全菌 0.078・生きた割合 0.121 | **確定**（生データ・2 通路、3 seed 全判定 PASS、2026-10-15。10-16 に磨いた MAP へ）。磨く前の seed123（−26.52）と旧 CH（読み取りデータ・1 通路）は `superseded/` |

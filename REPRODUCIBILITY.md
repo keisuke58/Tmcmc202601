@@ -26,6 +26,8 @@ conda create -n klempt_fem python=3.11
 conda activate klempt_fem
 pip install jax[cpu]==0.9.0.1 jax-fem==0.0.11 basix==0.10.0 matplotlib
 
+# 注（2026-10-30）: 慶應のクラスタの klempt_fem / klempt_fem2（jax 0.6.2）には jax-fem・basix が入っていない。
+# 下の版は jax-fem を入れた別の環境のもので、このクラスタでは未確認
 # jax-fem 0.0.11 patch (petsc4py optional)
 # See README.md "JAX-FEM Setup" section for solver.py patch details
 ```
