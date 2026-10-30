@@ -71,10 +71,11 @@ where $c^*$ is the nutrient concentration, $\alpha^*$ the antibiotic concentrati
 The dissipation function is derived from the rate-dependent potential~\citep{Klempt2025ContinuumBiofilm}:
 \begin{equation}
 \Delta = \tfrac{1}{2}\,\dot{\bar{\bphi}}^T\boldsymbol{\eta}\,\dot{\bar{\bphi}}
-          + \tfrac{1}{2}\,\dot{\bphi}^T\boldsymbol{\eta}\,\dot{\bphi},
+          + \tfrac{1}{2}\,\dot{\bphi}^T\boldsymbol{\eta}\,\dot{\bphi}
+          + \tfrac{1}{2}\,\dot\phi_0^2,
 \label{eq:dissipation}
 \end{equation}
-with the diagonal viscosity matrix $\boldsymbol{\eta}=\mathrm{diag}(\eta_1,\dots,\eta_n)$. The first term couples $\dot\phi_i$ and $\dot\psi_i$ through $\dot{\bar\phi}_i = \dot\phi_i\psi_i + \phi_i\dot\psi_i$, giving rise to non-linear dissipative interactions; the second term regularises the system to full rank. Following \citet{Klempt2025ContinuumBiofilm}, the viscosity parameters are set to $\eta_i=1$ for all species, rendering them dimensionless scaling factors; the physical time scale is absorbed into the time-step size $\Delta t$.
+with the diagonal viscosity matrix $\boldsymbol{\eta}=\mathrm{diag}(\eta_1,\dots,\eta_n)$. The first term couples $\dot\phi_i$ and $\dot\psi_i$ through $\dot{\bar\phi}_i = \dot\phi_i\psi_i + \phi_i\dot\psi_i$, giving rise to non-linear dissipative interactions; the second term regularises the system to full rank, and the third, a unit dissipation of the void fraction $\phi_0$, gives Eq.~\eqref{eq:phi0}. Following \citet{Klempt2025ContinuumBiofilm}, the viscosity parameters are set to $\eta_i=1$ for all species, rendering them dimensionless scaling factors; the physical time scale is absorbed into the time-step size $\Delta t$.
 
 The volume constraint~\eqref{eq:constraint} enters through a Lagrange multiplier~$\gamma$:
 \begin{equation}

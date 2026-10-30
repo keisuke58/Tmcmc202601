@@ -104,11 +104,11 @@ As in \citet{Klempt2025ContinuumBiofilm}, the evolution equations result from th
 the local form of the extended Hamilton principle~\citep{JunkerBalzani2021ExtendedHamilton, JunkerBodeHackl2025Holistic, junker2014principle, hackl1997generalized}, with the free energy, dissipation and constraint
 \begin{equation}
 \Psi=-\tfrac12\,c^*\,\bar{\bphi}^{\mathsf T}\mathbf{A}\,\bar{\bphi},\qquad
-\Delta=\tfrac12\,\dot{\bar{\bphi}}^{\mathsf T}\boldsymbol\eta\,\dot{\bar{\bphi}}+\tfrac12\,\dot{\bphi}^{\mathsf T}\boldsymbol\eta\,\dot{\bphi},\qquad
+\Delta=\tfrac12\,\dot{\bar{\bphi}}^{\mathsf T}\boldsymbol\eta\,\dot{\bar{\bphi}}+\tfrac12\,\dot{\bphi}^{\mathsf T}\boldsymbol\eta\,\dot{\bphi}+\tfrac12\,\dot\phi_0^2,\qquad
 C=\gamma\Bigl(\sum_{l=0}^{5}\phi_l-1\Bigr).
 \label{eq:potentials}
 \end{equation}
-Here $c^*$ is the nutrient concentration, $\boldsymbol\eta=\mathrm{diag}(\eta_i)$ with $\eta_i=1$, and $\gamma$ is a Lagrange multiplier (no antibiotic term, as the experiments contain none).
+Here $c^*$ is the nutrient concentration, $\boldsymbol\eta=\mathrm{diag}(\eta_i)$ with $\eta_i=1$, the last term of $\Delta$ is a unit dissipation of the void fraction $\phi_0$ that makes the system regular, and $\gamma$ is a Lagrange multiplier (no antibiotic term, as the experiments contain none).
 For $n=5$ species, stationarity gives $2n+2=12$ coupled non-linear equations, for $i=1,\dots,5$,
 \begin{align}
 0&=-c^*\psi_i(\mathbf{A}\bar{\bphi})_i+\eta_i\bigl(\dot\phi_i\psi_i^2+\bar\phi_i\dot\psi_i+\dot\phi_i\bigr)+\gamma,\label{eq:phi}\\
