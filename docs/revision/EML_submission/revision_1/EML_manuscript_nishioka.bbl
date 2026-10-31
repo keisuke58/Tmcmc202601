@@ -1,0 +1,226 @@
+\begin{thebibliography}{20}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+\providecommand{\url}[1]{\texttt{#1}}
+\providecommand{\href}[2]{#2}
+\providecommand{\path}[1]{#1}
+\providecommand{\DOIprefix}{doi:}
+\providecommand{\ArXivprefix}{arXiv:}
+\providecommand{\URLprefix}{URL: }
+\providecommand{\Pubmedprefix}{pmid:}
+\providecommand{\doi}[1]{\href{http://dx.doi.org/#1}{\path{#1}}}
+\providecommand{\Pubmed}[1]{\href{pmid:#1}{\path{#1}}}
+\providecommand{\bibinfo}[2]{#2}
+\ifx\xfnm\relax \def\xfnm[#1]{\unskip,\space#1}\fi
+%Type = Article
+\bibitem[{Klempt et~al.(2024)Klempt, Soleimani, Wriggers, and
+  Junker}]{Klempt2024ContinuumGrowth}
+\bibinfo{author}{F.~Klempt}, \bibinfo{author}{M.~Soleimani},
+  \bibinfo{author}{P.~Wriggers}, \bibinfo{author}{P.~Junker},
+\newblock \bibinfo{title}{A {Hamilton} principle-based model for
+  diffusion-driven biofilm growth},
+\newblock \bibinfo{journal}{Biomechanics and Modeling in Mechanobiology}
+  \bibinfo{volume}{23} (\bibinfo{year}{2024}) \bibinfo{pages}{2091--2113}.
+  \DOIprefix\doi{10.1007/s10237-024-01883-x}.
+%Type = Article
+\bibitem[{Szafra{\'n}ski et~al.(2026)Szafra{\'n}ski, Joshi, Steglich, Yang, Qu,
+  Behrens, Muthukumarasamy, Melidis, Schaefer-Dreyer, Grischke, Hegermann,
+  Nejdl, H{\"a}ussler, and Stiesch}]{Szafranski2026Periimplant}
+\bibinfo{author}{S.~P. Szafra{\'n}ski}, \bibinfo{author}{A.~A. Joshi},
+  \bibinfo{author}{M.~Steglich}, \bibinfo{author}{I.~Yang},
+  \bibinfo{author}{T.~Qu}, \bibinfo{author}{W.~Behrens},
+  \bibinfo{author}{U.~Muthukumarasamy}, \bibinfo{author}{D.~Melidis},
+  \bibinfo{author}{P.~Schaefer-Dreyer}, \bibinfo{author}{J.~Grischke},
+  \bibinfo{author}{J.~Hegermann}, \bibinfo{author}{W.~Nejdl},
+  \bibinfo{author}{S.~H{\"a}ussler}, \bibinfo{author}{M.~Stiesch},
+\newblock \bibinfo{title}{High-resolution taxonomic profiling and
+  metatranscriptomics identify microbial, biochemical, host, and ecological
+  factors in peri-implant disease},
+\newblock \bibinfo{journal}{mSystems} \bibinfo{volume}{11}
+  (\bibinfo{year}{2026}) \bibinfo{pages}{e00754--25}.
+  \DOIprefix\doi{10.1128/msystems.00754-25}.
+%Type = Article
+\bibitem[{Ghensi et~al.(2020)Ghensi, Manghi, Zolfo, Armanini, Pasolli, Bolzan,
+  Bertelle, Dell'Acqua, Dellasega, Waldner, Tessarolo, Tomasi, and
+  Segata}]{Ghensi2020Implant}
+\bibinfo{author}{P.~Ghensi}, \bibinfo{author}{P.~Manghi},
+  \bibinfo{author}{M.~Zolfo}, \bibinfo{author}{F.~Armanini},
+  \bibinfo{author}{E.~Pasolli}, \bibinfo{author}{M.~Bolzan},
+  \bibinfo{author}{A.~Bertelle}, \bibinfo{author}{F.~Dell'Acqua},
+  \bibinfo{author}{E.~Dellasega}, \bibinfo{author}{R.~Waldner},
+  \bibinfo{author}{F.~Tessarolo}, \bibinfo{author}{C.~Tomasi},
+  \bibinfo{author}{N.~Segata},
+\newblock \bibinfo{title}{Strong oral plaque microbiome signatures for dental
+  implant diseases identified by strain-resolution metagenomics},
+\newblock \bibinfo{journal}{npj Biofilms and Microbiomes} \bibinfo{volume}{6}
+  (\bibinfo{year}{2020}) \bibinfo{pages}{47}.
+  \DOIprefix\doi{10.1038/s41522-020-00155-7}.
+%Type = Article
+\bibitem[{Heine et~al.(2025)Heine, Bittroff, Szafra{\'n}ski, Duitscher,
+  Behrens, Vollmer, Mikolai, Kommerein, Debener, Frings, Heisterkamp, Scheper,
+  Torres-Mapa, Bahnemann, Stiesch, and Doll-Nikutta}]{heine2025influence}
+\bibinfo{author}{N.~Heine}, \bibinfo{author}{K.~Bittroff},
+  \bibinfo{author}{S.~P. Szafra{\'n}ski}, \bibinfo{author}{M.~Duitscher},
+  \bibinfo{author}{W.~Behrens}, \bibinfo{author}{C.~Vollmer},
+  \bibinfo{author}{C.~Mikolai}, \bibinfo{author}{N.~Kommerein},
+  \bibinfo{author}{N.~Debener}, \bibinfo{author}{K.~Frings},
+  \bibinfo{author}{A.~Heisterkamp}, \bibinfo{author}{T.~Scheper},
+  \bibinfo{author}{M.~L. Torres-Mapa}, \bibinfo{author}{J.~Bahnemann},
+  \bibinfo{author}{M.~Stiesch}, \bibinfo{author}{K.~Doll-Nikutta},
+\newblock \bibinfo{title}{Influence of species composition and cultivation
+  condition on peri-implant biofilm dysbiosis in vitro},
+\newblock \bibinfo{journal}{Frontiers in Oral Health} \bibinfo{volume}{6}
+  (\bibinfo{year}{2025}) \bibinfo{pages}{1649419}.
+  \DOIprefix\doi{10.3389/froh.2025.1649419}.
+%Type = Article
+\bibitem[{Marsh(2003)}]{Marsh2003Dental}
+\bibinfo{author}{P.~D. Marsh},
+\newblock \bibinfo{title}{Are dental diseases examples of ecological
+  catastrophes?},
+\newblock \bibinfo{journal}{Microbiology} \bibinfo{volume}{149}
+  (\bibinfo{year}{2003}) \bibinfo{pages}{279--294}.
+  \DOIprefix\doi{10.1099/mic.0.26082-0}.
+%Type = Article
+\bibitem[{Dieckow et~al.(2024)Dieckow, Szafra{\'n}ski, Grischke, Qu,
+  Doll-Nikutta, Steglich, Yang, H{\"a}ussler, and
+  Stiesch}]{dieckow2024structure}
+\bibinfo{author}{S.~Dieckow}, \bibinfo{author}{S.~P. Szafra{\'n}ski},
+  \bibinfo{author}{J.~Grischke}, \bibinfo{author}{T.~Qu},
+  \bibinfo{author}{K.~Doll-Nikutta}, \bibinfo{author}{M.~Steglich},
+  \bibinfo{author}{I.~Yang}, \bibinfo{author}{S.~H{\"a}ussler},
+  \bibinfo{author}{M.~Stiesch},
+\newblock \bibinfo{title}{Structure and composition of early biofilms formed on
+  dental implants are complex, diverse, subject-specific and dynamic},
+\newblock \bibinfo{journal}{npj Biofilms and Microbiomes} \bibinfo{volume}{10}
+  (\bibinfo{year}{2024}) \bibinfo{pages}{155}.
+  \DOIprefix\doi{10.1038/s41522-024-00624-3}.
+%Type = Article
+\bibitem[{Junker and Balzani(2021)}]{JunkerBalzani2021ExtendedHamilton}
+\bibinfo{author}{P.~Junker}, \bibinfo{author}{D.~Balzani},
+\newblock \bibinfo{title}{An extended {Hamilton} principle as unifying theory
+  for coupled problems and dissipative microstructure evolution},
+\newblock \bibinfo{journal}{Continuum Mechanics and Thermodynamics}
+  \bibinfo{volume}{33} (\bibinfo{year}{2021}) \bibinfo{pages}{1931--1956}.
+  \DOIprefix\doi{10.1007/s00161-021-01017-z}.
+%Type = Article
+\bibitem[{Klempt et~al.(2026)Klempt, Geisler, Soleimani, and
+  Junker}]{Klempt2025ContinuumBiofilm}
+\bibinfo{author}{F.~Klempt}, \bibinfo{author}{H.~Geisler},
+  \bibinfo{author}{M.~Soleimani}, \bibinfo{author}{P.~Junker},
+\newblock \bibinfo{title}{A continuum multi-species bacterial growth model with
+  a novel interaction scheme},
+\newblock \bibinfo{journal}{Archive of Applied Mechanics} \bibinfo{volume}{96}
+  (\bibinfo{year}{2026}) \bibinfo{pages}{164}.
+  \DOIprefix\doi{10.1007/s00419-026-03160-y}.
+%Type = Article
+\bibitem[{Fritsch et~al.(2026)Fritsch, Geisler, Grashorn, Klempt, Soleimani,
+  Broggi, Junker, and Beer}]{Fritsch2025BayesianMicrofilms}
+\bibinfo{author}{L.~Fritsch}, \bibinfo{author}{H.~Geisler},
+  \bibinfo{author}{J.~Grashorn}, \bibinfo{author}{F.~Klempt},
+  \bibinfo{author}{M.~Soleimani}, \bibinfo{author}{M.~Broggi},
+  \bibinfo{author}{P.~Junker}, \bibinfo{author}{M.~Beer},
+\newblock \bibinfo{title}{{B}ayesian {U}pdating of constitutive parameters
+  under hybrid uncertainties with a novel surrogate model applied to biofilms},
+\newblock \bibinfo{journal}{Computational Mechanics} \bibinfo{volume}{78}
+  (\bibinfo{year}{2026}) \bibinfo{pages}{761--782}.
+  \DOIprefix\doi{10.1007/s00466-026-02777-8}.
+%Type = Article
+\bibitem[{Ching and Chen(2007)}]{ChingChen2007TMCMC}
+\bibinfo{author}{J.~Ching}, \bibinfo{author}{Y.-C. Chen},
+\newblock \bibinfo{title}{Transitional {Markov} chain {Monte} {Carlo} method
+  for {Bayesian} model updating, model class selection, and model averaging},
+\newblock \bibinfo{journal}{Journal of Engineering Mechanics}
+  \bibinfo{volume}{133} (\bibinfo{year}{2007}) \bibinfo{pages}{816--832}.
+%Type = Article
+\bibitem[{Betz et~al.(2016)Betz, Papaioannou, and Straub}]{Betz2016TMCMC}
+\bibinfo{author}{W.~Betz}, \bibinfo{author}{I.~Papaioannou},
+  \bibinfo{author}{D.~Straub},
+\newblock \bibinfo{title}{Transitional {Markov} chain {Monte} {Carlo}:
+  Observations and improvements},
+\newblock \bibinfo{journal}{Journal of Engineering Mechanics}
+  \bibinfo{volume}{142} (\bibinfo{year}{2016}) \bibinfo{pages}{04016016}.
+%Type = Misc
+\bibitem[{Bradbury et~al.(2018)Bradbury, Frostig, Hawkins, Johnson, Leary,
+  Maclaurin, Necula, Paszke, VanderPlas, Wanderman-Milne, and
+  Zhang}]{jax2018github}
+\bibinfo{author}{J.~Bradbury}, \bibinfo{author}{R.~Frostig},
+  \bibinfo{author}{P.~Hawkins}, \bibinfo{author}{M.~J. Johnson},
+  \bibinfo{author}{C.~Leary}, \bibinfo{author}{D.~Maclaurin},
+  \bibinfo{author}{G.~Necula}, \bibinfo{author}{A.~Paszke},
+  \bibinfo{author}{J.~VanderPlas}, \bibinfo{author}{S.~Wanderman-Milne},
+  \bibinfo{author}{Q.~Zhang}, \bibinfo{title}{{JAX}: Composable transformations
+  of {Python}+{NumPy} programs}, \bibinfo{year}{2018}. \URLprefix
+  \url{https://github.com/google/jax}.
+%Type = Article
+\bibitem[{Junker et~al.(2025)Junker, Bode, and
+  Hackl}]{JunkerBodeHackl2025Holistic}
+\bibinfo{author}{P.~Junker}, \bibinfo{author}{T.~Bode},
+  \bibinfo{author}{K.~Hackl},
+\newblock \bibinfo{title}{On a holistic variational formulation for material
+  modeling including dissipative evolution},
+\newblock \bibinfo{journal}{Journal of the Mechanics and Physics of Solids}
+  \bibinfo{volume}{200} (\bibinfo{year}{2025}) \bibinfo{pages}{106133}.
+  \DOIprefix\doi{10.1016/j.jmps.2025.106133}.
+%Type = Article
+\bibitem[{Junker et~al.(2014)Junker, Makowski, and Hackl}]{junker2014principle}
+\bibinfo{author}{P.~Junker}, \bibinfo{author}{J.~Makowski},
+  \bibinfo{author}{K.~Hackl},
+\newblock \bibinfo{title}{The principle of the minimum of the dissipation
+  potential for non-isothermal processes},
+\newblock \bibinfo{journal}{Continuum Mechanics and Thermodynamics}
+  \bibinfo{volume}{26} (\bibinfo{year}{2014}) \bibinfo{pages}{259--268}.
+  \DOIprefix\doi{10.1007/s00161-013-0299-4}.
+%Type = Article
+\bibitem[{Hackl(1997)}]{hackl1997generalized}
+\bibinfo{author}{K.~Hackl},
+\newblock \bibinfo{title}{Generalized standard media and variational principles
+  in classical and finite elastoplasticity},
+\newblock \bibinfo{journal}{Journal of the Mechanics and Physics of Solids}
+  \bibinfo{volume}{45} (\bibinfo{year}{1997}) \bibinfo{pages}{667--688}.
+  \DOIprefix\doi{10.1016/S0022-5096(96)00110-X}.
+%Type = Article
+\bibitem[{Del~Moral et~al.(2006)Del~Moral, Doucet, and Jasra}]{DelMoral2006SMC}
+\bibinfo{author}{P.~Del~Moral}, \bibinfo{author}{A.~Doucet},
+  \bibinfo{author}{A.~Jasra},
+\newblock \bibinfo{title}{Sequential {Monte} {Carlo} samplers},
+\newblock \bibinfo{journal}{Journal of the Royal Statistical Society: Series B}
+  \bibinfo{volume}{68} (\bibinfo{year}{2006}) \bibinfo{pages}{411--436}.
+%Type = Article
+\bibitem[{ter Braak(2006)}]{terBraak2006DEMC}
+\bibinfo{author}{C.~J.~F. ter Braak},
+\newblock \bibinfo{title}{A {Markov} chain {Monte} {Carlo} version of the
+  genetic algorithm {Differential} {Evolution}: easy {Bayesian} computing for
+  real parameter spaces},
+\newblock \bibinfo{journal}{Statistics and Computing} \bibinfo{volume}{16}
+  (\bibinfo{year}{2006}) \bibinfo{pages}{239--249}.
+  \DOIprefix\doi{10.1007/s11222-006-8769-1}.
+%Type = Article
+\bibitem[{Kolenbrander et~al.(2010)Kolenbrander, Palmer~Jr., Periasamy, and
+  Jakubovics}]{Kolenbrander2010OralMultispecies}
+\bibinfo{author}{P.~E. Kolenbrander}, \bibinfo{author}{R.~J. Palmer~Jr.},
+  \bibinfo{author}{S.~Periasamy}, \bibinfo{author}{N.~S. Jakubovics},
+\newblock \bibinfo{title}{Oral multispecies biofilm development and the key
+  role of cell--cell distance},
+\newblock \bibinfo{journal}{Nature Reviews Microbiology} \bibinfo{volume}{8}
+  (\bibinfo{year}{2010}) \bibinfo{pages}{471--480}.
+%Type = Article
+\bibitem[{Kolenbrander(2011)}]{Kolenbrander2011Saliva}
+\bibinfo{author}{P.~E. Kolenbrander},
+\newblock \bibinfo{title}{Multispecies communities: interspecies interactions
+  influence growth on saliva as sole nutritional source},
+\newblock \bibinfo{journal}{International Journal of Oral Science}
+  \bibinfo{volume}{3} (\bibinfo{year}{2011}) \bibinfo{pages}{49--54}.
+  \DOIprefix\doi{10.4248/IJOS11025}.
+%Type = Article
+\bibitem[{Sakanaka et~al.(2022)Sakanaka, Kuboniwa, Shimma, Alghamdi, Mayumi,
+  Lamont, Fukusaki, and Amano}]{Sakanaka2022Fn}
+\bibinfo{author}{A.~Sakanaka}, \bibinfo{author}{M.~Kuboniwa},
+  \bibinfo{author}{S.~Shimma}, \bibinfo{author}{S.~A. Alghamdi},
+  \bibinfo{author}{S.~Mayumi}, \bibinfo{author}{R.~J. Lamont},
+  \bibinfo{author}{E.~Fukusaki}, \bibinfo{author}{A.~Amano},
+\newblock \bibinfo{title}{\textit{Fusobacterium nucleatum} metabolically
+  integrates commensals and pathogens in oral biofilms},
+\newblock \bibinfo{journal}{mSystems} \bibinfo{volume}{7}
+  (\bibinfo{year}{2022}) \bibinfo{pages}{e00170--22}.
+  \DOIprefix\doi{10.1128/msystems.00170-22}.
+
+\end{thebibliography}

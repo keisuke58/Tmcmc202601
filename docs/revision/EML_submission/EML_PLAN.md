@@ -410,6 +410,7 @@ RMSE（Day 3〜21、重みなし）。`docs/revision/generated/two_channel_pilot
 - **修論の図**: 図 3.6（eml_seed_maps）を修論用に描き直し（16 cm 幅・Times・箱ひげ・Day 1 の初期値）、pde-fem-biofilm 736a0b5。図 3.2 は前の版のまま（ユーザー判断）。
 
 ## 25. 投稿後に見つけた誤植（2026-10-30）
+- **2026-10-31：修正版は `revision_1/` にまとめた**（投稿版のコピー＋下の 3 点を修正、本文・補足ともビルド済み、一覧と回答書の文案は `revision_1/CHANGES.md`）。査読対応はここに続けて直す。`submission_source/` に投稿した補足 PDF も記録として追加。
 - **Eq. (4)（ψ の式）の「+γ」は誤植**。拘束 C=γ(Σφ−1) は ψ を含まないので ψ の式に γ は出ない。計算コード（`data_5species/main/hamilton_ode_jax_paper.py` の residual）と元の式にも γ はない → 結果・図は影響なし。
 - 補足 Eq. (S5 付近、eq:psi_evol) にも同じ誤植 → 修正済み。
 - `EML_manuscript_nishioka.tex` は修正済み。`submission_source/` は投稿版の記録なのでそのまま。修正版（査読後）でこの版を使う。査読で聞かれたら「誤植、コードは正しい式」と答える。
